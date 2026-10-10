@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+*.log
+.vite
+coverage
+.playwright
+test-results
+.claude/scheduled_tasks.lock
+release

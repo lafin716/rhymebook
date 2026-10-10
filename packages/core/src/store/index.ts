@@ -1,0 +1,666 @@
+import { createStore, type StoreApi } from 'zustand/vanilla';
+import {
+  branchQuestion,
+  buildChatRequest,
+  buildSummaryRequest,
+  buildTitleRequest,
+  cleanTitle,
+  type MessageMap,
+} from '../context';
+import { newId } from '../id';
+import type {
+  Anchor,
+  BranchKind,
+  ConnectionState,
+  ID,
+  Message,
+  Overlay,
+  PopupWindow,
+  ProviderId,
+  Session,
+  Settings,
+  SummaryDraft,
+  ThemePref,
+  ViewMode,
+  ViewState,
+} from '../model';
+import { MAX_SPLIT } from '../model';
+import { collectStream, providerError, type ProviderError, type ProviderRegistry } from '../provider';
+import { memoryRepository, type Repository } from '../repo';
+import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
+import { descendantIds, type SessionMap } from '../tree';
+
+export const NEW_SESSION_TITLE = '새 학습';
+
+/** 스트리밍 중 부분 응답 저장 간격(ms) */
+export const STREAM_SAVE_INTERVAL = 1000;
+
+export type OpenTarget = 'main' | 'split' | 'popup' | 'sheet';
+
+export interface AppData {
+  sessions: SessionMap;
+  messages: MessageMap;
+  view: ViewState;
+  settings: Settings;
+  connections: Record<ProviderId, ConnectionState>;
+}
+
+export interface AppState extends AppData {
+  summaryDrafts: Record<ID, SummaryDraft>;
+  overlay: Overlay;
+  /** sessionId → 스트리밍 중인 assistant 메시지 id */
+  streaming: Record<ID, ID>;
+
+  // 데이터 교체 (시드/시나리오/영속화 로드)
+  load(data: Partial<AppData>): void;
+
+  // 세션
+  newRootSession(): ID;
+  deleteSession(id: ID): void;
+  renameSession(id: ID, title: string): void;
+  setSessionProvider(id: ID, providerId: ProviderId | undefined): void;
+
+  // 메시지
+  sendMessage(sessionId: ID, text: string): void;
+  stopStream(sessionId: ID): void;
+  /** 마지막 실패/중지 응답을 다시 생성. providerId를 주면 세션 provider를 바꾼 뒤 재시도 */
+  retry(sessionId: ID, providerId?: ProviderId): void;
+
+  // 가지
+  createBranch(parentSessionId: ID, anchor: Anchor, kind: BranchKind, customQuestion?: string): ID;
+
+  // 요약
+  requestSummary(sessionId: ID): Promise<void>;
+  updateSummaryDraft(sessionId: ID, text: string): void;
+  discardSummaryDraft(sessionId: ID): void;
+  attachSummary(sessionId: ID, text?: string): void;
+  removeSummary(sessionId: ID): void;
+
+  // 보기
+  openSession(id: ID, target?: OpenTarget): void;
+  setMode(mode: ViewMode): void;
+  closeSplit(index: number): void;
+  focusSplit(index: number): void;
+  setSplitSizes(sizes: number[]): void;
+  movePopup(popupId: ID, rect: Partial<Pick<PopupWindow, 'x' | 'y' | 'w' | 'h'>>): void;
+  focusPopup(popupId: ID): void;
+  closePopup(popupId: ID): void;
+  /** 팝업을 분할 패널로 옮긴다 */
+  dockPopup(popupId: ID): void;
+  closeSheet(): void;
+  closeAllSheets(): void;
+  setOverlay(overlay: Overlay): void;
+
+  // 설정/연결
+  setTheme(theme: ThemePref): void;
+  updateSettings(patch: Partial<Settings>): void;
+  setConnection(providerId: ProviderId, patch: Partial<ConnectionState>): void;
+  /** 각 provider의 available()로 연결 상태를 다시 확인한다 (enabled/model은 유지) */
+  refreshConnections(ids?: ProviderId[]): Promise<void>;
+}
+
+export interface AppStoreOptions {
+  registry: ProviderRegistry;
+  repo?: Repository;
+  initial?: Partial<AppData>;
+  /** 팝업 기본 위치 계산용 뷰포트 크기 */
+  viewport?: () => { width: number; height: number };
+}
+
+export type AppStore = StoreApi<AppState>;
+
+/** 세션에 적용될 provider id */
+export function effectiveProviderId(state: Pick<AppData, 'sessions' | 'settings'>, sessionId: ID): ProviderId {
+  return state.sessions[sessionId]?.providerId ?? state.settings.defaultProviderId;
+}
+
+/** 현재 provider 다음으로 쓸 수 있는(ready & enabled) 대체 provider */
+export function nextFallback(
+  state: Pick<AppData, 'settings' | 'connections'>,
+  current: ProviderId,
+): ProviderId | null {
+  for (const id of state.settings.fallbackOrder) {
+    if (id === current) continue;
+    const c = state.connections[id];
+    if (c && c.enabled && c.status === 'ready') return id;
+  }
+  return null;
+}
+
+export function createAppStore(opts: AppStoreOptions): AppStore {
+  const { registry } = opts;
+  const repo = opts.repo ?? memoryRepository();
+  const viewport = opts.viewport ?? (() => ({ width: 1280, height: 800 }));
+  const controllers = new Map<ID, AbortController>();
+  const summaryControllers = new Map<ID, AbortController>();
+
+  const store = createStore<AppState>()((set, get) => {
+    // ── 내부 헬퍼 ─────────────────────────────────────────
+    const patchSession = (id: ID, patch: Partial<Session>) => {
+      const cur = get().sessions[id];
+      if (!cur) return;
+      const next = { ...cur, ...patch };
+      set((s) => ({ sessions: { ...s.sessions, [id]: next } }));
+      repo.saveSession(next);
+    };
+
+    const putMessage = (m: Message, persist = true) => {
+      let index = 0;
+      set((s) => {
+        const list = s.messages[m.sessionId] ?? [];
+        const idx = list.findIndex((x) => x.id === m.id);
+        index = idx >= 0 ? idx : list.length;
+        const next = idx >= 0 ? list.map((x, i) => (i === idx ? m : x)) : [...list, m];
+        return { messages: { ...s.messages, [m.sessionId]: next } };
+      });
+      if (persist) repo.saveMessage(m, index);
+    };
+
+    const getMessage = (sessionId: ID, messageId: ID) =>
+      get().messages[sessionId]?.find((m) => m.id === messageId);
+
+    const setView = (fn: (v: ViewState) => ViewState) => {
+      const next = fn(get().view);
+      set({ view: next });
+      repo.saveView(next);
+    };
+
+    const touch = (sessionId: ID) => patchSession(sessionId, { updatedAt: Date.now() });
+
+    const maybeTitle = async (sessionId: ID) => {
+      const s = get().sessions[sessionId];
+      if (!s || s.parentId !== null || s.title !== NEW_SESSION_TITLE) return;
+      const provider = registry.get(effectiveProviderId(get(), sessionId));
+      if (!provider) return;
+      try {
+        const raw = await collectStream(provider, buildTitleRequest(get().messages[sessionId] ?? []));
+        const title = cleanTitle(raw);
+        if (title && get().sessions[sessionId]?.title === NEW_SESSION_TITLE) patchSession(sessionId, { title });
+      } catch {
+        // 제목 생성 실패는 무시 (다음 응답 후 재시도)
+      }
+    };
+
+    /** assistant 메시지 하나를 스트리밍으로 채운다 */
+    const runAssistant = async (sessionId: ID, messageId: ID) => {
+      const providerId = effectiveProviderId(get(), sessionId);
+      const provider = registry.get(providerId);
+      const fail = (error: ProviderError, content?: string) => {
+        const m = getMessage(sessionId, messageId);
+        if (!m) return;
+        putMessage({
+          ...m,
+          content: content ?? m.content,
+          status: error.code === 'aborted' ? 'stopped' : 'error',
+          ...(error.code === 'aborted' ? {} : { error: { code: error.code, message: error.message } }),
+        });
+      };
+      const finish = () => {
+        controllers.delete(sessionId);
+        set((s) => {
+          const streaming = { ...s.streaming };
+          delete streaming[sessionId];
+          return { streaming };
+        });
+      };
+
+      if (!provider) {
+        fail(providerError('unknown', `등록되지 않은 provider: ${providerId}`));
+        finish();
+        return;
+      }
+
+      const ctrl = new AbortController();
+      controllers.set(sessionId, ctrl);
+      set((s) => ({ streaming: { ...s.streaming, [sessionId]: messageId } }));
+
+      const state = get();
+      const req = buildChatRequest({
+        sessions: state.sessions,
+        messages: state.messages,
+        sessionId,
+        contextWindow: state.settings.contextWindow,
+      });
+      req.signal = ctrl.signal;
+
+      let text = '';
+      let ok = false;
+      // 생성 중에도 주기적으로 저장해 새로고침/종료 시 부분 응답을 남긴다
+      let savedAt = Date.now();
+      try {
+        for await (const ev of provider.stream(req)) {
+          if (ev.type === 'delta') {
+            text += ev.text;
+            const m = getMessage(sessionId, messageId);
+            const persist = Date.now() - savedAt >= STREAM_SAVE_INTERVAL;
+            if (persist) savedAt = Date.now();
+            if (m) putMessage({ ...m, content: text }, persist);
+          } else if (ev.type === 'error') {
+            fail(ev.error, text);
+            break;
+          } else {
+            const m = getMessage(sessionId, messageId);
+            if (m) putMessage({ ...m, content: text, status: 'done' });
+            ok = true;
+          }
+        }
+      } catch (e) {
+        fail(providerError('unknown', e instanceof Error ? e.message : String(e)), text);
+      } finally {
+        finish();
+      }
+      touch(sessionId);
+      if (ok) void maybeTitle(sessionId);
+    };
+
+    const startAssistant = (sessionId: ID) => {
+      const msg: Message = {
+        id: newId('m'),
+        sessionId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        status: 'streaming',
+        providerId: effectiveProviderId(get(), sessionId),
+      };
+      putMessage(msg);
+      void runAssistant(sessionId, msg.id);
+    };
+
+    const nextPopup = (sessionId: ID, z: number): PopupWindow => {
+      const { width, height } = viewport();
+      const n = get().view.popups.length;
+      const w = Math.min(440, Math.max(320, Math.round(width * 0.32)));
+      const h = Math.min(560, Math.max(360, Math.round(height * 0.62)));
+      return {
+        id: newId('p'),
+        sessionId,
+        w,
+        h,
+        x: Math.max(16, width - w - 40 - n * 28),
+        y: Math.max(16, 88 + n * 28),
+        z,
+      };
+    };
+
+    const topZ = () => get().view.popups.reduce((acc, p) => Math.max(acc, p.z), 0);
+
+    // ── 공개 상태/액션 ─────────────────────────────────────
+    const initial = opts.initial ?? {};
+    return {
+      sessions: initial.sessions ?? {},
+      messages: initial.messages ?? {},
+      view: initial.view ?? emptyView(),
+      settings: initial.settings ?? DEFAULT_SETTINGS,
+      connections: initial.connections ?? defaultConnections(),
+      summaryDrafts: {},
+      overlay: 'none',
+      streaming: {},
+
+      load(data) {
+        for (const c of [...controllers.values(), ...summaryControllers.values()]) c.abort();
+        controllers.clear();
+        summaryControllers.clear();
+        set((s) => ({
+          sessions: data.sessions ?? s.sessions,
+          messages: data.messages ?? s.messages,
+          view: data.view ?? s.view,
+          settings: data.settings ?? s.settings,
+          connections: data.connections ?? s.connections,
+          summaryDrafts: {},
+          streaming: {},
+          overlay: 'none',
+        }));
+      },
+
+      newRootSession() {
+        const id = newId('s');
+        const now = Date.now();
+        const s: Session = { id, parentId: null, rootId: id, title: NEW_SESSION_TITLE, createdAt: now, updatedAt: now };
+        set((st) => ({ sessions: { ...st.sessions, [id]: s }, messages: { ...st.messages, [id]: [] } }));
+        repo.saveSession(s);
+        setView(() => emptyView(id));
+        return id;
+      },
+
+      deleteSession(id) {
+        const ids = descendantIds(get().sessions, id);
+        if (!ids.length) return;
+        for (const sid of ids) controllers.get(sid)?.abort();
+        const gone = new Set(ids);
+        const parentId = get().sessions[id]?.parentId ?? null;
+        set((s) => {
+          const sessions = { ...s.sessions };
+          const messages = { ...s.messages };
+          for (const sid of ids) {
+            delete sessions[sid];
+            delete messages[sid];
+          }
+          return { sessions, messages };
+        });
+        repo.deleteSessions(ids);
+        setView((v) => {
+          const split = v.splitSessionIds.filter((x) => !gone.has(x));
+          const active = v.activeSessionId && gone.has(v.activeSessionId) ? parentId : v.activeSessionId;
+          return {
+            ...v,
+            activeSessionId: active,
+            splitSessionIds: split,
+            mode: v.mode === 'split' && split.length < 2 ? 'single' : v.mode,
+            focusedSplitIndex: Math.min(v.focusedSplitIndex, Math.max(0, split.length - 1)),
+            popups: v.popups.filter((p) => !gone.has(p.sessionId)),
+            sheetSessionIds: v.sheetSessionIds.filter((x) => !gone.has(x)),
+          };
+        });
+      },
+
+      renameSession(id, title) {
+        const t = title.trim();
+        if (t) patchSession(id, { title: t });
+      },
+
+      setSessionProvider(id, providerId) {
+        const cur = get().sessions[id];
+        if (!cur) return;
+        const next: Session = { ...cur };
+        if (providerId) next.providerId = providerId;
+        else delete next.providerId;
+        set((s) => ({ sessions: { ...s.sessions, [id]: next } }));
+        repo.saveSession(next);
+      },
+
+      sendMessage(sessionId, text) {
+        const content = text.trim();
+        if (!content || !get().sessions[sessionId] || get().streaming[sessionId]) return;
+        putMessage({ id: newId('m'), sessionId, role: 'user', content, createdAt: Date.now() });
+        touch(sessionId);
+        startAssistant(sessionId);
+      },
+
+      stopStream(sessionId) {
+        controllers.get(sessionId)?.abort();
+      },
+
+      retry(sessionId, providerId) {
+        if (get().streaming[sessionId]) return;
+        if (providerId) get().setSessionProvider(sessionId, providerId);
+        const list = get().messages[sessionId] ?? [];
+        const last = list[list.length - 1];
+        if (!last) return;
+        if (last.role === 'assistant' && (last.status === 'error' || last.status === 'stopped')) {
+          set((s) => ({ messages: { ...s.messages, [sessionId]: list.slice(0, -1) } }));
+          repo.deleteMessage(last.id);
+        } else if (last.role !== 'user') {
+          return;
+        }
+        startAssistant(sessionId);
+      },
+
+      createBranch(parentSessionId, anchor, kind, customQuestion) {
+        const parent = get().sessions[parentSessionId];
+        if (!parent) throw new Error(`unknown session ${parentSessionId}`);
+        const id = newId('s');
+        const now = Date.now();
+        const title = anchor.text.length > 24 ? `${anchor.text.slice(0, 24)}…` : anchor.text;
+        const s: Session = {
+          id,
+          parentId: parent.id,
+          rootId: parent.rootId,
+          title,
+          anchor,
+          ...(parent.providerId ? { providerId: parent.providerId } : {}),
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((st) => ({ sessions: { ...st.sessions, [id]: s }, messages: { ...st.messages, [id]: [] } }));
+        repo.saveSession(s);
+        touch(parent.id);
+        const q = kind === 'custom' ? (customQuestion ?? '').trim() : branchQuestion(kind, anchor.text);
+        get().sendMessage(id, q || branchQuestion('what', anchor.text));
+        return id;
+      },
+
+      async requestSummary(sessionId) {
+        const s = get().sessions[sessionId];
+        if (!s?.parentId) return;
+        const provider = registry.get(effectiveProviderId(get(), sessionId));
+        // 이전 요청이 남아 있으면 중단 (폐기 후 재요청 시 늦게 도착한 응답이 새 초안을 덮지 않도록)
+        summaryControllers.get(sessionId)?.abort();
+        const ctrl = new AbortController();
+        summaryControllers.set(sessionId, ctrl);
+        const current = () => summaryControllers.get(sessionId) === ctrl;
+        const setDraft = (d: SummaryDraft) => {
+          if (current()) set((st) => ({ summaryDrafts: { ...st.summaryDrafts, [sessionId]: d } }));
+        };
+        if (!provider) {
+          setDraft({ status: 'error', text: '', message: 'provider를 찾을 수 없습니다.' });
+          summaryControllers.delete(sessionId);
+          return;
+        }
+        setDraft({ status: 'generating', text: '' });
+        let partial = '';
+        try {
+          const req = buildSummaryRequest(s, get().messages[sessionId] ?? []);
+          req.signal = ctrl.signal;
+          const text = await collectStream(provider, req, (t) => {
+            partial = t;
+            setDraft({ status: 'generating', text: t });
+          });
+          setDraft({ status: 'ready', text: text.trim() });
+        } catch (e) {
+          const err = e as Partial<ProviderError>;
+          if (err?.code !== 'aborted') {
+            // 부분 결과는 보존해 사용자가 편집하거나 다시 시도할 수 있게 한다
+            setDraft({ status: 'error', text: partial.trim(), message: err?.message ?? '요약 생성에 실패했습니다.' });
+          }
+        } finally {
+          if (current()) summaryControllers.delete(sessionId);
+        }
+      },
+
+      updateSummaryDraft(sessionId, text) {
+        const d = get().summaryDrafts[sessionId];
+        if (d?.status === 'ready') set((st) => ({ summaryDrafts: { ...st.summaryDrafts, [sessionId]: { ...d, text } } }));
+      },
+
+      discardSummaryDraft(sessionId) {
+        summaryControllers.get(sessionId)?.abort();
+        summaryControllers.delete(sessionId);
+        set((st) => {
+          const summaryDrafts = { ...st.summaryDrafts };
+          delete summaryDrafts[sessionId];
+          return { summaryDrafts };
+        });
+      },
+
+      attachSummary(sessionId, text) {
+        const t = (text ?? get().summaryDrafts[sessionId]?.text ?? '').trim();
+        if (!t) return;
+        patchSession(sessionId, { summary: t, updatedAt: Date.now() });
+        get().discardSummaryDraft(sessionId);
+      },
+
+      removeSummary(sessionId) {
+        const cur = get().sessions[sessionId];
+        if (!cur) return;
+        const next = { ...cur };
+        delete next.summary;
+        set((s) => ({ sessions: { ...s.sessions, [sessionId]: next } }));
+        repo.saveSession(next);
+      },
+
+      openSession(id, target = 'main') {
+        if (!get().sessions[id]) return;
+        set({ overlay: 'none' });
+        if (target === 'main') {
+          setView((v) => {
+            if (v.mode === 'split' && v.splitSessionIds.length) {
+              const existing = v.splitSessionIds.indexOf(id);
+              if (existing >= 0) return { ...v, focusedSplitIndex: existing };
+              const split = [...v.splitSessionIds];
+              split[v.focusedSplitIndex] = id;
+              return { ...v, splitSessionIds: split, activeSessionId: id, sheetSessionIds: [] };
+            }
+            return { ...v, mode: 'single', activeSessionId: id, sheetSessionIds: [] };
+          });
+          return;
+        }
+        if (target === 'split') {
+          setView((v) => {
+            const base =
+              v.mode === 'split' && v.splitSessionIds.length
+                ? v.splitSessionIds
+                : v.activeSessionId
+                  ? [v.activeSessionId]
+                  : [];
+            const existing = base.indexOf(id);
+            if (existing >= 0) return { ...v, mode: 'split', splitSessionIds: base, focusedSplitIndex: existing };
+            const split = base.length >= MAX_SPLIT ? [...base.slice(0, MAX_SPLIT - 1), id] : [...base, id];
+            const sizesChanged = split.length !== (v.splitSessionIds.length || 0);
+            const next: ViewState = {
+              ...v,
+              mode: 'split',
+              splitSessionIds: split,
+              focusedSplitIndex: split.length - 1,
+              popups: v.popups.filter((p) => p.sessionId !== id),
+              sheetSessionIds: [],
+            };
+            if (sizesChanged) delete next.splitSizes;
+            return next;
+          });
+          return;
+        }
+        if (target === 'popup') {
+          setView((v) => {
+            const z = topZ() + 1;
+            const existing = v.popups.find((p) => p.sessionId === id);
+            if (existing) return { ...v, popups: v.popups.map((p) => (p.id === existing.id ? { ...p, z } : p)) };
+            return { ...v, popups: [...v.popups, nextPopup(id, z)] };
+          });
+          return;
+        }
+        setView((v) => ({ ...v, sheetSessionIds: [...v.sheetSessionIds.filter((x) => x !== id), id] }));
+      },
+
+      setMode(mode) {
+        setView((v) => {
+          if (mode === 'split') {
+            const split = v.splitSessionIds.length ? v.splitSessionIds : v.activeSessionId ? [v.activeSessionId] : [];
+            return { ...v, mode, splitSessionIds: split, focusedSplitIndex: Math.min(v.focusedSplitIndex, Math.max(0, split.length - 1)) };
+          }
+          if (mode === 'single' && v.mode === 'split') {
+            const focused = v.splitSessionIds[v.focusedSplitIndex] ?? v.activeSessionId;
+            return { ...v, mode, activeSessionId: focused };
+          }
+          return { ...v, mode };
+        });
+      },
+
+      closeSplit(index) {
+        setView((v) => {
+          const split = v.splitSessionIds.filter((_, i) => i !== index);
+          const next: ViewState = {
+            ...v,
+            splitSessionIds: split,
+            focusedSplitIndex: Math.min(v.focusedSplitIndex, Math.max(0, split.length - 1)),
+          };
+          delete next.splitSizes;
+          if (split.length <= 1) {
+            next.mode = 'single';
+            next.activeSessionId = split[0] ?? v.activeSessionId;
+            next.splitSessionIds = [];
+            next.focusedSplitIndex = 0;
+          }
+          return next;
+        });
+      },
+
+      focusSplit(index) {
+        setView((v) => ({
+          ...v,
+          focusedSplitIndex: index,
+          activeSessionId: v.splitSessionIds[index] ?? v.activeSessionId,
+        }));
+      },
+
+      setSplitSizes(sizes) {
+        setView((v) => ({ ...v, splitSizes: sizes }));
+      },
+
+      movePopup(popupId, rect) {
+        setView((v) => ({ ...v, popups: v.popups.map((p) => (p.id === popupId ? { ...p, ...rect } : p)) }));
+      },
+
+      focusPopup(popupId) {
+        const z = topZ();
+        const p = get().view.popups.find((x) => x.id === popupId);
+        if (!p || p.z === z) return;
+        setView((v) => ({ ...v, popups: v.popups.map((x) => (x.id === popupId ? { ...x, z: z + 1 } : x)) }));
+      },
+
+      closePopup(popupId) {
+        setView((v) => ({ ...v, popups: v.popups.filter((p) => p.id !== popupId) }));
+      },
+
+      dockPopup(popupId) {
+        const p = get().view.popups.find((x) => x.id === popupId);
+        if (!p) return;
+        get().closePopup(popupId);
+        get().openSession(p.sessionId, 'split');
+      },
+
+      closeSheet() {
+        setView((v) => ({ ...v, sheetSessionIds: v.sheetSessionIds.slice(0, -1) }));
+      },
+
+      closeAllSheets() {
+        setView((v) => ({ ...v, sheetSessionIds: [] }));
+      },
+
+      setOverlay(overlay) {
+        set({ overlay });
+      },
+
+      setTheme(theme) {
+        get().updateSettings({ theme });
+      },
+
+      updateSettings(patch) {
+        const next = { ...get().settings, ...patch };
+        set({ settings: next });
+        repo.saveSettings(next);
+      },
+
+      setConnection(providerId, patch) {
+        const cur = get().connections[providerId];
+        const next = { ...get().connections, [providerId]: { ...cur, ...patch, providerId } };
+        set({ connections: next });
+        repo.saveConnections(Object.values(next));
+      },
+
+      async refreshConnections(ids) {
+        const targets = ids ?? registry.list().map((p) => p.id);
+        await Promise.all(
+          targets.map(async (id) => {
+            const p = registry.get(id);
+            if (!p) return;
+            const cur = get().connections[id];
+            get().setConnection(id, { status: 'checking', enabled: cur?.enabled ?? true });
+            let status: ConnectionState['status'] = 'offline';
+            let detail: string | undefined;
+            try {
+              const a = await p.available();
+              status = a.status;
+              detail = a.detail;
+            } catch (e) {
+              detail = e instanceof Error ? e.message : String(e);
+            }
+            get().setConnection(id, { status, detail });
+          }),
+        );
+      },
+    };
+  });
+
+  return store;
+}

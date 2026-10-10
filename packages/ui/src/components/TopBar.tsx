@@ -1,0 +1,93 @@
+import type { ViewMode } from '@branch/core';
+import { BookOpenCheck, Columns2, Menu, MessageSquare, Monitor, Moon, Network, Search, Settings2, Sun } from 'lucide-react';
+import { actions, useApp } from '../app/store';
+import { useUi } from '../app/uiState';
+import { useBreakpoint } from '../app/useBreakpoint';
+import { cn } from '../lib/cn';
+import { modKeyLabel } from '../lib/platform';
+import { IconButton } from './Button';
+import { Kbd } from './Kbd';
+
+const MODES: { mode: ViewMode; label: string; icon: typeof MessageSquare }[] = [
+  { mode: 'single', label: '단일', icon: MessageSquare },
+  { mode: 'split', label: '분할', icon: Columns2 },
+  { mode: 'mindmap', label: '마인드맵', icon: Network },
+];
+
+const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
+const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
+const THEME_LABEL = { system: '시스템', light: '라이트', dark: '다크' };
+
+/** 상단 바: 목록(모바일/태블릿), 루트 제목, 보기 모드, 검색, 설정, 테마 */
+export function TopBar() {
+  const bp = useBreakpoint();
+  const mode = useApp((s) => s.view.mode);
+  const theme = useApp((s) => s.settings.theme);
+  const rootTitle = useApp((s) => {
+    const a = s.view.activeSessionId;
+    const root = a ? s.sessions[s.sessions[a]?.rootId ?? ''] : undefined;
+    return root?.title ?? 'Branch Learn';
+  });
+  const hasRoot = useApp((s) => !!(s.view.activeSessionId && s.sessions[s.view.activeSessionId]));
+  const ThemeIcon = THEME_ICON[theme];
+  const mobile = bp === 'mobile';
+
+  return (
+    <header className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-surface px-2 md:h-13 md:px-3">
+      {bp !== 'desktop' && (
+        <IconButton label="세션 목록" onClick={() => useUi.getState().setDrawer(true)}>
+          <Menu size={19} />
+        </IconButton>
+      )}
+      <div className="min-w-0 flex-1 truncate px-1 text-[15px] font-semibold">{rootTitle}</div>
+
+      <div role="radiogroup" aria-label="보기 모드" className="flex rounded-lg bg-surface-2 p-0.5">
+        {MODES.map(({ mode: m, label, icon: Icon }) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={mode === m}
+            aria-label={label}
+            title={label}
+            onClick={() => actions().setMode(m)}
+            className={cn(
+              'flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] transition-colors',
+              mode === m ? 'bg-surface font-medium text-fg shadow-pop' : 'text-muted hover:text-fg',
+            )}
+          >
+            <Icon size={15} />
+            {!mobile && <span>{label}</span>}
+          </button>
+        ))}
+      </div>
+
+      {mobile ? (
+        <IconButton label="세션 검색" onClick={() => actions().setOverlay('search')}>
+          <Search size={18} />
+        </IconButton>
+      ) : (
+        <button
+          type="button"
+          onClick={() => actions().setOverlay('search')}
+          className="ml-1 flex h-8 items-center gap-2 rounded-lg border border-line px-2.5 text-[13px] text-muted hover:bg-surface-2"
+        >
+          <Search size={15} />
+          {bp === 'desktop' && <span>검색</span>}
+          <Kbd>{modKeyLabel}K</Kbd>
+        </button>
+      )}
+      {hasRoot && (
+        <IconButton label="이해 노트" title="이해 노트" onClick={() => actions().setOverlay('notes')}>
+          <BookOpenCheck size={18} />
+        </IconButton>
+      )}
+      <IconButton label={`테마: ${THEME_LABEL[theme]}`} title={`테마: ${THEME_LABEL[theme]}`} onClick={() => actions().setTheme(THEME_NEXT[theme])}>
+        <ThemeIcon size={18} />
+      </IconButton>
+      <IconButton label="설정" onClick={() => actions().setOverlay('settings')}>
+        <Settings2 size={18} />
+      </IconButton>
+    </header>
+  );
+}

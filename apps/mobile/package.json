@@ -1,0 +1,37 @@
+{
+  "name": "@branch/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Branch Learn 모바일 (Capacitor iOS/Android)",
+  "scripts": {
+    "build": "vite build",
+    "sync": "pnpm build && cap sync",
+    "ios": "pnpm sync && cap open ios",
+    "android": "pnpm sync && cap open android",
+    "build:ios-sim": "pnpm sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build",
+    "build:android": "pnpm sync && cd android && ./gradlew assembleDebug",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/barcode-scanner": "^3.1.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/share": "^8.0.3"
+  },
+  "devDependencies": {
+    "@branch/core": "workspace:*",
+    "@branch/ui": "workspace:*",
+    "@capacitor/cli": "^8.5.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.19.1",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4"
+  }
+}

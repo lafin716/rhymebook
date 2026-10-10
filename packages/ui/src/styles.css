@@ -1,0 +1,394 @@
+@import 'tailwindcss';
+/* 다른 앱(apps/mobile 등)이 vite 루트일 때도 ui 소스의 클래스를 스캔한다 */
+@source '.';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── 디자인 토큰 ─────────────────────────────────────────── */
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface-2: #f0eee8;
+  --elev: #ffffff;
+  --border: #e3e0d8;
+  --border-strong: #cfcbc0;
+  --fg: #1d1d1b;
+  --fg-2: #4a4944;
+  --muted: #7d7b73;
+  --accent: #2f7d62;
+  --accent-fg: #ffffff;
+  --accent-soft: #e2f0ea;
+  --anchor: #f6e3b4;
+  --anchor-line: #c98a1b;
+  --anchor-active: #f1cf7a;
+  --danger: #c2412d;
+  --danger-soft: #fbe9e5;
+  --warn: #a8660b;
+  --warn-soft: #fbf0dc;
+  --ok: #2f7d62;
+  --code-bg: #f3f1ec;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.08), 0 24px 60px rgb(0 0 0 / 0.18);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #16171a;
+  --surface: #1d1f23;
+  --surface-2: #25272c;
+  --elev: #24262b;
+  --border: #31343a;
+  --border-strong: #454951;
+  --fg: #ecebe6;
+  --fg-2: #c4c2bb;
+  --muted: #8e8c85;
+  --accent: #5cc29b;
+  --accent-fg: #0d1f18;
+  --accent-soft: #1d3a30;
+  --anchor: #4a3b17;
+  --anchor-line: #e2a93b;
+  --anchor-active: #6b5420;
+  --danger: #f0806c;
+  --danger-soft: #3d221d;
+  --warn: #e8b35a;
+  --warn-soft: #3a2e17;
+  --ok: #5cc29b;
+  --code-bg: #121316;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 24px 60px rgb(0 0 0 / 0.55);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-elev: var(--elev);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-anchor: var(--anchor);
+  --color-anchor-line: var(--anchor-line);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --shadow-pop: var(--shadow);
+  --shadow-float: var(--shadow-lg);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI',
+    system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* base 레이어에 둬야 유틸리티(focus-visible:outline-none 등)로 덮을 수 있다 */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ── 마크다운 본문 ───────────────────────────────────────── */
+.md {
+  font-size: 15px;
+  line-height: 1.72;
+  color: var(--fg);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+.md p,
+.md ul,
+.md ol,
+.md pre,
+.md table,
+.md blockquote {
+  margin: 0.7em 0;
+}
+.md ul,
+.md ol {
+  padding-left: 1.4em;
+}
+.md ul {
+  list-style: disc;
+}
+.md ol {
+  list-style: decimal;
+}
+.md li + li {
+  margin-top: 0.25em;
+}
+.md strong {
+  font-weight: 650;
+}
+.md h1,
+.md h2,
+.md h3 {
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 1.1em 0 0.5em;
+}
+.md h1 {
+  font-size: 1.3em;
+}
+.md h2 {
+  font-size: 1.15em;
+}
+.md h3 {
+  font-size: 1.05em;
+}
+.md a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.md blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding: 0.1em 0 0.1em 0.9em;
+  color: var(--fg-2);
+}
+.md code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.08em 0.35em;
+}
+.md pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85em 1em;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.md pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+.md table {
+  border-collapse: collapse;
+  font-size: 0.92em;
+  display: block;
+  overflow-x: auto;
+}
+.md th,
+.md td {
+  border: 1px solid var(--border);
+  padding: 0.35em 0.75em;
+  text-align: left;
+}
+.md th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+/* 구문 강조 (highlight.js 토큰) */
+.hljs-keyword,
+.hljs-built_in,
+.hljs-literal {
+  color: #8a3fb8;
+}
+.hljs-string {
+  color: #2f7d4a;
+}
+.hljs-number {
+  color: #b5541a;
+}
+.hljs-comment {
+  color: var(--muted);
+  font-style: italic;
+}
+.hljs-title,
+.hljs-function {
+  color: #2160a8;
+}
+.dark .hljs-keyword,
+.dark .hljs-built_in,
+.dark .hljs-literal {
+  color: #c99bf0;
+}
+.dark .hljs-string {
+  color: #8fd19e;
+}
+.dark .hljs-number {
+  color: #f0a56c;
+}
+.dark .hljs-title,
+.dark .hljs-function {
+  color: #7fb4f0;
+}
+
+/* ── 앵커 하이라이트 ─────────────────────────────────────── */
+mark.anchor {
+  background: color-mix(in srgb, var(--anchor) 75%, transparent);
+  color: inherit;
+  border-bottom: 2px solid var(--anchor-line);
+  border-radius: 3px 3px 0 0;
+  padding: 0 1px;
+  cursor: pointer;
+  transition: background 120ms;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* 안쪽 가지(중첩 앵커)는 한 단계 진하게 */
+mark.anchor[data-nested='true'] {
+  background: var(--anchor);
+  padding: 0;
+}
+mark.anchor:hover,
+mark.anchor[data-active='true'] {
+  background: var(--anchor-active);
+}
+mark.anchor[data-has-summary='true'] {
+  border-bottom-style: double;
+  border-bottom-width: 3px;
+}
+mark.anchor-flash {
+  animation: anchor-flash 1.2s ease-out 1;
+}
+@keyframes anchor-flash {
+  0%,
+  40% {
+    background: var(--anchor-line);
+  }
+}
+
+/* 질문 이동 시 강조 */
+.turn-flash {
+  animation: turn-flash 1.3s ease-out 1;
+}
+@keyframes turn-flash {
+  0%,
+  35% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
+/* 스트리밍 커서 */
+.stream-caret::after {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: caret 1s steps(2) infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-sheet-up {
+  animation: sheet-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.animate-fade-in {
+  animation: fade-in 160ms ease-out;
+}
+.animate-pop-in {
+  animation: pop-in 140ms ease-out;
+}
+
+/* react-flow 테마 연동 */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: var(--border-strong);
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--surface-2);
+  --xy-controls-button-color: var(--fg);
+  --xy-controls-button-border-color: var(--border);
+  --xy-attribution-background-color: transparent;
+}
+
+/* 스트리밍 중 마지막 블록 끝 커서 */
+.md.is-streaming > :last-child::after,
+.md.is-streaming > :is(ul, ol):last-child > li:last-child::after {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: caret 1s steps(2) infinite;
+}
+.md.is-streaming > :is(ul, ol):last-child::after {
+  display: none;
+}

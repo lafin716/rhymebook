@@ -1,0 +1,65 @@
+{
+  "name": "@branch/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Branch Learn 데스크톱 (Electron + 내장 bridge)",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build:main": "node build.mjs",
+    "build:renderer": "pnpm --filter @branch/ui exec vite build --base ./ --outDir ../../apps/desktop/dist/renderer --emptyOutDir",
+    "build": "pnpm build:renderer && pnpm build:main",
+    "dev": "node build.mjs && BRANCH_DEV_URL=http://localhost:5173 electron .",
+    "start": "electron .",
+    "typecheck": "tsc -p tsconfig.json",
+    "package": "pnpm build && electron-builder --publish never",
+    "package:dir": "pnpm build && electron-builder --dir --publish never"
+  },
+  "devDependencies": {
+    "@branch/bridge": "workspace:*",
+    "@branch/core": "workspace:*",
+    "@types/node": "^24.0.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "~5.9.3"
+  },
+  "build": {
+    "appId": "app.branchlearn.desktop",
+    "productName": "Branch Learn",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "!dist/**/*.map",
+      "package.json"
+    ],
+    "npmRebuild": false,
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.education"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Education",
+      "maintainer": "Branch Learn"
+    }
+  },
+  "author": "Branch Learn"
+}

@@ -1,0 +1,12 @@
+<!-- Branch Learn 아이콘 글리프 (100×100 좌표계). scripts/gen-icons.mjs가 배경과 합쳐 렌더한다 -->
+<g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 줄기(대화) -->
+  <path d="M34 20 V80" stroke-width="7"/>
+  <!-- 가지: 질문이 생긴 자리에서 뻗어 나온다 -->
+  <path d="M34 58 C34 42 44 36 58 36" stroke-width="7"/>
+  <path d="M34 76 C34 68 40 64 50 64" stroke-width="5.5" opacity="0.75"/>
+</g>
+<!-- 앵커(하이라이트) 노드 -->
+<circle cx="66" cy="36" r="10.5" fill="#f6c453"/>
+<circle cx="57" cy="64" r="6.5" fill="#ffffff" opacity="0.75"/>
+<circle cx="34" cy="20" r="6.5" fill="#ffffff"/>
