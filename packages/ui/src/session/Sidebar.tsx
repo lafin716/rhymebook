@@ -14,11 +14,12 @@ import { cn } from '../lib/cn';
 import { isUsable, PROVIDER_ORDER, providerLabel, statusTone } from '../lib/connection';
 import { relativeTime } from '../lib/time';
 
-/** 세션 목록. 데스크톱(≥1024)은 고정 사이드바, 그 이하는 드로어 */
+/** 세션 목록. 데스크톱(≥1024)은 고정 사이드바(접기 가능), 그 이하는 드로어 */
 export function Sidebar() {
   const bp = useBreakpoint();
   const open = useUi((s) => s.drawerOpen);
   const setDrawer = useUi((s) => s.setDrawer);
+  const collapsed = useUi((s) => s.sidebarCollapsed);
   const fixed = bp === 'desktop';
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export function Sidebar() {
   }, [fixed, setDrawer]);
 
   if (fixed) {
+    if (collapsed) return null;
     return (
       <aside className="flex h-full w-[272px] shrink-0 flex-col border-r border-line bg-surface">
         <SidebarBody />

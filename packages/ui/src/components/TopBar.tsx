@@ -1,5 +1,5 @@
 import type { ViewMode } from '@branch/core';
-import { BookOpenCheck, Columns2, Menu, MessageSquare, Monitor, Moon, Network, Search, Settings2, Sun } from 'lucide-react';
+import { BookOpenCheck, Columns2, Menu, MessageSquare, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun } from 'lucide-react';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
@@ -19,7 +19,7 @@ const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
 const THEME_LABEL = { system: '시스템', light: '라이트', dark: '다크' };
 
-/** 상단 바: 목록(모바일/태블릿), 루트 제목, 보기 모드, 검색, 설정, 테마 */
+/** 상단 바: 목록(모바일/태블릿 드로어, 데스크톱 접기), 루트 제목, 보기 모드, 검색, 설정, 테마 */
 export function TopBar() {
   const bp = useBreakpoint();
   const mode = useApp((s) => s.view.mode);
@@ -32,10 +32,20 @@ export function TopBar() {
   const hasRoot = useApp((s) => !!(s.view.activeSessionId && s.sessions[s.view.activeSessionId]));
   const ThemeIcon = THEME_ICON[theme];
   const mobile = bp === 'mobile';
+  const collapsed = useUi((s) => s.sidebarCollapsed);
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-surface px-2 md:h-13 md:px-3">
-      {bp !== 'desktop' && (
+      {bp === 'desktop' ? (
+        <IconButton
+          label={collapsed ? '세션 목록 펼치기' : '세션 목록 접기'}
+          title={`${collapsed ? '세션 목록 펼치기' : '세션 목록 접기'} (${modKeyLabel}B)`}
+          aria-expanded={!collapsed}
+          onClick={() => useUi.getState().toggleSidebar()}
+        >
+          {collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+        </IconButton>
+      ) : (
         <IconButton label="세션 목록" onClick={() => useUi.getState().setDrawer(true)}>
           <Menu size={19} />
         </IconButton>

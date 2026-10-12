@@ -14,6 +14,7 @@ import { MainView } from '../views/MainView';
 import { PopupLayer } from '../views/PopupLayer';
 import { SheetStack } from '../views/SheetStack';
 import { actions } from './store';
+import { useUi } from './uiState';
 import { useBreakpoint } from './useBreakpoint';
 import { useThemeSync } from './useTheme';
 
@@ -28,6 +29,10 @@ export function App() {
         e.preventDefault();
         const open = actions().overlay === 'search';
         actions().setOverlay(open ? 'none' : 'search');
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b' && window.innerWidth >= 1024) {
+        e.preventDefault();
+        useUi.getState().toggleSidebar();
       }
     };
     window.addEventListener('keydown', onKey);
