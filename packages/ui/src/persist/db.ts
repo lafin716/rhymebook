@@ -1,5 +1,6 @@
 import {
   connectionPrefs,
+  type Annotation,
   type BackupTargetId,
   type ConnectionState,
   type ID,
@@ -39,6 +40,7 @@ const DATA_KEYS: KvRow['key'][] = ['view', 'settings', 'connections'];
 export class BranchDB extends Dexie {
   sessions!: Table<Session, ID>;
   messages!: Table<MessageRow, ID>;
+  annotations!: Table<Annotation, ID>;
   kv!: Table<KvRow, KvRow['key']>;
   backups!: Table<BackupRow, string>;
 
@@ -51,6 +53,8 @@ export class BranchDB extends Dexie {
     });
     // v2 (Phase 2.5): 백업 사본
     this.version(2).stores({ backups: 'id, targetId, at' });
+    // v3 (IMP-07): 어노테이션
+    this.version(3).stores({ annotations: 'id, sessionId' });
   }
 }
 
@@ -102,18 +106,25 @@ export function createDexieRepository(db: BranchDB, onError: (e: unknown) => voi
     saveSettings: (s: Settings) => enqueue(() => db.kv.put({ key: 'settings', value: s })),
     saveConnections: (c: ConnectionState[]) =>
       enqueue(() => db.kv.put({ key: 'connections', value: connectionPrefs(c) })),
+    saveAnnotation: (a: Annotation) => enqueue(() => db.annotations.put(a)),
+    deleteAnnotations: (ids: ID[]) =>
+      enqueue(() =>
+        ids.length ? db.annotations.bulkDelete(ids) : Promise.resolve(),
+      ),
 
     async loadAll() {
       await settle();
-      return db.transaction('r', db.sessions, db.messages, db.kv, async () => {
+      return db.transaction('r', db.sessions, db.messages, db.annotations, db.kv, async () => {
         const sessions = await db.sessions.toArray();
         const kv = new Map((await db.kv.toArray()).map((r) => [r.key, r.value]));
         // 세션이 하나도 없어도 설정이 저장돼 있으면 첫 실행이 아니다
         if (sessions.length === 0 && !kv.has('settings')) return null;
         const rows = await db.messages.orderBy('[sessionId+seq]').toArray();
+        const annotations = await db.annotations.toArray();
         return {
           sessions,
           messages: rows.map(stripSeq),
+          ...(annotations.length ? { annotations } : {}),
           view: kv.get('view') as ViewState | undefined,
           settings: kv.get('settings') as Partial<Settings> | undefined,
           connections: kv.get('connections') as StoredData['connections'],
@@ -123,11 +134,14 @@ export function createDexieRepository(db: BranchDB, onError: (e: unknown) => voi
 
     async replaceAll(data) {
       await settle();
-      await db.transaction('rw', db.sessions, db.messages, db.kv, async () => {
+      await db.transaction('rw', db.sessions, db.messages, db.annotations, db.kv, async () => {
         // 백업 설정(kv 'backup')은 대화 데이터가 아니므로 남긴다
-        await Promise.all([db.sessions.clear(), db.messages.clear(), db.kv.bulkDelete(DATA_KEYS)]);
+        await Promise.all([db.sessions.clear(), db.messages.clear(), db.annotations.clear(), db.kv.bulkDelete(DATA_KEYS)]);
         await db.sessions.bulkPut(data.sessions);
         await db.messages.bulkPut(rowsOf(data.messages));
+        if (data.annotations && data.annotations.length) {
+          await db.annotations.bulkPut(data.annotations);
+        }
         const kv: KvRow[] = [];
         if (data.view) kv.push({ key: 'view', value: data.view });
         if (data.settings) kv.push({ key: 'settings', value: data.settings });

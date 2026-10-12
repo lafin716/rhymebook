@@ -7,6 +7,7 @@ export function firstRunData(): AppData {
     toStoredData({
       sessions: {},
       messages: {},
+      annotations: {},
       view: emptyView(),
       settings: RUNTIME_SETTINGS,
       connections: {} as AppData['connections'],

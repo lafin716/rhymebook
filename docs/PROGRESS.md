@@ -50,6 +50,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-03 이해 노트: 세션 트리 요약 카드 모아 보기 + Markdown·Anki 내보내기 (+ 모바일 공유 시트 저장)
 - [x] IMP-04 CLI 모델·노력치 선택: 설정에서 기본값, 채팅 입력창 칩으로 대화별 변경 (Claude·Codex, ADR-023)
 - [x] IMP-05 플랫폼별 연결 UI: PC = CLI·API·원격 페어링 열기(QR)·다른 PC 연결 / 웹·모바일 = PC 페어링·API 키만(모델 선택 없음, PC 정책 적용) + 첫 실행 안내 (ADR-025)
+- [x] IMP-07 백그라운드 호스트(트레이)·여러 줄 가지 왼쪽 영역 표시·드래그 메뉴 서식(형광펜·밑줄·글자색·글꼴)·메모 (ADR-028~030)
 - [x] IMP-06 웹·모바일 원격 전용: PC 데스크톱 앱 스토어 동기화(보기·실시간 스트리밍) + 액션 신호로 PC가 CLI 실행 + 원격 전용 UI 개편 (ADR-026, docs/plans/remote-only-plan.md)
 
 ## Tasks
@@ -83,9 +84,16 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP06-T4 | IMP-06 | E2E: 로컬 흐름 `?platform=desktop`, 원격 모드 E2E | lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: e2e 12 passed·2 skipped(웹 원격 전용 온보딩·설정·입력 차단, 로컬 흐름, 확인 대화상자) |
 | IMP06-T5 | IMP-06 | 독립 리뷰·스크린샷·데스크톱 빌드·실제 페어링 smoke | lead+reviewer | HIGH | inherit | default | DONE | 100% | T1–T4 | PASS: 독립 리뷰어 지적 2건(1 수정, 1 방어적·무변경). `package:dir` 재빌드 → 격리 실행 앱에서 원격 페어링 열기 → 웹(390)에서 Tailscale ws://100.102.77.120:7777 + 코드 페어링 → PC '페어링 기기 2대(접속 1)' → 웹에서 새 학습·질문 → PC 토스트 '원격 기기: 질문을 보냈어요' → PC claude-cli exit=0 답변·자동 제목 '광합성의 정의'가 웹 390/768/1440·PC 사이드바에 반영 |
 | IMP06-T6 | IMP-06 | 문서·커밋 | lead | LOW | inherit | default | DONE | 100% | T5 | PASS: 01/02/03/04/README·ADR-026·PROGRESS 갱신, typecheck·lint·test·e2e 통과 후 커밋 |
+| IMP07-T0 | IMP-07 | 계획·ADR-028/029/030·모델 계약 | lead | HIGH | inherit | default | DONE | 100% | - | docs/plans/imp07-plan.md, model.ts Annotation 계약 |
+| IMP07-T1 | IMP-07 | core: annotation 스토어·repo·백업·sync + ui persist(Dexie v3) | agent-core | HIGH | inherit | default | DONE | 100% | T0 | PASS: core 210 tests(annotation CRUD·연쇄 삭제·백업 호환·sync 검증·왕복·오프라인/거부 롤백) |
+| IMP07-T2 | IMP-07 | UI: 서식·메모 렌더, 영역 막대, 드래그 메뉴 서식·메모, 팝오버 | agent-ui | HIGH | inherit | default | DONE | 100% | T0 | PASS: ui 12 tests(rehypeAnchors 영역 조각) |
+| IMP07-T3 | IMP-07 | desktop: 트레이·백그라운드 실행·완전 종료 | agent-desktop | MEDIUM | inherit | default | DONE | 100% | T0 | PASS: typecheck·빌드, 트레이 아이콘 asar 포함 |
+| IMP07-T4 | IMP-07 | 통합·E2E·독립 리뷰 | lead+reviewer | HIGH | inherit | default | DONE | 100% | T1–T3 | PASS: e2e 18 passed·2 skipped(annotations 3×2). 리뷰 지적: annotation op 롤백 없음 → 수정, 서식 버튼 후 오래된 메뉴 → 수정, 나머지 기존 패턴 유지 |
+| IMP07-T5 | IMP-07 | 스크린샷·데스크톱 빌드·백그라운드 smoke | lead | MEDIUM | inherit | default | DONE | 90% | T4 | PASS: 390/768/1440 스크린샷(서식·메모·영역 막대·팝오버·모바일 바텀 바), `package:dir` 재빌드·실행. 트레이 수동 smoke(호스트 켬→창 닫기→웹 계속→완전 종료)는 사용자 확인 필요 |
+| IMP07-T6 | IMP-07 | 문서·커밋 | lead | LOW | inherit | default | DONE | 100% | T5 | PASS: 01/02/04/README·ADR-028~030·PROGRESS 갱신 후 커밋 |
 
 ## Active Work
-- 없음 (IMP-06 완료. 남은 것은 사람 조치 — docs/BLOCKERS.md)
+- 없음 (IMP-07 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
 
 ## Blockers
 - 없음 (docs/BLOCKERS.md 참조)

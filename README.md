@@ -60,6 +60,7 @@ pnpm --filter @branch/desktop package      # 현재 OS용: mac dmg/zip · win ns
 
 - 다른 OS용 설치본은 해당 OS(또는 CI 러너)에서 만드는 것을 권장합니다.
 - 코드 서명/공증은 설정되어 있지 않습니다(BLOCKERS B-03). 서명 없이 빌드하려면 macOS에서 `CSC_IDENTITY_AUTO_DISCOVERY=false` 를 붙이세요. 서명하려면 `CSC_LINK`/`CSC_KEY_PASSWORD`(+ macOS 공증 `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`)를 CI 비밀 값으로 등록합니다.
+- **백그라운드 실행**: 원격 페어링이 켜져 있으면 창을 닫아도 트레이(메뉴 막대) 아이콘으로 남아 페어링된 휴대폰·웹이 계속 동작합니다. 완전히 끄려면 트레이 메뉴 [완전 종료](macOS는 ⌘Q도 가능).
 - 데스크톱은 bridge를 내장하므로 PC에 설치·로그인된 `claude` / `codex` CLI를 바로 씁니다. API 키는 OS 보안 저장소(safeStorage)에 저장됩니다.
 
 ## 모바일 (Capacitor)
@@ -74,6 +75,10 @@ pnpm --filter @branch/mobile ios             # Xcode로 열기
 - 웹·모바일은 **원격 전용**입니다(ADR-026). PC의 rhymebook 앱에 페어링하면 PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 자기 CLI로 답합니다. 학습 기록은 PC에만 저장됩니다.
 - 페어링: PC 앱 설정 › 연결 › [원격 페어링 열기] → [휴대폰·웹 연결] → 휴대폰에서 **[QR 스캔]**, 또는 링크·주소 + 6자리 코드 입력. OS 카메라로 찍으면 `branch://pair` 딥링크로 앱이 열립니다(카메라 권한 필요, Android 8.0+).
 - 스토어 배포·서명은 BLOCKERS B-07.
+
+## 서식·메모
+
+답변에서 텍스트를 선택하면 가지 버튼 아래에 서식 행이 나옵니다: 형광펜·밑줄·글자색(6색), 명조·고정폭 글꼴, 굵게·기울임, 서식 지우기, 메모. 메모가 달린 텍스트를 누르면 보기·수정·삭제할 수 있습니다. 여러 문단에 걸친 가지는 왼쪽 세로 막대로 표시됩니다.
 
 ## 이해 노트 (내보내기)
 

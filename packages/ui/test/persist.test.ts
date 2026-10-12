@@ -27,7 +27,7 @@ const idle = (store: AppStore) =>
 async function seededRepo() {
   const repo = freshRepo();
   const { data } = await hydrate(repo);
-  await repo.replaceAll(toStoredData({ ...data, ...createSeed(), view: emptyView(SEED_IDS.root) }));
+  await repo.replaceAll(toStoredData({ ...data, ...createSeed(), annotations: {}, view: emptyView(SEED_IDS.root) }));
   return repo;
 }
 
@@ -144,12 +144,41 @@ describe('Dexie persistence', () => {
   it('replaceAll swaps the whole dataset', async () => {
     const repo = await seededRepo();
     await boot(repo);
-    const other = { ...createSeed(0), view: emptyView(SEED_IDS.scale) };
+    const other = { ...createSeed(0), annotations: {}, view: emptyView(SEED_IDS.scale) };
     const data = restoreData(toStoredData({ ...other, settings: (await hydrate(repo)).data.settings, connections: (await hydrate(repo)).data.connections }));
     delete data.sessions[SEED_IDS.cos];
     await repo.replaceAll(toStoredData(data));
     const b = await reload(repo);
     expect(b.getState().sessions[SEED_IDS.cos]).toBeUndefined();
     expect(b.getState().view.activeSessionId).toBe(SEED_IDS.scale);
+  });
+
+  it('keeps annotations after reload', async () => {
+    const repo = await seededRepo();
+    const a = await boot(repo);
+    const msg = a.getState().messages[SEED_IDS.root]![1]!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    a.getState().addAnnotation(SEED_IDS.root, anchor, { highlight: 'yellow', note: '주석' }, 'a-persist-1');
+    a.getState().addAnnotation(SEED_IDS.root, anchor, { underline: 'blue' }, 'a-persist-2');
+    await idle(a);
+
+    const b = await reload(repo);
+    expect(b.getState().annotations['a-persist-1']).toEqual({
+      id: 'a-persist-1',
+      sessionId: SEED_IDS.root,
+      anchor,
+      highlight: 'yellow',
+      note: '주석',
+      createdAt: a.getState().annotations['a-persist-1']!.createdAt,
+      updatedAt: a.getState().annotations['a-persist-1']!.updatedAt,
+    });
+    expect(b.getState().annotations['a-persist-2']).toEqual({
+      id: 'a-persist-2',
+      sessionId: SEED_IDS.root,
+      anchor,
+      underline: 'blue',
+      createdAt: a.getState().annotations['a-persist-2']!.createdAt,
+      updatedAt: a.getState().annotations['a-persist-2']!.updatedAt,
+    });
   });
 });

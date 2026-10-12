@@ -105,6 +105,12 @@ interface ViewState {
 
 core(`anchor.ts`)는 세그먼트 맵 기반 변환/매칭만 담당하고, hast 순회·DOM Range는 ui가 담당한다.
 
+### 서식·메모·영역 표시 (IMP-07)
+- `Annotation {id, sessionId, anchor, highlight?, underline?, textColor?, font?, bold?, italic?, note?}` — 가지 앵커와 같은 원문 offset 규칙(ADR-029). Dexie v3 `annotations: 'id, sessionId'`, 백업 스냅샷 `annotations?`, 세션 삭제 시 연쇄 삭제. 순수 함수는 core `annotations.ts`.
+- `rehypeAnchors`가 가지 앵커와 annotation 경계를 함께 잘라 `span.annot[data-hl|ul|tc|font|bold|italic|note]` 안에 `mark.anchor`를 둔다. 표시 아이콘은 CSS pseudo-content라 DOM textContent = 렌더 텍스트가 유지된다.
+- 앵커가 2개 이상 블록에 걸치면 조각 mark에 `data-region`(배경 없음), `RegionGutter`가 mark 사각형을 측정(layout effect + ResizeObserver/MutationObserver)해 왼쪽 막대를 그리고 겹치면 lane으로 나눈다(ADR-030).
+- 원격: sync op `annot.set`/`annot.delete`, push `sync.annot`, 스냅샷 `annotations`. 클라이언트는 낙관적 적용 + 실패 시 롤백.
+
 ## 상태 관리
 
 - **Zustand** 스토어(core)를 단일 진실 원천으로 사용한다. ui는 selector로 구독한다.
@@ -127,6 +133,8 @@ core(`anchor.ts`)는 세그먼트 맵 기반 변환/매칭만 담당하고, hast
 - 프로토콜(core `bridge/sync.ts`): `sync.hello`→`sync.snapshot`(세션·스트리밍·요약 초안), 세션별 지연 로드 `sync.messages`, 변경 push(`sync.session/message/append/streaming/draft`), 액션 `act{op}`→`act.result`, 엔진 재시작 `sync.reset`. E2E 암호화 채널 위에서 엄격 검증.
 - 경로: 원격 기기 → bridge RemoteServer → 데스크톱 main → IPC → renderer 호스트 엔진(core `createSyncHost`) → 스토어 액션 → CLI. 클라이언트는 core `createSyncClient`(낙관적 표시 + 실패·타임아웃 롤백, 끊김 시 지수 백오프 재연결, 삭제된 세션은 부모로 포커스 이동).
 - 원격 루트 세션의 에이전트: PC `hostAgent`, 자동이면 준비된 CLI(Claude 우선), 둘 다 없으면 PC 기본 provider. 헤드리스 bridge는 sync를 지원하지 않는다(`sync.error` → "PC 앱 업데이트" 안내).
+
+- 백그라운드 호스트(ADR-028): 호스트가 켜져 있으면 창 닫기 = 숨김(renderer 엔진 유지, throttling 끔) + 트레이 아이콘. 트레이 [완전 종료]·⌘Q만 실제 종료.
 
 플랫폼 차이는 ui의 `platform/` 어댑터(`SecretStore`, `BridgeTransport`, `openExternal`)로 주입한다.
 ui 번들은 모든 플랫폼에서 동일하다.

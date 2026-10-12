@@ -29,6 +29,18 @@
   --code-bg: #f3f1ec;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px rgb(0 0 0 / 0.08);
   --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.08), 0 24px 60px rgb(0 0 0 / 0.18);
+  --mark-yellow: #fbbf24;
+  --mark-green: #34d399;
+  --mark-blue: #60a5fa;
+  --mark-purple: #a78bfa;
+  --mark-red: #f87171;
+  --mark-orange: #fb923c;
+  --mark-yellow-text: #a16207;
+  --mark-green-text: #15803d;
+  --mark-blue-text: #1d4ed8;
+  --mark-purple-text: #7e22ce;
+  --mark-red-text: #dc2626;
+  --mark-orange-text: #c2410c;
   color-scheme: light;
 }
 
@@ -56,6 +68,18 @@
   --code-bg: #121316;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.35);
   --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 24px 60px rgb(0 0 0 / 0.55);
+  --mark-yellow: #d4a017;
+  --mark-green: #10b981;
+  --mark-blue: #3b82f6;
+  --mark-purple: #8b5cf6;
+  --mark-red: #ef4444;
+  --mark-orange: #f97316;
+  --mark-yellow-text: #facc15;
+  --mark-green-text: #4ade80;
+  --mark-blue-text: #60a5fa;
+  --mark-purple-text: #c084fc;
+  --mark-red-text: #f87171;
+  --mark-orange-text: #fb923c;
   color-scheme: dark;
 }
 
@@ -295,6 +319,100 @@ mark.anchor-flash {
   40% {
     background: var(--anchor-line);
   }
+}
+
+/* 영역 모드: 여러 블록에 걸친 가지는 본문 배경 없이 왼쪽 막대로 (ADR-030) */
+mark.anchor[data-region='true'] {
+  background: none;
+  border-bottom: none;
+  padding: 0;
+}
+mark.anchor[data-region='true']:hover {
+  background: none;
+}
+mark.anchor[data-region='true'][data-active='true'] {
+  background: color-mix(in srgb, var(--anchor) 55%, transparent);
+}
+.anchor-gutter {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+}
+.anchor-region {
+  position: absolute;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--anchor-line);
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity 120ms, width 120ms;
+}
+.anchor-region::before {
+  /* 터치 영역 확대 */
+  content: '';
+  position: absolute;
+  inset: 0 -6px;
+}
+.anchor-region:hover,
+.anchor-region:focus-visible {
+  opacity: 1;
+  width: 5px;
+}
+
+/* ── 서식·메모 (ADR-029) ──────────────────────────────────── */
+span.annot {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+span.annot[data-hl='yellow'] { background: color-mix(in srgb, var(--mark-yellow) 38%, transparent); }
+span.annot[data-hl='green'] { background: color-mix(in srgb, var(--mark-green) 38%, transparent); }
+span.annot[data-hl='blue'] { background: color-mix(in srgb, var(--mark-blue) 38%, transparent); }
+span.annot[data-hl='purple'] { background: color-mix(in srgb, var(--mark-purple) 38%, transparent); }
+span.annot[data-hl='red'] { background: color-mix(in srgb, var(--mark-red) 38%, transparent); }
+span.annot[data-hl='orange'] { background: color-mix(in srgb, var(--mark-orange) 38%, transparent); }
+span.annot[data-ul='yellow'] { text-decoration: underline 2px var(--mark-yellow); text-underline-offset: 3px; }
+span.annot[data-ul='green'] { text-decoration: underline 2px var(--mark-green); text-underline-offset: 3px; }
+span.annot[data-ul='blue'] { text-decoration: underline 2px var(--mark-blue); text-underline-offset: 3px; }
+span.annot[data-ul='purple'] { text-decoration: underline 2px var(--mark-purple); text-underline-offset: 3px; }
+span.annot[data-ul='red'] { text-decoration: underline 2px var(--mark-red); text-underline-offset: 3px; }
+span.annot[data-ul='orange'] { text-decoration: underline 2px var(--mark-orange); text-underline-offset: 3px; }
+span.annot[data-tc='yellow'] { color: var(--mark-yellow-text); }
+span.annot[data-tc='green'] { color: var(--mark-green-text); }
+span.annot[data-tc='blue'] { color: var(--mark-blue-text); }
+span.annot[data-tc='purple'] { color: var(--mark-purple-text); }
+span.annot[data-tc='red'] { color: var(--mark-red-text); }
+span.annot[data-tc='orange'] { color: var(--mark-orange-text); }
+span.annot[data-font='serif'] {
+  font-family: 'Noto Serif KR', 'AppleMyungjo', 'Nanum Myeongjo', Georgia, 'Times New Roman', serif;
+}
+span.annot[data-font='mono'] {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+span.annot[data-bold='true'] {
+  font-weight: 700;
+}
+span.annot[data-italic='true'] {
+  font-style: italic;
+}
+span.annot[data-note='true'] {
+  cursor: pointer;
+}
+span.annot[data-note='true']:not([data-ul]) {
+  text-decoration: underline dotted 1.5px var(--muted);
+  text-underline-offset: 3px;
+}
+/* 메모 끝 아이콘: pseudo-content라 DOM 텍스트(앵커 offset)에 영향 없음 */
+span.annot[data-note-end='true']::after {
+  content: '';
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-left: 2px;
+  vertical-align: -0.05em;
+  background-color: var(--anchor-line);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 /* 질문 이동 시 강조 */

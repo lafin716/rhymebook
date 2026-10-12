@@ -448,4 +448,116 @@ describe('sync host ↔ client', () => {
     expect(store.getState().sendMessage).not.toBe(remoteSend);
     expect(client.state.getState().status).toBe('unpaired');
   });
+
+  it('annotation add on client syncs to host via annot.set', async () => {
+    const { store, peer } = await connectClient();
+    const msg = hostStore.getState().messages[SEED_IDS.root]![1]!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    const id = store.getState().addAnnotation(SEED_IDS.root, anchor, { highlight: 'yellow', note: 'note1' }) as ID;
+    expect(id).toBeTruthy();
+    expect(store.getState().annotations[id]!.note).toBe('note1');
+    await until(() => !!hostStore.getState().annotations[id]);
+    expect(hostStore.getState().annotations[id]).toEqual(store.getState().annotations[id]);
+    expect(peer.state.sent.some((m) => m.type === 'act' && 'op' in m && m.op.kind === 'annot.set')).toBe(true);
+  });
+
+  it('annotation update via putAnnotation keeps createdAt', async () => {
+    await connectClient();
+    const msg = hostStore.getState().messages[SEED_IDS.root]![1]!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    const createdAt = Date.now() - 5000;
+    const id = 'a-upsert-test';
+    // 호스트에 annotation을 직접 저장 (오래된 createdAt)
+    hostStore.getState().putAnnotation({
+      id,
+      sessionId: SEED_IDS.root,
+      anchor,
+      highlight: 'yellow',
+      createdAt,
+      updatedAt: createdAt,
+    });
+    // 같은 id로 업데이트 (putAnnotation은 createdAt을 유지해야 함)
+    const before = hostStore.getState().annotations[id]!.createdAt;
+    const newUpdatedAt = Date.now();
+    hostStore.getState().putAnnotation({
+      id,
+      sessionId: SEED_IDS.root,
+      anchor,
+      highlight: 'yellow',
+      underline: 'blue',
+      createdAt,
+      updatedAt: newUpdatedAt,
+    });
+    const after = hostStore.getState().annotations[id]!.createdAt;
+    expect(after).toBe(before);
+  });
+
+  it('annotation delete on client propagates to host', async () => {
+    const { store, peer } = await connectClient();
+    const msg = hostStore.getState().messages[SEED_IDS.root]![1]!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    const id = store.getState().addAnnotation(SEED_IDS.root, anchor, { highlight: 'yellow' }) as ID;
+    await until(() => !!hostStore.getState().annotations[id]);
+    peer.state.sent.length = 0;
+
+    store.getState().deleteAnnotations([id]);
+    expect(store.getState().annotations[id]).toBeUndefined();
+    await until(() => !hostStore.getState().annotations[id]);
+    expect(peer.state.sent.some((m) => m.type === 'act' && 'op' in m && m.op.kind === 'annot.delete')).toBe(true);
+  });
+
+  it('annotation ops roll back when offline or rejected by the host', async () => {
+    const { store, client, peer } = await connectClient();
+    const msg = hostStore.getState().messages[SEED_IDS.root]!.find((m) => m.role === 'assistant')!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    const id = store.getState().addAnnotation(SEED_IDS.root, anchor, { highlight: 'yellow' }) as ID;
+    await until(() => !!hostStore.getState().annotations[id]);
+
+    peer.state.connected = false;
+    expect(store.getState().addAnnotation(SEED_IDS.root, anchor, { bold: true })).toBe('');
+    store.getState().updateAnnotation(id, { highlight: 'red' });
+    store.getState().deleteAnnotations([id]);
+    expect(client.state.getState().lastFailure?.code).toBe('offline');
+    expect(Object.keys(store.getState().annotations)).toEqual([id]);
+    expect(store.getState().annotations[id]!.highlight).toBe('yellow');
+
+    // 범위를 벗어난 offset은 호스트가 거부 → 낙관적 추가가 되돌려진다
+    peer.state.connected = true;
+    const bad = { ...anchor, endOffset: msg.content.length + 10 };
+    const badId = store.getState().addAnnotation(SEED_IDS.root, bad, { bold: true }) as ID;
+    expect(store.getState().annotations[badId]).toBeTruthy();
+    await until(() => !store.getState().annotations[badId]);
+    expect(hostStore.getState().annotations[badId]).toBeUndefined();
+  });
+
+  it('snapshot contains annotations', async () => {
+    const msg = hostStore.getState().messages[SEED_IDS.root]![1]!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    hostStore.getState().addAnnotation(SEED_IDS.root, anchor, { highlight: 'blue' }, 'a-snap-1');
+    hostStore.getState().addAnnotation(SEED_IDS.root, anchor, { highlight: 'green' }, 'a-snap-2');
+
+    const { store, peer } = await connectClient();
+    const receivedSnapshot = peer.state.received.find((m) => m.type === 'sync.snapshot');
+    expect(receivedSnapshot).toBeTruthy();
+    if (receivedSnapshot && 'annotations' in receivedSnapshot) {
+      expect(receivedSnapshot.annotations).toContainEqual(hostStore.getState().annotations['a-snap-1']!);
+      expect(receivedSnapshot.annotations).toContainEqual(hostStore.getState().annotations['a-snap-2']!);
+    }
+    expect(store.getState().annotations['a-snap-1']).toEqual(hostStore.getState().annotations['a-snap-1']!);
+    expect(store.getState().annotations['a-snap-2']).toEqual(hostStore.getState().annotations['a-snap-2']!);
+  });
+
+  it('session delete cascades to remove annotations', async () => {
+    const { store } = await connectClient();
+    store.getState().openSession(SEED_IDS.scale);
+    await settle();
+    const msg = hostStore.getState().messages[SEED_IDS.scale]!.find((m) => m.role === 'assistant')!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    const id = store.getState().addAnnotation(SEED_IDS.scale, anchor, { highlight: 'yellow' }) as ID;
+    await until(() => !!hostStore.getState().annotations[id]);
+
+    hostStore.getState().deleteSession(SEED_IDS.scale);
+    await settle();
+    expect(store.getState().annotations[id]).toBeUndefined();
+  });
 });

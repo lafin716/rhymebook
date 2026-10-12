@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, type WebContents } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, type WebContents } from 'electron';
 import path from 'node:path';
 import { createBridgeServer, type BridgeConnection } from '@branch/bridge';
 import { isHostPolicy, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
@@ -40,6 +40,12 @@ let quitting = false;
 /** 호스트 서버 활성화 상태 (백그라운드 스로틀링 제어용) */
 let hostEnabled = false;
 
+/** 트레이 아이콘 */
+let tray: Tray | null = null;
+
+/** 첫 숨김 알림 표시 여부 */
+let hasShownBackgroundNotification = false;
+
 function connectionFor(wc: WebContents): BridgeConnection {
   let conn = connections.get(wc.id);
   if (conn) return conn;
@@ -76,6 +82,11 @@ function isAppUrl(url: string): boolean {
   return url.startsWith('file://');
 }
 
+/** 트레이 아이콘 경로 — build.mjs가 dist(main.cjs 옆)에 복사하고, 패키지에서는 app.asar 안에서 읽는다 */
+function getTrayIconPath(): string {
+  return path.join(__dirname, 'trayIcon.png');
+}
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -105,6 +116,120 @@ function createWindow(): BrowserWindow {
   if (DEV_URL) void win.loadURL(DEV_URL);
   else void win.loadFile(RENDERER);
   return win;
+}
+
+/** Create tray with context menu */
+function createTray(hostState: HostState): Tray | null {
+  const iconPath = getTrayIconPath();
+  try {
+    const newTray = new Tray(iconPath);
+    updateTrayMenu(newTray, hostState);
+    newTray.setToolTip('rhymebook — 원격 연결 실행 중');
+
+    // Left-click on Windows/Linux opens the window
+    if (process.platform !== 'darwin') {
+      newTray.on('click', () => {
+        showOrCreateWindow();
+      });
+    }
+
+    return newTray;
+  } catch (e) {
+    console.error('Failed to create tray:', e);
+    return null;
+  }
+}
+
+/** Show existing window or create new one */
+function showOrCreateWindow() {
+  const existing = BrowserWindow.getAllWindows();
+  const visible = existing.find((w) => w.isVisible());
+  if (visible) {
+    visible.focus();
+    return;
+  }
+  const hidden = existing.find((w) => !w.isDestroyed());
+  if (hidden) {
+    showWindow(hidden);
+    return;
+  }
+  spawnEngineWindow?.();
+}
+
+/** 엔진 창 새로 만들기 (whenReady에서 연결) */
+let spawnEngineWindow: (() => void) | null = null;
+
+/** Build and set tray menu */
+function updateTrayMenu(trayIcon: Tray, hostState: HostState) {
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'rhymebook 열기',
+      click: () => {
+        showOrCreateWindow();
+      },
+    },
+    {
+      type: 'separator',
+    },
+    {
+      label: `원격 연결: ${hostState.enabled ? '켜짐' : '꺼짐'}${hostState.devices ? ' · 기기 ' + hostState.devices.length + '대' : ''}`,
+      enabled: false,
+    },
+    {
+      type: 'separator',
+    },
+    {
+      label: '완전 종료',
+      click: () => {
+        quitting = true;
+        app.quit();
+      },
+    },
+  ]);
+  trayIcon.setContextMenu(menu);
+}
+
+/** Destroy tray */
+function destroyTray() {
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+}
+
+/** Handle window close: hide if hostEnabled, otherwise use default behavior */
+function attachCloseHandler(win: BrowserWindow) {
+  win.on('close', (e) => {
+    if (hostEnabled && !quitting) {
+      e.preventDefault();
+      hideWindow(win);
+    }
+  });
+}
+
+/** Hide window and show notification on first hide */
+function hideWindow(win: BrowserWindow) {
+  win.hide();
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.hide();
+  }
+  if (!hasShownBackgroundNotification && Notification.isSupported()) {
+    hasShownBackgroundNotification = true;
+    const notification = new Notification({
+      title: 'rhymebook이 백그라운드에서 계속 실행 중입니다',
+      body: '페어링된 기기에서 계속 사용할 수 있어요. 완전히 끄려면 트레이 아이콘에서 [완전 종료]를 누르세요.',
+    });
+    notification.show();
+  }
+}
+
+/** Show window */
+function showWindow(win: BrowserWindow) {
+  win.show();
+  win.focus();
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.show();
+  }
 }
 
 void app.whenReady().then(() => {
@@ -165,6 +290,14 @@ void app.whenReady().then(() => {
 
   const broadcast = (state: HostState) => {
     for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(CH.hostChanged, state);
+    // 호스트 활성화 상태에 따라 트레이 생성/제거
+    if (state.enabled && !tray) {
+      tray = createTray(state);
+    } else if (!state.enabled && tray) {
+      destroyTray();
+    } else if (tray) {
+      updateTrayMenu(tray, state);
+    }
   };
   host = createHostService({
     dir: app.getPath('userData'),
@@ -221,55 +354,43 @@ void app.whenReady().then(() => {
     if (isHostPolicy(policy)) h.setPolicy(policy);
   });
 
-  // 시작 시 호스트 상태 복원 및 hostEnabled 초기화
+  // 시작 시 호스트 상태 복원 및 hostEnabled 초기화 (켜져 있으면 트레이도 만든다)
   void h.restore().then(async () => {
     const state = await h.state();
     hostEnabled = state.enabled;
     applyThrottling();
+    broadcast(state);
   });
 
-  const firstWin = createWindow();
-  engineWindow = firstWin.webContents;
-  attachEngineListeners(engineWindow);
-  applyThrottling();
-
-  // macOS: 창 닫기는 숨기기 (Cmd+Q는 정상 종료)
-  if (process.platform === 'darwin') {
-    firstWin.on('close', (e) => {
-      if (hostEnabled && !quitting) {
-        e.preventDefault();
-        firstWin.hide();
-      }
-    });
-  }
+  spawnEngineWindow = () => {
+    const w = createWindow();
+    engineWindow = w.webContents;
+    attachEngineListeners(engineWindow);
+    applyThrottling();
+    attachCloseHandler(w);
+  };
+  spawnEngineWindow();
 
   app.on('activate', () => {
     const existing = BrowserWindow.getAllWindows();
     if (existing.length > 0) {
-      // 숨겨진 창이 있으면 보여주기 (macOS)
+      // 숨겨진 창이 있으면 보여주기
       const hidden = existing.find((w) => !w.isVisible());
       if (hidden) {
-        hidden.show();
+        showWindow(hidden);
       }
     } else {
       // 창이 없으면 새로 만들기
-      const w = createWindow();
-      engineWindow = w.webContents;
-      attachEngineListeners(engineWindow);
-      applyThrottling();
-      if (process.platform === 'darwin') {
-        w.on('close', (e) => {
-          if (hostEnabled && !quitting) {
-            e.preventDefault();
-            w.hide();
-          }
-        });
-      }
+      spawnEngineWindow?.();
     }
   });
 });
 
 app.on('window-all-closed', () => {
+  // 호스트가 켜져 있고 창이 숨겨져 있으면 앱을 끝내지 않는다
+  if (hostEnabled && BrowserWindow.getAllWindows().some((w) => !w.isDestroyed())) {
+    return;
+  }
   if (process.platform !== 'darwin') app.quit();
 });
 

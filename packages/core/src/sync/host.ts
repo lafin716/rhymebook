@@ -44,7 +44,7 @@ interface PeerState {
   actWindowStart: number;
 }
 
-type Synced = Pick<AppState, 'sessions' | 'messages' | 'streaming' | 'summaryDrafts'>;
+type Synced = Pick<AppState, 'sessions' | 'messages' | 'streaming' | 'summaryDrafts' | 'annotations'>;
 
 /** content 외 필드가 모두 같고 content가 뒤로만 늘었으면 증분으로 보낼 수 있다 */
 function appendOnly(prev: Message, next: Message): boolean {
@@ -72,6 +72,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     messages: s.messages,
     streaming: s.streaming,
     summaryDrafts: s.summaryDrafts,
+    annotations: s.annotations,
   });
   let last: Synced = pick(store.getState());
   /** 증분 전송 대기 중인 메시지 (messageId → sessionId) */
@@ -220,6 +221,27 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       });
     }
 
+    const annotationsChanged = prev.annotations !== next.annotations;
+    if (annotationsChanged) {
+      const prevIds = new Set(Object.keys(prev.annotations));
+      const nextIds = new Set(Object.keys(next.annotations));
+      const deleted: ID[] = [];
+      for (const id of prevIds) {
+        if (!nextIds.has(id)) deleted.push(id);
+      }
+      broadcast((peerId) => {
+        for (const id of prevIds) {
+          const p = next.annotations[id];
+          if (p && prev.annotations[id] !== p) {
+            send(peerId, { type: 'sync.annot', annotation: p });
+          }
+        }
+        if (deleted.length) {
+          send(peerId, { type: 'sync.annot', deleted });
+        }
+      });
+    }
+
     if (dirty.size) scheduleFlush();
   };
 
@@ -231,12 +253,14 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     peer.synced = true;
     peer.loaded.clear();
     peer.sentLen.clear();
+    const annotations = Object.values(state.annotations);
     send(peerId, {
       type: 'sync.snapshot',
       hostName: hostName(),
       sessions: state.sessions,
       streaming: state.streaming,
       summaryDrafts: state.summaryDrafts,
+      ...(annotations.length ? { annotations } : {}),
     });
   };
 
@@ -319,7 +343,16 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       case 'summary.discard':
       case 'summary.remove':
         return has(op.sessionId) ? null : 'not-found';
+      case 'annot.set': {
+        if (!has(op.annotation.sessionId)) return 'not-found';
+        const msg = state.messages[op.annotation.sessionId]?.find((m) => m.id === op.annotation.anchor.messageId);
+        if (!msg || msg.role !== 'assistant' || op.annotation.anchor.endOffset > msg.content.length) return 'not-found';
+        return null;
+      }
+      case 'annot.delete':
+        return null;
     }
+    return null;
   };
 
   const executeOp = (peer: PeerState, op: SyncOp): SyncActError | null => {
@@ -376,7 +409,18 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         case 'summary.remove':
           s.removeSummary(op.sessionId);
           return null;
+        case 'annot.set':
+          try {
+            s.putAnnotation(op.annotation);
+          } catch {
+            return 'failed';
+          }
+          return null;
+        case 'annot.delete':
+          s.deleteAnnotations(op.ids);
+          return null;
       }
+      return null;
     } catch {
       return 'failed';
     }

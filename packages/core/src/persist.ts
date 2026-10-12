@@ -1,5 +1,5 @@
 import type { MessageMap } from './context';
-import type { ConnectionState, ID, Message, ProviderId, Session, Settings, ViewState } from './model';
+import type { Annotation, ConnectionState, ID, Message, ProviderId, Session, Settings, ViewState } from './model';
 import { DEFAULT_SETTINGS, emptyView, initialConnections } from './seed';
 import type { AppData } from './store';
 
@@ -8,6 +8,7 @@ export interface StoredData {
   sessions: Session[];
   /** 세션 내 순서대로 정렬된 메시지 */
   messages: Message[];
+  annotations?: Annotation[];
   view?: ViewState;
   settings?: Partial<Settings>;
   /** 연결은 사용자 선택(enabled, model, effort)만 의미가 있다. 상태는 시작 시 다시 감지한다 */
@@ -52,6 +53,14 @@ export function restoreData(raw: StoredData, base = initialConnections()): AppDa
     list.push(m.status === 'streaming' ? { ...m, status: 'stopped' } : m);
   }
 
+  // 어노테이션: 존재하지 않는 세션의 어노테이션은 버린다
+  const annotations: Record<ID, Annotation> = {};
+  for (const a of raw.annotations ?? []) {
+    if (sessions[a.sessionId]) {
+      annotations[a.id] = a;
+    }
+  }
+
   const connections = { ...base };
   for (const c of raw.connections ?? []) {
     const cur = connections[c.providerId as ProviderId];
@@ -67,6 +76,7 @@ export function restoreData(raw: StoredData, base = initialConnections()): AppDa
   return {
     sessions,
     messages,
+    annotations,
     view: sanitizeView(raw.view, sessions),
     settings: { ...DEFAULT_SETTINGS, ...raw.settings },
     connections,
@@ -98,9 +108,11 @@ export function sanitizeView(view: ViewState | undefined, sessions: Record<ID, S
 
 /** 스토어 데이터 → 저장소 원본 (전체 저장/백업용) */
 export function toStoredData(data: AppData): StoredData {
+  const annotations = Object.values(data.annotations);
   return {
     sessions: Object.values(data.sessions),
     messages: Object.values(data.messages).flat(),
+    ...(annotations.length ? { annotations } : {}),
     view: data.view,
     settings: data.settings,
     connections: connectionPrefs(Object.values(data.connections)),

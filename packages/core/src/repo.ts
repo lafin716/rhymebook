@@ -1,4 +1,4 @@
-import type { ConnectionState, ID, Message, Session, Settings, ViewState } from './model';
+import type { Annotation, ConnectionState, ID, Message, Session, Settings, ViewState } from './model';
 
 /**
  * 영속화 경계. 스토어는 변경 후 해당 메서드를 호출하기만 하며 결과를 기다리지 않는다.
@@ -14,6 +14,8 @@ export interface Repository {
   saveView(v: ViewState): void;
   saveSettings(s: Settings): void;
   saveConnections(c: ConnectionState[]): void;
+  saveAnnotation(a: Annotation): void;
+  deleteAnnotations(ids: ID[]): void;
 }
 
 export const memoryRepository = (): Repository => ({
@@ -24,6 +26,8 @@ export const memoryRepository = (): Repository => ({
   saveView() {},
   saveSettings() {},
   saveConnections() {},
+  saveAnnotation() {},
+  deleteAnnotations() {},
 });
 
 /** 조건이 참일 때만 쓰기를 통과시킨다 (데모 모드에서는 저장하지 않기 위해) */
@@ -41,5 +45,7 @@ export function gatedRepository(repo: Repository, enabled: () => boolean): Repos
     saveView: wrap(repo.saveView),
     saveSettings: wrap(repo.saveSettings),
     saveConnections: wrap(repo.saveConnections),
+    saveAnnotation: wrap(repo.saveAnnotation),
+    deleteAnnotations: wrap(repo.deleteAnnotations),
   };
 }

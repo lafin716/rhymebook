@@ -1,4 +1,5 @@
-import type { Anchor, BranchKind, ID, Message, Session, SummaryDraft } from '../model';
+import type { Anchor, Annotation, BranchKind, ID, Message, Session, SummaryDraft } from '../model';
+import { MARK_COLORS, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
 
 /**
  * 원격 동기화 프로토콜 (ADR-026). 웹·모바일(클라이언트)이 PC 데스크톱 앱(호스트)의 학습 데이터를 보고,
@@ -27,7 +28,9 @@ export type SyncOp =
   | { kind: 'summary.request'; sessionId: ID }
   | { kind: 'summary.discard'; sessionId: ID }
   | { kind: 'summary.attach'; sessionId: ID; text?: string }
-  | { kind: 'summary.remove'; sessionId: ID };
+  | { kind: 'summary.remove'; sessionId: ID }
+  | { kind: 'annot.set'; annotation: Annotation }
+  | { kind: 'annot.delete'; ids: ID[] };
 
 export type SyncOpKind = SyncOp['kind'];
 
@@ -43,6 +46,7 @@ export type SyncServerMsg =
       sessions: Record<ID, Session>;
       streaming: Record<ID, ID>;
       summaryDrafts: Record<ID, SummaryDraft>;
+      annotations?: Annotation[];
     }
   /**
    * 세션 메시지 페이지. 4MB 프레임 한도 때문에 바이트 예산(약 1MB)으로 나눠 보낸다.
@@ -57,6 +61,8 @@ export type SyncServerMsg =
   | { type: 'sync.message'; sessionId: ID; deleted: ID }
   | { type: 'sync.streaming'; streaming: Record<ID, ID> }
   | { type: 'sync.draft'; sessionId: ID; draft: SummaryDraft | null }
+  | { type: 'sync.annot'; annotation: Annotation }
+  | { type: 'sync.annot'; deleted: ID[] }
   | { type: 'act.result'; reqId: string; ok: boolean; error?: string }
   /** 호스트가 동기화를 처리할 수 없음 (PC 앱 창 닫힘, 헤드리스 bridge 등) */
   | { type: 'sync.error'; error: string }
@@ -169,6 +175,81 @@ function validateOp(op: unknown): boolean {
   if (kind === 'summary.remove') {
     return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId);
   }
+  if (kind === 'annot.set') {
+    const anno = o.annotation as Record<string, unknown> | undefined;
+    if (!anno || typeof anno !== 'object') return false;
+    // 기본 필드
+    if (
+      typeof anno.id !== 'string' ||
+      !SYNC_ID_RE.test(anno.id) ||
+      typeof anno.sessionId !== 'string' ||
+      !SYNC_ID_RE.test(anno.sessionId) ||
+      typeof anno.createdAt !== 'number' ||
+      typeof anno.updatedAt !== 'number'
+    ) {
+      return false;
+    }
+    // anchor 검증
+    const anchor = anno.anchor as Record<string, unknown> | undefined;
+    if (
+      !anchor ||
+      typeof anchor.messageId !== 'string' ||
+      !SYNC_ID_RE.test(anchor.messageId) ||
+      typeof anchor.text !== 'string' ||
+      anchor.text.length > SYNC_LIMITS.anchorText
+    ) {
+      return false;
+    }
+    if (
+      typeof anchor.startOffset !== 'number' ||
+      !Number.isInteger(anchor.startOffset) ||
+      anchor.startOffset < 0 ||
+      typeof anchor.endOffset !== 'number' ||
+      !Number.isInteger(anchor.endOffset) ||
+      anchor.endOffset <= (anchor.startOffset as number)
+    ) {
+      return false;
+    }
+    // 서식 필드 (있으면 enum 값 확인)
+    if ('highlight' in anno && anno.highlight !== null && anno.highlight !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!MARK_COLORS.includes(anno.highlight as any)) return false;
+    }
+    if ('underline' in anno && anno.underline !== null && anno.underline !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!MARK_COLORS.includes(anno.underline as any)) return false;
+    }
+    if ('textColor' in anno && anno.textColor !== null && anno.textColor !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!MARK_COLORS.includes(anno.textColor as any)) return false;
+    }
+    if ('font' in anno && anno.font !== null && anno.font !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!MARK_FONTS.includes(anno.font as any)) return false;
+    }
+    if ('bold' in anno && anno.bold !== null && anno.bold !== undefined) {
+      if (typeof anno.bold !== 'boolean') return false;
+    }
+    if ('italic' in anno && anno.italic !== null && anno.italic !== undefined) {
+      if (typeof anno.italic !== 'boolean') return false;
+    }
+    // note 검증
+    if ('note' in anno && anno.note) {
+      if (typeof anno.note !== 'string' || anno.note.length > MAX_NOTE_LENGTH) return false;
+    }
+    // 공개하지 않은 필드가 있으면 거부
+    const allowedKeys = new Set(['id', 'sessionId', 'anchor', 'createdAt', 'updatedAt', 'highlight', 'underline', 'textColor', 'font', 'bold', 'italic', 'note']);
+    for (const k of Object.keys(anno)) {
+      if (!allowedKeys.has(k)) return false;
+    }
+    return true;
+  }
+  if (kind === 'annot.delete') {
+    if (!Array.isArray(o.ids)) return false;
+    return o.ids.length > 0 &&
+      o.ids.length <= SYNC_LIMITS.id &&
+      o.ids.every((id: unknown) => typeof id === 'string' && SYNC_ID_RE.test(id as string));
+  }
   return false;
 }
 
@@ -206,8 +287,31 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
   const msg = raw as Record<string, unknown>;
   const type = msg.type;
 
+  if (type === 'sync.snapshot') {
+    // snapshot.annotations을 검증한다 (있으면)
+    const annotations = msg.annotations as unknown;
+    if (annotations !== undefined && annotations !== null) {
+      if (!Array.isArray(annotations)) return false;
+      for (const a of annotations) {
+        if (!validateOp({ kind: 'annot.set', annotation: a })) return false;
+      }
+    }
+    return true;
+  }
+
+  if (type === 'sync.annot') {
+    const annotation = msg.annotation as unknown;
+    const deleted = msg.deleted as unknown;
+    if (annotation !== undefined) {
+      return validateOp({ kind: 'annot.set', annotation });
+    }
+    if (Array.isArray(deleted)) {
+      return validateOp({ kind: 'annot.delete', ids: deleted });
+    }
+    return false;
+  }
+
   return (
-    type === 'sync.snapshot' ||
     type === 'sync.messages' ||
     type === 'sync.append' ||
     type === 'sync.session' ||

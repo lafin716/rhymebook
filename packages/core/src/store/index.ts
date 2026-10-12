@@ -10,6 +10,9 @@ import {
 import { newId } from '../id';
 import type {
   Anchor,
+  Annotation,
+  AnnotationPatch,
+  AnnotationStyle,
   BranchKind,
   ConnectionState,
   ID,
@@ -25,6 +28,7 @@ import type {
   ViewState,
 } from '../model';
 import { MAX_SPLIT } from '../model';
+import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId, isValidEffort, sessionModelOptions } from '../cli-options';
 import { collectStream, providerError, type ProviderError, type ProviderRegistry } from '../provider';
 import { memoryRepository, type Repository } from '../repo';
@@ -41,6 +45,7 @@ export type OpenTarget = 'main' | 'split' | 'popup' | 'sheet';
 export interface AppData {
   sessions: SessionMap;
   messages: MessageMap;
+  annotations: Record<ID, Annotation>;
   view: ViewState;
   settings: Settings;
   connections: Record<ProviderId, ConnectionState>;
@@ -74,6 +79,13 @@ export interface AppState extends AppData {
 
   // 가지
   createBranch(parentSessionId: ID, anchor: Anchor, kind: BranchKind, customQuestion?: string, ids?: { sessionId?: ID; messageId?: ID }): ID | false;
+
+  // 어노테이션
+  addAnnotation(sessionId: ID, anchor: Anchor, init: AnnotationStyle & { note?: string }, id?: ID): ID;
+  updateAnnotation(id: ID, patch: AnnotationPatch): void;
+  deleteAnnotations(ids: ID[]): void;
+  /** upsert: 기존 id가 있으면 createdAt을 유지 */
+  putAnnotation(annotation: Annotation): void;
 
   // 요약
   requestSummary(sessionId: ID): Promise<void>;
@@ -304,6 +316,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
     return {
       sessions: initial.sessions ?? {},
       messages: initial.messages ?? {},
+      annotations: initial.annotations ?? {},
       view: initial.view ?? emptyView(),
       settings: initial.settings ?? DEFAULT_SETTINGS,
       connections: initial.connections ?? defaultConnections(),
@@ -318,6 +331,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         set((s) => ({
           sessions: data.sessions ?? s.sessions,
           messages: data.messages ?? s.messages,
+          annotations: data.annotations ?? s.annotations,
           view: data.view ?? s.view,
           settings: data.settings ?? s.settings,
           connections: data.connections ?? s.connections,
@@ -356,16 +370,28 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         for (const sid of ids) controllers.get(sid)?.abort();
         const gone = new Set(ids);
         const parentId = get().sessions[id]?.parentId ?? null;
+        // 삭제될 세션의 어노테이션도 수집
+        const annotationsToDelete: ID[] = [];
+        for (const [annoId, anno] of Object.entries(get().annotations)) {
+          if (gone.has(anno.sessionId)) {
+            annotationsToDelete.push(annoId);
+          }
+        }
         set((s) => {
           const sessions = { ...s.sessions };
           const messages = { ...s.messages };
+          const annotations = { ...s.annotations };
           for (const sid of ids) {
             delete sessions[sid];
             delete messages[sid];
           }
-          return { sessions, messages };
+          for (const annoId of annotationsToDelete) {
+            delete annotations[annoId];
+          }
+          return { sessions, messages, annotations };
         });
         repo.deleteSessions(ids);
+        if (annotationsToDelete.length) repo.deleteAnnotations(annotationsToDelete);
         setView((v) => {
           const split = v.splitSessionIds.filter((x) => !gone.has(x));
           const active = v.activeSessionId && gone.has(v.activeSessionId) ? parentId : v.activeSessionId;
@@ -555,6 +581,50 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         delete next.summary;
         set((s) => ({ sessions: { ...s.sessions, [sessionId]: next } }));
         repo.saveSession(next);
+      },
+
+      addAnnotation(sessionId, anchor, init, id?: ID) {
+        // 세션이 존재하는지 확인
+        if (!get().sessions[sessionId]) throw new Error(`세션을 찾을 수 없음: ${sessionId}`);
+        const annoId = id ?? newId('a');
+        // id 충돌 확인
+        if (annoId in get().annotations) throw new Error(`어노테이션 id 충돌: ${annoId}`);
+        const anno = createAnnotation(annoId, sessionId, anchor, init, Date.now());
+        set((s) => ({ annotations: { ...s.annotations, [annoId]: anno } }));
+        repo.saveAnnotation(anno);
+        return annoId;
+      },
+
+      updateAnnotation(id, patch) {
+        const cur = get().annotations[id];
+        if (!cur) return;
+        const next = applyAnnotationPatch(cur, patch, Date.now());
+        // 서식도 메모도 없으면 삭제
+        if (isEmptyAnnotation(next)) {
+          get().deleteAnnotations([id]);
+          return;
+        }
+        set((s) => ({ annotations: { ...s.annotations, [id]: next } }));
+        repo.saveAnnotation(next);
+      },
+
+      deleteAnnotations(ids) {
+        const toDelete = ids.filter((id) => id in get().annotations);
+        if (!toDelete.length) return;
+        set((s) => {
+          const annotations = { ...s.annotations };
+          for (const id of toDelete) delete annotations[id];
+          return { annotations };
+        });
+        repo.deleteAnnotations(toDelete);
+      },
+
+      putAnnotation(annotation) {
+        // upsert: 기존 annotation이 있으면 createdAt을 유지, 없으면 그대로
+        const existing = get().annotations[annotation.id];
+        const toSave = existing ? { ...annotation, createdAt: existing.createdAt } : annotation;
+        set((s) => ({ annotations: { ...s.annotations, [annotation.id]: toSave } }));
+        repo.saveAnnotation(toSave);
       },
 
       openSession(id, target = 'main') {

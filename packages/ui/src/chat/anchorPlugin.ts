@@ -5,6 +5,8 @@ import {
   type ID,
   type RenderTextNode,
   type SegmentMap,
+  type Annotation,
+  type AnnotationStyle,
 } from '@branch/core';
 import type { Element, ElementContent, Parent, Root, Text } from 'hast';
 import { visitParents } from 'unist-util-visit-parents';
@@ -19,6 +21,8 @@ export interface AnchorMark {
 
 export interface RehypeAnchorsOptions {
   anchors: AnchorMark[];
+  annotations?: Annotation[];
+  messageId?: ID;
   /** 렌더↔원문 맵과 복원 결과(sessionId → 찾음 여부) 콜백 */
   onMap?: (map: SegmentMap, located: Record<ID, boolean>) => void;
 }
@@ -27,10 +31,39 @@ interface Entry {
   node: Text;
   parent: Parent;
   renderStart: number;
+  /** 가장 가까운 블록 조상 (영역 모드 판정용) */
+  block: Parent | null;
 }
 
 function insidePre(ancestors: Parent[]): boolean {
   return ancestors.some((a) => (a as Element).tagName === 'pre');
+}
+
+function isBlockElement(node: unknown): boolean {
+  if (typeof node !== 'object' || !node || !('tagName' in node)) return false;
+  const tagName = (node as { tagName: string }).tagName;
+  return /^(p|li|h[1-6]|pre|blockquote|tr|td|th)$/.test(tagName);
+}
+
+/** 겹친 어노테이션 서식을 합친다 (나중에 수정한 것이 이긴다) → span 속성 */
+function annotationProps(annots: Annotation[]): Record<string, string | undefined> {
+  const m: AnnotationStyle = {};
+  for (const a of [...annots].sort((x, y) => x.updatedAt - y.updatedAt)) {
+    if (a.highlight) m.highlight = a.highlight;
+    if (a.underline) m.underline = a.underline;
+    if (a.textColor) m.textColor = a.textColor;
+    if (a.font) m.font = a.font;
+    if (a.bold) m.bold = true;
+    if (a.italic) m.italic = true;
+  }
+  return {
+    dataHl: m.highlight,
+    dataUl: m.underline,
+    dataTc: m.textColor,
+    dataFont: m.font,
+    dataBold: m.bold ? 'true' : undefined,
+    dataItalic: m.italic ? 'true' : undefined,
+  };
 }
 
 /**
@@ -71,7 +104,12 @@ export function rehypeAnchors(options: RehypeAnchorsOptions) {
             : { value: node.value },
         );
       }
-      entries.push({ node, parent: ancestors[ancestors.length - 1] as Parent, renderStart: offset });
+      entries.push({
+        node,
+        parent: ancestors[ancestors.length - 1] as Parent,
+        renderStart: offset,
+        block: ([...ancestors].reverse().find(isBlockElement) as Parent | undefined) ?? null,
+      });
       offset += node.value.length;
     });
     const map = buildSegmentMap(nodes, source);
@@ -88,33 +126,82 @@ export function rehypeAnchors(options: RehypeAnchorsOptions) {
     }
     const pieces = layoutAnchorRanges(ranges);
 
-    if (pieces.length) {
+    // 4) 영역 모드: 2개 이상 블록에 걸친 앵커는 배경 대신 왼쪽 막대로 표시 (ADR-030)
+    const region = new Set<ID>();
+    for (const r of ranges) {
+      const blocks = new Set<Parent | null>();
+      for (const e of entries) {
+        if (e.renderStart < r.end && e.renderStart + e.node.value.length > r.start && e.node.value.trim()) blocks.add(e.block);
+      }
+      if (blocks.size > 1) region.add(r.id);
+    }
+
+    // 5) 어노테이션(서식·메모) 범위 (ADR-029)
+    const annots: { start: number; end: number; a: Annotation }[] = [];
+    for (const a of options.annotations ?? []) {
+      if (options.messageId && a.anchor.messageId !== options.messageId) continue;
+      const r = locateAnchor(map, a.anchor);
+      if (r && r.end > r.start) annots.push({ ...r, a });
+    }
+
+    if (pieces.length || annots.length) {
       for (const e of entries) {
         const s = e.renderStart;
         const len = e.node.value.length;
-        const hits = pieces.filter((r) => r.start < s + len && r.end > s);
-        if (!hits.length) continue;
-        const out: ElementContent[] = [];
-        let cur = 0;
-        for (const r of hits) {
-          const a = Math.max(0, r.start - s);
-          const b = Math.min(len, r.end - s);
-          if (a > cur) out.push({ type: 'text', value: e.node.value.slice(cur, a) });
-          out.push({
-            type: 'element',
-            tagName: 'mark',
-            properties: {
-              className: ['anchor'],
-              dataSessionId: r.id,
-              dataSessionIds: r.ids.join(' '),
-              dataHasSummary: String(!!byId.get(r.id)?.hasSummary),
-              dataNested: r.ids.length > 1 ? 'true' : undefined,
-            },
-            children: [{ type: 'text', value: e.node.value.slice(a, b) }],
-          });
-          cur = b;
+        const cuts = new Set<number>([0, len]);
+        let hit = false;
+        for (const p of [...pieces, ...annots]) {
+          if (p.start < s + len && p.end > s) {
+            hit = true;
+            cuts.add(Math.max(0, p.start - s));
+            cuts.add(Math.min(len, p.end - s));
+          }
         }
-        if (cur < len) out.push({ type: 'text', value: e.node.value.slice(cur) });
+        if (!hit) continue;
+        const sorted = [...cuts].sort((x, y) => x - y);
+        const out: ElementContent[] = [];
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const a = sorted[i]!;
+          const b = sorted[i + 1]!;
+          if (b <= a) continue;
+          const from = s + a;
+          const to = s + b;
+          let node: ElementContent = { type: 'text', value: e.node.value.slice(a, b) };
+          const piece = pieces.find((p) => p.start < to && p.end > from);
+          if (piece) {
+            node = {
+              type: 'element',
+              tagName: 'mark',
+              properties: {
+                className: ['anchor'],
+                dataSessionId: piece.id,
+                dataSessionIds: piece.ids.join(' '),
+                dataHasSummary: String(!!byId.get(piece.id)?.hasSummary),
+                dataNested: piece.ids.length > 1 ? 'true' : undefined,
+                dataRegion: piece.ids.every((id) => region.has(id)) ? 'true' : undefined,
+              },
+              children: [node],
+            };
+          }
+          const hits = annots.filter((p) => p.start < to && p.end > from).map((p) => p.a);
+          if (hits.length) {
+            // 메모 표시는 메모가 달린 범위의 끝 조각에 CSS ::after로 (DOM 텍스트 불변)
+            const noteEnd = annots.some((p) => p.a.note && p.end === to);
+            node = {
+              type: 'element',
+              tagName: 'span',
+              properties: {
+                className: ['annot'],
+                dataAnnotIds: hits.map((h) => h.id).join(' '),
+                dataNote: hits.some((h) => h.note) ? 'true' : undefined,
+                dataNoteEnd: noteEnd ? 'true' : undefined,
+                ...annotationProps(hits),
+              },
+              children: [node],
+            };
+          }
+          out.push(node);
+        }
         const idx = e.parent.children.indexOf(e.node);
         if (idx >= 0) e.parent.children.splice(idx, 1, ...(out as typeof e.parent.children));
       }

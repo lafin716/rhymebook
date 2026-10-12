@@ -1,11 +1,12 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
 import { NEW_SESSION_TITLE } from '../store';
-import type { Anchor, BranchKind, ID, Message, Session, ViewState } from '../model';
+import type { Anchor, Annotation, BranchKind, ID, Message, Session, ViewState } from '../model';
 import type { SyncOp, SyncOpKind, SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
 import { branchQuestion } from '../context';
 import { newId } from '../id';
+import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 
 export type SyncStatus = 'unpaired' | 'connecting' | 'online' | 'offline' | 'unsupported';
 
@@ -182,11 +183,18 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         dropPending();
         requested.clear();
         const gone = new Set(Object.keys(s.sessions).filter((id) => !msg.sessions[id]));
+        const annotations = msg.annotations ?? [];
+        // 스냅샷에 없는 세션의 annotation을 제거한다
+        const filtered: Record<string, typeof annotations[0]> = {};
+        for (const a of annotations) {
+          if (msg.sessions[a.sessionId]) filtered[a.id] = a;
+        }
         apply({
           sessions: msg.sessions,
           messages: {},
           streaming: msg.streaming,
           summaryDrafts: msg.summaryDrafts,
+          annotations: filtered,
           view: pruneView(s.view, gone, s.sessions),
         });
         backoffMs = backoff.base;
@@ -218,15 +226,20 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
           const gone = new Set(msg.deleted);
           const sessions = { ...s.sessions };
           const messages = { ...s.messages };
+          const annotations = { ...s.annotations };
           for (const id of gone) {
             delete sessions[id];
             delete messages[id];
             requested.delete(id);
+            // 삭제된 세션의 annotation도 제거
+            for (const [annoId, anno] of Object.entries(annotations)) {
+              if (anno.sessionId === id) delete annotations[annoId];
+            }
           }
           const loaded = { ...state.getState().loaded };
           for (const id of gone) delete loaded[id];
           setState({ loaded });
-          apply({ sessions, messages, view: pruneView(s.view, gone, s.sessions) });
+          apply({ sessions, messages, annotations, view: pruneView(s.view, gone, s.sessions) });
         } else {
           apply({ sessions: { ...s.sessions, [msg.session.id]: msg.session } });
         }
@@ -253,6 +266,16 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         if (msg.draft) drafts[msg.sessionId] = msg.draft;
         else delete drafts[msg.sessionId];
         apply({ summaryDrafts: drafts });
+        return;
+      }
+      case 'sync.annot': {
+        if ('annotation' in msg) {
+          apply({ annotations: { ...s.annotations, [msg.annotation.id]: msg.annotation } });
+        } else if ('deleted' in msg) {
+          const annotations = { ...s.annotations };
+          for (const id of msg.deleted) delete annotations[id];
+          apply({ annotations });
+        }
         return;
       }
       case 'act.result': {
@@ -306,6 +329,15 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       return false;
     }
     return true;
+  };
+
+  /** 실패한 어노테이션 op 되돌리기: 아직 낙관적 값(optimistic) 그대로일 때만 이전 값(before)으로 */
+  const restoreAnnotation = (id: ID, optimistic: Annotation | undefined, before: Annotation | undefined) => {
+    const annotations = { ...get().annotations };
+    if (annotations[id] !== optimistic) return;
+    if (before) annotations[id] = before;
+    else delete annotations[id];
+    apply({ annotations });
   };
 
   /** 아직 낙관적 상태 그대로일 때만 세션을 걷어낸다 */
@@ -436,6 +468,41 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
 
     removeSummary(sessionId) {
       act({ kind: 'summary.remove', sessionId });
+    },
+
+    addAnnotation(sessionId, anchor, init, id) {
+      const s = get();
+      if (!s.sessions[sessionId]) return '' as ID;
+      const annoId = id ?? newId('a');
+      if (annoId in s.annotations) return annoId;
+      const annotation = createAnnotation(annoId, sessionId, anchor, init, Date.now());
+      apply({ annotations: { ...s.annotations, [annoId]: annotation } });
+      return act({ kind: 'annot.set', annotation }, () => restoreAnnotation(annoId, annotation, undefined)) ? annoId : '';
+    },
+
+    updateAnnotation(id, patch) {
+      const s = get();
+      const cur = s.annotations[id];
+      if (!cur) return;
+      const next = applyAnnotationPatch(cur, patch, Date.now());
+      // 서식도 메모도 없으면 삭제로 보낸다
+      if (isEmptyAnnotation(next)) {
+        apply({ annotations: Object.fromEntries(Object.entries(s.annotations).filter(([k]) => k !== id)) });
+        act({ kind: 'annot.delete', ids: [id] }, () => restoreAnnotation(id, undefined, cur));
+        return;
+      }
+      apply({ annotations: { ...s.annotations, [id]: next } });
+      act({ kind: 'annot.set', annotation: next }, () => restoreAnnotation(id, next, cur));
+    },
+
+    deleteAnnotations(ids) {
+      const toDelete = ids.filter((id) => id in get().annotations);
+      if (!toDelete.length) return;
+      const s = get();
+      apply({ annotations: Object.fromEntries(Object.entries(s.annotations).filter(([k]) => !toDelete.includes(k))) });
+      act({ kind: 'annot.delete', ids: toDelete }, () => {
+        for (const id of toDelete) restoreAnnotation(id, undefined, s.annotations[id]);
+      });
     },
 
     // 원격 모드에서는 PC가 CLI·모델을 정한다

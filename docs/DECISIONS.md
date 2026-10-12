@@ -191,3 +191,18 @@
 - 결정: 빈 인자는 `""`로 넘긴다. Codex `-c` 값에는 따옴표를 넣지 않는다(`model_reasoning_effort=low` — TOML로 안 읽히면 문자열로 쓰임). win32 PATH에 `%USERPROFILE%\.local\bin`(claude 네이티브 설치)을 더한다.
 - 결정(Codex): 대화에 쓰지 않는 에이전트 기능(shell_tool·unified_exec·apps·plugins·multi_agent·browser/computer use·web_search 등)을 `-c features.<name>=false`로 끈다. 모델이 셸 명령(win32는 PowerShell + 샌드박스)을 실행하거나 플러그인·앱을 띄우는 지연을 없애고, 입력 토큰을 약 25k → 19k로 줄인다. `--disable`은 모르는 기능 이름이면 실패하므로 버전 차이에 안전한 `-c`를 쓴다.
 - 한계: `codex exec --json`은 토큰 단위 스트리밍이 없어 답이 완성될 때 한 번에 나온다. 남는 대기 시간은 대부분 모델 지연이라, 빠른 답이 필요하면 노력치 '낮음'이나 가벼운 모델을 고르도록 안내한다.
+
+### ADR-028 · 2026-10-12 · 데스크톱 백그라운드 호스트 + 트레이
+- 배경: 페어링된 기기는 PC renderer 스토어(ADR-026)에 의존하므로 창을 닫아 앱이 끝나면 원격이 끊긴다. 기존에는 macOS에서만 창 숨김.
+- 결정: 원격 페어링(호스트)이 켜져 있으면 모든 OS에서 창 닫기 = 숨기기(renderer 엔진 유지, 백그라운드 throttling 끔). 호스트가 켜져 있는 동안 트레이(메뉴 막대) 아이콘을 띄우고 메뉴는 [열기]·상태 줄·[완전 종료]. 처음 숨길 때 한 번 "백그라운드에서 계속 실행 중" 알림. macOS는 창이 숨겨져 있으면 Dock 아이콘을 숨긴다. ⌘Q·트레이 [완전 종료]는 실제 종료.
+- 대안: 렌더러 없는 main 단독 엔진 — 스토어·provider 로직이 renderer(Dexie)에 있어 대규모 이동 필요. 기각.
+
+### ADR-029 · 2026-10-12 · 서식·메모 = Annotation 엔티티
+- 결정: 드래그 메뉴의 형광펜·밑줄·글자색·글꼴·굵게·기울임·메모는 메시지 원문 offset(가지 Anchor와 같은 규칙)에 붙는 `Annotation`으로 저장한다(Dexie v3 `annotations`, 백업 선택 필드, sync op `annot.set`/`annot.delete` + push `sync.annot`). 메시지 content는 바꾸지 않는다(답변 원문 보존, 맥락 구성에 영향 없음).
+- 렌더: rehypeAnchors가 가지·annotation 경계를 함께 잘라 `span.annot` 안에 `mark.anchor`를 둔다. 표시 아이콘은 CSS pseudo-content라 DOM 텍스트 = 렌더 텍스트가 유지된다.
+- 같은 범위를 다시 서식하면 기존 annotation을 갱신, 겹치는 다른 범위는 새로 만든다. [서식 지우기]는 선택과 겹치는 annotation의 서식을 지운다(메모는 유지).
+- 원격: 클라이언트는 낙관적으로 적용하고 op 실패(오프라인·전송 실패·시간 초과·호스트 거부) 시 아직 그 값 그대로일 때만 이전 값으로 되돌린다. 호스트는 assistant 메시지·`endOffset ≤ content.length`를 검증한다.
+- 서식 버튼은 메뉴를 닫지 않아 연속 적용할 수 있다. 데스크톱은 메뉴 조작 직후 선택을 다시 읽어 메뉴를 현재 선택에 맞춘다.
+
+### ADR-030 · 2026-10-12 · 여러 블록 가지 = 왼쪽 영역 막대
+- 결정: 가지 앵커가 2개 이상 블록 요소(문단·목록 항목·제목·코드·인용·표 칸)에 걸치면 본문 배경 하이라이트 대신 메시지 왼쪽 여백의 세로 막대로 표시한다. 텍스트 mark는 남겨 두되(`data-region`, 배경 없음) hover·클릭·스크롤 이동에 쓴다. 막대는 mark 사각형의 세로 합집합으로 측정, 겹치면 lane으로 나란히 둔다.

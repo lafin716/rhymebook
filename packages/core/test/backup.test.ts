@@ -40,7 +40,13 @@ const msg = (id: string, sessionId: string, content = id): Message => ({ id, ses
 
 const seedStored = (): StoredData => {
   const seed = createSeed(0);
-  return toStoredData({ ...seed, view: emptyView(SEED_IDS.cos), settings: DEFAULT_SETTINGS, connections: initialConnections() });
+  return toStoredData({
+    ...seed,
+    annotations: {},
+    view: emptyView(SEED_IDS.cos),
+    settings: DEFAULT_SETTINGS,
+    connections: initialConnections(),
+  });
 };
 
 describe('backup snapshot', () => {

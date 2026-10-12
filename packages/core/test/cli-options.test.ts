@@ -59,6 +59,7 @@ describe('세션별 모델·노력치', () => {
       registry: new ProviderRegistry().register(fake('claude-cli')).register(fake('codex-cli')),
       initial: {
         ...createSeed(0),
+        annotations: {},
         view: emptyView(SEED_IDS.root),
         settings: { ...DEFAULT_SETTINGS, defaultProviderId: 'claude-cli' },
         connections,
@@ -117,7 +118,7 @@ describe('연결 기본값 영속화', () => {
       model: 'gpt-6-sol',
       effort: 'xhigh',
     });
-    const back = restoreData(toStoredData({ ...createSeed(0), view: emptyView(), settings: DEFAULT_SETTINGS, connections }));
+    const back = restoreData(toStoredData({ ...createSeed(0), annotations: {}, view: emptyView(), settings: DEFAULT_SETTINGS, connections }));
     expect(back.connections['codex-cli']).toMatchObject({ model: 'gpt-6-sol', effort: 'xhigh' });
   });
 });

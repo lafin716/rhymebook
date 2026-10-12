@@ -1,4 +1,4 @@
-import { nextFallback, PROVIDER_LABELS, type Message, type SegmentMap, type Session } from '@branch/core';
+import { nextFallback, PROVIDER_LABELS, annotationsForMessage, type Message, type SegmentMap, type Session } from '@branch/core';
 import { AlertTriangle, RefreshCw, RotateCcw, Shuffle, Square } from 'lucide-react';
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { actions, useApp } from '../app/store';
@@ -9,6 +9,8 @@ import { Markdown } from './Markdown';
 import { openBranch } from './open';
 import { setSegmentMap } from './segmentRegistry';
 import { BranchChips, SummaryCard } from './SummaryCard';
+import { AnnotationPopover } from './AnnotationPopover';
+import { RegionGutter } from './RegionGutter';
 
 export interface MessageItemProps {
   message: Message;
@@ -39,7 +41,14 @@ export const MessageItem = memo(function MessageItem({ message, branches, isLast
 function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [unlocated, setUnlocated] = useState<Set<string>>(new Set());
+  const [noteOpen, setNoteOpen] = useState<{ id: string; rect: DOMRect } | null>(null);
   const streaming = message.status === 'streaming';
+
+  const allAnnotations = useApp((s) => s.annotations);
+  const annotations = useMemo(
+    () => (streaming ? [] : annotationsForMessage(allAnnotations, message.id)),
+    [allAnnotations, message.id, streaming],
+  );
 
   const anchors = useMemo<AnchorMark[]>(
     () =>
@@ -62,10 +71,18 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
   }, [anchorKey, message.content, streaming]);
 
   const onClick = (e: MouseEvent) => {
-    const mark = (e.target as Element).closest<HTMLElement>('mark.anchor');
-    if (!mark?.dataset.sessionId) return;
     if (!window.getSelection()?.isCollapsed) return;
-    openBranch(mark.dataset.sessionId);
+    const target = e.target as Element;
+    // 가지 하이라이트가 우선. 영역 가지(왼쪽 막대)는 막대로만 연다
+    const mark = target.closest<HTMLElement>('mark.anchor');
+    if (mark?.dataset.sessionId && mark.dataset.region !== 'true') {
+      openBranch(mark.dataset.sessionId);
+      return;
+    }
+    // 메모가 달린 텍스트 → 메모 팝오버
+    const span = target.closest<HTMLElement>('span.annot[data-note]');
+    const id = span?.dataset.annotIds?.split(' ').find((x) => allAnnotations[x]?.note);
+    if (span && id) setNoteOpen({ id, rect: span.getBoundingClientRect() });
   };
 
   const summaries = branches.filter((b) => b.summary);
@@ -78,16 +95,33 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
           생각 중…
         </div>
       ) : (
-        <div
-          ref={ref}
-          className={cn('md', streaming && 'is-streaming')}
-          data-anchorable={streaming ? undefined : ''}
-          data-message-id={message.id}
-          data-session-id={message.sessionId}
-          onClick={onClick}
-        >
-          <Markdown content={message.content} anchors={streaming ? undefined : anchors} onMap={onMap} />
+        <div className="relative">
+          <div
+            ref={ref}
+            className={cn('md', streaming && 'is-streaming')}
+            data-anchorable={streaming ? undefined : ''}
+            data-message-id={message.id}
+            data-session-id={message.sessionId}
+            onClick={onClick}
+          >
+            <Markdown
+              content={message.content}
+              messageId={message.id}
+              anchors={streaming ? undefined : anchors}
+              annotations={streaming ? undefined : annotations}
+              onMap={onMap}
+            />
+          </div>
+          {!streaming && <RegionGutter target={ref} />}
         </div>
+      )}
+
+      {noteOpen && allAnnotations[noteOpen.id] && (
+        <AnnotationPopover
+          annotation={allAnnotations[noteOpen.id]!}
+          rect={noteOpen.rect}
+          onClose={() => setNoteOpen(null)}
+        />
       )}
 
       {message.status === 'error' && <ErrorBox message={message} canRetry={isLast} />}

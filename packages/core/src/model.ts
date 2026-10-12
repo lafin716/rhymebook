@@ -138,4 +138,42 @@ export type SummaryDraft =
   | { status: 'ready'; text: string }
   | { status: 'error'; text: string; message: string };
 
+/** 서식·메모 색상 팔레트 (실제 색은 UI 테마 변수) */
+export const MARK_COLORS = ['yellow', 'green', 'blue', 'purple', 'red', 'orange'] as const;
+export type MarkColor = (typeof MARK_COLORS)[number];
+
+export const MARK_FONTS = ['serif', 'mono'] as const;
+export type MarkFont = (typeof MARK_FONTS)[number];
+
+/** 서식 필드 (모두 선택; 없음 = 해당 서식 없음) */
+export interface AnnotationStyle {
+  highlight?: MarkColor;
+  underline?: MarkColor;
+  textColor?: MarkColor;
+  font?: MarkFont;
+  bold?: boolean;
+  italic?: boolean;
+}
+
+/**
+ * 드래그 메뉴로 만든 메시지 텍스트 범위의 서식·메모 (IMP-07, ADR-029).
+ * anchor는 가지와 같은 원문 offset 규칙을 따른다. 서식과 note가 모두 비면 삭제한다.
+ */
+export interface Annotation extends AnnotationStyle {
+  id: ID;
+  /** anchor.messageId가 속한 세션 */
+  sessionId: ID;
+  anchor: Anchor;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** updateAnnotation 패치: 서식 키에 null을 주면 해당 서식을 지운다 */
+export type AnnotationPatch = {
+  [K in keyof AnnotationStyle]?: AnnotationStyle[K] | null;
+} & { note?: string | null };
+
+export const MAX_NOTE_LENGTH = 4000;
+
 export const MAX_SPLIT = 3;

@@ -112,6 +112,8 @@ const OP_LABEL: Record<SyncOp['kind'], string> = {
   'summary.discard': '요약 초안을 버렸어요',
   'summary.attach': '요약을 붙였어요',
   'summary.remove': '요약을 떼어 냈어요',
+  'annot.set': '메모를 추가했어요',
+  'annot.delete': '메모를 삭제했어요',
 };
 
 export interface RemoteNotice {
