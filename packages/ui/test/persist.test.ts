@@ -23,6 +23,14 @@ const idle = (store: AppStore) =>
     setTimeout(check, 5);
   });
 
+/** 시드 데이터가 저장된 DB (첫 실행은 비어 있으므로 테스트용으로 직접 채운다) */
+async function seededRepo() {
+  const repo = freshRepo();
+  const { data } = await hydrate(repo);
+  await repo.replaceAll(toStoredData({ ...data, ...createSeed(), view: emptyView(SEED_IDS.root) }));
+  return repo;
+}
+
 async function boot(repo: DexieRepository) {
   const { data } = await hydrate(repo);
   const store: AppStore = createAppStore({
@@ -46,16 +54,26 @@ describe('Dexie persistence', () => {
     mockControl.failNext = false;
   });
 
-  it('seeds an empty database on first run', async () => {
+  it('starts with no example sessions on first run', async () => {
     const repo = freshRepo();
     const { data } = await hydrate(repo);
-    expect(data.sessions[SEED_IDS.root]).toBeDefined();
+    expect(data.sessions).toEqual({});
+    expect(data.view.activeSessionId).toBeNull();
     const raw = await repo.loadAll();
-    expect(raw?.sessions.length).toBe(Object.keys(data.sessions).length);
+    expect(raw?.sessions).toEqual([]);
+  });
+
+  it('keeps settings across reloads even with no sessions', async () => {
+    const repo = freshRepo();
+    const a = await boot(repo);
+    a.getState().updateSettings({ setupDone: true, theme: 'dark' });
+    const b = await reload(repo);
+    expect(b.getState().sessions).toEqual({});
+    expect(b.getState().settings).toMatchObject({ setupDone: true, theme: 'dark' });
   });
 
   it('keeps the tree, anchors, summaries and view state after reload', async () => {
-    const repo = freshRepo();
+    const repo = await seededRepo();
     const a = await boot(repo);
     const parentMsg = a.getState().messages[SEED_IDS.root]![1]!;
     const start = parentMsg.content.indexOf('가중합');
@@ -64,6 +82,7 @@ describe('Dexie persistence', () => {
       { messageId: parentMsg.id, text: '가중합', startOffset: start, endOffset: start + 3 },
       'what',
     );
+    if (!branch) throw new Error('branch not created');
     await idle(a);
     a.getState().attachSummary(branch, '가중합은 중요도만큼 섞은 평균이다.');
     a.getState().openSession(SEED_IDS.cos, 'split');
@@ -85,7 +104,7 @@ describe('Dexie persistence', () => {
   });
 
   it('deletes a session subtree with its messages', async () => {
-    const repo = freshRepo();
+    const repo = await seededRepo();
     const a = await boot(repo);
     a.getState().deleteSession(SEED_IDS.qkv);
     const b = await reload(repo);
@@ -96,7 +115,7 @@ describe('Dexie persistence', () => {
   });
 
   it('keeps message order across retry and stores the replacement', async () => {
-    const repo = freshRepo();
+    const repo = await seededRepo();
     const a = await boot(repo);
     a.getState().setSessionProvider(SEED_IDS.scale, 'mock');
     mockControl.failNext = true;
@@ -113,7 +132,7 @@ describe('Dexie persistence', () => {
   });
 
   it('restores an interrupted stream as stopped with its partial text', async () => {
-    const repo = freshRepo();
+    const repo = await seededRepo();
     const a = await boot(repo);
     const last = a.getState().messages[SEED_IDS.root]!.at(-1)!;
     repo.saveMessage({ ...last, id: 'm-cut', content: '부분 응답', status: 'streaming' }, 99);
@@ -123,7 +142,7 @@ describe('Dexie persistence', () => {
   });
 
   it('replaceAll swaps the whole dataset', async () => {
-    const repo = freshRepo();
+    const repo = await seededRepo();
     await boot(repo);
     const other = { ...createSeed(0), view: emptyView(SEED_IDS.scale) };
     const data = restoreData(toStoredData({ ...other, settings: (await hydrate(repo)).data.settings, connections: (await hydrate(repo)).data.connections }));

@@ -55,8 +55,11 @@ export interface AppState extends AppData {
   // 데이터 교체 (시드/시나리오/영속화 로드)
   load(data: Partial<AppData>): void;
 
+  // 원격 모드: repo에 쓰지 않고 상태만 업데이트
+  applyRemote(patches: Partial<AppState>): void;
+
   // 세션
-  newRootSession(): ID;
+  newRootSession(id?: ID, opts?: { focus?: boolean }): ID | false;
   deleteSession(id: ID): void;
   renameSession(id: ID, title: string): void;
   setSessionProvider(id: ID, providerId: ProviderId | undefined): void;
@@ -64,13 +67,13 @@ export interface AppState extends AppData {
   setSessionModel(id: ID, patch: { model?: string | undefined; effort?: string | undefined }): void;
 
   // 메시지
-  sendMessage(sessionId: ID, text: string): void;
+  sendMessage(sessionId: ID, text: string, messageId?: ID): ID | false;
   stopStream(sessionId: ID): void;
   /** 마지막 실패/중지 응답을 다시 생성. providerId를 주면 세션 provider를 바꾼 뒤 재시도 */
-  retry(sessionId: ID, providerId?: ProviderId): void;
+  retry(sessionId: ID, providerId?: ProviderId): boolean;
 
   // 가지
-  createBranch(parentSessionId: ID, anchor: Anchor, kind: BranchKind, customQuestion?: string): ID;
+  createBranch(parentSessionId: ID, anchor: Anchor, kind: BranchKind, customQuestion?: string, ids?: { sessionId?: ID; messageId?: ID }): ID | false;
 
   // 요약
   requestSummary(sessionId: ID): Promise<void>;
@@ -108,6 +111,8 @@ export interface AppStoreOptions {
   initial?: Partial<AppData>;
   /** 팝업 기본 위치 계산용 뷰포트 크기 */
   viewport?: () => { width: number; height: number };
+  /** 원격 모드: true이면 repo에 쓰지 않는다 (세션 액션은 SyncClient가 호스트 요청으로 대체) */
+  remote?: boolean;
 }
 
 export type AppStore = StoreApi<AppState>;
@@ -132,7 +137,7 @@ export function nextFallback(
 
 export function createAppStore(opts: AppStoreOptions): AppStore {
   const { registry } = opts;
-  const repo = opts.repo ?? memoryRepository();
+  const repo = opts.remote ? memoryRepository() : (opts.repo ?? memoryRepository());
   const viewport = opts.viewport ?? (() => ({ width: 1280, height: 800 }));
   const controllers = new Map<ID, AbortController>();
   const summaryControllers = new Map<ID, AbortController>();
@@ -322,14 +327,27 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         }));
       },
 
-      newRootSession() {
-        const id = newId('s');
+      applyRemote(patches) {
+        // 원격 모드: repo에 쓰지 않는다
+        set(patches as Partial<AppState>);
+      },
+
+      newRootSession(id?: ID, opts?: { focus?: boolean }) {
+        const sessionId = id ?? newId('s');
+        // id 충돌 확인
+        if (id && get().sessions[id]) return false;
+        if (id && Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === id))) return false;
+
         const now = Date.now();
-        const s: Session = { id, parentId: null, rootId: id, title: NEW_SESSION_TITLE, createdAt: now, updatedAt: now };
-        set((st) => ({ sessions: { ...st.sessions, [id]: s }, messages: { ...st.messages, [id]: [] } }));
+        const s: Session = { id: sessionId, parentId: null, rootId: sessionId, title: NEW_SESSION_TITLE, createdAt: now, updatedAt: now };
+        set((st) => ({ sessions: { ...st.sessions, [sessionId]: s }, messages: { ...st.messages, [sessionId]: [] } }));
         repo.saveSession(s);
-        setView(() => emptyView(id));
-        return id;
+
+        const focus = opts?.focus !== false;
+        if (focus) {
+          setView(() => emptyView(sessionId));
+        }
+        return sessionId;
       },
 
       deleteSession(id) {
@@ -401,12 +419,20 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         repo.saveSession(next);
       },
 
-      sendMessage(sessionId, text) {
+      sendMessage(sessionId, text, messageId?: ID) {
         const content = text.trim();
-        if (!content || !get().sessions[sessionId] || get().streaming[sessionId]) return;
-        putMessage({ id: newId('m'), sessionId, role: 'user', content, createdAt: Date.now() });
+        if (!content || !get().sessions[sessionId] || get().streaming[sessionId]) return false;
+
+        // messageId 충돌 확인
+        if (messageId && (get().sessions[messageId] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === messageId)))) {
+          return false;
+        }
+
+        const id = messageId ?? newId('m');
+        putMessage({ id, sessionId, role: 'user', content, createdAt: Date.now() });
         touch(sessionId);
         startAssistant(sessionId);
+        return id;
       },
 
       stopStream(sessionId) {
@@ -414,28 +440,35 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       },
 
       retry(sessionId, providerId) {
-        if (get().streaming[sessionId]) return;
+        if (get().streaming[sessionId]) return false;
         if (providerId) get().setSessionProvider(sessionId, providerId);
         const list = get().messages[sessionId] ?? [];
         const last = list[list.length - 1];
-        if (!last) return;
+        if (!last) return false;
         if (last.role === 'assistant' && (last.status === 'error' || last.status === 'stopped')) {
           set((s) => ({ messages: { ...s.messages, [sessionId]: list.slice(0, -1) } }));
           repo.deleteMessage(last.id);
         } else if (last.role !== 'user') {
-          return;
+          return false;
         }
         startAssistant(sessionId);
+        return true;
       },
 
-      createBranch(parentSessionId, anchor, kind, customQuestion) {
+      createBranch(parentSessionId, anchor, kind, customQuestion, ids?: { sessionId?: ID; messageId?: ID }) {
         const parent = get().sessions[parentSessionId];
-        if (!parent) throw new Error(`unknown session ${parentSessionId}`);
-        const id = newId('s');
+        if (!parent) return false;
+
+        const sessionId = ids?.sessionId ?? newId('s');
+        // id 충돌 확인
+        if (ids?.sessionId && get().sessions[ids.sessionId]) return false;
+        if (ids?.sessionId && Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === ids.sessionId))) return false;
+        if (ids?.messageId && (get().sessions[ids.messageId] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === ids.messageId)))) return false;
+
         const now = Date.now();
         const title = anchor.text.length > 24 ? `${anchor.text.slice(0, 24)}…` : anchor.text;
         const s: Session = {
-          id,
+          id: sessionId,
           parentId: parent.id,
           rootId: parent.rootId,
           title,
@@ -445,12 +478,12 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           createdAt: now,
           updatedAt: now,
         };
-        set((st) => ({ sessions: { ...st.sessions, [id]: s }, messages: { ...st.messages, [id]: [] } }));
+        set((st) => ({ sessions: { ...st.sessions, [sessionId]: s }, messages: { ...st.messages, [sessionId]: [] } }));
         repo.saveSession(s);
         touch(parent.id);
         const q = kind === 'custom' ? (customQuestion ?? '').trim() : branchQuestion(kind, anchor.text);
-        get().sendMessage(id, q || branchQuestion('what', anchor.text));
-        return id;
+        const msgId = get().sendMessage(sessionId, q || branchQuestion('what', anchor.text), ids?.messageId);
+        return msgId ? sessionId : false;
       },
 
       async requestSummary(sessionId) {

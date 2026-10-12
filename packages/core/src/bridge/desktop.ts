@@ -1,5 +1,6 @@
 import type { HostPolicy } from '../platform';
 import type { BridgeClientMsg, BridgeServerMsg } from './protocol';
+import type { SyncClientMsg, SyncServerMsg } from './sync';
 
 /** 데스크톱(Electron) preload가 렌더러에 노출하는 API: window.branchDesktop */
 export interface DesktopApi {
@@ -62,6 +63,13 @@ export interface DesktopHostApi {
   /** 원격 요청에 적용할 에이전트·모델·노력치 */
   setPolicy(policy: HostPolicy): Promise<void>;
   onChange(listener: (state: HostState) => void): () => void;
+  /** 웹·모바일 원격 동기화 (ADR-026). 없으면 지원 안 함 */
+  sync?: {
+    ready(on: boolean): void;
+    send(peerId: string, msg: SyncServerMsg): void;
+    onMessage(cb: (peerId: string, msg: SyncClientMsg) => void): () => void;
+    onPeerGone?(cb: (peerId: string) => void): () => void;
+  };
 }
 
 /** 모바일(Capacitor) 진입점이 주입하는 API: window.branchMobile (Phase 5, ADR-019) */

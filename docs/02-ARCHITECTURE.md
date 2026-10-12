@@ -118,9 +118,15 @@ core(`anchor.ts`)는 세그먼트 맵 기반 변환/매칭만 담당하고, hast
 
 | 플랫폼 | 셸 | LLM 경로 | 비밀 저장 |
 |---|---|---|---|
-| 웹 | `apps/web` (Vite 정적 빌드) | API 직접 호출(BYOK, CORS 허용 헤더) / 원격 Bridge | 세션 메모리 + 경고 |
+| 웹 | `apps/web` (Vite 정적 빌드) | **원격 전용**: PC 데스크톱 앱 스토어 미러 + 액션 신호(ADR-026) | 페어링은 탭 메모리(새로고침 시 다시 페어링) |
 | 데스크톱 | `apps/desktop` Electron | 내장 bridge(IPC/로컬 WS) → CLI, 또는 API | Electron `safeStorage` |
-| 모바일 | `apps/mobile` Capacitor | API 직접 / 원격 Bridge(LAN·Tailscale·relay) | Capacitor secure storage |
+| 모바일 | `apps/mobile` Capacitor | **원격 전용**: PC 스토어 미러 + 액션 신호(LAN·Tailscale·relay, ADR-026) | Capacitor secure storage(페어링 키) |
+
+### 원격 동기화 (ADR-026)
+- 진실 원천은 PC 데스크톱 renderer 스토어(Dexie) 하나. 웹·모바일 스토어는 메모리 미러(`remote: true`)이며 보기 상태와 테마만 로컬.
+- 프로토콜(core `bridge/sync.ts`): `sync.hello`→`sync.snapshot`(세션·스트리밍·요약 초안), 세션별 지연 로드 `sync.messages`, 변경 push(`sync.session/message/append/streaming/draft`), 액션 `act{op}`→`act.result`, 엔진 재시작 `sync.reset`. E2E 암호화 채널 위에서 엄격 검증.
+- 경로: 원격 기기 → bridge RemoteServer → 데스크톱 main → IPC → renderer 호스트 엔진(core `createSyncHost`) → 스토어 액션 → CLI. 클라이언트는 core `createSyncClient`(낙관적 표시 + 실패·타임아웃 롤백, 끊김 시 지수 백오프 재연결, 삭제된 세션은 부모로 포커스 이동).
+- 원격 루트 세션의 에이전트: PC `hostAgent`, 자동이면 준비된 CLI(Claude 우선), 둘 다 없으면 PC 기본 provider. 헤드리스 bridge는 sync를 지원하지 않는다(`sync.error` → "PC 앱 업데이트" 안내).
 
 플랫폼 차이는 ui의 `platform/` 어댑터(`SecretStore`, `BridgeTransport`, `openExternal`)로 주입한다.
 ui 번들은 모든 플랫폼에서 동일하다.

@@ -1,20 +1,84 @@
 import type { ProviderId } from '@branch/core';
 import { ArrowLeft, ChevronRight, KeyRound, Laptop, MonitorSmartphone, TerminalSquare } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { caps } from '../app/capabilities';
+import { caps, remoteMode } from '../app/capabilities';
 import { isDemo, useRuntime } from '../app/runtime';
 import { actions, useApp } from '../app/store';
+import { setPairing, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
-import { ApiCard, BridgeCard, CliCard, PolicyNote } from '../settings/connectionCards';
+import { ApiCard, CliCard, PairForm, PolicyNote } from '../settings/connectionCards';
 
 /**
- * 첫 실행 안내 (ADR-025). 쓸 수 있는 연결이 하나도 없을 때 한 번 보여 준다.
- * - PC: 이 PC의 CLI(구독) 또는 API 키. 원격 페어링 열기는 설정에서 안내
- * - 웹·모바일: 내 PC와 페어링(추천) 또는 API 키. 모델·노력치는 고르지 않는다(PC가 정함)
+ * 첫 실행 안내 (ADR-025·026).
+ * - PC: 쓸 수 있는 연결이 하나도 없을 때 한 번. 이 PC의 CLI(구독) 또는 API 키
+ * - 웹·모바일(원격 전용): 페어링한 PC가 없으면 PC 페어링 화면
  */
-type Step = 'choose' | 'cli' | 'api' | 'pair';
+type Step = 'choose' | 'cli' | 'api';
+
+export function Onboarding() {
+  return remoteMode ? <RemoteOnboarding /> : <LocalOnboarding />;
+}
+
+/** 원격 전용: PC와 페어링해야 학습을 볼 수 있다. [나중에]로 닫으면 이번 실행 동안은 다시 띄우지 않는다 */
+function RemoteOnboarding() {
+  const demo = useRuntime((s) => s.demo);
+  const status = useSync((s) => s.status);
+  const pairLink = useUi((s) => s.pairLink);
+  const [dismissed, setDismissed] = useState(false);
+
+  // 딥링크는 설정 화면이 처리한다
+  useEffect(() => {
+    if (pairLink) setDismissed(true);
+  }, [pairLink]);
+
+  if (demo || dismissed || status !== 'unpaired') return null;
+
+  return (
+    <Modal open onClose={() => setDismissed(true)} label="PC와 연결하기" className="md:max-w-lg">
+      <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
+        <h2 className="flex-1 text-[16px] font-semibold">내 PC와 연결하기</h2>
+      </div>
+      <div className="scroll-thin min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 md:px-5">
+        <div className="flex gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
+            <MonitorSmartphone size={20} />
+          </span>
+          <p className="text-[13.5px] text-fg-2">
+            rhymebook {caps.kind === 'mobile' ? '앱' : '웹'}은 PC의 원격 화면이에요. PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 CLI로 답해요.
+          </p>
+        </div>
+        <ol className="space-y-1.5 text-[13px] text-fg-2">
+          <StepItem n={1}>PC에서 rhymebook 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.</StepItem>
+          <StepItem n={2}>[휴대폰·웹 연결]을 누르면 QR과 6자리 코드가 나와요.</StepItem>
+          <StepItem n={3}>아래에서 QR을 찍거나 링크·주소와 코드를 입력해요.</StepItem>
+        </ol>
+        <div className="rounded-xl border border-line bg-surface p-3.5">
+          <PairForm onPaired={(p) => (p ? setPairing(p) : undefined)} />
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <span className="flex items-center gap-1.5 text-[12px] text-muted">
+          <Laptop size={14} />
+          학습 기록은 PC에만 저장돼요
+        </span>
+        <Button variant="ghost" onClick={() => setDismissed(true)}>
+          나중에 하기
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+function StepItem({ n, children }: { n: number; children: ReactNode }) {
+  return (
+    <li className="flex gap-2.5">
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-surface-2 text-[11.5px] font-semibold text-fg-2">{n}</span>
+      <span>{children}</span>
+    </li>
+  );
+}
 
 function snapshot(st: { connections: Record<ProviderId, { status: string; enabled: boolean }> }) {
   const ids = caps.providers.filter((id) => id !== 'mock');
@@ -24,7 +88,7 @@ function snapshot(st: { connections: Record<ProviderId, { status: string; enable
   };
 }
 
-export function Onboarding() {
+function LocalOnboarding() {
   const demo = useRuntime((s) => s.demo);
   const setupDone = useApp((s) => !!s.settings.setupDone);
   const checking = useApp((s) => snapshot(s).checking);
@@ -67,7 +131,6 @@ export function Onboarding() {
     choose: 'rhymebook 시작하기',
     cli: '이 PC의 CLI 연결',
     api: 'API 키 등록',
-    pair: '내 PC와 페어링',
   };
 
   return (
@@ -85,11 +148,8 @@ export function Onboarding() {
           <>
             <p className="text-[13.5px] text-fg-2">
               답변 속 문장을 골라 가지를 치며 배우는 채팅이에요. 먼저 답변을 만들 AI를 연결하세요.
-              {!caps.localCli && ' 이 기기에서는 CLI를 실행할 수 없어서, PC와 페어링하거나 API 키를 쓰면 돼요.'}
             </p>
-            {caps.localCli ? (
-              <>
-                <Choice
+            <Choice
                   icon={<TerminalSquare size={18} />}
                   title="이 PC의 CLI (구독 계정)"
                   desc="설치·로그인된 Claude Code·Codex CLI를 그대로 실행해요. 모델·노력치도 고를 수 있어요."
@@ -101,19 +161,6 @@ export function Onboarding() {
                   <MonitorSmartphone size={16} className="mt-0.5 shrink-0 text-accent" />
                   휴대폰·웹에서도 이 PC의 CLI로 쓰려면 연결 후 설정 → 연결 → [원격 페어링 열기]를 켜세요.
                 </p>
-              </>
-            ) : (
-              <>
-                <Choice
-                  icon={<Laptop size={18} />}
-                  title="내 PC와 페어링"
-                  desc="PC의 rhymebook 앱이 구독 CLI로 답해요. 에이전트·모델·노력치는 PC 설정을 따라요."
-                  badge="추천"
-                  onClick={() => setStep('pair')}
-                />
-                <Choice icon={<KeyRound size={18} />} title="API 키" desc="PC 없이 바로 써요. 모델은 기본값으로 고정돼요." onClick={() => setStep('api')} />
-              </>
-            )}
           </>
         )}
         {step === 'cli' && (
@@ -127,12 +174,6 @@ export function Onboarding() {
           <>
             <ApiCard id="anthropic-api" prefix="sk-ant-" />
             <ApiCard id="openai-api" prefix="sk-" />
-          </>
-        )}
-        {step === 'pair' && (
-          <>
-            <BridgeCard />
-            <PolicyNote />
           </>
         )}
       </div>

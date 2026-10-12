@@ -7,6 +7,7 @@ import { cn } from '../lib/cn';
 import { modKeyLabel } from '../lib/platform';
 import { IconButton } from './Button';
 import { Kbd } from './Kbd';
+import { PcStatusChip } from './PcStatus';
 
 const MODES: { mode: ViewMode; label: string; icon: typeof MessageSquare }[] = [
   { mode: 'single', label: '단일', icon: MessageSquare },
@@ -40,6 +41,8 @@ export function TopBar() {
         </IconButton>
       )}
       <div className="min-w-0 flex-1 truncate px-1 text-[15px] font-semibold">{rootTitle}</div>
+
+      <PcStatusChip compact={mobile} />
 
       <div role="radiogroup" aria-label="보기 모드" className="flex rounded-lg bg-surface-2 p-0.5">
         {MODES.map(({ mode: m, label, icon: Icon }) => (

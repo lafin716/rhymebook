@@ -12,8 +12,11 @@ function collectErrors(page: Page) {
   return errors;
 }
 
+/** 웹·모바일은 원격 전용(ADR-026)이라, 로컬 저장·API 키 흐름은 개발 서버의 데스크톱 화면으로 검증한다 */
+const LOCAL = '/?platform=desktop';
+
 async function setKey(page: Page, key: string) {
-  // 첫 실행 안내 → API 키 (웹은 CLI·모델 선택 없이 페어링/API 키만 고른다)
+  // 첫 실행 안내 → API 키
   const onboarding = page.getByRole('dialog', { name: '시작하기' });
   await onboarding.getByRole('button', { name: /^API 키/ }).click();
   const input = page.getByLabel('Anthropic API 키');
@@ -53,13 +56,15 @@ async function branchFrom(page: Page, scope: string, needle: string) {
 
 async function askRoot(page: Page, text: string) {
   const main = page.locator('[data-panel="main"]');
+  // 첫 실행은 학습이 없으므로 새 학습부터 연다
+  await page.getByRole('button', { name: '새 학습 시작' }).click();
   await main.getByLabel('메시지 입력').fill(text);
   await main.getByRole('button', { name: '보내기' }).click();
   await expect(main.getByText(`마지막 문장 [${text.slice(0, 12)}].`)).toBeVisible();
 }
 
 test('잘못된 키는 거부되고, 저장된 키는 평문으로 노출되지 않는다', async ({ page }) => {
-  await page.goto('/');
+  await page.goto(LOCAL);
   await setKey(page, 'sk-ant-wrong');
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText(/거부|유효하지|확인/);
@@ -70,31 +75,43 @@ test('잘못된 키는 거부되고, 저장된 키는 평문으로 노출되지 
   await expect(dialog).not.toContainText(KEY);
 });
 
-test('웹: 첫 실행 안내를 건너뛰면 설정에는 CLI 없이 페어링·API 키만 있다', async ({ page }) => {
+test('웹(원격 전용): PC 연결 안내 → 나중에 하기 → 설정은 PC 연결·화면만, 질문은 막힌다', async ({ page }) => {
+  const errors = collectErrors(page);
   await page.goto('/');
-  const onboarding = page.getByRole('dialog', { name: '시작하기' });
-  await expect(onboarding.getByRole('button', { name: /^내 PC와 페어링/ })).toBeVisible();
+  const onboarding = page.getByRole('dialog', { name: 'PC와 연결하기' });
+  await expect(onboarding.getByLabel('페어링 링크')).toBeVisible();
+
+  // 잘못된 링크는 연결 전에 거부
+  await onboarding.getByLabel('페어링 링크').fill('https://example.com');
+  await onboarding.getByRole('button', { name: '연결', exact: true }).click();
+  await expect(onboarding).toContainText('branch://pair');
   await onboarding.getByRole('button', { name: '나중에 하기' }).click();
   await expect(onboarding).toBeHidden();
 
-  // 상단 바의 설정 (개발 서버의 데모 바에도 '설정' 시나리오 버튼이 있다)
-  await page.getByRole('banner').getByRole('button', { name: '설정', exact: true }).click();
+  // 상단 PC 상태 칩과 사이드바/설정
+  const chip = page.getByRole('banner').getByRole('button', { name: /연결된 PC: .*페어링 필요/ });
+  await expect(chip).toBeVisible();
+  await chip.click();
   const dialog = page.getByRole('dialog', { name: '설정' });
-  await expect(dialog.getByText('내 PC 연결 (원격 페어링)')).toBeVisible();
-  await expect(dialog.getByLabel('Anthropic API 키')).toBeVisible();
+  await expect(dialog.getByText('연결된 PC')).toBeVisible();
+  await expect(dialog.getByText('페어링한 PC 없음')).toBeVisible();
   await expect(dialog.getByText('Claude CLI')).toHaveCount(0);
-  await expect(dialog.getByLabel('Anthropic API 모델')).toHaveCount(0);
+  await expect(dialog.getByLabel('Anthropic API 키')).toHaveCount(0);
+  await expect(dialog.getByRole('tab')).toHaveCount(0);
+  await page.keyboard.press('Escape');
 
-  // 다시 열어도 안내는 나오지 않는다
-  await page.reload();
-  await expect(page.getByRole('banner')).toBeVisible();
-  await expect(onboarding).toBeHidden();
+  // PC 없이는 학습을 시작할 수 없고, 첫 화면은 페어링으로 안내한다
+  await expect(page.getByRole('heading', { name: 'PC와 연결해 주세요' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '새 학습 시작' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'PC와 페어링' }).click();
+  await expect(dialog.getByLabel('페어링 링크')).toBeVisible();
+  expect(errors).toEqual([]);
 });
 
 test('루트 질문 → 3단계 가지 → 요약 카드 → 새로고침 후 유지', async ({ page }, info) => {
   const errors = collectErrors(page);
   const mobile = info.project.name === 'mobile';
-  await page.goto('/');
+  await page.goto(LOCAL);
   await setKey(page, KEY);
   await page.keyboard.press('Escape');
 
@@ -111,6 +128,8 @@ test('루트 질문 → 3단계 가지 → 요약 카드 → 새로고침 후 �
   await page.getByRole('button', { name: '부모에 요약 붙이기' }).last().click();
   await expect(page.getByText('요약[소프트맥스]').last()).toBeVisible();
   await page.getByRole('button', { name: /^(부모에 붙이기|요약 교체)$/ }).last().click();
+  // 모바일은 맨 위 시트만 보이므로 한 단계 닫아 부모 가지를 드러낸다
+  if (mobile) await page.getByRole('dialog', { name: '가지 시트' }).getByRole('button', { name: '시트 닫기' }).click();
   await expect(page.getByText(/가지 요약 · /).first()).toBeAttached();
 
   // 루트 답변에 앵커가 남는다
@@ -128,7 +147,7 @@ test('루트 질문 → 3단계 가지 → 요약 카드 → 새로고침 후 �
 test('보기 모드(분할·마인드맵)와 Cmd+K 검색', async ({ page }, info) => {
   test.skip(info.project.name === 'mobile', '모바일은 탭/전체화면 규칙이라 데스크톱에서 검증');
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto(LOCAL);
   await setKey(page, KEY);
   await page.keyboard.press('Escape');
   await askRoot(page, '행렬 곱을 알려줘');

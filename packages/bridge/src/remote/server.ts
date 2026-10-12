@@ -12,6 +12,9 @@ import {
   randomToken,
   safeEqual,
   verifyTranscript,
+  validateSyncClientMsg,
+  isSyncClientType,
+  SYNC_LIMITS,
   type AuthReason,
   type AuthRequest,
   type AuthResponse,
@@ -19,6 +22,8 @@ import {
   type ChatTurn,
   type HostPolicy,
   type SecureChannel,
+  type SyncClientMsg,
+  type SyncServerMsg,
 } from '@branch/core';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { BridgeServer } from '../server';
@@ -41,6 +46,11 @@ export interface RemoteServerOptions {
   policy?: () => HostPolicy | null;
   /** 기기 연결·해제 시 (상태 화면 갱신용) */
   onPresence?: () => void;
+  /** 동기화 핸들러 (웹·모바일 원격 전용). 없으면 sync 메시지에 sync.error 응답 (ADR-026) */
+  sync?: {
+    receive(peerId: string, deviceId: string, msg: SyncClientMsg): void;
+    peerGone?(peerId: string): void;
+  };
 }
 
 export interface PairingSession {
@@ -82,6 +92,8 @@ export interface RemoteServer {
   /** 기기 해제 + 연결 중이면 끊기 */
   unpair(idOrAll: string): Promise<PairedDevice[]>;
   connectedDevices(): string[];
+  /** 동기화 메시지 전송: peerId | '*'. '*'는 sync.hello를 보낸 피어에게만 */
+  syncSend(peerId: string | '*', msg: SyncServerMsg): void;
   close(): Promise<void>;
 }
 
@@ -145,6 +157,10 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
   /** deviceId → 연결된 소켓 */
   const live = new Map<string, Set<PeerSocket>>();
   let relayBase: string | null = null;
+
+  /** peerId → { deviceId, ws, synced }. peerId는 소켓 단위로 고유 */
+  const peers = new Map<string, { deviceId: string; ws: PeerSocket; channel: SecureChannel; synced: boolean }>();
+  let peerCount = 0;
 
   function deny(ws: PeerSocket, channel: SecureChannel, reason: AuthReason) {
     const res: AuthResponse = { type: 'denied', reason };
@@ -216,6 +232,7 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
     let device: PairedDevice | null = null;
     let conn: ReturnType<BridgeServer['connect']> | null = null;
     let authing = false;
+    let peerId: string | null = null;
     const authTimer = setTimeout(() => {
       if (!device) ws.close(4000, 'auth timeout');
     }, authTimeoutMs);
@@ -267,6 +284,46 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
         return;
       }
 
+      // Check if message is sync type BEFORE regular validation
+      if (isSyncClientType((msg as Record<string, unknown>).type)) {
+        if (!opts.sync) {
+          // Headless bridge doesn't support sync
+          if (ws.isOpen()) {
+            const errMsg: SyncServerMsg = { type: 'sync.error', error: 'unsupported' };
+            ws.send(channel.seal(errMsg));
+          }
+          return;
+        }
+
+        // Register peer on first sync message
+        if (!peerId) {
+          peerId = `peer-${++peerCount}`;
+          peers.set(peerId, { deviceId: device.id, ws, channel, synced: false });
+        }
+
+        const validSync = validateSyncClientMsg(msg);
+        if (!validSync) {
+          log(`invalid sync message from ${device.id}`);
+          // act는 클라이언트가 결과를 기다리므로 reqId가 읽히면 실패로 응답한다
+          const reqId = (msg as Record<string, unknown>).reqId;
+          if (typeof reqId === 'string' && reqId.length <= SYNC_LIMITS.id && ws.isOpen()) {
+            const res: SyncServerMsg = { type: 'act.result', reqId, ok: false, error: 'invalid' };
+            ws.send(channel.seal(res));
+          }
+          return;
+        }
+
+        // Track sync.hello for broadcast filtering
+        if (validSync.type === 'sync.hello') {
+          const peer = peers.get(peerId);
+          if (peer) peer.synced = true;
+        }
+
+        store.touch(device.id);
+        opts.sync.receive(peerId, device.id, validSync);
+        return;
+      }
+
       const valid = validateClientMsg(msg);
       if (!valid) {
         log(`invalid message from ${device.id}`);
@@ -279,6 +336,10 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
     ws.onClose(() => {
       clearTimeout(authTimer);
       conn?.close();
+      if (peerId) {
+        peers.delete(peerId);
+        opts.sync?.peerGone?.(peerId);
+      }
       if (device) {
         live.get(device.id)?.delete(ws);
         if (!live.get(device.id)?.size) live.delete(device.id);
@@ -352,6 +413,34 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
       return removed;
     },
     connectedDevices: () => [...live.keys()],
+    syncSend(peerId: string | '*', msg: SyncServerMsg) {
+      if (peerId === '*') {
+        // Broadcast to all peers that have sent sync.hello
+        for (const [, peer] of peers) {
+          if (peer.synced) {
+            try {
+              if (peer.ws.isOpen()) {
+                peer.ws.send(peer.channel.seal(msg));
+              }
+            } catch {
+              // Ignore send errors
+            }
+          }
+        }
+      } else {
+        // Send to specific peer
+        const peer = peers.get(peerId);
+        if (peer) {
+          try {
+            if (peer.ws.isOpen()) {
+              peer.ws.send(peer.channel.seal(msg));
+            }
+          } catch {
+            // Ignore send errors
+          }
+        }
+      }
+    },
     close() {
       return new Promise((resolve) => {
         bridge.shutdown();

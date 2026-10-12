@@ -34,6 +34,7 @@ pnpm dev          # http://0.0.0.0:5173 (LAN·Tailscale *.ts.net 접속 허용)
 ```
 
 - 휴대폰: 같은 와이파이에서 `http://<PC LAN IP>:5173`, Tailscale이면 `http://<호스트명>.<tailnet>.ts.net:5173`
+- 웹은 원격 전용입니다: PC 데스크톱 앱에 페어링해 PC의 학습을 보고 질문합니다(페어링은 탭 메모리에만 있어 새로고침하면 다시 페어링). 개발 서버에서 `?platform=desktop` 을 붙이면 예전 로컬 모드(API 키·IndexedDB)로 동작합니다.
 - 데모 모드: 개발 서버에서 상단 시나리오 메뉴(또는 `#scenario=home` 등)로 Mock provider·시드 데이터 화면을 바로 볼 수 있습니다. [실제 모드로]를 누르면 실제 provider와 IndexedDB 저장을 씁니다.
 - 정적 빌드: `pnpm --filter @branch/ui build` → `packages/ui/dist/` 를 아무 정적 호스팅에 올리면 됩니다. 미리보기 `pnpm --filter @branch/ui preview`.
 - 빌드 시 환경 변수(선택):
@@ -70,8 +71,8 @@ pnpm --filter @branch/mobile android         # Android Studio로 열기
 pnpm --filter @branch/mobile ios             # Xcode로 열기
 ```
 
-- 모바일에는 CLI가 없으므로 API 키(보안 저장소) 또는 **원격 Bridge** 로 연결합니다.
-- 페어링: 설정 › 원격 Bridge › 페어링 시작에서 **[QR 스캔]** 으로 bridge 화면의 QR을 찍거나, OS 카메라로 찍어 `branch://pair` 딥링크로 앱을 열 수 있습니다(카메라 권한 필요, Android 8.0+).
+- 웹·모바일은 **원격 전용**입니다(ADR-026). PC의 rhymebook 앱에 페어링하면 PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 자기 CLI로 답합니다. 학습 기록은 PC에만 저장됩니다.
+- 페어링: PC 앱 설정 › 연결 › [원격 페어링 열기] → [휴대폰·웹 연결] → 휴대폰에서 **[QR 스캔]**, 또는 링크·주소 + 6자리 코드 입력. OS 카메라로 찍으면 `branch://pair` 딥링크로 앱이 열립니다(카메라 권한 필요, Android 8.0+).
 - 스토어 배포·서명은 BLOCKERS B-07.
 
 ## 이해 노트 (내보내기)
@@ -88,7 +89,7 @@ pnpm --filter @branch/mobile ios             # Xcode로 열기
 
 ## 헤드리스 Bridge (원격 CLI 사용)
 
-CLI가 로그인된 PC에서 bridge를 띄우고, 웹/모바일에서 페어링해 그 PC의 CLI를 씁니다.
+CLI가 로그인된 PC에서 bridge만 띄우고, 데스크톱 앱의 "다른 PC에 연결"로 그 PC의 CLI를 씁니다. 웹·모바일의 원격 학습(PC 스토어 동기화)은 데스크톱 앱이 필요하며 헤드리스 bridge는 지원하지 않습니다.
 
 ```bash
 pnpm bridge -- --pair                 # :7777, QR·링크·1회용 코드(5분) 표시
@@ -115,7 +116,8 @@ pnpm bridge -- --pair --relay wss://relay.example.com --relay-only   # 포트를
 |---|---|---|
 | Anthropic API / OpenAI API | 모든 플랫폼 | 본인 API 키(BYOK). 공개 배포의 기본 provider |
 | Claude CLI / Codex CLI | 데스크톱, 헤드리스 bridge | 사용자 본인이 로그인한 **공식 CLI 실행**만 사용. 도구 비활성/읽기 전용 샌드박스, 매 호출 무상태 |
-| 원격 Bridge | 웹·모바일 | 페어링된 bridge 경유(직접 또는 relay) |
+| 원격 Bridge | 데스크톱(다른 PC에 연결) | 페어링된 bridge 경유(직접 또는 relay) |
+| PC 원격 학습 | 웹·모바일 | PC 데스크톱 앱 스토어 미러 + 질문 신호, CLI는 PC가 실행(ADR-026) |
 | Mock | 데모 모드 | 가짜 스트리밍 |
 
 - OAuth 토큰·인증 파일을 읽거나 추출하지 않으며, 클라이언트 헤더를 위조하지 않습니다. 로그인 여부는 CLI 공식 상태 명령으로만 확인합니다.

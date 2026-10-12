@@ -22,3 +22,4 @@ export * from './backup';
 export * from './notes';
 export * from './bridge';
 export * from './platform';
+export * from './sync';

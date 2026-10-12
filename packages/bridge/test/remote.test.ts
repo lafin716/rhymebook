@@ -12,6 +12,9 @@ import {
   RemoteBridgeError,
   type RemotePairing,
   type StreamEvent,
+  type BridgeClientMsg,
+  type SyncClientMsg,
+  type SyncServerMsg,
   type WebSocketFactory,
 } from '@branch/core';
 import { createBridgeServer, createRemoteServer, openBridgeStore, validateClientMsg, type BridgeStore, type RemoteServer } from '../src';
@@ -227,6 +230,155 @@ describe('원격 bridge — PC 정책 (데스크톱 호스트)', () => {
     } finally {
       await host.close();
       await rm(echoHome, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('원격 bridge — 동기화 라우팅 (ADR-026)', () => {
+  type Got = { peerId: string; deviceId: string; msg: SyncClientMsg };
+
+  /** sync 옵션 여부를 고른 별도 호스트 + 페어링된 기기 n대의 링크 */
+  async function syncHost(withSync: boolean, devices: number) {
+    const h = await mkdtemp(path.join(os.tmpdir(), 'branch-bridge-test-sync-'));
+    const s = await openBridgeStore({ dir: h, name: '동기화 PC' });
+    const received: Got[] = [];
+    const gone: string[] = [];
+    const host = createRemoteServer({
+      bridge: createBridgeServer({ cliEnv: { env: process.env, bin: { 'claude-cli': 'claude-missing', 'codex-cli': 'codex-missing' } } }),
+      store: s,
+      host: '127.0.0.1',
+      port: 0,
+      sync: withSync
+        ? { receive: (peerId, deviceId, msg) => received.push({ peerId, deviceId, msg }), peerGone: (p) => gone.push(p) }
+        : undefined,
+    });
+    const { port } = await host.listen();
+    const peers: { pairing: RemotePairing; link: ReturnType<typeof createRemoteBridgeLink>; inbox: SyncServerMsg[] }[] = [];
+    for (let i = 0; i < devices; i++) {
+      const session = host.startPairing();
+      const pairing = await pairWithBridge({
+        offer: { url: `ws://127.0.0.1:${port}`, bridgeKey: s.identity.publicKey, token: session.token },
+        deviceName: `폰${i}`,
+        wsFactory,
+      });
+      const link = createRemoteBridgeLink({ getPairing: () => Promise.resolve(pairing), wsFactory });
+      const inbox: SyncServerMsg[] = [];
+      link.subscribe((m) => inbox.push(m as unknown as SyncServerMsg));
+      await link.ensure();
+      peers.push({ pairing, link, inbox });
+    }
+    const cleanup = async () => {
+      for (const p of peers) p.link.reset();
+      await host.close();
+      await rm(h, { recursive: true, force: true });
+    };
+    return { host, received, gone, peers, cleanup };
+  }
+
+  const sendSync = (link: ReturnType<typeof createRemoteBridgeLink>, msg: unknown) => link.send(msg as BridgeClientMsg);
+
+  async function until(cond: () => boolean, ms = 2_000) {
+    const end = Date.now() + ms;
+    while (!cond()) {
+      if (Date.now() > end) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  }
+
+  const reset: SyncServerMsg = { type: 'sync.reset' };
+
+  it('sync 옵션이 없으면 sync 메시지에 sync.error(unsupported)로 응답한다', async () => {
+    const t = await syncHost(false, 1);
+    try {
+      sendSync(t.peers[0]!.link, { type: 'sync.hello' });
+      await until(() => t.peers[0]!.inbox.length > 0);
+      expect(t.peers[0]!.inbox[0]).toEqual({ type: 'sync.error', error: 'unsupported' });
+    } finally {
+      await t.cleanup();
+    }
+  });
+
+  it('두 기기의 sync.hello는 소켓마다 다른 peerId와 해당 deviceId로 receive에 도착한다', async () => {
+    const t = await syncHost(true, 2);
+    try {
+      sendSync(t.peers[0]!.link, { type: 'sync.hello' });
+      sendSync(t.peers[1]!.link, { type: 'sync.hello' });
+      await until(() => t.received.length === 2);
+      const [a, b] = t.received;
+      expect(a!.msg).toEqual({ type: 'sync.hello' });
+      expect(a!.peerId).not.toBe(b!.peerId);
+      expect(new Set([a!.deviceId, b!.deviceId])).toEqual(new Set([t.peers[0]!.pairing.deviceId, t.peers[1]!.pairing.deviceId]));
+    } finally {
+      await t.cleanup();
+    }
+  });
+
+  it("syncSend(peerId)는 그 기기에만, syncSend('*')는 hello를 보낸 기기에만 간다", async () => {
+    const t = await syncHost(true, 2);
+    try {
+      const [p0, p1] = t.peers;
+      sendSync(p0!.link, { type: 'sync.hello' });
+      await until(() => t.received.length === 1);
+      // p1은 hello 없이 sync.messages만 보낸다 → 피어 등록은 되지만 브로드캐스트 대상은 아님
+      sendSync(p1!.link, { type: 'sync.messages', sessionId: 's1' });
+      await until(() => t.received.length === 2);
+      const peer0 = t.received[0]!.peerId;
+      const peer1 = t.received[1]!.peerId;
+
+      t.host.syncSend(peer1, { type: 'sync.draft', sessionId: 's1', draft: null });
+      await until(() => p1!.inbox.length === 1);
+      t.host.syncSend('*', reset);
+      await until(() => p0!.inbox.length === 1);
+      await new Promise((r) => setTimeout(r, 100));
+      expect(p0!.inbox).toEqual([reset]);
+      expect(p1!.inbox).toEqual([{ type: 'sync.draft', sessionId: 's1', draft: null }]);
+      expect(peer0).not.toBe(peer1);
+    } finally {
+      await t.cleanup();
+    }
+  });
+
+  it('형식이 틀린 act는 receive에 닿지 않고 act.result(invalid)로 응답한다', async () => {
+    const t = await syncHost(true, 1);
+    try {
+      const p = t.peers[0]!;
+      sendSync(p.link, { type: 'act', reqId: 'r1', op: { kind: 'send', sessionId: '../x', text: 'q', messageId: 'm1' } });
+      sendSync(p.link, { type: 'act', reqId: 'r2', op: { kind: 'rm-rf' } });
+      sendSync(p.link, { type: 'act', reqId: 'r3', op: { kind: 'send', sessionId: 's1', text: '질문', messageId: 'm1' } });
+      await until(() => t.received.length === 1 && p.inbox.length === 2);
+      expect(t.received[0]!.msg).toEqual({ type: 'act', reqId: 'r3', op: { kind: 'send', sessionId: 's1', text: '질문', messageId: 'm1' } });
+      expect(p.inbox).toEqual([
+        { type: 'act.result', reqId: 'r1', ok: false, error: 'invalid' },
+        { type: 'act.result', reqId: 'r2', ok: false, error: 'invalid' },
+      ]);
+    } finally {
+      await t.cleanup();
+    }
+  });
+
+  it('연결이 끊기거나 기기를 해제하면 peerGone이 불리고 이후 전송 대상에서 빠진다', async () => {
+    const t = await syncHost(true, 2);
+    try {
+      const [p0, p1] = t.peers;
+      sendSync(p0!.link, { type: 'sync.hello' });
+      sendSync(p1!.link, { type: 'sync.hello' });
+      await until(() => t.received.length === 2);
+      const byDevice = new Map(t.received.map((r) => [r.deviceId, r.peerId]));
+      const peer0 = byDevice.get(p0!.pairing.deviceId)!;
+      const peer1 = byDevice.get(p1!.pairing.deviceId)!;
+
+      p0!.link.reset();
+      await until(() => t.gone.length === 1);
+      expect(t.gone).toEqual([peer0]);
+
+      await t.host.unpair(p1!.pairing.deviceId);
+      await until(() => t.gone.length === 2);
+      expect(t.gone).toEqual([peer0, peer1]);
+      // 끊긴 피어로 보내도 예외 없이 무시
+      expect(() => t.host.syncSend(peer1, reset)).not.toThrow();
+      expect(() => t.host.syncSend('*', reset)).not.toThrow();
+    } finally {
+      await t.cleanup();
     }
   });
 });

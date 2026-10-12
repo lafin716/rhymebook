@@ -1,8 +1,8 @@
 # Project Progress
 
-Last Updated: 2026-10-10
+Last Updated: 2026-10-12
 Current Stage: **3단계 — 전체 개발 완료**
-Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~05 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
+Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~06 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
 > 재개 방법: 루트 `CLAUDE.md` → 이 파일 → `docs/02-ARCHITECTURE.md` → `git log`/`git status` 순으로 읽고,
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
@@ -50,6 +50,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-03 이해 노트: 세션 트리 요약 카드 모아 보기 + Markdown·Anki 내보내기 (+ 모바일 공유 시트 저장)
 - [x] IMP-04 CLI 모델·노력치 선택: 설정에서 기본값, 채팅 입력창 칩으로 대화별 변경 (Claude·Codex, ADR-023)
 - [x] IMP-05 플랫폼별 연결 UI: PC = CLI·API·원격 페어링 열기(QR)·다른 PC 연결 / 웹·모바일 = PC 페어링·API 키만(모델 선택 없음, PC 정책 적용) + 첫 실행 안내 (ADR-025)
+- [x] IMP-06 웹·모바일 원격 전용: PC 데스크톱 앱 스토어 동기화(보기·실시간 스트리밍) + 액션 신호로 PC가 CLI 실행 + 원격 전용 UI 개편 (ADR-026, docs/plans/remote-only-plan.md)
 
 ## Tasks
 
@@ -75,9 +76,16 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | P5 | Phase5 | apps/mobile Capacitor 8(iOS SPM/Android) + 보안 저장소(Keychain/Keystore) + `branch://pair` 딥링크 + safe-area | lead | HIGH | inherit | default | DONE | 100% | P4 | PASS: Android `assembleDebug` → 에뮬레이터(Pixel 2, Android 16) 실행·Keystore 저장/삭제·딥링크 폼 입력·ws 원격 bridge 페어링(지문 일치)·재시작 후 유지. iOS 시뮬레이터 빌드 성공(Xcode 26.1, iPhone 17 Pro iOS 26.1) → 실행·safe-area 수정 확인·`branch://` 스킴 OS 라우팅 확인 |
 | P6 | Phase6 | packages/relay(다중화 중계·자기 증명 등록) + bridge relay 커넥터·`--relay`/`--relay-only` + 직접→relay 대체·4404 안내 + offline fallback | lead | HIGH | inherit | default | DONE | 100% | P5 | PASS: core 91 tests(relay 주소·링크 `r`·등록 서명·프레임), relay 9 tests(NAT 모의 bridge: 링크/코드 페어링·스트리밍·직접 실패→relay·relay가 토큰/평문 미노출·4404·offline·위조 등록 거부·404·health), 실제 프로세스: relay CLI + `--relay-only` bridge(리슨 포트 없음) → 개발 서버(390px) 링크 페어링 "Relay 경유" → claude-cli 실제 스트리밍 ~2s |
 | P7 | Phase7 | 앵커 복원·맥락 구성 단위 테스트 + Playwright E2E(모의 SSE) + README + electron-builder 패키징 + CLI `--` 인자 수정 | lead | MEDIUM | inherit | default | DONE | 100% | P6 | PASS: core 106 tests(+15), E2E 7 passed·1 skipped(데스크톱 전용 항목의 모바일 건너뜀), `package:dir` 미서명 macOS arm64 앱 생성·실행 8s 확인 |
+| IMP06-T0 | IMP-06 | 계획·ADR-026·sync 계약 + critic 리뷰 반영 | lead | HIGH | inherit | default | DONE | 100% | - | docs/plans/remote-only-plan.md, critic 리뷰 8건 반영 |
+| IMP06-T1 | IMP-06 | core: store 선택적 id·sync host/client·검증기·테스트 | agent-core→lead | HIGH | inherit | default | DONE | 100% | T0 | PASS: core 148 tests(sync 20: 실제 데모 provider 호스트↔클라이언트 왕복 + 오프라인 중 삭제된 활성 가지 → 부모로 포커스), 독립 리뷰 지적(pruneView 세션 인자 누락) 수정·회귀 테스트. 테스트 간 지연 메시지 누수(flaky) 수정: 넷을 테스트별 호스트에 고정 → 10회 연속 통과 |
+| IMP06-T2 | IMP-06 | bridge 서버 sync 라우팅 / desktop IPC 중계·엔진 준비·창 숨김 | agent-host→lead(테스트) | HIGH | inherit | default | DONE | 100% | T0 | PASS: bridge 38 passed/3 skipped(실제 ws 2기기 동기화·peerGone·invalid act), 독립 리뷰 GOOD |
+| IMP06-T3 | IMP-06 | UI 원격 전용 개편(스토어·온보딩·설정·상태칩·오프라인) + 호스트 엔진 연결 | agent-ui→lead | HIGH | inherit | default | DONE | 100% | T1,T2 | PASS: typecheck·lint, 390/768/1440 스크린샷(온보딩·페어링 폼·답변·설정·사이드바), PC 토스트. smoke에서 발견한 '자동' 에이전트 미선택(API 키 오류) 수정: 준비된 CLI(Claude 우선) 선택 |
+| IMP06-T4 | IMP-06 | E2E: 로컬 흐름 `?platform=desktop`, 원격 모드 E2E | lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: e2e 12 passed·2 skipped(웹 원격 전용 온보딩·설정·입력 차단, 로컬 흐름, 확인 대화상자) |
+| IMP06-T5 | IMP-06 | 독립 리뷰·스크린샷·데스크톱 빌드·실제 페어링 smoke | lead+reviewer | HIGH | inherit | default | DONE | 100% | T1–T4 | PASS: 독립 리뷰어 지적 2건(1 수정, 1 방어적·무변경). `package:dir` 재빌드 → 격리 실행 앱에서 원격 페어링 열기 → 웹(390)에서 Tailscale ws://100.102.77.120:7777 + 코드 페어링 → PC '페어링 기기 2대(접속 1)' → 웹에서 새 학습·질문 → PC 토스트 '원격 기기: 질문을 보냈어요' → PC claude-cli exit=0 답변·자동 제목 '광합성의 정의'가 웹 390/768/1440·PC 사이드바에 반영 |
+| IMP06-T6 | IMP-06 | 문서·커밋 | lead | LOW | inherit | default | DONE | 100% | T5 | PASS: 01/02/03/04/README·ADR-026·PROGRESS 갱신, typecheck·lint·test·e2e 통과 후 커밋 |
 
 ## Active Work
-- (없음)
+- 없음 (IMP-06 완료. 남은 것은 사람 조치 — docs/BLOCKERS.md)
 
 ## Blockers
 - 없음 (docs/BLOCKERS.md 참조)

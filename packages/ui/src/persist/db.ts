@@ -107,9 +107,10 @@ export function createDexieRepository(db: BranchDB, onError: (e: unknown) => voi
       await settle();
       return db.transaction('r', db.sessions, db.messages, db.kv, async () => {
         const sessions = await db.sessions.toArray();
-        if (sessions.length === 0) return null;
-        const rows = await db.messages.orderBy('[sessionId+seq]').toArray();
         const kv = new Map((await db.kv.toArray()).map((r) => [r.key, r.value]));
+        // 세션이 하나도 없어도 설정이 저장돼 있으면 첫 실행이 아니다
+        if (sessions.length === 0 && !kv.has('settings')) return null;
+        const rows = await db.messages.orderBy('[sessionId+seq]').toArray();
         return {
           sessions,
           messages: rows.map(stripSeq),

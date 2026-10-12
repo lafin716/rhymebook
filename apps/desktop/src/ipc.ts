@@ -14,4 +14,8 @@ export const CH = {
   hostUnpair: 'host:unpair',
   hostSetPolicy: 'host:set-policy',
   hostChanged: 'host:changed',
+  hostSyncIn: 'host:sync-in',
+  hostSyncOut: 'host:sync-out',
+  hostSyncReady: 'host:sync-ready',
+  hostSyncGone: 'host:sync-gone',
 } as const;

@@ -55,7 +55,9 @@ interface LLMProvider {
 | OpenAIApiProvider | Chat Completions/Responses 스트리밍(BYOK) | 전체 | 1 |
 | ClaudeCliProvider | bridge가 `claude -p --output-format stream-json --verbose`를 spawn. 도구 비활성(`--tools ""` 또는 `--disallowedTools` 전체), system은 `--system-prompt`, 대화는 stdin으로 직렬화 | 데스크톱/원격 | 3 |
 | CodexCliProvider | bridge가 `codex exec --json --sandbox read-only --skip-git-repo-check` 실행(또는 app-server) | 데스크톱/원격 | 3 |
-| RemoteBridgeProvider | 원격 bridge에 WebSocket 연결 후 위 CLI provider를 대리 호출 | 웹/모바일 | 4, 6 |
+| RemoteBridgeProvider | 원격 bridge에 WebSocket 연결 후 위 CLI provider를 대리 호출 | 데스크톱(다른 PC에 연결) | 4, 6 |
+
+> ADR-026: 웹·모바일은 provider를 직접 쓰지 않는다. PC 스토어를 미러링하고 질문은 액션 신호로 보내며, CLI 호출은 PC의 호스트 엔진이 PC의 provider 설정(원격 요청 에이전트·기본 모델·노력치)으로 수행한다. 구독 CLI는 사용자 본인 PC에서만 실행된다는 정책 원칙을 그대로 따른다.
 
 CLI 플래그는 Phase 3에서 설치된 CLI의 `--help`로 재확인하고 DECISIONS.md에 확정값을 기록한다.
 

@@ -87,7 +87,7 @@ describe('세션별 모델·노력치', () => {
     const s = store.getState();
     s.setSessionModel(SEED_IDS.root, { model: 'haiku', effort: 'low' });
     const parentMsg = store.getState().messages[SEED_IDS.root]![1]!;
-    const id = s.createBranch(SEED_IDS.root, { messageId: parentMsg.id, text: '가중합', startOffset: 0, endOffset: 3 }, 'what');
+    const id = s.createBranch(SEED_IDS.root, { messageId: parentMsg.id, text: '가중합', startOffset: 0, endOffset: 3 }, 'what') as string;
     await idle();
     expect(store.getState().sessions[id]!.modelPref).toEqual({ providerId: 'claude-cli', model: 'haiku', effort: 'low' });
     expect(seen.at(-1)).toMatchObject({ model: 'haiku', effort: 'low' });

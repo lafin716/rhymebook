@@ -3,6 +3,8 @@ import { ArrowUp, Settings2, Square, WifiOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
+import { PcOfflineBanner, usePcOnline } from '../components/PcStatus';
+import { remoteMode } from '../app/capabilities';
 import { cn } from '../lib/cn';
 import { isUsable, providerLabel, STATUS_LABEL } from '../lib/connection';
 import { ModelChips } from './ModelChips';
@@ -15,6 +17,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const eff = useApp((s) => effectiveProviderId(s, sessionId));
   const conn = useApp((s) => s.connections[eff]);
   const fallback = useApp((s) => (isUsable(s.connections[eff]) ? null : nextFallback(s, eff)));
+  const pcOnline = usePcOnline();
   const usable = isUsable(conn);
 
   useEffect(() => {
@@ -26,7 +29,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
 
   const send = () => {
     const t = text.trim();
-    if (!t || streaming) return;
+    if (!t || streaming || (remoteMode && !pcOnline)) return;
     actions().sendMessage(sessionId, t);
     setText('');
   };
@@ -34,7 +37,9 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   return (
     <div className={cn('shrink-0 bg-bg', compact ? 'px-2.5 pt-1.5 pb-2.5' : 'safe-bottom px-3 pt-2 pb-3 md:px-6')}>
       <div className="mx-auto max-w-3xl">
-        {!usable && (
+        {/* 원격 모드: 응답 가능 여부는 PC 연결이 결정한다 (어떤 CLI를 쓸지는 PC가 정함) */}
+        {remoteMode && !pcOnline && <PcOfflineBanner />}
+        {!remoteMode && !usable && (
           <div role="status" className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-warn/30 bg-warn-soft px-3 py-2 text-[13px] text-warn">
             <WifiOff size={15} className="shrink-0" />
             <span className="min-w-[14rem] flex-1">
@@ -87,14 +92,14 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
             <button
               type="submit"
               aria-label="보내기"
-              disabled={!text.trim()}
+              disabled={!text.trim() || (remoteMode && !pcOnline)}
               className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-fg transition-opacity disabled:opacity-35"
             >
               <ArrowUp size={18} />
             </button>
           )}
         </form>
-        <ModelChips sessionId={sessionId} compact={compact} />
+        {!remoteMode && <ModelChips sessionId={sessionId} compact={compact} />}
       </div>
     </div>
   );

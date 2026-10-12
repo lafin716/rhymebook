@@ -1,12 +1,13 @@
-import { createSeed, emptyView, restoreData, RUNTIME_SETTINGS, SEED_IDS, toStoredData, type AppData } from '@branch/core';
+import { emptyView, restoreData, RUNTIME_SETTINGS, toStoredData, type AppData } from '@branch/core';
 import type { DexieRepository } from './db';
 
-/** 첫 실행 데이터: 예시 학습 세션(시드) + 실제 provider 설정 */
+/** 첫 실행 데이터: 빈 학습 목록 + 실제 provider 설정 */
 export function firstRunData(): AppData {
   return restoreData(
     toStoredData({
-      ...createSeed(),
-      view: emptyView(SEED_IDS.root),
+      sessions: {},
+      messages: {},
+      view: emptyView(),
       settings: RUNTIME_SETTINGS,
       connections: {} as AppData['connections'],
     }),
@@ -14,8 +15,8 @@ export function firstRunData(): AppData {
 }
 
 /**
- * 저장소에서 앱 데이터를 읽는다. 비어 있으면 시드를 저장하고 돌려준다.
- * 읽기에 실패하면(사생활 보호 모드 등) 시드로 메모리에서만 동작한다.
+ * 저장소에서 앱 데이터를 읽는다. 비어 있으면 첫 실행 데이터를 저장하고 돌려준다.
+ * 읽기에 실패하면(사생활 보호 모드 등) 빈 데이터로 메모리에서만 동작한다.
  */
 export async function hydrate(repo: DexieRepository): Promise<{ data: AppData; persisted: boolean }> {
   try {

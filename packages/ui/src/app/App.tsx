@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { SelectionMenu } from '../chat/SelectionMenu';
+import { ConfirmHost } from '../components/ConfirmDialog';
+import { Toasts } from '../components/Toasts';
 import { TopBar } from '../components/TopBar';
 import { DemoBar } from '../demo/DemoBar';
 import { NotesModal } from '../notes/NotesModal';
@@ -49,6 +51,8 @@ export function App() {
       <SearchPalette />
       <SettingsModal />
       <NotesModal />
+      <ConfirmHost />
+      <Toasts />
       <Onboarding />
     </div>
   );

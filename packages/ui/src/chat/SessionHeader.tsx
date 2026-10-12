@@ -1,6 +1,7 @@
 import { breadcrumb, effectiveProviderId, excerptAround, type ID, type ProviderId } from '@branch/core';
 import { ChevronRight, CornerLeftUp, Quote, Sparkles } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
+import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { Badge, StatusDot } from '../components/Badge';
 import { cn } from '../lib/cn';
@@ -69,7 +70,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
             <Sparkles size={11} /> 요약됨
           </Badge>
         )}
-        <ProviderSelect sessionId={sessionId} compact={compact} />
+        {!remoteMode && <ProviderSelect sessionId={sessionId} compact={compact} />}
         {extra}
       </div>
       {ex && (

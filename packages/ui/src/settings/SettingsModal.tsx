@@ -1,7 +1,7 @@
 import type { ProviderId } from '@branch/core';
 import { ArrowDown, ArrowUp, Bot, X } from 'lucide-react';
 import { useState } from 'react';
-import { caps } from '../app/capabilities';
+import { caps, remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { StatusDot } from '../components/Badge';
@@ -12,6 +12,7 @@ import { Field, Section, Segmented } from './controls';
 import { BackupTab } from './BackupTab';
 import { ApiCard, BridgeCard, CardShell, CliCard, PolicyNote } from './connectionCards';
 import { HostCard } from './HostCard';
+import { RemoteSettings } from './RemoteSettings';
 import { providerKind, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 
 type Tab = 'connections' | 'backup' | 'general';
@@ -22,6 +23,21 @@ export function SettingsModal() {
   const pairLink = useUi((s) => s.pairLink);
   const close = () => actions().setOverlay('none');
   if (pairLink && tab !== 'connections') setTab('connections');
+  if (remoteMode) {
+    return (
+      <Modal open={open} onClose={close} label="설정" className="md:max-w-xl">
+        <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
+          <h2 className="flex-1 text-[16px] font-semibold">설정</h2>
+          <IconButton label="설정 닫기" onClick={close}>
+            <X size={18} />
+          </IconButton>
+        </div>
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-5">
+          <RemoteSettings />
+        </div>
+      </Modal>
+    );
+  }
   return (
     <Modal open={open} onClose={close} label="설정" className="md:max-w-2xl">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
@@ -63,31 +79,10 @@ export function SettingsModal() {
 /* ── 연결 탭 ───────────────────────────────────────────── */
 
 /**
- * 플랫폼별 연결 구성 (ADR-025)
- * - PC: 이 PC의 CLI · API 키 · 원격 페어링 열기 · 다른 PC에 연결
- * - 웹·모바일: 내 PC와 페어링 · API 키 (CLI 없음, 모델 선택 없음)
+ * PC 연결 구성 (ADR-025): 이 PC의 CLI · API 키 · 원격 페어링 열기 · 다른 PC에 연결.
+ * 웹·모바일은 원격 전용이라 RemoteSettings를 쓴다 (ADR-026)
  */
 function ConnectionsTab() {
-  if (!caps.localCli) {
-    return (
-      <div className="space-y-5">
-        <Section
-          title="내 PC 연결 (원격 페어링)"
-          hint={`구독 계정은 PC의 rhymebook 앱으로 써요. ${caps.kind === 'mobile' ? '휴대폰' : '이 브라우저'}에서는 CLI를 실행하지 않고, 에이전트·모델·노력치는 PC 설정을 따라요.`}
-        >
-          <BridgeCard />
-        </Section>
-        <Section title="API 키" hint="PC 없이 바로 쓰려면 API 키를 등록하세요. 모델은 기본값으로 고정돼요.">
-          <ApiCard id="anthropic-api" prefix="sk-ant-" />
-          <ApiCard id="openai-api" prefix="sk-" />
-        </Section>
-        <Section title="데모">
-          <CardShell id="mock" icon={<Bot size={18} />} />
-        </Section>
-        <PolicyNote />
-      </div>
-    );
-  }
   return (
     <div className="space-y-5">
       <Section title="이 PC의 에이전트 (공식 CLI)" hint="이 PC에 설치·로그인된 공식 CLI를 그대로 실행해요. 기본 모델·노력치를 여기서 정해요.">

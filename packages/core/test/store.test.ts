@@ -33,7 +33,7 @@ describe('app store', () => {
       SEED_IDS.root,
       { messageId: parentMsg.id, text: '가중합', startOffset: parentMsg.content.indexOf('가중합'), endOffset: parentMsg.content.indexOf('가중합') + 3 },
       'what',
-    );
+    ) as string;
     await idle(store);
     const s = store.getState();
     expect(s.sessions[id]!.parentId).toBe(SEED_IDS.root);
@@ -99,7 +99,7 @@ describe('app store', () => {
 
   it('new root session gets an auto title after the first reply', async () => {
     const store = makeStore();
-    const id = store.getState().newRootSession();
+    const id = store.getState().newRootSession() as string;
     store.getState().sendMessage(id, '어텐션을 쉽게 알려줘');
     await idle(store);
     await new Promise((r) => setTimeout(r, 30));

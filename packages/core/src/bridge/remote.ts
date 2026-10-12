@@ -3,6 +3,7 @@ import { PROVIDER_LABELS, providerError, type Availability, type LLMProvider, ty
 import type { BridgeClient, BridgeTransport } from './client';
 import { CLI_PROVIDER_IDS, type BridgeClientMsg, type BridgeServerMsg, type BridgeStatus, type CliProviderId } from './protocol';
 import { isRelayUrl, RELAY_CLOSE_OFFLINE } from './relay';
+import { isSyncServerMsg, type SyncClientMsg, type SyncServerMsg } from './sync';
 import {
   generateKeyPair,
   keyId,
@@ -276,6 +277,9 @@ export interface RemoteBridgeLink extends BridgeTransport {
   ensure(): Promise<RemoteLinkInfo>;
   /** 연결을 닫는다 (페어링 해제·변경 시) */
   reset(): void;
+  /** 연결되어 있을 때만 보낸다 (대기열에 넣지 않음). 보냈으면 true */
+  trySend(msg: BridgeClientMsg | SyncClientMsg): boolean;
+  onDisconnect(listener: () => void): () => void;
 }
 
 export function createRemoteBridgeLink(opts: {
@@ -355,6 +359,11 @@ export function createRemoteBridgeLink(opts: {
       pending = [];
       s?.ws.close();
     },
+    trySend(msg) {
+      if (!session || session.ws.readyState !== 1) return false;
+      session.ws.send(session.channel.seal(msg));
+      return true;
+    },
     send(msg) {
       if (session && session.ws.readyState === 1) {
         session.ws.send(session.channel.seal(msg));
@@ -374,6 +383,28 @@ export function createRemoteBridgeLink(opts: {
       disconnectListeners.add(listener);
       return () => disconnectListeners.delete(listener);
     },
+  };
+}
+
+/** 원격 동기화(ADR-026)용 링크: 같은 E2E 채널에서 sync 메시지만 주고받는다 */
+export interface SyncLink {
+  /** 연결되어 있을 때만 보낸다. 보냈으면 true (오프라인 대기열 없음 — 재연결 시 hello부터 다시) */
+  send(msg: SyncClientMsg): boolean;
+  subscribe(cb: (msg: SyncServerMsg) => void): () => void;
+  onDisconnect(cb: () => void): () => void;
+  ensure(): Promise<unknown>;
+}
+
+export function syncLinkOf(link: RemoteBridgeLink): SyncLink {
+  return {
+    send: (msg) => link.trySend(msg),
+    subscribe(cb) {
+      return link.subscribe((m: unknown) => {
+        if (isSyncServerMsg(m)) cb(m);
+      });
+    },
+    onDisconnect: (cb) => link.onDisconnect(cb),
+    ensure: () => link.ensure(),
   };
 }
 

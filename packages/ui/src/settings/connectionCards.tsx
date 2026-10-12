@@ -327,12 +327,7 @@ const BRIDGE_IDS: ProviderId[] = ['remote-bridge'];
 export function BridgeCard() {
   const c = useConn('remote-bridge');
   const [form, setForm] = useState(false);
-  const [mode, setMode] = useState<'link' | 'code'>('link');
-  const [link, setLink] = useState('');
-  const [addr, setAddr] = useState('');
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ tone: 'danger' | 'warn'; text: string } | null>(null);
+  const [initialLink, setInitialLink] = useState('');
   const [pairing, setPairing] = useState<RemotePairing | null>(null);
   const paired = c.status !== 'unpaired';
   const pairLink = useUi((s) => s.pairLink);
@@ -341,10 +336,8 @@ export function BridgeCard() {
   useEffect(() => {
     if (!pairLink) return;
     useUi.setState({ pairLink: null });
+    setInitialLink(pairLink);
     setForm(true);
-    setMode('link');
-    setLink(pairLink);
-    setNote(null);
   }, [pairLink]);
 
   useEffect(() => {
@@ -358,56 +351,20 @@ export function BridgeCard() {
 
   const close = () => {
     setForm(false);
-    setNote(null);
-    setLink('');
-    setCode('');
+    setInitialLink('');
   };
 
-  const pair = async () => {
-    if (busy) return;
-    setNote(null);
-    let offer: PairingOffer | null;
-    if (mode === 'link') {
-      offer = parsePairingUri(link);
-      if (!offer) return setNote({ tone: 'danger', text: 'branch://pair 로 시작하는 페어링 링크를 그대로 붙여 넣어 주세요.' });
-    } else {
-      const url = normalizeBridgeUrl(addr);
-      const token = code.replace(/\s+/g, '');
-      if (!url) return setNote({ tone: 'danger', text: 'bridge 주소를 확인해 주세요. 예: 100.64.0.1:7777' });
-      if (!/^\d{6}$/.test(token)) return setNote({ tone: 'danger', text: '6자리 숫자 코드를 입력해 주세요.' });
-      offer = { url, token };
-    }
-    if (isDemo()) {
+  const onPaired = async (p: RemotePairing | null) => {
+    if (!p) {
       actions().setConnection('remote-bridge', { status: 'ready', enabled: true, detail: 'MacBook-Pro · LAN 직접 연결 · 지연 18ms' });
       close();
       return;
     }
-    setBusy(true);
-    try {
-      const p = await pairWithBridge({ offer, deviceName: deviceLabel(), wsFactory: (url) => new WebSocket(url) });
-      await saveRemotePairing(p);
-      actions().setConnection('remote-bridge', { enabled: true });
-      setPairing(p);
-      close();
-      await actions().refreshConnections(BRIDGE_IDS);
-    } catch (e) {
-      setNote({ tone: 'danger', text: e instanceof RemoteBridgeError ? e.message : '페어링하지 못했어요. bridge가 실행 중인지 확인하세요.' });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // 앱 안 카메라로 QR을 읽어 링크 칸을 채운다. 지문 확인 후 연결은 사용자가 누른다
-  const scan = async () => {
-    setNote(null);
-    try {
-      const text = await mobile?.scanQr?.();
-      if (!text) return;
-      if (!parsePairingUri(text)) return setNote({ tone: 'danger', text: 'Branch Bridge 페어링 QR이 아니에요. PC의 bridge 화면을 스캔해 주세요.' });
-      setLink(text);
-    } catch {
-      setNote({ tone: 'danger', text: '카메라를 열지 못했어요. 설정에서 카메라 권한을 허용해 주세요.' });
-    }
+    await saveRemotePairing(p);
+    actions().setConnection('remote-bridge', { enabled: true });
+    setPairing(p);
+    close();
+    await actions().refreshConnections(BRIDGE_IDS);
   };
 
   const unpair = async () => {
@@ -420,97 +377,10 @@ export function BridgeCard() {
     await actions().refreshConnections(BRIDGE_IDS);
   };
 
-  const input =
-    'h-9 min-w-0 rounded-lg border border-line bg-bg px-3 font-mono text-[13px] outline-none placeholder:font-sans focus:border-accent';
-
   return (
     <CardShell id="remote-bridge" icon={<Laptop size={18} />}>
       {form ? (
-        <form
-          className="space-y-2.5 text-[12.5px] text-fg-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void pair();
-          }}
-        >
-          <Segmented
-            value={mode}
-            options={[
-              ['link', '페어링 링크'],
-              ['code', '주소 + 코드'],
-            ]}
-            onChange={(m) => {
-              setMode(m);
-              setNote(null);
-            }}
-          />
-          {mode === 'link' ? (
-            <>
-              <p>
-                {mobile?.scanQr
-                  ? '[QR 스캔]으로 PC 화면의 QR을 찍거나, 표시된 링크를 붙여 넣으세요.'
-                  : 'PC 화면의 QR을 휴대폰 카메라로 스캔하거나, 표시된 링크를 붙여 넣으세요.'}
-              </p>
-              <div className="flex gap-2">
-                <input
-                  value={link}
-                  onChange={(e) => setLink(e.target.value)}
-                  placeholder="branch://pair?u=…"
-                  aria-label="페어링 링크"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className={cn(input, 'flex-1')}
-                />
-                {mobile?.scanQr && (
-                  <Button size="sm" className="h-9" icon={<ScanLine size={14} />} onClick={() => void scan()} disabled={busy}>
-                    QR 스캔
-                  </Button>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <p>PC 화면에 표시된 주소와 6자리 코드를 입력하세요.</p>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  value={addr}
-                  onChange={(e) => setAddr(e.target.value)}
-                  placeholder="100.64.0.1:7777"
-                  aria-label="bridge 주소"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className={cn(input, 'flex-[2_1_10rem]')}
-                />
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="123 456"
-                  aria-label="페어링 코드"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={7}
-                  className={cn(input, 'flex-[1_1_6rem] tracking-[0.2em]')}
-                />
-              </div>
-            </>
-          )}
-          {note && <p className={cn(note.tone === 'danger' ? 'text-danger' : 'text-warn')}>{note.text}</p>}
-          <div className="flex gap-2">
-            <Button size="sm" variant="primary" type="submit" disabled={busy || (mode === 'link' ? !link.trim() : !addr.trim() || !code.trim())}>
-              {busy ? '연결 중' : '연결'}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={close}>
-              취소
-            </Button>
-          </div>
-          <p className="text-muted">1회용 코드는 5분 후 만료돼요. 연결은 기기 키로 서명하고 종단간 암호화합니다.</p>
-          {secrets.kind !== 'os' && (
-            <p className="flex items-start gap-1.5 text-[12px] text-warn">
-              <TriangleAlert size={13} className="mt-0.5 shrink-0" />
-              웹에서는 기기 키를 이 탭의 메모리에만 보관해 새로고침하면 다시 페어링해야 합니다.
-            </p>
-          )}
-        </form>
+        <PairForm key={initialLink} initialLink={initialLink} onPaired={onPaired} onCancel={close} />
       ) : paired ? (
         <div className="space-y-2 text-[12.5px] text-fg-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -523,28 +393,11 @@ export function BridgeCard() {
               연결 해제
             </Button>
           </div>
-          {pairing && (
-            <p className="text-muted">
-              bridge 지문 <span className="font-mono">{keyFingerprint(pairing.bridgeKey)}</span>
-              {pairing.trust === 'code' && ' · 코드로 연결했어요. PC 화면의 지문과 같은지 확인하세요.'}
-            </p>
-          )}
-          {!caps.modelChoice && <p className="text-muted">답변은 PC의 CLI가 만들고, 에이전트·모델·노력치는 PC 설정을 따라요.</p>}
+          {pairing && <FingerprintNote pairing={pairing} />}
         </div>
       ) : (
         <div className="space-y-2 text-[12.5px] text-fg-2">
-          {caps.localCli ? (
-            <p>다른 PC의 rhymebook 앱에서 [원격 페어링 열기]를 켜면 나오는 QR 링크나 주소·코드로 연결해요.</p>
-          ) : (
-            <ol className="list-decimal space-y-0.5 pl-4">
-              <li>PC의 rhymebook 앱에서 설정 → 연결 → [원격 페어링 열기]를 켜요.</li>
-              <li>[휴대폰 연결]을 누르면 QR과 6자리 코드가 나와요.</li>
-              <li>아래 [페어링 시작]에서 QR을 찍거나 링크·코드를 입력해요.</li>
-            </ol>
-          )}
-          <p className="text-muted">
-            앱이 없는 PC라면 <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px]">npx @branch/bridge --pair</code> 로도 열 수 있어요.
-          </p>
+          <p>다른 PC의 rhymebook 앱에서 [원격 페어링 열기]를 켜면 나오는 QR 링크나 주소·코드로 연결해요.</p>
           <Button size="sm" variant="soft" icon={<Smartphone size={14} />} onClick={() => setForm(true)}>
             페어링 시작
           </Button>
@@ -554,19 +407,175 @@ export function BridgeCard() {
   );
 }
 
+export function FingerprintNote({ pairing }: { pairing: RemotePairing }) {
+  return (
+    <p className="text-muted">
+      PC 지문 <span className="font-mono">{keyFingerprint(pairing.bridgeKey)}</span>
+      {pairing.trust === 'code' && ' · 코드로 연결했어요. PC 화면의 지문과 같은지 확인하세요.'}
+    </p>
+  );
+}
+
+/**
+ * 페어링 폼 (링크/QR 또는 주소+코드). 성공하면 onPaired(페어링)를 부른다.
+ * 데모 모드에서는 실제로 연결하지 않고 onPaired(null)을 부른다.
+ */
+export function PairForm({
+  initialLink = '',
+  onPaired,
+  onCancel,
+}: {
+  initialLink?: string;
+  onPaired(p: RemotePairing | null): Promise<void> | void;
+  onCancel?(): void;
+}) {
+  const [mode, setMode] = useState<'link' | 'code'>('link');
+  const [link, setLink] = useState(initialLink);
+  const [addr, setAddr] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ tone: 'danger' | 'warn'; text: string } | null>(null);
+
+  const pair = async () => {
+    if (busy) return;
+    setNote(null);
+    let offer: PairingOffer | null;
+    if (mode === 'link') {
+      offer = parsePairingUri(link);
+      if (!offer) return setNote({ tone: 'danger', text: 'branch://pair 로 시작하는 페어링 링크를 그대로 붙여 넣어 주세요.' });
+    } else {
+      const url = normalizeBridgeUrl(addr);
+      const token = code.replace(/\s+/g, '');
+      if (!url) return setNote({ tone: 'danger', text: 'PC 주소를 확인해 주세요. 예: 100.64.0.1:7777' });
+      if (!/^\d{6}$/.test(token)) return setNote({ tone: 'danger', text: '6자리 숫자 코드를 입력해 주세요.' });
+      offer = { url, token };
+    }
+    if (isDemo()) return void (await onPaired(null));
+    setBusy(true);
+    try {
+      const p = await pairWithBridge({ offer, deviceName: deviceLabel(), wsFactory: (url) => new WebSocket(url) });
+      await onPaired(p);
+    } catch (e) {
+      setNote({ tone: 'danger', text: e instanceof RemoteBridgeError ? e.message : '페어링하지 못했어요. PC 앱에서 원격 페어링이 열려 있는지 확인하세요.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 앱 안 카메라로 QR을 읽어 링크 칸을 채운다. 지문 확인 후 연결은 사용자가 누른다
+  const scan = async () => {
+    setNote(null);
+    try {
+      const text = await mobile?.scanQr?.();
+      if (!text) return;
+      if (!parsePairingUri(text)) return setNote({ tone: 'danger', text: 'rhymebook 페어링 QR이 아니에요. PC 앱의 [휴대폰·웹 연결] 화면을 스캔해 주세요.' });
+      setLink(text);
+    } catch {
+      setNote({ tone: 'danger', text: '카메라를 열지 못했어요. 설정에서 카메라 권한을 허용해 주세요.' });
+    }
+  };
+
+  const input =
+    'h-9 min-w-0 rounded-lg border border-line bg-bg px-3 font-mono text-[13px] outline-none placeholder:font-sans focus:border-accent';
+
+  return (
+    <form
+      className="space-y-2.5 text-[12.5px] text-fg-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void pair();
+      }}
+    >
+      <Segmented
+        value={mode}
+        options={[
+          ['link', '페어링 링크'],
+          ['code', '주소 + 코드'],
+        ]}
+        onChange={(m) => {
+          setMode(m);
+          setNote(null);
+        }}
+      />
+      {mode === 'link' ? (
+        <>
+          <p>
+            {mobile?.scanQr
+              ? '[QR 스캔]으로 PC 화면의 QR을 찍거나, 표시된 링크를 붙여 넣으세요.'
+              : 'PC 화면의 QR을 휴대폰 카메라로 스캔하거나, 표시된 링크를 붙여 넣으세요.'}
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="branch://pair?u=…"
+              aria-label="페어링 링크"
+              autoComplete="off"
+              spellCheck={false}
+              className={cn(input, 'flex-1')}
+            />
+            {mobile?.scanQr && (
+              <Button size="sm" className="h-9" icon={<ScanLine size={14} />} onClick={() => void scan()} disabled={busy}>
+                QR 스캔
+              </Button>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <p>PC 화면에 표시된 주소와 6자리 코드를 입력하세요.</p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={addr}
+              onChange={(e) => setAddr(e.target.value)}
+              placeholder="100.64.0.1:7777"
+              aria-label="PC 주소"
+              autoComplete="off"
+              spellCheck={false}
+              className={cn(input, 'flex-[2_1_10rem]')}
+            />
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="123 456"
+              aria-label="페어링 코드"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={7}
+              className={cn(input, 'flex-[1_1_6rem] tracking-[0.2em]')}
+            />
+          </div>
+        </>
+      )}
+      {note && <p className={cn(note.tone === 'danger' ? 'text-danger' : 'text-warn')}>{note.text}</p>}
+      <div className="flex gap-2">
+        <Button size="sm" variant="primary" type="submit" disabled={busy || (mode === 'link' ? !link.trim() : !addr.trim() || !code.trim())}>
+          {busy ? '연결 중' : '연결'}
+        </Button>
+        {onCancel && (
+          <Button size="sm" variant="ghost" onClick={onCancel}>
+            취소
+          </Button>
+        )}
+      </div>
+      <p className="text-muted">1회용 코드는 5분 후 만료돼요. 연결은 기기 키로 서명하고 종단간 암호화합니다.</p>
+      {secrets.kind !== 'os' && (
+        <p className="flex items-start gap-1.5 text-[12px] text-warn">
+          <TriangleAlert size={13} className="mt-0.5 shrink-0" />
+          웹에서는 기기 키를 이 탭의 메모리에만 보관해 새로고침하면 다시 페어링해야 합니다.
+        </p>
+      )}
+    </form>
+  );
+}
+
 export function PolicyNote() {
-  const items = caps.localCli
-    ? [
-        '구독 계정은 내가 설치하고 로그인한 공식 CLI를 실행하는 방식으로만 연결합니다.',
-        '앱은 로그인 토큰 파일을 읽거나 복사하지 않고, 클라이언트 헤더를 흉내 내지 않습니다.',
-        '대화 기록과 가지 맥락은 앱이 보관하며, CLI는 요청마다 새로 실행됩니다 (도구 비활성화, 읽기 전용).',
-        '원격 페어링을 열면 페어링한 기기의 요청도 이 PC의 CLI로 실행되고, 에이전트·모델·노력치는 이 PC 설정을 따릅니다.',
-      ]
-    : [
-        '이 기기에서는 CLI를 실행하지 않습니다. 구독 계정은 내 PC와 페어링해 PC의 공식 CLI로만 씁니다.',
-        '원격 요청의 에이전트·모델·노력치는 PC 설정이 정하며, 이 기기에서 바꿀 수 없습니다.',
-        '페어링 연결은 기기 키로 서명하고 종단간 암호화합니다. relay를 거쳐도 내용은 보이지 않습니다.',
-      ];
+  const items = [
+    '구독 계정은 내가 설치하고 로그인한 공식 CLI를 실행하는 방식으로만 연결합니다.',
+    '앱은 로그인 토큰 파일을 읽거나 복사하지 않고, 클라이언트 헤더를 흉내 내지 않습니다.',
+    '대화 기록과 가지 맥락은 앱이 보관하며, CLI는 요청마다 새로 실행됩니다 (도구 비활성화, 읽기 전용).',
+    '원격 페어링을 열면 페어링한 기기의 요청도 이 PC의 CLI로 실행되고, 에이전트·모델·노력치는 이 PC 설정을 따릅니다.',
+  ];
   return (
     <div className="flex gap-2.5 rounded-xl bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-fg-2">
       <ShieldCheck size={17} className="mt-0.5 shrink-0 text-accent" />

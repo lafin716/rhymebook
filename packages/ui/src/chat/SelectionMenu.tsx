@@ -91,7 +91,7 @@ export function SelectionMenu() {
     const id = actions().createBranch(pending.sessionId, pending.anchor, kind, kind === 'custom' ? question.trim() : undefined);
     window.getSelection()?.removeAllRanges();
     dismiss();
-    openBranch(id);
+    if (id) openBranch(id);
   };
 
   const guard = {

@@ -5,3 +5,4 @@ export * from './desktop';
 export * from './secure';
 export * from './remote';
 export * from './relay';
+export * from './sync';

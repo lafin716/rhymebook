@@ -1,11 +1,23 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState, SyncClientMsg, SyncServerMsg } from '@branch/core';
 import { CH } from './ipc';
+
+/** DesktopApi.sync with onPeerGone extension (ADR-026) */
+type DesktopSyncApi = {
+  ready(on: boolean): void;
+  send(peerId: string, msg: SyncServerMsg): void;
+  onMessage(cb: (peerId: string, msg: SyncClientMsg) => void): () => void;
+  onPeerGone(cb: (peerId: string) => void): () => void;
+};
+
+/** DesktopApi + onPeerGone extension */
+type DesktopApiExt = Omit<DesktopApi, 'sync'> & { sync?: DesktopSyncApi };
 
 // 렌더러에는 좁은 API만 노출한다 (ipcRenderer 자체는 노출하지 않음)
 const persistent = ipcRenderer.sendSync(CH.secretPersistent) === true;
 
-const api: DesktopApi = {
+// DesktopApi 타입을 확장해서 onPeerGone을 추가로 노출한다
+const api: DesktopApiExt = {
   platform: process.platform,
   bridge: {
     send: (msg) => ipcRenderer.send(CH.bridgeSend, msg),
@@ -34,6 +46,33 @@ const api: DesktopApi = {
       ipcRenderer.on(CH.hostChanged, h);
       return () => ipcRenderer.removeListener(CH.hostChanged, h);
     },
+    sync: {
+      ready(on: boolean) {
+        ipcRenderer.send(CH.hostSyncReady, on);
+      },
+      send(peerId: string, msg: SyncServerMsg) {
+        ipcRenderer.send(CH.hostSyncOut, { peerId, msg });
+      },
+      onMessage(cb: (peerId: string, msg: SyncClientMsg) => void) {
+        const h = (_e: IpcRendererEvent, data: unknown) => {
+          if (data && typeof data === 'object') {
+            const d = data as { peerId?: unknown; msg?: unknown };
+            if (typeof d.peerId === 'string') {
+              cb(d.peerId, d.msg as SyncClientMsg);
+            }
+          }
+        };
+        ipcRenderer.on(CH.hostSyncIn, h);
+        return () => ipcRenderer.removeListener(CH.hostSyncIn, h);
+      },
+      onPeerGone(cb: (peerId: string) => void) {
+        const h = (_e: IpcRendererEvent, peerId: unknown) => {
+          if (typeof peerId === 'string') cb(peerId);
+        };
+        ipcRenderer.on(CH.hostSyncGone, h);
+        return () => ipcRenderer.removeListener(CH.hostSyncGone, h);
+      },
+    } as DesktopSyncApi,
   },
 };
 

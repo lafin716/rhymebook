@@ -2,7 +2,8 @@ import { createSeed, defaultConnections, emptyView, mockControl, SEED_IDS } from
 import { branchTarget } from '../chat/open';
 import { selectText } from '../chat/selection';
 import { useRuntime } from './runtime';
-import { actions, loadPersisted } from './store';
+import { actions } from './store';
+import { startData, suspendData } from './sync';
 import { useUi } from './uiState';
 
 /** 데모 시나리오: 개발 서버 상단의 점프 메뉴와 `#scenario=<id>` 해시로 실행한다 */
@@ -15,6 +16,7 @@ export interface Scenario {
 
 /** 시드 데이터와 목업 상태로 되돌린다 (테마는 유지) */
 function reset(activeId: string | null = SEED_IDS.root) {
+  if (!useRuntime.getState().demo) suspendData();
   useRuntime.getState().setDemo(true);
   mockControl.failNext = false;
   mockControl.speed = 1;
@@ -154,7 +156,7 @@ export function exitDemo() {
   useRuntime.getState().setDemo(false);
   mockControl.failNext = false;
   window.getSelection()?.removeAllRanges();
-  void loadPersisted();
+  void startData();
 }
 
 export function runScenario(id: string): boolean {

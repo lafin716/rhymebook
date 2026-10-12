@@ -169,3 +169,25 @@
 - 결정(첫 실행 안내): 실제 모드에서 `settings.setupDone`이 없고, 감지가 끝났는데 쓸 수 있는(데모 제외) 연결이 없으면 모달을 띄운다. PC = [이 PC의 CLI (추천)] / [API 키] + 원격 페어링 열기 안내, 웹·모바일 = [내 PC와 페어링 (추천)] / [API 키] — 모델 선택 단계 없음. 선택하면 같은 연결 카드를 그 자리에서 보여 주고, [시작하기](연결 준비 시)·[나중에 하기]로 끝낸다(기본 provider가 준비 안 됐으면 준비된 첫 provider로). 이미 연결이 준비된 기존 사용자는 안내 없이 완료 처리. 딥링크 페어링을 받으면 안내를 닫고 설정이 처리.
 - 근거: 정책 원칙 유지 — 구독은 사용자 본인 PC의 공식 CLI 실행으로만, 웹·모바일은 CLI를 실행할 수 없으므로 선택지 자체를 없애 혼란을 줄인다. 모델·노력치를 PC 한 곳에서만 정하면 원격 요청이 PC에 없는 모델을 고르는 실패도 없다.
 
+
+### ADR-026 · 2026-10-12 · 웹·모바일 원격 전용 (PC 호스트 스토어 동기화)
+- 배경: 사용자 요청 — 웹·모바일은 CLI 경유 provider가 아니라 PC에 페어링해 PC에서 학습 중인 내용을 보고, 질문은 신호로 보내 PC가 CLI를 실행하게. UI/UX도 원격 전용으로 개편. ADR-025의 웹·모바일 API 키·원격 Bridge provider 구성을 대체(04 UX의 웹·모바일 연결·설정·첫 실행 부분 개편).
+- 결정(진실 원천): PC 데스크톱 renderer 스토어(Dexie)가 유일한 데이터 원천. 웹·모바일 스토어는 메모리 전용 미러이며 보기 상태(분할·팝업·시트)와 테마만 로컬.
+- 결정(프로토콜): core `bridge/sync.ts` — `sync.hello`→`sync.snapshot`(세션·스트리밍·요약 초안), 세션별 지연 로드 `sync.messages`, 변경 push(`sync.session/message/streaming/draft`), 액션 `act{op}`→`act.result`. id는 클라이언트가 생성(낙관적 표시). 같은 E2E 암호화 채널, 엄격 검증. 스트리밍 push는 throttle.
+- 결정(경로): bridge RemoteServer가 sync 메시지를 데스크톱 main에 넘기고, main은 IPC로 renderer의 호스트 엔진(core `createSyncHost`)에 중계. 엔진 미준비 시 `sync.error`, 준비되면 `sync.reset`. macOS에서 호스트가 켜져 있으면 창 닫기 = 숨기기. 헤드리스 bridge는 sync 미지원(`sync.error` 안내).
+- 결정(정책): 원격이 만든 루트 세션은 PC `hostAgent`(자동이 아니면)로 지정. 모델·노력치는 PC 연결 기본값. 기존 `chat.start` 경로와 호스트 정책은 데스크톱의 "다른 PC에 연결"용으로 유지.
+- 결정(웹·모바일 UI): API 키·로컬 저장·백업·모델 선택·provider 기본값 설정 제거. 미페어링 첫 화면 = 페어링 안내, 상단 PC 연결 상태 칩, 오프라인 배너 + 입력 비활성, 설정 = 연결된 PC(이름·지문·경로·해제) + 화면(테마·앵커 열기 위치). 데모 모드와 개발 서버 `?platform=desktop`(로컬 모드)은 유지.
+- 근거: 학습 데이터를 PC 한 곳에 모아 기기 간 일관성 확보, 구독 CLI는 사용자 PC에서만 실행(정책 원칙), 모바일에 비밀 키를 두지 않는다.
+- 진행 기록(테스트 소유권): T2의 실제 ws 동기화 테스트 요청이 3회 연속 형식만 있는 테스트(`expect(true)` 등)로 돌아와, 규칙(같은 실패 3회 → 대안)에 따라 리더가 `packages/bridge/test/remote.test.ts`의 동기화 테스트를 직접 작성했다(실제 기기 2대 페어링 · peerId 분리 · 개별/브로드캐스트 전송 · 형식 오류 act → `act.result(invalid)` · 연결 종료/해제 시 `peerGone`). 형식 오류 act는 클라이언트가 결과를 기다리므로 서버가 조용히 버리지 않고 실패로 응답하도록 함께 고쳤다.
+- 진행 기록(T1 소유권): core 구현 에이전트의 sync client가 리뷰에서 반려(타임아웃 롤백 누락·오프라인 낙관 표시 잔존·삭제 후 보기 정리 누락)되어 에이전트를 중단하고 리더가 `packages/core/src/sync/{client,host}.ts`와 `test/sync.test.ts`를 넘겨받아 재작성했다. 테스트는 실제 데모 provider로 PC 스토어를 돌리는 호스트↔클라이언트 왕복(질문→스트리밍 수렴, 가지, 미로드 세션 push 차단, busy·forbidden·rate-limit·not-ready·conflict 거절과 롤백, 오프라인 즉시 실패, 타임아웃 재동기화, 끊김→자동 재연결, reset, peerGone, append offset 불일치 재요청, 요약)을 검증한다.
+- 결정(자동 에이전트): PC '원격 요청 에이전트'가 자동이면 준비된 CLI(Claude → Codex 순)로 루트 세션을 만들고, 둘 다 없을 때만 PC 기본 provider를 쓴다. 실제 smoke에서 자동일 때 기본 provider(API, 키 없음)로 가 "Anthropic API 키가 설정되지 않았습니다"가 난 것을 고쳤다.
+- 결정(삭제 동기화): 오프라인 중 PC에서 지워진 세션은 재연결 스냅샷에서 보기 상태를 정리하고, 활성 세션이었다면 남아 있는 가장 가까운 부모로 포커스를 옮긴다(독립 리뷰 지적, 회귀 테스트 추가).
+- 한계(웹 페어링): 웹은 페어링 키를 탭 메모리에만 두므로(비밀 값 영속 저장 금지) 새로고침하면 다시 페어링해야 한다. 첫 화면에서 이를 안내한다. 모바일 앱은 보안 저장소에 둔다.
+- 결정(앵커 검증): 호스트는 앵커 범위(offset 정수·메시지 길이 내)만 검사하고 `anchor.text`와 원문 slice의 일치는 검사하지 않는다 — 앵커 text는 마크다운이 제거된 렌더 텍스트라 원문 slice와 다를 수 있다.
+
+### ADR-027 · 2026-10-12 · Windows CLI 실행 — 빈 인자 보존, Codex 에이전트 도구 끄기
+- 배경: Windows에서 Claude CLI가 `error: option '--setting-sources <sources>' argument missing`으로 실패, Codex CLI는 응답이 매우 느림.
+- 원인(Claude): win32는 npm `.cmd` 래퍼 때문에 `shell: true`로 실행하는데, `winQuote('')`가 빈 문자열을 그대로 둬 `--tools ''`·`--setting-sources ''`의 값이 cmd 명령줄에서 사라졌다.
+- 결정: 빈 인자는 `""`로 넘긴다. Codex `-c` 값에는 따옴표를 넣지 않는다(`model_reasoning_effort=low` — TOML로 안 읽히면 문자열로 쓰임). win32 PATH에 `%USERPROFILE%\.local\bin`(claude 네이티브 설치)을 더한다.
+- 결정(Codex): 대화에 쓰지 않는 에이전트 기능(shell_tool·unified_exec·apps·plugins·multi_agent·browser/computer use·web_search 등)을 `-c features.<name>=false`로 끈다. 모델이 셸 명령(win32는 PowerShell + 샌드박스)을 실행하거나 플러그인·앱을 띄우는 지연을 없애고, 입력 토큰을 약 25k → 19k로 줄인다. `--disable`은 모르는 기능 이름이면 실패하므로 버전 차이에 안전한 `-c`를 쓴다.
+- 한계: `codex exec --json`은 토큰 단위 스트리밍이 없어 답이 완성될 때 한 번에 나온다. 남는 대기 시간은 대부분 모델 지연이라, 빠른 답이 필요하면 노력치 '낮음'이나 가벼운 모델을 고르도록 안내한다.

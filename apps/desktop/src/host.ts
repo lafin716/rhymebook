@@ -11,7 +11,7 @@ import {
   type RelayConnector,
   type RemoteServer,
 } from '@branch/bridge';
-import { keyFingerprint, type HostPolicy, type HostState } from '@branch/core';
+import { keyFingerprint, type HostPolicy, type HostState, type SyncClientMsg, type SyncServerMsg } from '@branch/core';
 import QRCode from 'qrcode';
 
 /**
@@ -37,12 +37,24 @@ export interface HostService {
   cancelPairing(): Promise<HostState>;
   unpair(idOrAll: string): Promise<HostState>;
   setPolicy(policy: HostPolicy): void;
+  /** 동기화 메시지 전송 */
+  syncSend?(peerId: string, msg: SyncServerMsg): void;
+  /** 모든 동기화 클라이언트에게 브로드캐스트 */
+  broadcastSync?(msg: SyncServerMsg): void;
   /** 설정이 켜져 있으면 연다 (앱 시작 시) */
   restore(): Promise<void>;
   shutdown(): Promise<void>;
 }
 
-export function createHostService(opts: { dir: string; emit: (state: HostState) => void; log?: (msg: string) => void }): HostService {
+export function createHostService(opts: {
+  dir: string;
+  emit: (state: HostState) => void;
+  log?: (msg: string) => void;
+  sync?: {
+    receive(peerId: string, deviceId: string, msg: SyncClientMsg): void;
+    peerGone?(peerId: string): void;
+  };
+}): HostService {
   const log = opts.log ?? (() => {});
   const configFile = path.join(opts.dir, 'host.json');
   let config: HostConfig = { enabled: false };
@@ -113,6 +125,7 @@ export function createHostService(opts: { dir: string; emit: (state: HostState) 
         log,
         policy: () => policy,
         onPresence: emit,
+        sync: opts.sync,
       });
       try {
         return { srv, port: (await srv.listen()).port };
@@ -254,6 +267,12 @@ export function createHostService(opts: { dir: string; emit: (state: HostState) 
     },
     setPolicy(p) {
       policy = p;
+    },
+    syncSend(peerId: string, msg: SyncServerMsg) {
+      server?.syncSend(peerId, msg);
+    },
+    broadcastSync(msg: SyncServerMsg) {
+      server?.syncSend('*', msg);
     },
     async restore() {
       await loadConfig();

@@ -2,10 +2,14 @@ import { childrenOf, rootSessions, type ID } from '@branch/core';
 import { ChevronRight, GitBranch, Plus, Settings2, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { actions, useApp, useAppShallow } from '../app/store';
+import { remoteMode } from '../app/capabilities';
+import { useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { Button, IconButton } from '../components/Button';
 import { StatusDot } from '../components/Badge';
+import { confirm } from '../components/ConfirmDialog';
+import { PC_STATUS_LABEL, usePcOnline } from '../components/PcStatus';
 import { cn } from '../lib/cn';
 import { isUsable, PROVIDER_ORDER, providerLabel, statusTone } from '../lib/connection';
 import { relativeTime } from '../lib/time';
@@ -42,6 +46,7 @@ export function Sidebar() {
 function SidebarBody() {
   const roots = useAppShallow((s) => rootSessions(s.sessions).map((r) => r.id));
   const close = () => useUi.getState().setDrawer(false);
+  const pcOnline = usePcOnline();
   return (
     <>
       <div className="flex items-center gap-2 px-3 pt-3 pb-2">
@@ -57,6 +62,8 @@ function SidebarBody() {
           variant="primary"
           className="w-full justify-center"
           icon={<Plus size={16} />}
+          disabled={!pcOnline}
+          title={pcOnline ? undefined : 'PC와 연결되면 새 학습을 시작할 수 있어요'}
           onClick={() => {
             actions().newRootSession();
             close();
@@ -67,7 +74,7 @@ function SidebarBody() {
       </div>
       <nav aria-label="학습 세션" className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {roots.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[13px] text-muted">세션이 없어요</p>
+          <p className="px-3 py-6 text-center text-[13px] text-muted">{remoteMode && !pcOnline ? 'PC와 연결되면 학습 목록이 보여요' : '세션이 없어요'}</p>
         ) : (
           roots.map((id) => <RootItem key={id} id={id} onPick={close} />)
         )}
@@ -119,8 +126,19 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
           size="sm"
           label="세션 삭제"
           className="mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-          onClick={() => {
-            if (window.confirm(`"${s.title}"과(와) 모든 가지를 삭제할까요?`)) actions().deleteSession(id);
+          onClick={async () => {
+            const ok = await confirm({
+              title: '학습을 삭제할까요?',
+              message: (
+                <>
+                  <b className="font-medium text-fg-2">“{s.title}”</b>
+                  {childCount > 0 ? '과(와) 모든 가지가' : '이(가)'} 모두 삭제되며 되돌릴 수 없어요.
+                </>
+              ),
+              confirmLabel: '삭제',
+              tone: 'danger',
+            });
+            if (ok) actions().deleteSession(id);
           }}
         >
           <Trash2 size={14} />
@@ -169,7 +187,32 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
   );
 }
 
+const PC_TONE = { online: 'ok', connecting: 'warn', offline: 'danger', unpaired: 'neutral', unsupported: 'danger' } as const;
+
 function ConnectionFooter() {
+  return remoteMode ? <PcFooter /> : <ProviderFooter />;
+}
+
+/** 원격 모드: 연결된 PC 상태 */
+function PcFooter() {
+  const status = useSync((s) => s.status);
+  const hostName = useSync((s) => s.hostName);
+  return (
+    <button
+      type="button"
+      onClick={() => actions().setOverlay('settings')}
+      className="flex items-center gap-2 border-t border-line px-4 py-3 text-left text-[12.5px] text-fg-2 hover:bg-surface-2/60"
+    >
+      <StatusDot tone={PC_TONE[status]} className={status === 'connecting' ? 'animate-pulse' : undefined} />
+      <span className="min-w-0 flex-1 truncate">
+        {status === 'online' && hostName ? `${hostName} · ${PC_STATUS_LABEL[status]}` : `PC ${PC_STATUS_LABEL[status]}`}
+      </span>
+      <Settings2 size={15} className="text-muted" />
+    </button>
+  );
+}
+
+function ProviderFooter() {
   const conns = useApp((s) => s.connections);
   const def = useApp((s) => s.settings.defaultProviderId);
   const usable = PROVIDER_ORDER.filter((p) => isUsable(conns[p]));

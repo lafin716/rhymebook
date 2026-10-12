@@ -3,6 +3,7 @@ import { Check, Copy, MonitorSmartphone, QrCode, Unplug, X } from 'lucide-react'
 import { useEffect, useState } from 'react';
 import { desktop } from '../app/runtime';
 import { actions, useApp } from '../app/store';
+import { remoteDeleteAllowed, setRemoteDeleteAllowed } from '../app/sync';
 import { Badge, StatusDot } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
@@ -63,6 +64,7 @@ export function HostCard() {
   const [linkIdx, setLinkIdx] = useState(0);
   const [copied, setCopied] = useState(false);
   const [relayDraft, setRelayDraft] = useState<string | null>(null);
+  const [allowDelete, setAllowDelete] = useState(remoteDeleteAllowed);
   const now = useNow(!!s?.pairing);
   if (!host || !s) return null;
 
@@ -106,7 +108,7 @@ export function HostCard() {
           <p className="truncate text-[12.5px] text-muted">
             {s.running
               ? `${s.name} · 페어링 기기 ${s.devices.length}대${s.devices.some((d) => d.connected) ? ` (접속 ${s.devices.filter((d) => d.connected).length})` : ''}`
-              : '켜면 휴대폰·웹에서 이 PC의 CLI로 채팅할 수 있어요.'}
+              : '켜면 휴대폰·웹에서 이 PC의 학습을 보고 질문할 수 있어요.'}
           </p>
         </div>
         <Toggle label="원격 페어링 열기" checked={s.enabled} onChange={(v) => void run(() => host.setEnabled(v))} />
@@ -129,6 +131,20 @@ export function HostCard() {
             </select>
           </label>
           <p className="text-muted">모델·노력치는 위 CLI 카드의 기본값을 따르고, 휴대폰·웹에서는 바꿀 수 없어요.</p>
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1">
+              원격에서 학습 삭제 허용
+              <span className="block text-muted">끄면 휴대폰·웹에서 세션·가지를 지울 수 없어요.</span>
+            </span>
+            <Toggle
+              label="원격에서 학습 삭제 허용"
+              checked={allowDelete}
+              onChange={(v) => {
+                setRemoteDeleteAllowed(v);
+                setAllowDelete(v);
+              }}
+            />
+          </div>
 
           {pairing && link ? (
             <div className="rounded-lg bg-surface-2 p-3">
