@@ -1,6 +1,6 @@
 {
   "name": "@branch/desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "rhymebook 데스크톱 (Electron + 내장 bridge)",
   "main": "dist/main.cjs",
@@ -62,7 +62,12 @@
       "executableName": "rhymebook",
       "category": "Education",
       "maintainer": "rhymebook"
+    },
+    "deb": {
+      "packageName": "rhymebook",
+      "artifactName": "rhymebook_${version}_${arch}.${ext}"
     }
   },
-  "author": "rhymebook"
+  "author": "rhymebook",
+  "homepage": "https://github.com/lafin716/rhymebook"
 }
