@@ -21,7 +21,8 @@ android {
     def home = System.getProperty('user.home')
     def ksFile = file(System.getenv('RHYMEBOOK_KEYSTORE') ?: "$home/rhymebook-release.jks")
     def passFile = file(System.getenv('RHYMEBOOK_KEYSTORE_PASSWORD_FILE') ?: "$home/.rhymebook-keystore-pass")
-    def ksPass = System.getenv('RHYMEBOOK_KEYSTORE_PASSWORD') ?: (passFile.exists() ? passFile.text.trim() : null)
+    // secrets에 끝 줄바꿈이 섞여 들어가도 되도록 trim
+    def ksPass = System.getenv('RHYMEBOOK_KEYSTORE_PASSWORD')?.trim() ?: (passFile.exists() ? passFile.text.trim() : null)
     def canSign = ksFile.exists() && ksPass
     signingConfigs {
         if (canSign) {
