@@ -6,8 +6,36 @@ import { isObj, str, type CliParser } from './parser';
 export const CODEX_CTX: CliErrorContext = { label: 'Codex CLI', loginHint: 'codex login' };
 
 /**
+ * 대화에 필요 없는 에이전트 기능. 켜 두면 모델이 셸 명령(win32는 PowerShell)·플러그인·앱을
+ * 시작하거나 호출해 답이 크게 늦어진다. --disable은 모르는 이름이면 실패하므로,
+ * 버전에 없는 키를 무시하는 -c features.<name>=false로 끈다.
+ */
+const CODEX_OFF_FEATURES = [
+  'shell_tool',
+  'unified_exec',
+  'apps',
+  'plugins',
+  'multi_agent',
+  'browser_use',
+  'browser_use_external',
+  'computer_use',
+  'in_app_browser',
+  'image_generation',
+  'view_image',
+  'skill_search',
+  'tool_suggest',
+  'goals',
+  'sleep_tool',
+  'code_mode_host',
+  'workspace_dependencies',
+  'hooks',
+  'memories',
+];
+
+/**
  * 공식 codex CLI 무상태 실행 인자. 읽기 전용 샌드박스, 세션 파일 저장 안 함,
- * 사용자 config.toml/rules 미적용(앱이 모델과 지시를 정한다). 프롬프트는 stdin('-').
+ * 사용자 config.toml/rules 미적용(앱이 모델과 지시를 정한다), 도구 비활성. 프롬프트는 stdin('-').
+ * 값에 따옴표를 넣지 않는다 — win32 cmd 경유 시 이스케이프가 깨진다(TOML이 아니면 문자열로 읽힌다).
  */
 export function codexArgs(opts: { model?: string; effort?: string }): string[] {
   return [
@@ -21,9 +49,12 @@ export function codexArgs(opts: { model?: string; effort?: string }): string[] {
     '--ignore-rules',
     '--color',
     'never',
-    ...(opts.model ? ['-m', opts.model] : []),
     // --ignore-user-config 여도 -c 덮어쓰기는 적용된다
-    ...(opts.effort ? ['-c', `model_reasoning_effort="${opts.effort}"`] : []),
+    ...CODEX_OFF_FEATURES.flatMap((f) => ['-c', `features.${f}=false`]),
+    '-c',
+    'web_search=disabled',
+    ...(opts.model ? ['-m', opts.model] : []),
+    ...(opts.effort ? ['-c', `model_reasoning_effort=${opts.effort}`] : []),
     '-',
   ];
 }

@@ -3,7 +3,9 @@ import { spawn } from 'node:child_process';
 /** win32의 npm 셸 래퍼(.cmd)를 실행하려면 shell이 필요하다. 그때만 인자를 따옴표로 감싼다 */
 const IS_WIN = process.platform === 'win32';
 
-function winQuote(arg: string): string {
+/** cmd.exe 명령줄용 인자. 빈 문자열은 ""로 남겨야 사라지지 않는다(--setting-sources '' 등) */
+export function winQuote(arg: string): string {
+  if (arg === '') return '""';
   return /[\s"&|<>^]/.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg;
 }
 

@@ -7,7 +7,7 @@ import {
   type BridgeTransport,
   type StreamEvent,
 } from '@branch/core';
-import { classifyCliError, cliModelOptions, codexArgs, createBridgeServer, sanitize, type CliEnv } from '../src';
+import { claudeArgs, classifyCliError, cliModelOptions, codexArgs, winQuote, createBridgeServer, sanitize, type CliEnv } from '../src';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const fakeClaude = path.join(dir, 'fixtures/fake-claude.mjs');
@@ -135,9 +135,26 @@ describe('모델·노력치 인자', () => {
     const client = createBridgeClient(localTransport('echo'));
     const echo = JSON.parse(text(await collect(client.stream('codex-cli', { ...req, model: 'gpt-6-sol', effort: 'ultra' })))) as { args: string[] };
     expect(echo.args[echo.args.indexOf('-m') + 1]).toBe('gpt-6-sol');
-    expect(echo.args[echo.args.indexOf('-c') + 1]).toBe('model_reasoning_effort="ultra"');
+    expect(echo.args).toContain('model_reasoning_effort=ultra');
     expect(echo.args.at(-1)).toBe('-');
-    expect(codexArgs({})).not.toContain('-c');
+    expect(codexArgs({}).some((a) => a.startsWith('model_reasoning_effort'))).toBe(false);
+  });
+
+  it('codex는 셸·플러그인 등 에이전트 도구를 끈다(-c features.*, 따옴표 없는 값)', () => {
+    const args = codexArgs({ effort: 'low' });
+    for (const f of ['shell_tool', 'unified_exec', 'apps', 'plugins']) expect(args).toContain(`features.${f}=false`);
+    expect(args).toContain('web_search=disabled');
+    expect(args).not.toContain('--disable');
+    expect(args.some((a) => a.includes('"'))).toBe(false);
+  });
+
+  it('win32 cmd 인자: 빈 문자열은 ""로 남고, 공백·메타문자는 따옴표로 감싼다', () => {
+    expect(winQuote('')).toBe('""');
+    expect(winQuote('--tools')).toBe('--tools');
+    expect(winQuote('C:\\Users\\Kim Lee\\sys.txt')).toBe('"C:\\Users\\Kim Lee\\sys.txt"');
+    expect(winQuote('a&b')).toBe('"a&b"');
+    // claude의 빈 값 인자(--tools '', --setting-sources '')가 cmd에서 사라지지 않는다
+    expect(claudeArgs({ systemFile: 's.txt' }).map(winQuote).filter((a) => a === '""')).toHaveLength(2);
   });
 
   it('모델이 지원하지 않는 노력치는 빼고 CLI 기본을 쓴다', () => {

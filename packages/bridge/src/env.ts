@@ -44,8 +44,9 @@ function loginShellPath(timeoutMs = 4000): Promise<string | null> {
 function extraDirs(): string[] {
   const home = os.homedir();
   if (process.platform === 'win32') {
+    // npm 전역(%APPDATA%\npm), claude 네이티브 설치(%USERPROFILE%\.local\bin)
     const appData = process.env.APPDATA;
-    return appData ? [path.join(appData, 'npm')] : [];
+    return [...(appData ? [path.join(appData, 'npm')] : []), path.join(home, '.local', 'bin')];
   }
   return [path.join(home, '.local/bin'), path.join(home, '.npm-global/bin'), '/opt/homebrew/bin', '/usr/local/bin'];
 }
