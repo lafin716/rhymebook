@@ -1,3 +1,4 @@
+import type { HostPolicy } from '../platform';
 import type { BridgeClientMsg, BridgeServerMsg } from './protocol';
 
 /** 데스크톱(Electron) preload가 렌더러에 노출하는 API: window.branchDesktop */
@@ -14,6 +15,53 @@ export interface DesktopApi {
     set(name: string, value: string): Promise<void>;
     delete(name: string): Promise<void>;
   };
+  /** 이 PC를 원격 페어링 호스트로 열기 (ADR-025). 없으면 호스트 기능을 숨긴다 */
+  host?: DesktopHostApi;
+}
+
+export interface HostDevice {
+  id: string;
+  name: string;
+  pairedAt: number;
+  lastSeenAt?: number;
+  connected: boolean;
+}
+
+export interface HostPairingInfo {
+  /** 6자리 1회용 코드 */
+  code: string;
+  expiresAt: number;
+  /** 주소별 페어링 링크와 QR(SVG). 링크에는 1회용 토큰이 들어 있으므로 화면에만 쓴다 */
+  links: { label: string; url: string; uri: string; qrSvg: string }[];
+}
+
+export interface HostState {
+  /** 사용자가 켜 두었는지 (앱 시작 시 자동으로 다시 연다) */
+  enabled: boolean;
+  running: boolean;
+  port: number | null;
+  error?: string;
+  /** 원격 기기에 보이는 PC 이름 */
+  name: string;
+  fingerprint: string;
+  addresses: { label: string; url: string }[];
+  devices: HostDevice[];
+  relayUrl: string | null;
+  relayState: 'off' | 'connecting' | 'ready' | 'offline';
+  pairing: HostPairingInfo | null;
+}
+
+export interface DesktopHostApi {
+  getState(): Promise<HostState>;
+  setEnabled(enabled: boolean): Promise<HostState>;
+  /** relay 주소 (wss://…). null이면 끔 */
+  setRelay(url: string | null): Promise<HostState>;
+  startPairing(): Promise<HostState>;
+  cancelPairing(): Promise<HostState>;
+  unpair(idOrAll: string): Promise<HostState>;
+  /** 원격 요청에 적용할 에이전트·모델·노력치 */
+  setPolicy(policy: HostPolicy): Promise<void>;
+  onChange(listener: (state: HostState) => void): () => void;
 }
 
 /** 모바일(Capacitor) 진입점이 주입하는 API: window.branchMobile (Phase 5, ADR-019) */

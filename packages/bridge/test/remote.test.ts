@@ -188,3 +188,45 @@ describe('validateClientMsg', () => {
     expect(validateClientMsg({ type: 'chat.abort', reqId: 'r1' })).toEqual({ type: 'chat.abort', reqId: 'r1' });
   });
 });
+
+describe('원격 bridge — PC 정책 (데스크톱 호스트)', () => {
+  it('원격이 보낸 모델·노력치 대신 PC가 정한 값으로 CLI를 실행한다', async () => {
+    const echoHome = await mkdtemp(path.join(os.tmpdir(), 'branch-bridge-test-'));
+    const echoStore = await openBridgeStore({ dir: echoHome, name: '정책 PC' });
+    const bridge = createBridgeServer({
+      cliEnv: {
+        env: { ...process.env, FAKE_MODE: 'echo' },
+        bin: { 'claude-cli': path.join(dir, 'fixtures/fake-claude.mjs'), 'codex-cli': path.join(dir, 'fixtures/fake-codex.mjs') },
+      },
+    });
+    const host = createRemoteServer({
+      bridge,
+      store: echoStore,
+      host: '127.0.0.1',
+      port: 0,
+      policy: () => ({ agent: 'claude-cli', options: { 'claude-cli': { model: 'sonnet', effort: 'high' } } }),
+    });
+    try {
+      const { port } = await host.listen();
+      const session = host.startPairing();
+      const pairing = await pairWithBridge({
+        offer: { url: `ws://127.0.0.1:${port}`, bridgeKey: echoStore.identity.publicKey, token: session.token },
+        deviceName: '폰',
+        wsFactory,
+      });
+      const getPairing = () => Promise.resolve(pairing);
+      const link = createRemoteBridgeLink({ getPairing, wsFactory });
+      const client = createBridgeClient(link);
+      const evs = await collect(client.stream('claude-cli', { ...req, model: 'haiku', effort: 'max' }));
+      const text = evs.map((e) => (e.type === 'delta' ? e.text : '')).join('');
+      const { args } = JSON.parse(text) as { args: string[] };
+      expect(args.join(' ')).toContain('--model sonnet');
+      expect(args.join(' ')).toContain('--effort high');
+      expect(args).not.toContain('haiku');
+      link.reset();
+    } finally {
+      await host.close();
+      await rm(echoHome, { recursive: true, force: true });
+    }
+  });
+});

@@ -21,3 +21,4 @@ export * from './persist';
 export * from './backup';
 export * from './notes';
 export * from './bridge';
+export * from './platform';

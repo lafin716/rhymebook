@@ -20,7 +20,7 @@ import {
 } from '@branch/core';
 import { create } from 'zustand';
 import { isDemo, secrets } from '../app/runtime';
-import { appStore, db, persistence } from '../app/store';
+import { appStore, applyPlatformSettings, db, persistence } from '../app/store';
 import { googleClientId, requestDriveToken, revokeDriveToken } from './google';
 import { saveTextFile } from '../lib/download';
 import { dexieBackupTarget } from './targets';
@@ -179,6 +179,7 @@ export async function restore(entry: BackupEntry, mode: RestoreMode, passphrase?
     const { connections: _keep, ...restored } = restoreData(data);
     const app = appStore.getState();
     app.load(restored);
+    applyPlatformSettings();
     app.setOverlay('settings');
     lastChangeAt = 0;
     set({ notice: mode === 'merge' ? '백업을 합쳤어요. 복원 전 상태는 이 기기에 백업해 두었어요.' : '백업으로 교체했어요. 복원 전 상태는 이 기기에 백업해 두었어요.' });

@@ -1,6 +1,7 @@
 import os from 'node:os';
 import {
   answerHello,
+  applyHostPolicy,
   relayClientUrl,
   isTailscaleHost,
   isValidEffort,
@@ -16,6 +17,7 @@ import {
   type AuthResponse,
   type BridgeClientMsg,
   type ChatTurn,
+  type HostPolicy,
   type SecureChannel,
 } from '@branch/core';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -35,6 +37,10 @@ export interface RemoteServerOptions {
   authTimeoutMs?: number;
   /** 진단 로그. 토큰·코드·키·프롬프트는 넘기지 않는다 */
   log?: (msg: string) => void;
+  /** 원격 요청에 적용할 PC 정책 (데스크톱 호스트). 없으면 원격이 보낸 값을 그대로 쓴다 */
+  policy?: () => HostPolicy | null;
+  /** 기기 연결·해제 시 (상태 화면 갱신용) */
+  onPresence?: () => void;
 }
 
 export interface PairingSession {
@@ -256,6 +262,7 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
             if (ws.isOpen()) ws.send(ch.seal(m));
           });
           log(`device ${r.id} connected from ${remote}`);
+          opts.onPresence?.();
         });
         return;
       }
@@ -266,7 +273,7 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
         return;
       }
       store.touch(device.id);
-      conn?.receive(valid);
+      conn?.receive(applyHostPolicy(valid, opts.policy?.()));
     });
 
     ws.onClose(() => {
@@ -276,6 +283,7 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
         live.get(device.id)?.delete(ws);
         if (!live.get(device.id)?.size) live.delete(device.id);
         log(`device ${device.id} disconnected`);
+        opts.onPresence?.();
       }
     });
   }

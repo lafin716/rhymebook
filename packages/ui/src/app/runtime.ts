@@ -28,7 +28,7 @@ declare global {
  * 플랫폼 런타임.
  * - 웹: 비밀 값(API 키)은 탭 메모리에만 둔다. 새로고침하면 사라진다(설정에 경고 표시).
  * - 데스크톱: 비밀 값은 OS 보안 저장소(safeStorage)에, CLI provider는 내장 bridge(IPC)로.
- * - 모바일: 비밀 값은 Keychain/Keystore에. CLI provider는 원격 bridge 경유.
+ * - 모바일: 비밀 값은 Keychain/Keystore에. CLI는 쓰지 않고 PC와 원격 페어링한다.
  * - 데모 모드: 개발 서버의 데모 시나리오가 켜져 있으면 모든 provider가 Mock으로 동작한다.
  */
 export const desktop: DesktopApi | undefined = typeof window !== 'undefined' ? window.branchDesktop : undefined;
@@ -78,16 +78,16 @@ export async function saveRemotePairing(p: RemotePairing | null): Promise<void> 
 }
 
 /**
- * 플랫폼이 제공하는 provider.
- * - 데스크톱: 내장 bridge의 Claude/Codex CLI + 원격 Bridge
- * - 웹/모바일: 원격 Bridge. 페어링되면 Claude/Codex CLI도 원격 bridge 경유로 쓴다
+ * 플랫폼이 제공하는 provider (ADR-025).
+ * - 데스크톱: 내장 bridge의 Claude/Codex CLI + 원격 Bridge(다른 PC에 연결)
+ * - 웹/모바일: 원격 Bridge만. CLI는 '사용 불가'이며 PC의 CLI는 원격 Bridge 하나로만 쓴다
+ *   (에이전트·모델·노력치는 PC 설정이 정한다)
  */
 export const platformProviders: Partial<Record<ProviderId, LLMProvider>> = {
   ...createRemoteBridgeProviders({
     link: remoteLink,
     client: createBridgeClient(remoteLink, { offlineMessage: '원격 Bridge와 연결이 끊어졌습니다.' }),
     getPairing: loadRemotePairing,
-    includeCli: !desktop,
   }),
   ...(desktop
     ? createBridgeProviders(

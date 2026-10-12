@@ -6,4 +6,12 @@ export const CH = {
   secretGet: 'secrets:get',
   secretSet: 'secrets:set',
   secretDelete: 'secrets:delete',
+  hostGet: 'host:get',
+  hostSetEnabled: 'host:set-enabled',
+  hostSetRelay: 'host:set-relay',
+  hostStartPairing: 'host:start-pairing',
+  hostCancelPairing: 'host:cancel-pairing',
+  hostUnpair: 'host:unpair',
+  hostSetPolicy: 'host:set-policy',
+  hostChanged: 'host:changed',
 } as const;

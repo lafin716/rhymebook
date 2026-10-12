@@ -106,6 +106,10 @@ export interface Settings {
   contextWindow: number;
   /** 데스크톱에서 앵커 클릭 시 열 위치 */
   anchorOpenTarget: 'popup' | 'split';
+  /** 첫 실행 연결 안내를 마쳤거나 건너뛰었는지 */
+  setupDone?: boolean;
+  /** 데스크톱 원격 페어링: 원격 요청을 처리할 이 PC의 CLI (auto면 준비된 CLI, ADR-025) */
+  hostAgent?: 'auto' | 'claude-cli' | 'codex-cli';
 }
 
 export type ConnectionStatus =

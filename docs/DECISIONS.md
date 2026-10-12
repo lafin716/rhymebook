@@ -158,3 +158,14 @@
 - 결정: `apps/mobile/android/app/build.gradle`의 release 서명은 환경변수(`RHYMEBOOK_KEYSTORE`, `RHYMEBOOK_KEYSTORE_PASSWORD` 또는 `RHYMEBOOK_KEYSTORE_PASSWORD_FILE`, `RHYMEBOOK_KEY_ALIAS`)를 먼저 보고, 없으면 로컬 `~/rhymebook-release.jks` + `~/.rhymebook-keystore-pass`를 쓴다. 키가 없으면 서명 없이 빌드(기존 흐름 유지). 키·비밀번호는 저장소에 두지 않는다. PKCS12, alias `rhymebook`, 키/저장소 비밀번호 동일.
 - 결정: `pnpm --filter @branch/mobile build:android:release` = 서명된 APK + AAB(Play 업로드용). `release.yml`은 secrets `ANDROID_KEYSTORE_BASE64`·`ANDROID_KEYSTORE_PASSWORD`가 있으면 release APK/AAB, 없으면 debug APK를 첨부한다. 디코딩한 키는 `$RUNNER_TEMP`에 두고 빌드 후 삭제.
 - 메모: 키를 잃으면 같은 applicationId로 업데이트를 낼 수 없다 → 키 파일과 비밀번호 파일을 함께 별도 백업. Play 배포 시 업데이트마다 `versionCode` 증가 필요.
+
+### ADR-025 · 2026-10-12 · 플랫폼별 연결 UI 분기 (PC / 웹·모바일) + PC 원격 페어링 열기 + 첫 실행 안내
+- 배경: 사용자 요청 — PC에서만 CLI 에이전트를 쓰고, 웹·모바일은 API 키 등록과 PC 원격 페어링 연결만. PC는 "원격 페어링 열기"와 "다른 PC에 직접 연결" 둘 다. 웹·모바일 초기 설정에서는 모델 선택 등을 막는다. 확정 UX(04)의 설정·첫 실행 부분을 사용자 요청으로 개편.
+- 결정(능력): core `platform.ts`의 `platformCaps(kind)` — desktop `{localCli, hostPairing, modelChoice}` 모두 true, web·mobile은 모두 false. 보여 줄 provider도 플랫폼별(`providers`): PC = CLI 2 · API 2 · 원격 Bridge · 데모, 웹·모바일 = 원격 Bridge · API 2 · 데모. ui `app/capabilities.ts`가 런타임(`branchDesktop`/`branchMobile`)으로 판별(개발 서버에서만 `?platform=` 화면 미리보기).
+- 결정(웹·모바일 CLI 제거): 원격 bridge 경유 claude-cli/codex-cli provider(`includeCli`)를 쓰지 않는다. PC의 CLI는 "원격 Bridge" 하나로만 쓰고, 어떤 CLI·모델·노력치를 쓸지는 PC가 정한다. 저장·복원된 설정의 기본 provider·대체 순서는 `sanitizeSettings`로 플랫폼에 맞추고, 모델을 고를 수 없는 플랫폼에서는 연결별 모델·노력치 지정을 지운다. 채팅의 모델·노력치 칩과 API 카드의 모델 입력은 숨기고 기본 모델을 읽기 전용으로 보여 준다.
+- 결정(호스트 정책): bridge `createRemoteServer({policy})` → `applyHostPolicy`가 원격 `chat.start`의 에이전트를 PC 설정(`settings.hostAgent`: 자동/Claude/Codex)으로 바꾸고, 원격이 보낸 모델·노력치는 버리고 PC의 CLI 카드 기본값으로 덮어쓴다(검증 통과 값만). 헤드리스 `npx @branch/bridge`는 정책 없음(기존 동작).
+- 결정(PC 원격 페어링 열기): 데스크톱 main의 `host.ts`가 앱 안에서 원격 bridge 서버를 연다(별도 `createBridgeServer`, 신원 키·기기 목록 `userData/bridge-host` 0600, 설정 `host.json`). 포트는 저장된 포트 → 7777~7787 → 임의. 켜짐 상태는 재시작 후 복원. [휴대폰·웹 연결 (QR)]은 페어링 세션을 열고 주소(Tailscale/LAN/Relay, 로컬 제외)별 QR(SVG, `qrcode`)·6자리 코드·만료 카운트다운을 보여 준다. QR은 `img data:`로만 렌더(innerHTML 없음). 토큰·코드는 화면에만, 로그·저장 없음. 기기 목록(접속 여부)·개별/전체 해제, 고급 relay 주소(ws/wss 검증). IPC `host:*`.
+- 결정(설정 › 연결 구성): PC = 이 PC의 에이전트(CLI) · API 키 · 원격 페어링 열기 · 다른 PC에 연결 · 데모 · 정책. 웹·모바일 = 내 PC 연결(원격 페어링, 맨 위) · API 키 · 데모 · 정책(플랫폼별 문구). 카드는 `settings/connectionCards.tsx`로 분리해 첫 실행 안내와 공유.
+- 결정(첫 실행 안내): 실제 모드에서 `settings.setupDone`이 없고, 감지가 끝났는데 쓸 수 있는(데모 제외) 연결이 없으면 모달을 띄운다. PC = [이 PC의 CLI (추천)] / [API 키] + 원격 페어링 열기 안내, 웹·모바일 = [내 PC와 페어링 (추천)] / [API 키] — 모델 선택 단계 없음. 선택하면 같은 연결 카드를 그 자리에서 보여 주고, [시작하기](연결 준비 시)·[나중에 하기]로 끝낸다(기본 provider가 준비 안 됐으면 준비된 첫 provider로). 이미 연결이 준비된 기존 사용자는 안내 없이 완료 처리. 딥링크 페어링을 받으면 안내를 닫고 설정이 처리.
+- 근거: 정책 원칙 유지 — 구독은 사용자 본인 PC의 공식 CLI 실행으로만, 웹·모바일은 CLI를 실행할 수 없으므로 선택지 자체를 없애 혼란을 줄인다. 모델·노력치를 PC 한 곳에서만 정하면 원격 요청이 PC에 없는 모델을 고르는 실패도 없다.
+

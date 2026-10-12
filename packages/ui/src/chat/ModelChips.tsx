@@ -10,15 +10,19 @@ import {
 } from '@branch/core';
 import { ChevronDown, Cpu, Gauge } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { caps } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { cn } from '../lib/cn';
 
-/** CLI provider 채팅의 모델·노력치 선택 (세션 덮어쓰기, 비우면 설정의 기본값) */
+/**
+ * CLI provider 채팅의 모델·노력치 선택 (세션 덮어쓰기, 비우면 설정의 기본값).
+ * 웹·모바일은 고를 수 없다 — 원격 요청의 모델·노력치는 PC 설정이 정한다 (ADR-025).
+ */
 export function ModelChips({ sessionId, compact }: { sessionId: ID; compact?: boolean }) {
   const eff = useApp((s) => effectiveProviderId(s, sessionId));
   const pref = useApp((s) => s.sessions[sessionId]?.modelPref);
   const conn = useApp((s) => s.connections[eff]);
-  if (!isCliId(eff)) return null;
+  if (!caps.modelChoice || !isCliId(eff)) return null;
   const own = pref?.providerId === eff ? pref : undefined;
   return <Chips id={eff} sessionId={sessionId} compact={compact} model={own?.model} effort={own?.effort} defModel={conn?.model} defEffort={conn?.effort} />;
 }

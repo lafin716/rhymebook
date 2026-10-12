@@ -13,8 +13,9 @@ function collectErrors(page: Page) {
 }
 
 async function setKey(page: Page, key: string) {
-  // 상단 바의 설정 (개발 서버의 데모 바에도 '설정' 시나리오 버튼이 있다)
-  await page.getByRole('banner').getByRole('button', { name: '설정', exact: true }).click();
+  // 첫 실행 안내 → API 키 (웹은 CLI·모델 선택 없이 페어링/API 키만 고른다)
+  const onboarding = page.getByRole('dialog', { name: '시작하기' });
+  await onboarding.getByRole('button', { name: /^API 키/ }).click();
   const input = page.getByLabel('Anthropic API 키');
   await input.fill(key);
   await input.press('Enter');
@@ -67,6 +68,27 @@ test('잘못된 키는 거부되고, 저장된 키는 평문으로 노출되지 
   await input.press('Enter');
   await expect(dialog).toContainText('연결됨');
   await expect(dialog).not.toContainText(KEY);
+});
+
+test('웹: 첫 실행 안내를 건너뛰면 설정에는 CLI 없이 페어링·API 키만 있다', async ({ page }) => {
+  await page.goto('/');
+  const onboarding = page.getByRole('dialog', { name: '시작하기' });
+  await expect(onboarding.getByRole('button', { name: /^내 PC와 페어링/ })).toBeVisible();
+  await onboarding.getByRole('button', { name: '나중에 하기' }).click();
+  await expect(onboarding).toBeHidden();
+
+  // 상단 바의 설정 (개발 서버의 데모 바에도 '설정' 시나리오 버튼이 있다)
+  await page.getByRole('banner').getByRole('button', { name: '설정', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '설정' });
+  await expect(dialog.getByText('내 PC 연결 (원격 페어링)')).toBeVisible();
+  await expect(dialog.getByLabel('Anthropic API 키')).toBeVisible();
+  await expect(dialog.getByText('Claude CLI')).toHaveCount(0);
+  await expect(dialog.getByLabel('Anthropic API 모델')).toHaveCount(0);
+
+  // 다시 열어도 안내는 나오지 않는다
+  await page.reload();
+  await expect(page.getByRole('banner')).toBeVisible();
+  await expect(onboarding).toBeHidden();
 });
 
 test('루트 질문 → 3단계 가지 → 요약 카드 → 새로고침 후 유지', async ({ page }, info) => {

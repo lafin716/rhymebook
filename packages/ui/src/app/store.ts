@@ -14,6 +14,7 @@ import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { BranchDB, createDexieRepository } from '../persist/db';
 import { hydrate } from '../persist/hydrate';
+import { caps, sanitizeSettings } from './capabilities';
 import { baseUrls, isDemo, platformProviders, secrets } from './runtime';
 
 /** IndexedDB 저장소. 데모 모드와 불러오기 실패 시에는 쓰지 않는다 */
@@ -38,7 +39,7 @@ export const appStore = createAppStore({
   initial: {
     ...createSeed(),
     view: emptyView(SEED_IDS.root),
-    settings: RUNTIME_SETTINGS,
+    settings: { ...RUNTIME_SETTINGS, ...sanitizeSettings(RUNTIME_SETTINGS) },
     connections: isDemo() ? defaultConnections() : initialConnections(),
   },
   viewport: () => ({ width: window.innerWidth, height: window.innerHeight }),
@@ -51,8 +52,25 @@ export async function loadPersisted() {
   if (isDemo()) return;
   persistEnabled = persisted;
   appStore.getState().load(data);
+  applyPlatformSettings();
   void appStore.getState().refreshConnections();
 }
+
+/** 저장·복원된 설정을 이 플랫폼의 provider로 맞춘다 (백업 복원 후에도 호출) */
+export function applyPlatformSettings() {
+  const patch = sanitizeSettings(appStore.getState().settings);
+  if (patch) appStore.getState().updateSettings(patch);
+  // 모델을 고를 수 없는 플랫폼에서는 저장·복원된 모델 지정을 지우고 기본 모델을 쓴다
+  if (!caps.modelChoice) {
+    const st = appStore.getState();
+    for (const id of ['anthropic-api', 'openai-api', 'claude-cli', 'codex-cli'] as const) {
+      const c = st.connections[id];
+      if (c.model || c.effort) st.setConnection(id, { model: undefined, effort: undefined });
+    }
+  }
+}
+
+export { caps };
 
 /** 스토어 구독 훅. 객체/배열을 새로 만드는 selector는 useAppShallow를 쓴다 */
 export function useApp<T>(selector: (s: AppState) => T): T {

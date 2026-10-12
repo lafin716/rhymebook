@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState } from '@branch/core';
 import { CH } from './ipc';
 
 // 렌더러에는 좁은 API만 노출한다 (ipcRenderer 자체는 노출하지 않음)
@@ -20,6 +20,20 @@ const api: DesktopApi = {
     get: (name) => ipcRenderer.invoke(CH.secretGet, name) as Promise<string | null>,
     set: (name, value) => ipcRenderer.invoke(CH.secretSet, name, value) as Promise<void>,
     delete: (name) => ipcRenderer.invoke(CH.secretDelete, name) as Promise<void>,
+  },
+  host: {
+    getState: () => ipcRenderer.invoke(CH.hostGet) as Promise<HostState>,
+    setEnabled: (enabled) => ipcRenderer.invoke(CH.hostSetEnabled, enabled) as Promise<HostState>,
+    setRelay: (url) => ipcRenderer.invoke(CH.hostSetRelay, url) as Promise<HostState>,
+    startPairing: () => ipcRenderer.invoke(CH.hostStartPairing) as Promise<HostState>,
+    cancelPairing: () => ipcRenderer.invoke(CH.hostCancelPairing) as Promise<HostState>,
+    unpair: (idOrAll) => ipcRenderer.invoke(CH.hostUnpair, idOrAll) as Promise<HostState>,
+    setPolicy: (policy) => ipcRenderer.invoke(CH.hostSetPolicy, policy) as Promise<void>,
+    onChange(listener) {
+      const h = (_e: IpcRendererEvent, state: HostState) => listener(state);
+      ipcRenderer.on(CH.hostChanged, h);
+      return () => ipcRenderer.removeListener(CH.hostChanged, h);
+    },
   },
 };
 

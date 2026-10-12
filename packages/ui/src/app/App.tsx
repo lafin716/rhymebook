@@ -3,8 +3,10 @@ import { SelectionMenu } from '../chat/SelectionMenu';
 import { TopBar } from '../components/TopBar';
 import { DemoBar } from '../demo/DemoBar';
 import { NotesModal } from '../notes/NotesModal';
+import { Onboarding } from '../onboarding/Onboarding';
 import { SearchPalette } from '../search/SearchPalette';
 import { Sidebar } from '../session/Sidebar';
+import { useHostPolicySync } from '../settings/HostCard';
 import { SettingsModal } from '../settings/SettingsModal';
 import { MainView } from '../views/MainView';
 import { PopupLayer } from '../views/PopupLayer';
@@ -15,6 +17,7 @@ import { useThemeSync } from './useTheme';
 
 export function App() {
   useThemeSync();
+  useHostPolicySync();
   const bp = useBreakpoint();
 
   useEffect(() => {
@@ -46,6 +49,7 @@ export function App() {
       <SearchPalette />
       <SettingsModal />
       <NotesModal />
+      <Onboarding />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { caps } from '../app/capabilities';
 import { PROVIDER_LABELS, type ConnectionState, type ConnectionStatus, type ProviderId } from '@branch/core';
 
 export type Tone = 'neutral' | 'ok' | 'warn' | 'danger';
@@ -37,4 +38,5 @@ export function providerKind(id: ProviderId): 'cli' | 'api' | 'bridge' | 'demo' 
   return 'demo';
 }
 
-export const PROVIDER_ORDER: ProviderId[] = ['anthropic-api', 'openai-api', 'claude-cli', 'codex-cli', 'remote-bridge', 'mock'];
+/** 이 플랫폼에서 고를 수 있는 provider (ADR-025: 웹·모바일에는 CLI 없음) */
+export const PROVIDER_ORDER: readonly ProviderId[] = caps.providers;

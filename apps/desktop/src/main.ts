@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, shell, type WebContents } from 'electron';
 import path from 'node:path';
 import { createBridgeServer, type BridgeConnection } from '@branch/bridge';
-import type { BridgeClientMsg } from '@branch/core';
+import { isHostPolicy, type BridgeClientMsg, type HostState } from '@branch/core';
+import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { createSecretVault } from './secrets';
 
@@ -9,6 +10,7 @@ import { createSecretVault } from './secrets';
  * rhymebook 데스크톱 main 프로세스.
  * - bridge를 내장: 렌더러가 IPC로 보낸 요청을 공식 CLI 무상태 실행으로 처리한다.
  * - 비밀 값은 safeStorage로 암호화해 userData에 저장한다.
+ * - 원격 페어링 호스트(ADR-025): 켜면 이 PC를 휴대폰·웹이 페어링해 쓰는 bridge로 연다.
  */
 const DEV_URL = process.env.BRANCH_DEV_URL;
 const RENDERER = path.join(__dirname, 'renderer', 'index.html');
@@ -20,6 +22,9 @@ const bridge = createBridgeServer({
     if (process.env.BRANCH_BRIDGE_LOG) console.log(`[bridge] ${m}`);
   },
 });
+
+/** 원격 페어링 호스트 (whenReady에서 만든다) */
+let host: HostService | null = null;
 
 /** webContents마다 bridge 연결 하나. 새로고침/종료 시 진행 중 CLI를 멈춘다 */
 const connections = new Map<number, BridgeConnection>();
@@ -108,6 +113,34 @@ void app.whenReady().then(() => {
     if (isClientMsg(msg)) connectionFor(e.sender).receive(msg);
   });
 
+  const broadcast = (state: HostState) => {
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(CH.hostChanged, state);
+  };
+  host = createHostService({
+    dir: app.getPath('userData'),
+    emit: broadcast,
+    log: (m) => {
+      if (process.env.BRANCH_BRIDGE_LOG) console.log(`[host] ${m}`);
+    },
+  });
+  const h = host;
+  // 상태를 바꾸는 호출은 결과를 모든 창에 알린다
+  const changed = async (p: Promise<HostState>) => {
+    const state = await p;
+    broadcast(state);
+    return state;
+  };
+  ipcMain.handle(CH.hostGet, () => h.state());
+  ipcMain.handle(CH.hostSetEnabled, (_e, on: unknown) => changed(h.setEnabled(on === true)));
+  ipcMain.handle(CH.hostSetRelay, (_e, url: unknown) => changed(h.setRelay(typeof url === 'string' ? url : null)));
+  ipcMain.handle(CH.hostStartPairing, () => changed(h.startPairing()));
+  ipcMain.handle(CH.hostCancelPairing, () => changed(h.cancelPairing()));
+  ipcMain.handle(CH.hostUnpair, (_e, id: unknown) => (typeof id === 'string' ? changed(h.unpair(id)) : h.state()));
+  ipcMain.handle(CH.hostSetPolicy, (_e, policy: unknown) => {
+    if (isHostPolicy(policy)) h.setPolicy(policy);
+  });
+  void h.restore();
+
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -118,4 +151,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', () => bridge.shutdown());
+app.on('before-quit', () => {
+  bridge.shutdown();
+  void host?.shutdown();
+});

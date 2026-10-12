@@ -129,7 +129,7 @@ function ProviderSelect({ sessionId, compact }: { sessionId: ID; compact?: boole
         className="absolute inset-0 cursor-pointer opacity-0"
       >
         <option value="">기본값 ({providerLabel(def)})</option>
-        {PROVIDER_ORDER.map((id) => (
+        {(own && !PROVIDER_ORDER.includes(own) ? [...PROVIDER_ORDER, own] : PROVIDER_ORDER).map((id) => (
           <option key={id} value={id}>
             {providerLabel(id)} — {STATUS_LABEL[connections[id].status]}
             {connections[id].enabled ? '' : ' (꺼짐)'}
