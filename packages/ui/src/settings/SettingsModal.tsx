@@ -1,5 +1,9 @@
 import {
   ANTHROPIC_DEFAULT_MODEL,
+  CLI_MODEL_PRESETS,
+  EFFORT_LABELS,
+  effortsFor,
+  isValidModelName,
   keyFingerprint,
   maskSecret,
   normalizeBridgeUrl,
@@ -173,7 +177,101 @@ function CliCard({ id, install, login }: { id: 'claude-cli' | 'codex-cli'; insta
         {c.status === 'offline' && <span className="text-[12.5px] text-danger">CLI 프로세스에 연결할 수 없어요. 앱을 재시작하거나 bridge를 확인하세요.</span>}
         {c.status === 'ready' && <span className="text-[12.5px] text-muted">도구 비활성화 · 매 요청 무상태 실행</span>}
       </div>
+      <CliDefaults id={id} model={c.model} effort={c.effort} />
     </CardShell>
+  );
+}
+
+const CUSTOM = '__custom__';
+
+/** CLI 기본 모델·노력치. 채팅에서 고른 값이 없으면 이 값을 쓴다 */
+function CliDefaults({ id, model, effort }: { id: 'claude-cli' | 'codex-cli'; model?: string; effort?: string }) {
+  const presets = CLI_MODEL_PRESETS[id];
+  const isPreset = !!model && presets.some((p) => p.id === model);
+  const [custom, setCustom] = useState(!!model && !isPreset);
+  const [bad, setBad] = useState(false);
+  const efforts = effortsFor(id, model);
+  const label = providerLabel(id);
+  const setModel = (m: string | undefined) => {
+    // 바뀐 모델이 지원하지 않는 노력치는 비운다
+    const keep = effort && effortsFor(id, m).includes(effort);
+    actions().setConnection(id, { model: m, ...(keep ? {} : { effort: undefined }) });
+  };
+  const selectCls = 'h-8 min-w-0 flex-1 rounded-lg border border-line bg-bg px-2 text-[12.5px] text-fg outline-none focus:border-accent';
+  return (
+    <div className="mt-3 grid gap-2 border-t border-line pt-3 text-[12.5px] text-muted">
+      <label className="flex items-center gap-2">
+        <span className="w-14 shrink-0">기본 모델</span>
+        <select
+          aria-label={`${label} 기본 모델`}
+          value={custom ? CUSTOM : (model ?? '')}
+          onChange={(e) => {
+            const v = e.target.value;
+            setBad(false);
+            if (v === CUSTOM) {
+              setCustom(true);
+              return;
+            }
+            setCustom(false);
+            setModel(v || undefined);
+          }}
+          className={selectCls}
+        >
+          <option value="">CLI 기본</option>
+          {presets.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label} ({p.id})
+            </option>
+          ))}
+          <option value={CUSTOM}>직접 입력…</option>
+        </select>
+      </label>
+      {custom && (
+        <label className="flex items-center gap-2">
+          <span className="w-14 shrink-0">모델 이름</span>
+          <input
+            key={model ?? ''}
+            defaultValue={isPreset ? '' : (model ?? '')}
+            placeholder={id === 'claude-cli' ? 'claude-opus-5-5' : 'gpt-6.1-sol'}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v && !isValidModelName(v)) {
+                setBad(true);
+                return;
+              }
+              setBad(false);
+              setModel(v || undefined);
+            }}
+            aria-label={`${label} 모델 이름`}
+            aria-invalid={bad}
+            autoComplete="off"
+            spellCheck={false}
+            className={cn(
+              'h-8 min-w-0 flex-1 rounded-lg border bg-bg px-2.5 font-mono text-[12.5px] text-fg outline-none placeholder:text-muted focus:border-accent',
+              bad ? 'border-danger' : 'border-line',
+            )}
+          />
+        </label>
+      )}
+      {bad && <p className="text-[12px] text-danger">영문·숫자·. _ - : / [ ] 만 쓸 수 있어요.</p>}
+      <label className="flex items-center gap-2">
+        <span className="w-14 shrink-0">노력치</span>
+        <select
+          aria-label={`${label} 기본 노력치`}
+          value={effort && efforts.includes(effort) ? effort : ''}
+          onChange={(e) => actions().setConnection(id, { effort: e.target.value || undefined })}
+          className={selectCls}
+        >
+          <option value="">CLI 기본</option>
+          {efforts.map((x) => (
+            <option key={x} value={x}>
+              {EFFORT_LABELS[x] ?? x} ({x})
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="text-[12px]">채팅 입력창 아래에서 대화마다 바꿀 수 있어요.</p>
+    </div>
   );
 }
 

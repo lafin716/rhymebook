@@ -21,8 +21,17 @@ export interface Session {
   anchor?: Anchor;
   summary?: string;
   providerId?: ProviderId;
+  /** 채팅에서 고른 모델·노력치 (연결 기본값 덮어쓰기, ADR-023) */
+  modelPref?: ModelPref;
   createdAt: number;
   updatedAt: number;
+}
+
+/** 세션별 모델·노력치. 고른 provider에서만 적용된다 */
+export interface ModelPref {
+  providerId: ProviderId;
+  model?: string;
+  effort?: string;
 }
 
 export type MessageStatus = 'streaming' | 'done' | 'error' | 'stopped';
@@ -114,8 +123,10 @@ export interface ConnectionState {
   /** CLI 버전, 마스킹된 키, 원격 주소 등 */
   detail?: string;
   enabled: boolean;
-  /** API provider에서 사용할 모델 (비우면 기본 모델) */
+  /** 사용할 모델 (비우면 provider 기본 모델) */
   model?: string;
+  /** CLI 노력치 기본값 (비우면 CLI 기본) */
+  effort?: string;
 }
 
 export type SummaryDraft =

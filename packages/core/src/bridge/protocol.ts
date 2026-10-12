@@ -17,6 +17,8 @@ export interface ChatStartMsg {
   system: string;
   messages: ChatTurn[];
   model?: string;
+  /** CLI 노력치 (bridge가 다시 검증) */
+  effort?: string;
 }
 
 export type BridgeClientMsg =

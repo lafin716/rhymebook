@@ -25,6 +25,7 @@ import type {
   ViewState,
 } from '../model';
 import { MAX_SPLIT } from '../model';
+import { isCliId, isValidEffort, sessionModelOptions } from '../cli-options';
 import { collectStream, providerError, type ProviderError, type ProviderRegistry } from '../provider';
 import { memoryRepository, type Repository } from '../repo';
 import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
@@ -59,6 +60,8 @@ export interface AppState extends AppData {
   deleteSession(id: ID): void;
   renameSession(id: ID, title: string): void;
   setSessionProvider(id: ID, providerId: ProviderId | undefined): void;
+  /** 이 채팅의 모델·노력치 덮어쓰기. 값을 비우면(undefined) 연결 기본값을 따른다 */
+  setSessionModel(id: ID, patch: { model?: string | undefined; effort?: string | undefined }): void;
 
   // 메시지
   sendMessage(sessionId: ID, text: string): void;
@@ -170,10 +173,15 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
     const maybeTitle = async (sessionId: ID) => {
       const s = get().sessions[sessionId];
       if (!s || s.parentId !== null || s.title !== NEW_SESSION_TITLE) return;
-      const provider = registry.get(effectiveProviderId(get(), sessionId));
+      const providerId = effectiveProviderId(get(), sessionId);
+      const provider = registry.get(providerId);
       if (!provider) return;
       try {
-        const raw = await collectStream(provider, buildTitleRequest(get().messages[sessionId] ?? []));
+        const req = {
+          ...buildTitleRequest(get().messages[sessionId] ?? []),
+          ...sessionModelOptions(get(), sessionId, providerId),
+        };
+        const raw = await collectStream(provider, req);
         const title = cleanTitle(raw);
         if (title && get().sessions[sessionId]?.title === NEW_SESSION_TITLE) patchSession(sessionId, { title });
       } catch {
@@ -221,6 +229,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         sessionId,
         contextWindow: state.settings.contextWindow,
       });
+      Object.assign(req, sessionModelOptions(state, sessionId, providerId));
       req.signal = ctrl.signal;
 
       let text = '';
@@ -365,6 +374,29 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         const next: Session = { ...cur };
         if (providerId) next.providerId = providerId;
         else delete next.providerId;
+        // 모델·노력치는 provider마다 달라 provider가 바뀌면 덮어쓰기를 버린다
+        if (next.modelPref && next.modelPref.providerId !== (providerId ?? get().settings.defaultProviderId)) {
+          delete next.modelPref;
+        }
+        set((s) => ({ sessions: { ...s.sessions, [id]: next } }));
+        repo.saveSession(next);
+      },
+
+      setSessionModel(id, patch) {
+        const cur = get().sessions[id];
+        if (!cur) return;
+        const providerId = effectiveProviderId(get(), id);
+        const prev = cur.modelPref?.providerId === providerId ? cur.modelPref : undefined;
+        const model = 'model' in patch ? patch.model : prev?.model;
+        let effort = 'effort' in patch ? patch.effort : prev?.effort;
+        // 모델을 바꿔 지원하지 않게 된 노력치는 버린다
+        if (effort && isCliId(providerId) && !isValidEffort(providerId, effort, model || get().connections[providerId]?.model)) {
+          effort = undefined;
+        }
+        const next: Session = { ...cur };
+        if (model || effort) {
+          next.modelPref = { providerId, ...(model ? { model } : {}), ...(effort ? { effort } : {}) };
+        } else delete next.modelPref;
         set((s) => ({ sessions: { ...s.sessions, [id]: next } }));
         repo.saveSession(next);
       },
@@ -409,6 +441,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           title,
           anchor,
           ...(parent.providerId ? { providerId: parent.providerId } : {}),
+          ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
           createdAt: now,
           updatedAt: now,
         };
@@ -423,7 +456,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       async requestSummary(sessionId) {
         const s = get().sessions[sessionId];
         if (!s?.parentId) return;
-        const provider = registry.get(effectiveProviderId(get(), sessionId));
+        const providerId = effectiveProviderId(get(), sessionId);
+        const provider = registry.get(providerId);
         // 이전 요청이 남아 있으면 중단 (폐기 후 재요청 시 늦게 도착한 응답이 새 초안을 덮지 않도록)
         summaryControllers.get(sessionId)?.abort();
         const ctrl = new AbortController();
@@ -441,6 +475,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         let partial = '';
         try {
           const req = buildSummaryRequest(s, get().messages[sessionId] ?? []);
+          Object.assign(req, sessionModelOptions(get(), sessionId, providerId));
           req.signal = ctrl.signal;
           const text = await collectStream(provider, req, (t) => {
             partial = t;

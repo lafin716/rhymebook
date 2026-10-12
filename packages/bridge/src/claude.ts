@@ -9,7 +9,7 @@ export const CLAUDE_CTX: CliErrorContext = { label: 'Claude CLI', loginHint: 'cl
  * 공식 claude CLI 무상태 실행 인자 (03-PROVIDERS 정책).
  * 도구 전부 비활성, 세션 저장 안 함, MCP/사용자 설정 미적용. 프롬프트는 stdin으로 넘긴다.
  */
-export function claudeArgs(opts: { systemFile: string; model?: string }): string[] {
+export function claudeArgs(opts: { systemFile: string; model?: string; effort?: string }): string[] {
   return [
     '-p',
     '--output-format',
@@ -25,6 +25,7 @@ export function claudeArgs(opts: { systemFile: string; model?: string }): string
     '--setting-sources',
     '',
     ...(opts.model ? ['--model', opts.model] : []),
+    ...(opts.effort ? ['--effort', opts.effort] : []),
   ];
 }
 

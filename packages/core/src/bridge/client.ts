@@ -112,6 +112,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
               system: req.system,
               messages: req.messages,
               ...(req.model ? { model: req.model } : {}),
+              ...(req.effort ? { effort: req.effort } : {}),
             });
           } catch {
             push({ type: 'error', error: providerError('offline', offline) });

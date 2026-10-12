@@ -9,7 +9,7 @@ export const CODEX_CTX: CliErrorContext = { label: 'Codex CLI', loginHint: 'code
  * 공식 codex CLI 무상태 실행 인자. 읽기 전용 샌드박스, 세션 파일 저장 안 함,
  * 사용자 config.toml/rules 미적용(앱이 모델과 지시를 정한다). 프롬프트는 stdin('-').
  */
-export function codexArgs(opts: { model?: string }): string[] {
+export function codexArgs(opts: { model?: string; effort?: string }): string[] {
   return [
     'exec',
     '--json',
@@ -22,6 +22,8 @@ export function codexArgs(opts: { model?: string }): string[] {
     '--color',
     'never',
     ...(opts.model ? ['-m', opts.model] : []),
+    // --ignore-user-config 여도 -c 덮어쓰기는 적용된다
+    ...(opts.effort ? ['-c', `model_reasoning_effort="${opts.effort}"`] : []),
     '-',
   ];
 }

@@ -3,6 +3,8 @@ import {
   answerHello,
   relayClientUrl,
   isTailscaleHost,
+  isValidEffort,
+  isValidModelName,
   pairingUri,
   parseWireFrame,
   randomCode,
@@ -78,7 +80,6 @@ export interface RemoteServer {
 }
 
 const MAX_CODE_ATTEMPTS = 5;
-const MODEL_RE = /^[A-Za-z0-9][\w.:/-]{0,79}$/;
 
 /** 인증된 기기라도 형식이 틀린 메시지는 버린다 (CLI 인자로 이어지는 값 검증) */
 export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
@@ -91,7 +92,8 @@ export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
   if (m.type !== 'chat.start') return null;
   if (m.providerId !== 'claude-cli' && m.providerId !== 'codex-cli') return null;
   if (typeof m.system !== 'string' || !Array.isArray(m.messages)) return null;
-  if (m.model !== undefined && (typeof m.model !== 'string' || !MODEL_RE.test(m.model))) return null;
+  if (m.model !== undefined && (typeof m.model !== 'string' || !isValidModelName(m.model))) return null;
+  if (m.effort !== undefined && (typeof m.effort !== 'string' || !isValidEffort(m.providerId, m.effort))) return null;
   const messages: ChatTurn[] = [];
   for (const t of m.messages as unknown[]) {
     const turn = t as Record<string, unknown>;
@@ -105,6 +107,7 @@ export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
     system: m.system,
     messages,
     ...(typeof m.model === 'string' ? { model: m.model } : {}),
+    ...(typeof m.effort === 'string' ? { effort: m.effort } : {}),
   };
 }
 

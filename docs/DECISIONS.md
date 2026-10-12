@@ -145,3 +145,11 @@
 - 결정(이해 노트): core `notes.ts` 순수 함수 — `collectStudyCards`(DFS, 계층 번호 1.2.1, 경로, 앵커 주변 원문), `buildStudyNotes`(Markdown: 가지 제목 = 깊이별 헤딩, 원문 인용 속 앵커 굵게, "이해한 내용" = 요약), `buildAnkiDeck`(Anki 가져오기 TSV: `#separator:tab`·`#html:true`·`#deck:`·`#tags column:3` 헤더, 앞면 = 앵커+문맥+경로, 뒷면 = 요약, 요약 있는 가지만, 칸 HTML 이스케이프·탭/줄바꿈 제거). PRD의 "퀴즈/플래시카드·간격 반복은 범위 밖"은 유지 — 앱 안에서 복습 기능을 만들지 않고 Anki 등 외부 도구로 내보내기만 한다.
 - 결정: 상단 바에 [이해 노트] 아이콘(루트가 있을 때만) → 모달(모바일 전체화면)에서 카드 목록·[Markdown 저장]·[Anki 카드]·[복사]. 카드를 누르면 그 가지를 연다. 파일 저장은 `saveTextFile`로 통일 — 웹/데스크톱은 다운로드, 모바일은 `MobileApi.saveFile?`(Filesystem 캐시 + 공유 시트). 백업 JSON 내보내기도 같은 경로를 써서 모바일에서도 파일로 저장된다.
 - 근거: 확정 UX(04-UX-SPEC)의 기존 화면·흐름은 바꾸지 않고 진입점(아이콘·버튼)만 추가. 비밀 값 규칙 유지(스캔한 페어링 링크는 로그에 남기지 않음, CI 서명 정보는 GitHub secrets).
+
+### ADR-023 · 2026-10-12 · 개선: CLI 모델·노력치 선택 (설정 기본값 + 채팅별 변경)
+- 결정: Claude CLI·Codex CLI 모두 모델과 노력치(effort)를 고를 수 있다. 설정 › 연결의 CLI 카드에서 기본값(`ConnectionState.model`/`effort`, 영구 저장)을, 채팅 입력창 아래 칩 2개(모델·노력치)에서 대화별 덮어쓰기(`Session.modelPref = {providerId, model?, effort?}`)를 정한다. 적용 순서: 세션 덮어쓰기 → 연결 기본값 → CLI 자체 기본. core `cli-options.ts`의 순수 함수 `resolveModelOptions`로 계산.
+- 결정: `modelPref`는 provider에 묶인다. 세션의 실제 provider와 `providerId`가 다르면 무시하고, 세션 provider를 바꾸면 지운다(모델 이름은 provider마다 달라서). 가지는 부모의 `modelPref`를 상속한다. 제목·요약 요청도 같은 옵션을 쓴다.
+- 결정(CLI 인자): claude `--model <이름> --effort <low|medium|high|xhigh|max>`, codex exec `-m <이름> -c model_reasoning_effort="<수준>"` (codex는 `ultra` 추가, `gpt-6-luna`·`gpt-5.6-luna`는 ultra 없음). 모델이 지원하지 않는 노력치는 보내지 않는다.
+- 결정(프리셋): Claude = fable/opus/sonnet/haiku 별칭, Codex = gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna. 설정에서 [직접 입력…]으로 다른 이름도 쓸 수 있다(`isValidModelName`: 영숫자 시작, `\w.:/-[]`, 80자 이하 — `-`로 시작하는 인자 주입 차단).
+- 결정(검증): bridge가 CLI 인자로 넘기기 전 다시 검증한다. IPC 경로(`cliModelOptions`)는 잘못된 값을 버리고 기본값으로 실행, 원격 경로(`validateClientMsg`)는 메시지 전체를 거부한다. 셸을 거치지 않는 spawn 인자 배열이라 따옴표 주입도 없다.
+- 근거: 확정 UX의 화면 구조는 유지하고 컨트롤만 추가(칩은 CLI provider일 때만 표시, 모바일 390px에서 한 줄). 정책 원칙 유지 — 공식 CLI의 공개 옵션만 사용.

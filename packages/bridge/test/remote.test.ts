@@ -180,6 +180,10 @@ describe('validateClientMsg', () => {
     expect(validateClientMsg({ ...base, providerId: 'shell' })).toBeNull();
     expect(validateClientMsg({ ...base, messages: [{ role: 'system', content: 'x' }] })).toBeNull();
     expect(validateClientMsg({ ...base, extra: 1 })).toEqual(base);
+    expect(validateClientMsg({ ...base, effort: 'high' })).toEqual({ ...base, effort: 'high' });
+    expect(validateClientMsg({ ...base, effort: 'ultra' })).toBeNull();
+    expect(validateClientMsg({ ...base, providerId: 'codex-cli', effort: 'ultra' })).not.toBeNull();
+    expect(validateClientMsg({ ...base, effort: '--x' })).toBeNull();
     expect(validateClientMsg({ type: 'status.get', reqId: 'a b' })).toBeNull();
     expect(validateClientMsg({ type: 'chat.abort', reqId: 'r1' })).toEqual({ type: 'chat.abort', reqId: 'r1' });
   });

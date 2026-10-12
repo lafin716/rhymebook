@@ -5,6 +5,7 @@ import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
 import { isUsable, providerLabel, STATUS_LABEL } from '../lib/connection';
+import { ModelChips } from './ModelChips';
 
 export function Composer({ sessionId, compact }: { sessionId: ID; compact?: boolean }) {
   const [text, setText] = useState('');
@@ -93,6 +94,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
             </button>
           )}
         </form>
+        <ModelChips sessionId={sessionId} compact={compact} />
       </div>
     </div>
   );

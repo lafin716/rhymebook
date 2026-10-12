@@ -2,7 +2,7 @@
 
 Last Updated: 2026-10-10
 Current Stage: **3단계 — 전체 개발 완료**
-Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~03 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
+Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~04 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
 > 재개 방법: 루트 `CLAUDE.md` → 이 파일 → `docs/02-ARCHITECTURE.md` → `git log`/`git status` 순으로 읽고,
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
@@ -48,6 +48,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-01 CI: GitHub Actions 검증(typecheck/lint/test + e2e), 릴리스(OS별 데스크톱 설치본 + Android APK, secrets 있을 때만 서명) — 실제 실행은 B-10
 - [x] IMP-02 모바일 앱 내 QR 스캔(페어링) + 전용 앱 아이콘(데스크톱·iOS·Android·favicon)
 - [x] IMP-03 이해 노트: 세션 트리 요약 카드 모아 보기 + Markdown·Anki 내보내기 (+ 모바일 공유 시트 저장)
+- [x] IMP-04 CLI 모델·노력치 선택: 설정에서 기본값, 채팅 입력창 칩으로 대화별 변경 (Claude·Codex, ADR-023)
 
 ## Tasks
 
@@ -84,6 +85,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-12 · 개선(IMP-04): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 118, bridge 30+3 skipped, ui 9, relay 9), `pnpm e2e` 9 passed · 1 skipped. 실제 CLI(claude haiku/low, codex gpt-6-luna/low) bridge 경유 응답 확인. 커밋 `improve: …`.
 - 2026-10-10 · 개선(IMP-01~03): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 111, bridge 27+3 skipped, ui 9, relay 9), `pnpm e2e` 9 passed · 1 skipped. actionlint PASS. Android debug APK·iOS 시뮬레이터 빌드 성공. 커밋 `improve: …`.
 - 2026-10-10 · Phase 7: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 106, bridge 27+3 skipped, ui 9, relay 9), `pnpm e2e` 7 passed · 1 skipped(1440·390). electron-builder `--dir` 미서명 패키지 실행 확인. 커밋 `phase-7: …`.
 - 2026-10-10 · Phase 6: `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 91, bridge 27+3 skipped, ui 9, relay 9). NAT 모의(relay 전용 bridge) 웹 → relay → Claude CLI 실제 스트리밍. 커밋 `phase-6: …`.

@@ -10,13 +10,18 @@ export interface StoredData {
   messages: Message[];
   view?: ViewState;
   settings?: Partial<Settings>;
-  /** 연결은 사용자 선택(enabled, model)만 의미가 있다. 상태는 시작 시 다시 감지한다 */
-  connections?: Pick<ConnectionState, 'providerId' | 'enabled' | 'model'>[];
+  /** 연결은 사용자 선택(enabled, model, effort)만 의미가 있다. 상태는 시작 시 다시 감지한다 */
+  connections?: Pick<ConnectionState, 'providerId' | 'enabled' | 'model' | 'effort'>[];
 }
 
 /** 연결 상태 중 저장할 값만 남긴다 (상태·키 마스킹 같은 런타임 값 제외) */
 export function connectionPrefs(c: ConnectionState[]): NonNullable<StoredData['connections']> {
-  return c.map((x) => ({ providerId: x.providerId, enabled: x.enabled, ...(x.model ? { model: x.model } : {}) }));
+  return c.map((x) => ({
+    providerId: x.providerId,
+    enabled: x.enabled,
+    ...(x.model ? { model: x.model } : {}),
+    ...(x.effort ? { effort: x.effort } : {}),
+  }));
 }
 
 /**
@@ -51,7 +56,12 @@ export function restoreData(raw: StoredData, base = initialConnections()): AppDa
   for (const c of raw.connections ?? []) {
     const cur = connections[c.providerId as ProviderId];
     if (!cur) continue;
-    connections[c.providerId] = { ...cur, enabled: c.enabled, ...(c.model ? { model: c.model } : {}) };
+    connections[c.providerId] = {
+      ...cur,
+      enabled: c.enabled,
+      ...(c.model ? { model: c.model } : {}),
+      ...(c.effort ? { effort: c.effort } : {}),
+    };
   }
 
   return {

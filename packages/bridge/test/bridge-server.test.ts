@@ -7,7 +7,7 @@ import {
   type BridgeTransport,
   type StreamEvent,
 } from '@branch/core';
-import { classifyCliError, createBridgeServer, sanitize, type CliEnv } from '../src';
+import { classifyCliError, cliModelOptions, codexArgs, createBridgeServer, sanitize, type CliEnv } from '../src';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const fakeClaude = path.join(dir, 'fixtures/fake-claude.mjs');
@@ -69,6 +69,7 @@ describe('bridge server — claude', () => {
     expect(echo.args).toEqual(expect.arrayContaining(['-p', '--no-session-persistence', '--strict-mcp-config', '--include-partial-messages']));
     expect(echo.args[echo.args.indexOf('--tools') + 1]).toBe('');
     expect(echo.args[echo.args.indexOf('--model') + 1]).toBe('sonnet');
+    expect(echo.args).not.toContain('--effort');
     expect(echo.args).not.toContain('--resume');
     expect(echo.system).toBe('맥락 지시');
     expect(echo.stdin).toContain('[학습자]\nQ1');
@@ -113,6 +114,36 @@ describe('bridge server — claude', () => {
     const client = createBridgeClient(localTransport('ok', { 'claude-cli': '/nonexistent/claude' }));
     const last = (await collect(client.stream('claude-cli', req))).at(-1)!;
     expect(last.type === 'error' && last.error.message).toContain('설치되어 있지 않거나');
+  });
+});
+
+describe('모델·노력치 인자', () => {
+  it('claude는 --effort, 형식이 틀린 값은 버린다', async () => {
+    const client = createBridgeClient(localTransport('echo'));
+    const ok = JSON.parse(text(await collect(client.stream('claude-cli', { ...req, model: 'opus', effort: 'high' })))) as { args: string[] };
+    expect(ok.args[ok.args.indexOf('--model') + 1]).toBe('opus');
+    expect(ok.args[ok.args.indexOf('--effort') + 1]).toBe('high');
+    const bad = JSON.parse(
+      text(await collect(client.stream('claude-cli', { ...req, model: '--dangerously-skip-permissions', effort: 'ultra' }))),
+    ) as { args: string[] };
+    expect(bad.args).not.toContain('--model');
+    expect(bad.args).not.toContain('--effort');
+    expect(bad.args).not.toContain('--dangerously-skip-permissions');
+  });
+
+  it('codex는 -m과 -c model_reasoning_effort, 프롬프트 표시(-)는 마지막', async () => {
+    const client = createBridgeClient(localTransport('echo'));
+    const echo = JSON.parse(text(await collect(client.stream('codex-cli', { ...req, model: 'gpt-6-sol', effort: 'ultra' })))) as { args: string[] };
+    expect(echo.args[echo.args.indexOf('-m') + 1]).toBe('gpt-6-sol');
+    expect(echo.args[echo.args.indexOf('-c') + 1]).toBe('model_reasoning_effort="ultra"');
+    expect(echo.args.at(-1)).toBe('-');
+    expect(codexArgs({})).not.toContain('-c');
+  });
+
+  it('모델이 지원하지 않는 노력치는 빼고 CLI 기본을 쓴다', () => {
+    expect(cliModelOptions({ providerId: 'codex-cli', model: 'gpt-6-luna', effort: 'ultra' })).toEqual({ model: 'gpt-6-luna' });
+    expect(cliModelOptions({ providerId: 'codex-cli', effort: 'x"; rm' })).toEqual({});
+    expect(cliModelOptions({ providerId: 'claude-cli', model: 'opus[1m]', effort: 'max' })).toEqual({ model: 'opus[1m]', effort: 'max' });
   });
 });
 

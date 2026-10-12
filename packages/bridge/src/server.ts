@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   cliPrompt,
+  isValidEffort,
+  isValidModelName,
   providerError,
   withInstructions,
   type BridgeClientMsg,
@@ -45,6 +47,16 @@ export interface BridgeServer {
 }
 
 const FALLBACK_SYSTEM = '당신은 학습을 돕는 친절한 튜터입니다. 한국어로 짧고 명확하게 답하세요.';
+
+/** CLI 인자로 넘길 모델·노력치. 형식이 틀린 값은 버리고 CLI 기본값을 쓴다 (IPC·원격 공통 검증) */
+export function cliModelOptions(msg: Pick<ChatStartMsg, 'providerId' | 'model' | 'effort'>): {
+  model?: string;
+  effort?: string;
+} {
+  const model = msg.model && isValidModelName(msg.model) ? msg.model : undefined;
+  const effort = msg.effort && isValidEffort(msg.providerId, msg.effort, model) ? msg.effort : undefined;
+  return { ...(model ? { model } : {}), ...(effort ? { effort } : {}) };
+}
 
 function semaphore(max: number) {
   let active = 0;
@@ -119,11 +131,11 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
       if (msg.providerId === 'claude-cli') {
         const systemFile = path.join(workDir, 'system.txt');
         await writeFile(systemFile, system, { mode: 0o600 });
-        args = claudeArgs({ systemFile, ...(msg.model ? { model: msg.model } : {}) });
+        args = claudeArgs({ systemFile, ...cliModelOptions(msg) });
         stdin = prompt;
         parser = createClaudeParser();
       } else {
-        args = codexArgs(msg.model ? { model: msg.model } : {});
+        args = codexArgs(cliModelOptions(msg));
         stdin = withInstructions(system, prompt);
         parser = createCodexParser();
       }

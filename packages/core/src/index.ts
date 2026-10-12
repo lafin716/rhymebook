@@ -2,6 +2,7 @@ export * from './model';
 export * from './tree';
 export * from './anchor';
 export * from './provider';
+export * from './cli-options';
 export * from './context';
 export * from './turns';
 export * from './id';

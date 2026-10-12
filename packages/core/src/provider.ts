@@ -9,6 +9,8 @@ export interface StreamRequest {
   system: string;
   messages: ChatTurn[];
   model?: string;
+  /** CLI 노력치 (claude --effort, codex model_reasoning_effort) */
+  effort?: string;
   signal?: AbortSignal;
   /** 요청 목적. Mock/로깅용 힌트 */
   purpose?: 'chat' | 'summary' | 'title';
