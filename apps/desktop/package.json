@@ -59,6 +59,7 @@
         "AppImage",
         "deb"
       ],
+      "executableName": "rhymebook",
       "category": "Education",
       "maintainer": "rhymebook"
     }
