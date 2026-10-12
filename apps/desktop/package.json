@@ -1,6 +1,6 @@
 {
   "name": "@branch/desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "rhymebook 데스크톱 (Electron + 내장 bridge)",
   "main": "dist/main.cjs",

@@ -32,9 +32,19 @@ jobs:
         env:
           MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        # 빈 CSC_LINK는 electron-builder가 경로로 해석해 실패하므로("not a file"), 값이 있을 때만 내보낸다
         run: |
-          if [[ "$RUNNER_OS" == "macOS" && -n "$MAC_CSC_LINK" ]] || [[ "$RUNNER_OS" == "Windows" && -n "$WIN_CSC_LINK" ]]; then
+          if [[ "$RUNNER_OS" == "macOS" && -n "$MAC_CSC_LINK" ]]; then
             echo "서명 인증서 사용"
+            echo "::add-mask::$MAC_CSC_KEY_PASSWORD"
+            echo "CSC_LINK=$MAC_CSC_LINK" >> "$GITHUB_ENV"
+            echo "CSC_KEY_PASSWORD=$MAC_CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
+          elif [[ "$RUNNER_OS" == "Windows" && -n "$WIN_CSC_LINK" ]]; then
+            echo "서명 인증서 사용"
+            echo "CSC_LINK=$WIN_CSC_LINK" >> "$GITHUB_ENV"
+            echo "CSC_KEY_PASSWORD=$WIN_CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
           else
             echo "서명 secrets 없음 → 서명 없이 빌드"
             echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> "$GITHUB_ENV"
@@ -42,9 +52,7 @@ jobs:
       - name: 패키징
         run: pnpm --filter @branch/desktop package
         env:
-          # macOS 서명·공증 (Developer ID .p12 base64, Apple ID 앱 암호)
-          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CSC_LINK || runner.os == 'Windows' && secrets.WIN_CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CSC_KEY_PASSWORD || runner.os == 'Windows' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
+          # macOS 공증 (Apple ID 앱 암호). 인증서(CSC_LINK)는 위 단계에서 설정
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
