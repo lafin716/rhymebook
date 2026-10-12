@@ -68,7 +68,9 @@ test('형광펜·굵게 적용 → 새로고침 후 유지 → 같은 색 다시
   const main = page.locator(MAIN);
 
   let menu = await select(page, '가중합');
+  await menu.getByRole('button', { name: /^형광펜 색상표/ }).click();
   await menu.getByRole('button', { name: '형광펜 초록' }).click();
+  await menu.getByRole('button', { name: '서식으로 돌아가기' }).click();
   await menu.getByRole('button', { name: '굵게' }).click();
   const annot = main.locator('span.annot[data-hl="green"][data-bold="true"]');
   await expect(annot).toHaveText('가중합');
@@ -76,20 +78,140 @@ test('형광펜·굵게 적용 → 새로고침 후 유지 → 같은 색 다시
   await page.reload();
   await expect(main.locator('span.annot[data-hl="green"]')).toHaveText('가중합');
 
-  // 글자색 모드로 바꿔 색 적용, 같은 범위 형광펜 같은 색은 해제
+  // 글자색 색상표에서 색 적용, 같은 범위 형광펜 같은 색은 해제
   menu = await select(page, '가중합');
   await expect(menu.getByRole('button', { name: '굵게' })).toHaveAttribute('aria-pressed', 'true');
-  await menu.getByRole('button', { name: '글자색', exact: true }).click();
+  await menu.getByRole('button', { name: /^글자색 색상표/ }).click();
   await menu.getByRole('button', { name: '글자색 빨강' }).click();
   await expect(main.locator('span.annot[data-tc="red"]')).toHaveText('가중합');
-  await menu.getByRole('button', { name: '형광펜', exact: true }).click();
+  await menu.getByRole('button', { name: '서식으로 돌아가기' }).click();
+  await menu.getByRole('button', { name: /^형광펜 색상표/ }).click();
   await menu.getByRole('button', { name: '형광펜 초록' }).click();
   await expect(main.locator('span.annot[data-hl]')).toHaveCount(0);
+  await menu.getByRole('button', { name: '서식으로 돌아가기' }).click();
 
   // 서식 지우기 → 어노테이션 제거, 본문 텍스트는 그대로
   await menu.getByRole('button', { name: '서식 지우기' }).click();
   await expect(main.locator('span.annot')).toHaveCount(0);
   await expect(main.getByText('쿼리와 키의 유사도로 값을 가중합한다', { exact: false })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('사용자 지정 색 적용 → 즐겨찾기 추가 → 새로고침 후에도 즐겨찾기 유지', async ({ page }) => {
+  const errors = collectErrors(page);
+  await start(page, '색상표 테스트');
+  const main = page.locator(MAIN);
+
+  let menu = await select(page, '가중합');
+  await menu.getByRole('button', { name: /^밑줄 색상표/ }).click();
+  await menu.getByLabel('HEX 색 코드').fill('#1A2B3C');
+  await menu.getByRole('button', { name: '적용' }).click();
+  const ul = main.locator('span.annot[data-ul="custom"]');
+  await expect(ul).toHaveText('가중합');
+  expect(await ul.evaluate((el) => getComputedStyle(el).textDecorationColor)).toBe('rgb(26, 43, 60)');
+
+  await menu.getByRole('button', { name: '즐겨찾기에 추가' }).click();
+  await expect(menu.getByRole('button', { name: '밑줄 #1A2B3C' })).toHaveCount(1);
+
+  await page.reload();
+  await expect(main.locator('span.annot[data-ul="custom"]')).toHaveText('가중합');
+  menu = await select(page, '스케일링');
+  await menu.getByRole('button', { name: /^형광펜 색상표/ }).click();
+  // 즐겨찾기는 서식 종류와 무관하게 공유된다
+  await menu.getByRole('button', { name: '형광펜 #1A2B3C' }).click();
+  await expect(main.locator('span.annot[data-hl="custom"]')).toHaveText('스케일링');
+  expect(errors).toEqual([]);
+});
+
+test('드래그 메뉴는 선택 영역을 가리지 않는다', async ({ page }) => {
+  await start(page, '위치 테스트');
+  const menu = await select(page, '스케일링', '소프트맥스');
+  const box = (await menu.boundingBox())!;
+  const sel = await page.evaluate(() => {
+    const r = getSelection()!.getRangeAt(0).getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+  });
+  const overlapY = box.y < sel.bottom && box.y + box.height > sel.top;
+  const overlapX = box.x < sel.right && box.x + box.width > sel.left;
+  expect(overlapX && overlapY).toBe(false);
+});
+
+test('우클릭 모드: 드래그만으로는 메뉴가 뜨지 않고 우클릭하면 뜬다', async ({ page }, info) => {
+  test.skip(info.project.name === 'mobile', '모바일은 항상 자동');
+  await page.addInitScript(() => localStorage.setItem('branch.selectionTrigger', 'contextmenu'));
+  await start(page, '우클릭 테스트');
+  const menu = page.locator('[data-selection-menu]');
+  const mark = page.locator(MAIN).locator('[data-anchorable]').last().getByText('가중합', { exact: false });
+  await mark.selectText();
+  await page.locator(MAIN).locator('[data-anchorable]').last().dispatchEvent('mouseup');
+  await page.waitForTimeout(300);
+  await expect(menu).toBeHidden();
+  await mark.click({ button: 'right' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('button', { name: '이게 뭐야?' })).toBeVisible();
+});
+
+test('가지 표시·이 페이지의 가지 목록·가지의 부모 원문 접기', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await start(page, '가지 목록 테스트');
+  const main = page.locator(MAIN);
+  const closeBranch = async () => {
+    if (info.project.name === 'mobile') {
+      await page.getByRole('dialog', { name: '가지 시트' }).getByRole('button', { name: '시트 닫기' }).click();
+    } else {
+      await page.keyboard.press('Escape');
+    }
+  };
+
+  const menu = await select(page, '가중합');
+  await menu.getByRole('button', { name: '이게 뭐야?' }).click();
+  await expect(page.getByText('마지막 문장 [가중합].').last()).toBeVisible();
+
+  // 가지 헤더의 부모 원문: provider 옆 토글로 완전히 숨김 → 다시 펼치기 (기기별 저장)
+  await expect(page.locator('[data-quote]')).toHaveCount(1);
+  await page.getByRole('button', { name: '부모 원문 접기' }).click();
+  await expect(page.locator('[data-quote]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '부모에 요약 붙이기' })).toBeVisible();
+  await page.getByRole('button', { name: '부모 원문 펼치기' }).click();
+  await expect(page.locator('[data-quote]')).toHaveCount(1);
+  await closeBranch();
+
+  // 본문 가지 표시: 테마색 + 끝 아이콘
+  const mark = main.locator('mark.anchor[data-branch-end="true"]');
+  await expect(mark).toHaveText('가중합');
+  const icon = await mark.evaluate((m) => getComputedStyle(m, '::after').maskImage || getComputedStyle(m, '::after').webkitMaskImage);
+  expect(icon).toContain('svg');
+
+  // 플로팅 가지 목록 → 항목 클릭으로 가지 열기
+  await main.getByRole('button', { name: '이 페이지의 가지 1개' }).click();
+  const list = main.getByRole('dialog', { name: '가지 목록' });
+  await expect(list).toBeVisible();
+  await expect(list.locator('li')).toHaveCount(1);
+  await list.locator('li').first().getByRole('button').first().click();
+  await expect(list).toBeHidden();
+  await expect(page.getByText('마지막 문장 [가중합].').last()).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('왼쪽 목록에서 세션을 우클릭해 이름 변경', async ({ page }, info) => {
+  test.skip(info.project.name === 'mobile', '우클릭은 PC·웹');
+  const errors = collectErrors(page);
+  await start(page, '이름 테스트');
+  const row = page.locator('[data-session-row]').first();
+  await row.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: '이름 변경' }).click();
+  const input = page.getByLabel('세션 이름');
+  await input.fill('바꾼 이름');
+  await input.press('Enter');
+  await expect(page.locator('[data-session-row]').first()).toContainText('바꾼 이름');
+  // Esc는 취소
+  await page.locator('[data-session-row]').first().click({ button: 'right' });
+  await page.getByRole('menuitem', { name: '이름 변경' }).click();
+  await page.getByLabel('세션 이름').fill('취소될 이름');
+  await page.getByLabel('세션 이름').press('Escape');
+  await expect(page.locator('[data-session-row]').first()).toContainText('바꾼 이름');
+  await page.reload();
+  await expect(page.locator('[data-session-row]').first()).toContainText('바꾼 이름');
   expect(errors).toEqual([]);
 });
 

@@ -2,7 +2,6 @@ import { createSnapshot, keyFingerprint, remoteRoute, serializeBackup, backupFil
 import { Download, Info, Laptop, Link2, RefreshCw, Unlink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { caps } from '../app/capabilities';
-import { useRuntime } from '../app/runtime';
 import { actions, persistence, useApp } from '../app/store';
 import { setPairing, syncClient, useRemotePairing, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
@@ -13,10 +12,12 @@ import { PC_STATUS_LABEL } from '../components/PcStatus';
 import { saveTextFile } from '../lib/download';
 import { Field, Section, Segmented } from './controls';
 import { PairForm } from './connectionCards';
+import { SelectionTriggerField } from './SelectionTriggerField';
 
 /**
  * 원격 전용 설정 (웹·모바일, ADR-026).
- * 학습 데이터·에이전트·모델은 모두 PC가 정하므로, 이 기기에서는 연결된 PC와 화면 설정만 다룬다.
+ * 학습 데이터와 기본 에이전트·모델은 PC가 정하므로, 이 기기에서는 연결된 PC와 화면 설정만 다룬다.
+ * (채팅별 에이전트·모델·노력치는 세션 헤더의 RemoteAgentPicker, ADR-031)
  */
 export function RemoteSettings() {
   const settings = useApp((s) => s.settings);
@@ -48,6 +49,7 @@ export function RemoteSettings() {
             onChange={(v) => actions().updateSettings({ anchorOpenTarget: v })}
           />
         </Field>
+        <SelectionTriggerField />
       </Section>
 
       <OldDataCard />
@@ -60,7 +62,6 @@ const TONE = { online: 'ok', connecting: 'warn', offline: 'danger', unpaired: 'n
 
 /** 연결된 PC 카드: 상태·지문·경로 + 다시 연결/해제, 미페어링이면 페어링 폼 */
 function PcCard() {
-  const demo = useRuntime((s) => s.demo);
   const status = useSync((s) => s.status);
   const hostName = useSync((s) => s.hostName);
   const error = useSync((s) => s.error);
@@ -96,14 +97,6 @@ function PcCard() {
     });
     if (ok) await setPairing(null);
   };
-
-  if (demo) {
-    return (
-      <div className="rounded-xl border border-line bg-surface p-3.5 text-[12.5px] text-fg-2">
-        데모 모드에서는 PC 대신 예시 데이터로 동작해요. 데모를 끝내면 PC 연결로 돌아가요.
-      </div>
-    );
-  }
 
   const paired = !!pairing && status !== 'unpaired';
   return (
@@ -211,7 +204,7 @@ function OldDataCard() {
 function RemoteNote() {
   const items = [
     '학습 기록은 PC에만 저장되고, 이 기기는 연결되어 있는 동안 PC의 내용을 보여 줘요.',
-    '질문·가지·요약은 PC로 보내고, 답변은 PC에 로그인된 공식 CLI가 만들어요. 에이전트·모델은 PC 설정을 따라요.',
+    '질문·가지·요약은 PC로 보내고, 답변은 PC에 로그인된 공식 CLI가 만들어요. 에이전트·모델·노력치는 채팅 위 칩에서 바꿀 수 있고, 비워 두면 PC 설정을 따라요.',
     'PC에서 진행 중인 답변과 요약 초안도 함께 보여요. PC와 이 기기에서 동시에 볼 수 있어요.',
     '연결은 기기 키로 서명하고 종단간 암호화해요. relay를 거쳐도 내용은 보이지 않아요.',
   ];

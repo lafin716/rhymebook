@@ -1,5 +1,6 @@
+import { isValidModelName, type CliId } from '../cli-options';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, SummaryDraft } from '../model';
-import { MARK_COLORS, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
+import { isMarkColor, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
 
 /**
  * 원격 동기화 프로토콜 (ADR-026). 웹·모바일(클라이언트)이 PC 데스크톱 앱(호스트)의 학습 데이터를 보고,
@@ -24,6 +25,11 @@ export type SyncOp =
       messageId: ID;
     }
   | { kind: 'rename'; sessionId: ID; title: string }
+  /**
+   * 이 세션을 PC의 어느 CLI·모델·노력치로 답할지 (IMP-08). 있는 키만 바꾸고 null은 PC 기본값으로 되돌린다.
+   * providerId를 바꾸면 PC 스토어가 다른 CLI의 모델·노력치 덮어쓰기를 버린다
+   */
+  | { kind: 'session.agent'; sessionId: ID; providerId?: CliId | null; model?: string | null; effort?: string | null }
   | { kind: 'delete'; sessionId: ID }
   | { kind: 'summary.request'; sessionId: ID }
   | { kind: 'summary.discard'; sessionId: ID }
@@ -156,6 +162,16 @@ function validateOp(op: unknown): boolean {
       o.title.length <= SYNC_LIMITS.title
     );
   }
+  if (kind === 'session.agent') {
+    if (typeof o.sessionId !== 'string' || !SYNC_ID_RE.test(o.sessionId)) return false;
+    if (!('providerId' in o) && !('model' in o) && !('effort' in o)) return false;
+    if ('providerId' in o && o.providerId !== null && o.providerId !== 'claude-cli' && o.providerId !== 'codex-cli') return false;
+    if ('model' in o && o.model !== null && (typeof o.model !== 'string' || !isValidModelName(o.model))) return false;
+    // 노력치가 그 CLI·모델에 맞는지는 호스트 스토어가 확인해 맞지 않으면 버린다
+    if ('effort' in o && o.effort !== null && (typeof o.effort !== 'string' || !/^[a-z]{1,16}$/.test(o.effort))) return false;
+    const allowed = new Set(['kind', 'sessionId', 'providerId', 'model', 'effort']);
+    return Object.keys(o).every((k) => allowed.has(k));
+  }
   if (kind === 'delete') {
     return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId);
   }
@@ -210,18 +226,15 @@ function validateOp(op: unknown): boolean {
     ) {
       return false;
     }
-    // 서식 필드 (있으면 enum 값 확인)
+    // 서식 필드 (있으면 허용 값 확인: 색은 추천 색상 이름 또는 #rrggbb)
     if ('highlight' in anno && anno.highlight !== null && anno.highlight !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (!MARK_COLORS.includes(anno.highlight as any)) return false;
+      if (!isMarkColor(anno.highlight)) return false;
     }
     if ('underline' in anno && anno.underline !== null && anno.underline !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (!MARK_COLORS.includes(anno.underline as any)) return false;
+      if (!isMarkColor(anno.underline)) return false;
     }
     if ('textColor' in anno && anno.textColor !== null && anno.textColor !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (!MARK_COLORS.includes(anno.textColor as any)) return false;
+      if (!isMarkColor(anno.textColor)) return false;
     }
     if ('font' in anno && anno.font !== null && anno.font !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

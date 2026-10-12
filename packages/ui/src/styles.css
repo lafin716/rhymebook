@@ -18,9 +18,11 @@
   --accent: #2f7d62;
   --accent-fg: #ffffff;
   --accent-soft: #e2f0ea;
-  --anchor: #f6e3b4;
-  --anchor-line: #c98a1b;
-  --anchor-active: #f1cf7a;
+  /* 가지 표시는 테마색(accent) 계열 */
+  --anchor: #d5ebe1;
+  --anchor-line: #2f7d62;
+  --anchor-active: #b3dbc9;
+  --note: #b7791f;
   --danger: #c2412d;
   --danger-soft: #fbe9e5;
   --warn: #a8660b;
@@ -57,9 +59,10 @@
   --accent: #5cc29b;
   --accent-fg: #0d1f18;
   --accent-soft: #1d3a30;
-  --anchor: #4a3b17;
-  --anchor-line: #e2a93b;
-  --anchor-active: #6b5420;
+  --anchor: #1f4436;
+  --anchor-line: #5cc29b;
+  --anchor-active: #2d604c;
+  --note: #e2a93b;
   --danger: #f0806c;
   --danger-soft: #3d221d;
   --warn: #e8b35a;
@@ -98,6 +101,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-anchor: var(--anchor);
   --color-anchor-line: var(--anchor-line);
+  --color-note: var(--note);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-warn: var(--warn);
@@ -140,6 +144,9 @@ button {
 
 .safe-bottom {
   padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
 }
 
 .scroll-thin {
@@ -311,6 +318,18 @@ mark.anchor[data-has-summary='true'] {
   border-bottom-style: double;
   border-bottom-width: 3px;
 }
+/* 가지 끝 아이콘 (lucide git-branch): pseudo-content라 DOM 텍스트(앵커 offset)에 영향 없음 */
+mark.anchor[data-branch-end='true']::after {
+  content: '';
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-left: 2px;
+  vertical-align: -0.02em;
+  background-color: var(--anchor-line);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='6' x2='6' y1='3' y2='15'/%3E%3Ccircle cx='18' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M18 9a9 9 0 0 1-9 9'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='6' x2='6' y1='3' y2='15'/%3E%3Ccircle cx='18' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M18 9a9 9 0 0 1-9 9'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 mark.anchor-flash {
   animation: anchor-flash 1.2s ease-out 1;
 }
@@ -382,6 +401,10 @@ span.annot[data-tc='blue'] { color: var(--mark-blue-text); }
 span.annot[data-tc='purple'] { color: var(--mark-purple-text); }
 span.annot[data-tc='red'] { color: var(--mark-red-text); }
 span.annot[data-tc='orange'] { color: var(--mark-orange-text); }
+/* 사용자 지정 색 (#rrggbb, style의 --hl/--ul/--tc) */
+span.annot[data-hl='custom'] { background: color-mix(in srgb, var(--hl) 38%, transparent); }
+span.annot[data-ul='custom'] { text-decoration: underline 2px var(--ul); text-underline-offset: 3px; }
+span.annot[data-tc='custom'] { color: var(--tc); }
 span.annot[data-font='serif'] {
   font-family: 'Noto Serif KR', 'AppleMyungjo', 'Nanum Myeongjo', Georgia, 'Times New Roman', serif;
 }
@@ -410,7 +433,7 @@ span.annot[data-note-end='true']::after {
   height: 0.85em;
   margin-left: 2px;
   vertical-align: -0.05em;
-  background-color: var(--anchor-line);
+  background-color: var(--note);
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E") center / contain no-repeat;
 }

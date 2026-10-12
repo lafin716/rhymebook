@@ -441,6 +441,38 @@ describe('sync host ↔ client', () => {
     expect(store.getState().summaryDrafts[SEED_IDS.scale]).toBeUndefined();
   });
 
+  it('session.agent: the remote picks the PC CLI, model and effort for a session', async () => {
+    const { store } = await connectClient();
+    store.getState().setSessionProvider(SEED_IDS.root, 'codex-cli');
+    await until(() => hostStore.getState().sessions[SEED_IDS.root]!.providerId === 'codex-cli');
+    store.getState().setSessionModel(SEED_IDS.root, { model: 'gpt-6-luna', effort: 'ultra' });
+    await until(() => hostStore.getState().sessions[SEED_IDS.root]!.modelPref?.model === 'gpt-6-luna');
+    // luna는 ultra를 지원하지 않아 PC 스토어가 버린다
+    expect(hostStore.getState().sessions[SEED_IDS.root]!.modelPref).toEqual({ providerId: 'codex-cli', model: 'gpt-6-luna' });
+    await until(() => store.getState().sessions[SEED_IDS.root]!.modelPref?.model === 'gpt-6-luna');
+    // 다른 CLI로 바꾸면 모델 덮어쓰기는 버린다, null은 PC 기본값
+    store.getState().setSessionProvider(SEED_IDS.root, 'claude-cli');
+    await until(() => hostStore.getState().sessions[SEED_IDS.root]!.providerId === 'claude-cli');
+    expect(hostStore.getState().sessions[SEED_IDS.root]!.modelPref).toBeUndefined();
+    store.getState().setSessionProvider(SEED_IDS.root, undefined);
+    await until(() => hostStore.getState().sessions[SEED_IDS.root]!.providerId === undefined);
+    // API provider는 원격에서 고를 수 없다
+    store.getState().setSessionProvider(SEED_IDS.root, 'anthropic-api');
+    await settle();
+    expect(hostStore.getState().sessions[SEED_IDS.root]!.providerId).toBeUndefined();
+  });
+
+  it('session.agent validation rejects unknown providers and bad model names', () => {
+    const op = (o: Record<string, unknown>) => validateSyncClientMsg({ type: 'act', reqId: 'r', op: { kind: 'session.agent', sessionId: 's1', ...o } });
+    expect(op({ providerId: 'claude-cli', model: 'opus', effort: 'high' })).not.toBeNull();
+    expect(op({ providerId: null, model: null, effort: null })).not.toBeNull();
+    expect(op({})).toBeNull();
+    expect(op({ providerId: 'anthropic-api' })).toBeNull();
+    expect(op({ model: '--dangerous' })).toBeNull();
+    expect(op({ effort: 'HIGH; rm' })).toBeNull();
+    expect(op({ model: 'opus', extra: 1 })).toBeNull();
+  });
+
   it('stop() restores the local store actions', async () => {
     const { store, client } = await connectClient();
     const remoteSend = store.getState().sendMessage;

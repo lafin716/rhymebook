@@ -51,6 +51,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-04 CLI 모델·노력치 선택: 설정에서 기본값, 채팅 입력창 칩으로 대화별 변경 (Claude·Codex, ADR-023)
 - [x] IMP-05 플랫폼별 연결 UI: PC = CLI·API·원격 페어링 열기(QR)·다른 PC 연결 / 웹·모바일 = PC 페어링·API 키만(모델 선택 없음, PC 정책 적용) + 첫 실행 안내 (ADR-025)
 - [x] IMP-07 백그라운드 호스트(트레이)·여러 줄 가지 왼쪽 영역 표시·드래그 메뉴 서식(형광펜·밑줄·글자색·글꼴)·메모 (ADR-028~030)
+- [x] IMP-08 드래그 메뉴 비가림 배치·우클릭 모드·색상표(사용자 지정·즐겨찾기)·가지 테마색+아이콘·이 페이지의 가지 목록·원문 접기·세션 우클릭 이름 변경·원격 에이전트/모델/노력치 선택·데모 UI 제거 (ADR-031·032)
 - [x] IMP-06 웹·모바일 원격 전용: PC 데스크톱 앱 스토어 동기화(보기·실시간 스트리밍) + 액션 신호로 PC가 CLI 실행 + 원격 전용 UI 개편 (ADR-026, docs/plans/remote-only-plan.md)
 
 ## Tasks
@@ -91,9 +92,13 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP07-T4 | IMP-07 | 통합·E2E·독립 리뷰 | lead+reviewer | HIGH | inherit | default | DONE | 100% | T1–T3 | PASS: e2e 18 passed·2 skipped(annotations 3×2). 리뷰 지적: annotation op 롤백 없음 → 수정, 서식 버튼 후 오래된 메뉴 → 수정, 나머지 기존 패턴 유지 |
 | IMP07-T5 | IMP-07 | 스크린샷·데스크톱 빌드·백그라운드 smoke | lead | MEDIUM | inherit | default | DONE | 90% | T4 | PASS: 390/768/1440 스크린샷(서식·메모·영역 막대·팝오버·모바일 바텀 바), `package:dir` 재빌드·실행. 트레이 수동 smoke(호스트 켬→창 닫기→웹 계속→완전 종료)는 사용자 확인 필요 |
 | IMP07-T6 | IMP-07 | 문서·커밋 | lead | LOW | inherit | default | DONE | 100% | T5 | PASS: 01/02/04/README·ADR-028~030·PROGRESS 갱신 후 커밋 |
+| IMP08-T1 | IMP-08 | core: MarkColor #rrggbb·isMarkColor, sync op `session.agent`(호스트·클라이언트), Mock을 플랫폼 provider 목록에서 제외 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 214 passed(+색 검증·session.agent 왕복/검증). 기존 실패 1건(sync.reset, Windows) 변경 전 코드에서도 동일 |
+| IMP08-T2 | IMP-08 | UI: placeMenu·우클릭 모드 설정·색상표(즐겨찾기·추천·사용자 지정)·가지 테마색+끝 아이콘·가지 목록 플로팅·원문 접기 토글·RemoteAgentPicker·세션 우클릭 이름 변경·데모 바/카드 제거 | lead | HIGH | inherit | default | DONE | 100% | T1 | PASS: typecheck·lint, ui 20 tests(placeMenu 6·가지 끝·사용자 지정 색), 1440/390 스크린샷 |
+| IMP08-T3 | IMP-08 | E2E·데스크톱 빌드·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: e2e 26 passed·4 skipped(색상표·즐겨찾기·비가림·우클릭 모드·가지 목록·원문 접기·이름 변경). Windows `package:dir` 빌드·실행. bridge 19·relay 2 실패는 변경 전 코드에서도 동일(Windows 가짜 CLI 실행 환경) |
 
 ## Active Work
-- 없음 (IMP-07 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
+- 없음 (IMP-08 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
+- 확인 필요: Windows에서 core `sync.reset` 1건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
 
 ## Blockers
 - 없음 (docs/BLOCKERS.md 참조)
@@ -102,6 +107,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-12 · 개선(IMP-08, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 214/215·ui 20/20 PASS, bridge 19·relay 2·core 1 실패는 변경 전 코드와 동일(기존). `pnpm e2e` 26 passed · 4 skipped. Windows `package:dir` 빌드·실행 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-05): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 128, bridge 31+3 skipped, ui 9, relay 9), `pnpm e2e` 11 passed · 1 skipped. 데스크톱 `package:dir` 빌드·실행 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-04): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 118, bridge 30+3 skipped, ui 9, relay 9), `pnpm e2e` 9 passed · 1 skipped. 실제 CLI(claude haiku/low, codex gpt-6-luna/low) bridge 경유 응답 확인. 커밋 `improve: …`.
 - 2026-10-10 · 개선(IMP-01~03): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 111, bridge 27+3 skipped, ui 9, relay 9), `pnpm e2e` 9 passed · 1 skipped. actionlint PASS. Android debug APK·iOS 시뮬레이터 빌드 성공. 커밋 `improve: …`.

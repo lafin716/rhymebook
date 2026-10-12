@@ -107,6 +107,7 @@ const OP_LABEL: Record<SyncOp['kind'], string> = {
   retry: '다시 답변을 요청했어요',
   branch: '가지를 만들었어요',
   rename: '세션 이름을 바꿨어요',
+  'session.agent': '답할 에이전트·모델을 바꿨어요',
   delete: '세션을 삭제했어요',
   'summary.request': '요약을 요청했어요',
   'summary.discard': '요약 초안을 버렸어요',

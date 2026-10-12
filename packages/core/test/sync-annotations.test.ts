@@ -24,6 +24,30 @@ describe('sync annotation validation', () => {
       expect(validateSyncClientMsg(msg)).toBeNull();
     });
 
+    it('accepts custom #rrggbb colors and rejects malformed hex', () => {
+      const make = (color: string) => ({
+        type: 'act' as const,
+        reqId: 'req1',
+        op: {
+          kind: 'annot.set' as const,
+          annotation: {
+            id: 'a1',
+            sessionId: 's1',
+            anchor: { messageId: 'm1', text: 'test', startOffset: 0, endOffset: 4 },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            textColor: color as any,
+            createdAt: 0,
+            updatedAt: 0,
+          },
+        },
+      });
+      expect(validateSyncClientMsg(make('#1a2b3c'))).not.toBeNull();
+      expect(validateSyncClientMsg(make('#1A2B3C'))).toBeNull();
+      expect(validateSyncClientMsg(make('#123'))).toBeNull();
+      expect(validateSyncClientMsg(make('#12345g'))).toBeNull();
+      expect(validateSyncClientMsg(make('red; background:url(x)'))).toBeNull();
+    });
+
     it('rejects invalid font', () => {
       const msg = {
         type: 'act' as const,

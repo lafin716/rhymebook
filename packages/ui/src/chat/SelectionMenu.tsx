@@ -1,7 +1,6 @@
 import {
   findAnnotationsOverlapping,
   findExactAnnotation,
-  MARK_COLORS,
   MAX_NOTE_LENGTH,
   type AnnotationPatch,
   type AnnotationStyle,
@@ -10,6 +9,7 @@ import {
 } from '@branch/core';
 import {
   Bold,
+  ChevronDown,
   CornerDownRight,
   Eraser,
   Highlighter,
@@ -23,46 +23,67 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
+import { caps } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
+import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { cn } from '../lib/cn';
+import { ColorPalette, COLOR_KIND_LABELS, colorLabel, swatchCss, type ColorKind } from './ColorPalette';
 import { openBranch } from './open';
-import { readSelection, type PendingBranch } from './selection';
+import { MENU_GAP, placeMenu, readSelection, type PendingBranch } from './selection';
 
 /**
  * 전역 선택 컨트롤러.
  * assistant 메시지 안에서 텍스트를 선택하면 가지 액션을 띄운다.
- * - 데스크톱/태블릿: 선택 영역 위 플로팅 메뉴
- * - 모바일: 하단 액션바 (길게 눌러 선택 → OS 콜아웃과 겹치지 않게 아래쪽)
+ * - 데스크톱/태블릿: 선택 영역을 가리지 않는 위치(위 → 아래 → 옆)의 플로팅 메뉴.
+ *   설정에서 "우클릭으로 열기"를 고르면 선택 후 우클릭할 때만 띄운다
+ * - 모바일: 하단 액션바 (길게 눌러 선택 → OS 콜아웃과 겹치지 않게 아래쪽). 선택이 가려지면 위쪽으로
  */
 export function SelectionMenu() {
   const bp = useBreakpoint();
   const mobile = bp === 'mobile';
+  const trigger = useUi((s) => s.selectionTrigger);
+  const onContextMenu = !mobile && caps.kind !== 'mobile' && trigger === 'contextmenu';
   const [pending, setPending] = useState<PendingBranch | null>(null);
   const [custom, setCustom] = useState(false);
   const [question, setQuestion] = useState('');
   const [memo, setMemo] = useState<string | null>(null);
-  const [colorKind, setColorKind] = useState<ColorKind>('highlight');
+  const [palette, setPalette] = useState<ColorKind | null>(null);
   const annotations = useApp((s) => s.annotations);
   const dragging = useRef(false);
   const touchingMenu = useRef(false);
-  const customRef = useRef(false);
-  customRef.current = custom || memo !== null;
+  const menuRef = useRef<HTMLDivElement>(null);
+  /** 입력 중(직접 질문·메모·색상표)에는 DOM 선택이 사라져도 메뉴를 유지한다 */
+  const frozenRef = useRef(false);
+  frozenRef.current = custom || memo !== null || palette !== null;
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   const dismiss = useCallback(() => {
     setPending(null);
     setCustom(false);
     setQuestion('');
     setMemo(null);
+    setPalette(null);
   }, []);
 
   useEffect(() => {
     let timer = 0;
     const evaluate = () => {
-      if (customRef.current || touchingMenu.current) return;
-      setPending(readSelection());
+      if (frozenRef.current || touchingMenu.current) return;
+      const next = readSelection();
+      // 우클릭 모드: 선택만으로는 열지 않고, 선택이 사라지면 닫는다. 열려 있으면 선택 변화를 따라간다
+      if (onContextMenu) setPending((cur) => (next && cur ? next : null));
+      else setPending(next);
     };
     const schedule = (ms: number) => {
       window.clearTimeout(timer);
@@ -70,6 +91,9 @@ export function SelectionMenu() {
     };
     const onDown = (e: MouseEvent) => {
       if ((e.target as Element).closest?.('[data-selection-menu]')) return;
+      // 색상표가 열린 채 바깥을 누르면 색상표를 닫고 평소처럼 선택을 다시 읽는다
+      setPalette(null);
+      frozenRef.current = custom || memo !== null;
       dragging.current = true;
     };
     const onUp = () => {
@@ -80,29 +104,42 @@ export function SelectionMenu() {
       if (dragging.current) return;
       schedule(mobile ? 280 : 120);
     };
+    const onContext = (e: MouseEvent) => {
+      if (!onContextMenu || (e.target as Element).closest?.('[data-selection-menu]')) return;
+      const next = readSelection();
+      if (!next) return;
+      e.preventDefault();
+      window.clearTimeout(timer);
+      setPending(next);
+    };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('mouseup', onUp);
     document.addEventListener('touchend', onUp);
     document.addEventListener('selectionchange', onChange);
+    document.addEventListener('contextmenu', onContext);
     return () => {
       window.clearTimeout(timer);
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('mouseup', onUp);
       document.removeEventListener('touchend', onUp);
       document.removeEventListener('selectionchange', onChange);
+      document.removeEventListener('contextmenu', onContext);
     };
-  }, [mobile]);
+  }, [mobile, onContextMenu, custom, memo]);
 
   useEffect(() => {
     if (!pending) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        window.getSelection()?.removeAllRanges();
-        dismiss();
+      if (e.key !== 'Escape') return;
+      if (palette) {
+        setPalette(null);
+        return;
       }
+      window.getSelection()?.removeAllRanges();
+      dismiss();
     };
     const onScroll = () => {
-      if (!mobile && !customRef.current) setPending(readSelection());
+      if (!mobile && !frozenRef.current) setPending(readSelection());
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('scroll', onScroll, true);
@@ -110,7 +147,21 @@ export function SelectionMenu() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScroll, true);
     };
-  }, [pending, mobile, dismiss]);
+  }, [pending, mobile, palette, dismiss]);
+
+  // 실제 메뉴 크기를 재서 위치를 정한다 (내용에 따라 높이가 달라짐)
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setSize((p) => (p && Math.abs(p.w - r.width) < 1 && Math.abs(p.h - r.height) < 1 ? p : { w: r.width, h: r.height }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   if (!pending) return null;
 
@@ -139,6 +190,12 @@ export function SelectionMenu() {
     }
   };
 
+  /** 색 서식 지정 (null = 해당 색 서식 지우기). 토글이 아니라 그 값으로 맞춘다 */
+  const setColor = (kind: ColorKind, color: MarkColor | null) => {
+    if (exact) actions().updateAnnotation(exact.id, { [kind]: color } as AnnotationPatch);
+    else if (color) actions().addAnnotation(pending.sessionId, pending.anchor, { [kind]: color } as AnnotationStyle);
+  };
+
   /** 선택과 겹치는 서식을 지운다 (메모는 남김) */
   const clearStyle = () => {
     const clear: AnnotationPatch = { highlight: null, underline: null, textColor: null, font: null, bold: null, italic: null };
@@ -160,12 +217,16 @@ export function SelectionMenu() {
     onMouseDown: (e: ReactMouseEvent) => {
       if (!(e.target as Element).closest('input, textarea')) e.preventDefault();
     },
+    onContextMenu: (e: ReactMouseEvent) => e.preventDefault(),
     onPointerDown: () => {
       touchingMenu.current = true;
       window.setTimeout(() => {
         touchingMenu.current = false;
         // 서식 버튼은 메뉴를 닫지 않으므로, 그 사이 선택이 바뀌었으면 다시 맞춘다 (데스크톱은 선택이 유지됨)
-        if (!mobile && !customRef.current) setPending(readSelection());
+        if (!mobile && !frozenRef.current) {
+          const next = readSelection();
+          if (next) setPending(next);
+        }
       }, 600);
     },
   };
@@ -250,37 +311,34 @@ export function SelectionMenu() {
 
   const toolbar = (
     <div className={cn('flex flex-wrap items-center gap-0.5', mobile && 'justify-between')} aria-label="서식">
-      {COLOR_KINDS.map(({ kind, label, Icon }) => (
-        <ToolButton key={kind} label={label} pressed={colorKind === kind} onClick={() => setColorKind(kind)}>
-          <Icon size={15} />
-        </ToolButton>
-      ))}
-      <span className="mx-0.5 flex items-center gap-0.5">
-        {MARK_COLORS.map((c) => (
+      {COLOR_KINDS.map(({ kind, Icon }) => {
+        const cur = exact?.[kind];
+        return (
           <button
-            key={c}
+            key={kind}
             type="button"
-            aria-label={`${COLOR_KINDS.find((k) => k.kind === colorKind)!.label} ${COLOR_LABELS[c]}`}
-            aria-pressed={exact?.[colorKind] === c}
-            title={COLOR_LABELS[c]}
-            data-color={c}
-            onClick={() => applyStyle({ [colorKind]: c })}
+            aria-label={`${COLOR_KIND_LABELS[kind]} 색상표${cur ? ` (현재 ${colorLabel(cur)})` : ''}`}
+            aria-haspopup="true"
+            aria-expanded={palette === kind}
+            title={COLOR_KIND_LABELS[kind]}
+            onClick={() => setPalette(kind)}
             className={cn(
-              'inline-flex items-center justify-center rounded-full',
-              mobile ? 'size-8' : 'size-6',
+              'inline-flex h-8 items-center gap-0.5 rounded-lg pr-1 pl-1.5 text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg',
+              cur && 'text-fg',
             )}
           >
-            <span
-              className={cn(
-                'block rounded-full ring-offset-1 ring-offset-elev',
-                mobile ? 'size-5' : 'size-4',
-                exact?.[colorKind] === c && 'ring-2 ring-fg',
-              )}
-              style={{ background: `var(--mark-${c})` }}
-            />
+            <span className="flex flex-col items-center gap-[2px]">
+              <Icon size={15} />
+              <span
+                className="block h-[3px] w-4 rounded-full"
+                style={{ background: cur ? swatchCss(cur, kind) : 'var(--border-strong)' }}
+              />
+            </span>
+            <ChevronDown size={11} className="text-muted" />
           </button>
-        ))}
-      </span>
+        );
+      })}
+      <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
       <ToolButton label="굵게" pressed={!!exact?.bold} onClick={() => applyStyle({ bold: true })}>
         <Bold size={15} />
       </ToolButton>
@@ -298,6 +356,17 @@ export function SelectionMenu() {
     </div>
   );
 
+  const paletteView = palette && (
+    <ColorPalette
+      key={palette}
+      kind={palette}
+      current={exact?.[palette]}
+      mobile={mobile}
+      onPick={(c) => setColor(palette, c)}
+      onBack={() => setPalette(null)}
+    />
+  );
+
   const actionButtons = (size: 'sm' | 'lg') => (
     <>
       <MenuButton size={size} icon={<HelpCircle size={size === 'lg' ? 18 : 15} />} onClick={() => run('what')}>
@@ -313,10 +382,18 @@ export function SelectionMenu() {
   );
 
   if (mobile) {
+    // 하단 바가 선택을 가리면 위쪽으로 올린다
+    const barH = size?.h ?? 170;
+    const atTop = pending.rect.bottom > window.innerHeight - barH - MENU_GAP && pending.rect.top > barH + MENU_GAP;
     return createPortal(
       <div
+        ref={menuRef}
         {...guard}
-        className="animate-sheet-up safe-bottom fixed inset-x-0 bottom-0 z-[70] border-t border-line bg-elev shadow-float"
+        data-placement={atTop ? 'top' : 'bottom'}
+        className={cn(
+          'fixed inset-x-0 z-[70] bg-elev shadow-float',
+          atTop ? 'safe-top top-0 border-b border-line' : 'animate-sheet-up safe-bottom bottom-0 border-t border-line',
+        )}
       >
         <div className="flex items-center gap-2 px-4 pt-3 text-[13px] text-fg-2">
           <CornerDownRight size={14} className="shrink-0 text-anchor-line" />
@@ -339,6 +416,8 @@ export function SelectionMenu() {
             memoForm
           ) : custom ? (
             customForm
+          ) : palette ? (
+            paletteView
           ) : (
             <>
               <div className="grid grid-cols-3 gap-2">{actionButtons('lg')}</div>
@@ -351,23 +430,24 @@ export function SelectionMenu() {
     );
   }
 
-  const width = custom ? 340 : memo !== null ? 320 : 400;
-  const height = custom ? 46 : memo !== null ? 128 : 84;
-  const above = pending.rect.top > height + 24;
-  const top = above ? pending.rect.top - height - 8 : pending.rect.bottom + 8;
-  const left = Math.max(8, Math.min(window.innerWidth - width - 8, pending.rect.left + pending.rect.width / 2 - width / 2));
+  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 400;
+  const pos = placeMenu(pending.rect, { w: width, h: size?.h ?? (custom ? 46 : memo !== null ? 128 : 84) });
   return createPortal(
     <div
+      ref={menuRef}
       {...guard}
       role="toolbar"
       aria-label="가지·서식"
-      style={{ top, left, width }}
+      data-placement={pos.placement}
+      style={{ top: pos.top, left: pos.left, width }}
       className={cn('animate-pop-in fixed z-[70] rounded-xl border border-line bg-elev p-1 shadow-float')}
     >
       {memo !== null ? (
         <div className="p-1">{memoForm}</div>
       ) : custom ? (
         customForm
+      ) : palette ? (
+        paletteView
       ) : (
         <>
           <div className="flex items-center gap-0.5">{actionButtons('sm')}</div>
@@ -407,22 +487,11 @@ function MenuButton({
   );
 }
 
-type ColorKind = 'highlight' | 'underline' | 'textColor';
-
-const COLOR_KINDS: { kind: ColorKind; label: string; Icon: typeof Highlighter }[] = [
-  { kind: 'highlight', label: '형광펜', Icon: Highlighter },
-  { kind: 'underline', label: '밑줄', Icon: Underline },
-  { kind: 'textColor', label: '글자색', Icon: Type },
+const COLOR_KINDS: { kind: ColorKind; Icon: typeof Highlighter }[] = [
+  { kind: 'highlight', Icon: Highlighter },
+  { kind: 'underline', Icon: Underline },
+  { kind: 'textColor', Icon: Type },
 ];
-
-const COLOR_LABELS: Record<MarkColor, string> = {
-  yellow: '노랑',
-  green: '초록',
-  blue: '파랑',
-  purple: '보라',
-  red: '빨강',
-  orange: '주황',
-};
 
 function ToolButton({
   label,

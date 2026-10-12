@@ -1,6 +1,6 @@
 import { childrenOf, rootSessions, type ID } from '@branch/core';
 import { ChevronRight, GitBranch, Plus, Settings2, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { actions, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
 import { useSync } from '../app/sync';
@@ -13,6 +13,7 @@ import { PC_STATUS_LABEL, usePcOnline } from '../components/PcStatus';
 import { cn } from '../lib/cn';
 import { isUsable, PROVIDER_ORDER, providerLabel, statusTone } from '../lib/connection';
 import { relativeTime } from '../lib/time';
+import { RenameInput, SessionMenu, type MenuPoint } from './SessionMenu';
 
 /** 세션 목록. 데스크톱(≥1024)은 고정 사이드바(접기 가능), 그 이하는 드로어 */
 export function Sidebar() {
@@ -95,13 +96,37 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   const isActiveRoot = activeRoot === id;
   const childCount = useApp((st) => childrenOf(st.sessions, id).length);
   const [open, setOpen] = useState(isActiveRoot);
+  const [menu, setMenu] = useState<MenuPoint | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const closeMenu = useCallback(() => setMenu(null), []);
   useEffect(() => {
     if (isActiveRoot) setOpen(true);
   }, [isActiveRoot]);
   if (!s) return null;
+  const remove = async () => {
+    const ok = await confirm({
+      title: '학습을 삭제할까요?',
+      message: (
+        <>
+          <b className="font-medium text-fg-2">“{s.title}”</b>
+          {childCount > 0 ? '과(와) 모든 가지가' : '이(가)'} 모두 삭제되며 되돌릴 수 없어요.
+        </>
+      ),
+      confirmLabel: '삭제',
+      tone: 'danger',
+    });
+    if (ok) actions().deleteSession(id);
+  };
   return (
     <div className="mb-0.5">
-      <div className={cn('group flex items-center rounded-lg', isActiveRoot ? 'bg-surface-2' : 'hover:bg-surface-2/70')}>
+      <div
+        data-session-row={id}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
+        className={cn('group flex items-center rounded-lg', isActiveRoot ? 'bg-surface-2' : 'hover:bg-surface-2/70')}
+      >
         <button
           type="button"
           aria-label={open ? '가지 접기' : '가지 펼치기'}
@@ -110,42 +135,42 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
         >
           <ChevronRight size={14} className={cn('transition-transform', open && 'rotate-90')} />
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            actions().openSession(id, 'main');
-            onPick();
-          }}
-          className="min-w-0 flex-1 py-2 pr-1 text-left"
-        >
-          <div className="truncate text-[14px] font-medium text-fg">{s.title}</div>
-          <div className="text-[11.5px] text-muted">
-            {relativeTime(s.updatedAt)}
-            {childCount > 0 && ` · 가지 ${childCount}`}
+        {renaming ? (
+          <div className="min-w-0 flex-1 py-1.5 pr-1">
+            <RenameInput
+              value={s.title}
+              onDone={(next) => {
+                setRenaming(false);
+                if (next) actions().renameSession(id, next);
+              }}
+            />
           </div>
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              actions().openSession(id, 'main');
+              onPick();
+            }}
+            className="min-w-0 flex-1 py-2 pr-1 text-left"
+          >
+            <div className="truncate text-[14px] font-medium text-fg">{s.title}</div>
+            <div className="text-[11.5px] text-muted">
+              {relativeTime(s.updatedAt)}
+              {childCount > 0 && ` · 가지 ${childCount}`}
+            </div>
+          </button>
+        )}
         <IconButton
           size="sm"
           label="세션 삭제"
           className="mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-          onClick={async () => {
-            const ok = await confirm({
-              title: '학습을 삭제할까요?',
-              message: (
-                <>
-                  <b className="font-medium text-fg-2">“{s.title}”</b>
-                  {childCount > 0 ? '과(와) 모든 가지가' : '이(가)'} 모두 삭제되며 되돌릴 수 없어요.
-                </>
-              ),
-              confirmLabel: '삭제',
-              tone: 'danger',
-            });
-            if (ok) actions().deleteSession(id);
-          }}
+          onClick={() => void remove()}
         >
           <Trash2 size={14} />
         </IconButton>
       </div>
+      {menu && <SessionMenu at={menu} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
       {open && childCount > 0 && <BranchTree parentId={id} depth={1} onPick={onPick} />}
     </div>
   );
@@ -166,24 +191,47 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
   const s = useApp((st) => st.sessions[id]);
   const active = useApp((st) => st.view.activeSessionId === id);
   const hasKids = useApp((st) => childrenOf(st.sessions, id).length > 0);
+  const [menu, setMenu] = useState<MenuPoint | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const closeMenu = useCallback(() => setMenu(null), []);
   if (!s) return null;
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => {
-          actions().openSession(id, 'main');
-          onPick();
-        }}
-        className={cn(
-          'flex w-full items-center gap-1.5 rounded-r-lg py-1.5 pr-2 pl-3 text-left text-[13px]',
-          active ? 'bg-accent-soft font-medium text-fg' : 'text-fg-2 hover:bg-surface-2/70',
-        )}
-      >
-        <GitBranch size={12} className="shrink-0 text-muted" />
-        <span className="truncate">{s.title}</span>
-        {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
-      </button>
+      {renaming ? (
+        <div className="flex items-center gap-1.5 py-1 pr-2 pl-3">
+          <GitBranch size={12} className="shrink-0 text-muted" />
+          <RenameInput
+            value={s.title}
+            className="h-6 text-[13px]"
+            onDone={(next) => {
+              setRenaming(false);
+              if (next) actions().renameSession(id, next);
+            }}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          data-session-row={id}
+          onClick={() => {
+            actions().openSession(id, 'main');
+            onPick();
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu({ x: e.clientX, y: e.clientY });
+          }}
+          className={cn(
+            'flex w-full items-center gap-1.5 rounded-r-lg py-1.5 pr-2 pl-3 text-left text-[13px]',
+            active ? 'bg-accent-soft font-medium text-fg' : 'text-fg-2 hover:bg-surface-2/70',
+          )}
+        >
+          <GitBranch size={12} className="shrink-0 text-muted" />
+          <span className="truncate">{s.title}</span>
+          {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
+        </button>
+      )}
+      {menu && <SessionMenu at={menu} onClose={closeMenu} onRename={() => setRenaming(true)} />}
       {hasKids && <BranchTree parentId={id} depth={depth + 1} onPick={onPick} />}
     </li>
   );

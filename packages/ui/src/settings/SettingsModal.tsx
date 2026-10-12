@@ -1,5 +1,5 @@
 import type { ProviderId } from '@branch/core';
-import { ArrowDown, ArrowUp, Bot, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import { useState } from 'react';
 import { caps, remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
@@ -10,9 +10,10 @@ import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
 import { Field, Section, Segmented } from './controls';
 import { BackupTab } from './BackupTab';
-import { ApiCard, BridgeCard, CardShell, CliCard, PolicyNote } from './connectionCards';
+import { ApiCard, BridgeCard, CliCard, PolicyNote } from './connectionCards';
 import { HostCard } from './HostCard';
 import { RemoteSettings } from './RemoteSettings';
+import { SelectionTriggerField } from './SelectionTriggerField';
 import { providerKind, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 
 type Tab = 'connections' | 'backup' | 'general';
@@ -101,9 +102,6 @@ function ConnectionsTab() {
       <Section title="다른 PC에 연결" hint="다른 PC가 열어 둔 원격 페어링에 이 앱을 연결해요.">
         <BridgeCard />
       </Section>
-      <Section title="데모">
-        <CardShell id="mock" icon={<Bot size={18} />} />
-      </Section>
       <PolicyNote />
     </div>
   );
@@ -181,6 +179,8 @@ function GeneralTab() {
           onChange={(v) => actions().updateSettings({ anchorOpenTarget: v })}
         />
       </Field>
+
+      <SelectionTriggerField />
 
       <Field label={`맥락 상속: 부모 대화 최근 ${settings.contextWindow}개`} hint="가지 질문에 함께 보낼 부모 세션의 최근 메시지 수입니다.">
         <input

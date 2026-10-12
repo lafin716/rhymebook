@@ -1,9 +1,12 @@
 import { breadcrumb, effectiveProviderId, excerptAround, type ID, type ProviderId } from '@branch/core';
-import { ChevronRight, CornerLeftUp, Quote, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, CornerLeftUp, Quote, Sparkles } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
+import { useUi } from '../app/uiState';
 import { Badge, StatusDot } from '../components/Badge';
+import { IconButton } from '../components/Button';
+import { RemoteAgentPicker } from './RemoteAgentPicker';
 import { cn } from '../lib/cn';
 import { PROVIDER_ORDER, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 import { revealAnchor } from './open';
@@ -31,13 +34,20 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
   });
   const hasDraft = useApp((s) => !!s.summaryDrafts[sessionId]);
   const streaming = useApp((s) => !!s.streaming[sessionId]);
+  const quoteCollapsed = useUi((s) => s.quoteCollapsed);
+  const toggleQuote = useUi((s) => s.toggleQuote);
   if (!session) return null;
 
   const isBranch = !!session.parentId;
+  const summaryButton = isBranch && !hasDraft;
+  const summaryLabel = session.summary ? '요약 다시 만들기' : '부모에 요약 붙이기';
+  const requestSummary = () => void actions().requestSummary(sessionId);
   const ex =
     session.anchor && anchorMsg
       ? excerptAround(anchorMsg.content, session.anchor.startOffset, session.anchor.endOffset, compact ? 28 : 48)
       : null;
+  /** 접으면 부모 원문 인용과 요약 버튼 줄을 모두 숨긴다 (기기별 저장) */
+  const collapsible = isBranch && !!ex;
 
   return (
     <header className={cn('shrink-0 border-b border-line bg-surface', compact ? 'px-3 pt-2 pb-2' : 'px-4 pt-3 pb-3 md:px-6')}>
@@ -70,11 +80,42 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
             <Sparkles size={11} /> 요약됨
           </Badge>
         )}
+        {summaryButton && collapsible && quoteCollapsed && (
+          <IconButton size="sm" label={summaryLabel} disabled={streaming} onClick={requestSummary}>
+            <Sparkles size={14} className="text-anchor-line" />
+          </IconButton>
+        )}
         {!remoteMode && <ProviderSelect sessionId={sessionId} compact={compact} />}
+        {collapsible && (
+          <button
+            type="button"
+            onClick={toggleQuote}
+            aria-expanded={!quoteCollapsed}
+            aria-label={quoteCollapsed ? '부모 원문 펼치기' : '부모 원문 접기'}
+            title={quoteCollapsed ? '부모 원문 펼치기' : '부모 원문 접기'}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-0.5 rounded-lg border px-1.5 transition-colors',
+              compact ? 'h-7' : 'h-8',
+              quoteCollapsed
+                ? 'border-line text-fg-2 hover:bg-surface-2 hover:text-fg'
+                : 'border-anchor-line/40 bg-anchor/50 text-anchor-line hover:bg-anchor',
+            )}
+          >
+            <Quote size={13} />
+            {quoteCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+          </button>
+        )}
+        {remoteMode && <RemoteAgentPicker sessionId={sessionId} compact={compact} />}
         {extra}
       </div>
-      {ex && (
-        <div className={cn('mt-2 flex items-start gap-2 rounded-lg border-l-2 border-anchor-line bg-surface-2/70 py-1.5 pr-2 pl-2.5', compact ? 'text-[12.5px]' : 'text-[13px]')}>
+      {ex && !quoteCollapsed && (
+        <div
+          data-quote="expanded"
+          className={cn(
+            'mt-2 flex items-start gap-2 rounded-lg border-l-2 border-anchor-line bg-surface-2/70 py-1.5 pr-2 pl-2.5',
+            compact ? 'text-[12.5px]' : 'text-[13px]',
+          )}
+        >
           <Quote size={13} className="mt-0.5 shrink-0 text-anchor-line" />
           <p className={cn('min-w-0 flex-1 leading-relaxed text-fg-2', compact && 'line-clamp-2')}>
             {ex.before}
@@ -90,16 +131,16 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
           </button>
         </div>
       )}
-      {isBranch && !hasDraft && (
+      {summaryButton && !(collapsible && quoteCollapsed) && (
         <div className="mt-2 flex">
           <button
             type="button"
             disabled={streaming}
-            onClick={() => void actions().requestSummary(sessionId)}
+            onClick={requestSummary}
             className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[12.5px] font-medium text-fg-2 hover:border-anchor-line hover:text-fg disabled:opacity-40"
           >
             <Sparkles size={13} className="text-anchor-line" />
-            {session.summary ? '요약 다시 만들기' : '부모에 요약 붙이기'}
+            {summaryLabel}
           </button>
         </div>
       )}

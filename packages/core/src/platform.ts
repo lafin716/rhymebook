@@ -22,8 +22,9 @@ export interface PlatformCaps {
   providers: ProviderId[];
 }
 
-const DESKTOP_PROVIDERS: ProviderId[] = ['claude-cli', 'codex-cli', 'anthropic-api', 'openai-api', 'remote-bridge', 'mock'];
-const REMOTE_PROVIDERS: ProviderId[] = ['remote-bridge', 'anthropic-api', 'openai-api', 'mock'];
+// 'mock'(데모)은 개발용 시나리오 전용이라 사용자가 고르는 목록에 넣지 않는다
+const DESKTOP_PROVIDERS: ProviderId[] = ['claude-cli', 'codex-cli', 'anthropic-api', 'openai-api', 'remote-bridge'];
+const REMOTE_PROVIDERS: ProviderId[] = ['remote-bridge', 'anthropic-api', 'openai-api'];
 
 export function platformCaps(kind: PlatformKind, opts: { hostPairing?: boolean } = {}): PlatformCaps {
   if (kind === 'desktop') {

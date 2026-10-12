@@ -3,7 +3,6 @@ import { SelectionMenu } from '../chat/SelectionMenu';
 import { ConfirmHost } from '../components/ConfirmDialog';
 import { Toasts } from '../components/Toasts';
 import { TopBar } from '../components/TopBar';
-import { DemoBar } from '../demo/DemoBar';
 import { NotesModal } from '../notes/NotesModal';
 import { Onboarding } from '../onboarding/Onboarding';
 import { SearchPalette } from '../search/SearchPalette';
@@ -13,6 +12,7 @@ import { SettingsModal } from '../settings/SettingsModal';
 import { MainView } from '../views/MainView';
 import { PopupLayer } from '../views/PopupLayer';
 import { SheetStack } from '../views/SheetStack';
+import { useScenarioHash } from './scenarios';
 import { actions } from './store';
 import { useUi } from './uiState';
 import { useBreakpoint } from './useBreakpoint';
@@ -21,6 +21,7 @@ import { useThemeSync } from './useTheme';
 export function App() {
   useThemeSync();
   useHostPolicySync();
+  useScenarioHash();
   const bp = useBreakpoint();
 
   useEffect(() => {
@@ -41,7 +42,6 @@ export function App() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
-      {import.meta.env.DEV && <DemoBar />}
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">

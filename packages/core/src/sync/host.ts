@@ -332,6 +332,8 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       case 'rename':
         if (op.title.length > SYNC_LIMITS.title || !op.title.trim()) return 'invalid';
         return has(op.sessionId) ? null : 'not-found';
+      case 'session.agent':
+        return has(op.sessionId) ? null : 'not-found';
       case 'delete':
         if (!has(op.sessionId)) return 'not-found';
         return allowDelete() ? null : 'forbidden';
@@ -394,6 +396,14 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         case 'rename':
           s.renameSession(op.sessionId, op.title);
           return null;
+        case 'session.agent': {
+          if ('providerId' in op) s.setSessionProvider(op.sessionId, op.providerId ?? undefined);
+          const patch: { model?: string; effort?: string } = {};
+          if ('model' in op) patch.model = op.model ?? undefined;
+          if ('effort' in op) patch.effort = op.effort ?? undefined;
+          if ('model' in op || 'effort' in op) store.getState().setSessionModel(op.sessionId, patch);
+          return null;
+        }
         case 'delete':
           s.deleteSession(op.sessionId);
           return null;

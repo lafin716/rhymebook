@@ -1,10 +1,47 @@
 import { selectionToAnchor, type Anchor, type ID } from '@branch/core';
 import { getSegmentMap } from './segmentRegistry';
 
+/** 선택 영역의 화면 좌표 (top = 첫 줄 위, bottom = 전체 아래) */
+export interface SelectionRect {
+  top: number;
+  left: number;
+  bottom: number;
+  width: number;
+}
+
 export interface PendingBranch {
   sessionId: ID;
   anchor: Anchor;
-  rect: { top: number; left: number; bottom: number; width: number };
+  rect: SelectionRect;
+}
+
+/** 메뉴와 선택 영역 사이 간격 */
+export const MENU_GAP = 8;
+/** 메뉴와 화면 가장자리 사이 최소 여백 */
+const EDGE = 8;
+
+export type MenuPlacement = 'above' | 'below' | 'right' | 'left' | 'edge';
+
+/**
+ * 선택 영역을 가리지 않는 메뉴 위치: 위 → 아래 → 오른쪽 → 왼쪽.
+ * 어디에도 들어가지 않으면(화면을 거의 채운 선택) 화면 위·아래 중 선택이 덜 걸친 쪽 가장자리에 붙인다.
+ */
+export function placeMenu(
+  sel: SelectionRect,
+  menu: { w: number; h: number },
+  view = { w: window.innerWidth, h: window.innerHeight },
+): { top: number; left: number; placement: MenuPlacement } {
+  const clampX = (x: number) => Math.max(EDGE, Math.min(view.w - menu.w - EDGE, x));
+  const clampY = (y: number) => Math.max(EDGE, Math.min(view.h - menu.h - EDGE, y));
+  const centerX = clampX(sel.left + sel.width / 2 - menu.w / 2);
+  if (sel.top - MENU_GAP - menu.h >= EDGE) return { top: sel.top - MENU_GAP - menu.h, left: centerX, placement: 'above' };
+  if (sel.bottom + MENU_GAP + menu.h <= view.h - EDGE) return { top: sel.bottom + MENU_GAP, left: centerX, placement: 'below' };
+  const midY = clampY((Math.max(sel.top, 0) + Math.min(sel.bottom, view.h)) / 2 - menu.h / 2);
+  const right = sel.left + sel.width;
+  if (right + MENU_GAP + menu.w <= view.w - EDGE) return { top: midY, left: right + MENU_GAP, placement: 'right' };
+  if (sel.left - MENU_GAP - menu.w >= EDGE) return { top: midY, left: sel.left - MENU_GAP - menu.w, placement: 'left' };
+  const top = sel.top > view.h - sel.bottom ? EDGE : view.h - menu.h - EDGE;
+  return { top, left: centerX, placement: 'edge' };
 }
 
 /** 컨테이너 시작부터 (node, offset)까지의 렌더 텍스트 길이 */

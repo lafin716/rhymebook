@@ -7,6 +7,7 @@ import type { SyncLink } from '../bridge/remote';
 import { branchQuestion } from '../context';
 import { newId } from '../id';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
+import { isCliId } from '../cli-options';
 
 export type SyncStatus = 'unpaired' | 'connecting' | 'online' | 'offline' | 'unsupported';
 
@@ -505,9 +506,17 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       });
     },
 
-    // 원격 모드에서는 PC가 CLI·모델을 정한다
-    setSessionProvider() {},
-    setSessionModel() {},
+    // 원격 모드: 이 세션을 PC의 어느 CLI·모델·노력치로 답할지 PC에 요청한다 (PC 기본값은 null)
+    setSessionProvider(sessionId, providerId) {
+      if (providerId && !isCliId(providerId)) return;
+      act({ kind: 'session.agent', sessionId, providerId: providerId ?? null });
+    },
+    setSessionModel(sessionId, patch) {
+      const op: SyncOp = { kind: 'session.agent', sessionId };
+      if ('model' in patch) op.model = patch.model ?? null;
+      if ('effort' in patch) op.effort = patch.effort ?? null;
+      act(op);
+    },
     async refreshConnections() {},
   };
 

@@ -1,5 +1,6 @@
 import {
   buildSegmentMap,
+  isMarkColor,
   layoutAnchorRanges,
   locateAnchor,
   type ID,
@@ -7,6 +8,7 @@ import {
   type SegmentMap,
   type Annotation,
   type AnnotationStyle,
+  type MarkColor,
 } from '@branch/core';
 import type { Element, ElementContent, Parent, Root, Text } from 'hast';
 import { visitParents } from 'unist-util-visit-parents';
@@ -56,14 +58,24 @@ function annotationProps(annots: Annotation[]): Record<string, string | undefine
     if (a.bold) m.bold = true;
     if (a.italic) m.italic = true;
   }
-  return {
-    dataHl: m.highlight,
-    dataUl: m.underline,
-    dataTc: m.textColor,
+  // 사용자 지정 색(#rrggbb)은 data-*="custom" + CSS 변수로 (검증된 값만 저장되므로 그대로 넣어도 안전)
+  const vars: string[] = [];
+  const pick = (c: MarkColor | undefined, cssVar: string) => {
+    if (!c || !isMarkColor(c)) return undefined;
+    if (!c.startsWith('#')) return c;
+    vars.push(`${cssVar}:${c}`);
+    return 'custom';
+  };
+  const props: Record<string, string | undefined> = {
+    dataHl: pick(m.highlight, '--hl'),
+    dataUl: pick(m.underline, '--ul'),
+    dataTc: pick(m.textColor, '--tc'),
     dataFont: m.font,
     dataBold: m.bold ? 'true' : undefined,
     dataItalic: m.italic ? 'true' : undefined,
   };
+  if (vars.length) props.style = vars.join(';');
+  return props;
 }
 
 /**
@@ -169,6 +181,8 @@ export function rehypeAnchors(options: RehypeAnchorsOptions) {
           let node: ElementContent = { type: 'text', value: e.node.value.slice(a, b) };
           const piece = pieces.find((p) => p.start < to && p.end > from);
           if (piece) {
+            // 가지 표시 아이콘은 각 가지 범위의 끝 조각에 CSS ::after로 (DOM 텍스트 불변)
+            const branchEnd = ranges.some((r) => r.end === to && piece.ids.includes(r.id));
             node = {
               type: 'element',
               tagName: 'mark',
@@ -179,6 +193,7 @@ export function rehypeAnchors(options: RehypeAnchorsOptions) {
                 dataHasSummary: String(!!byId.get(piece.id)?.hasSummary),
                 dataNested: piece.ids.length > 1 ? 'true' : undefined,
                 dataRegion: piece.ids.every((id) => region.has(id)) ? 'true' : undefined,
+                dataBranchEnd: branchEnd ? 'true' : undefined,
               },
               children: [node],
             };

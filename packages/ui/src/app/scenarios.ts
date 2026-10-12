@@ -1,4 +1,5 @@
 import { createSeed, defaultConnections, emptyView, mockControl, SEED_IDS } from '@branch/core';
+import { useEffect } from 'react';
 import { branchTarget } from '../chat/open';
 import { selectText } from '../chat/selection';
 import { useRuntime } from './runtime';
@@ -6,7 +7,7 @@ import { actions } from './store';
 import { startData, suspendData } from './sync';
 import { useUi } from './uiState';
 
-/** 데모 시나리오: 개발 서버 상단의 점프 메뉴와 `#scenario=<id>` 해시로 실행한다 */
+/** 개발용 시나리오: 개발 서버에서 `#scenario=<id>` 해시로 실행한다 (화면에 데모 UI는 없음) */
 export interface Scenario {
   id: string;
   label: string;
@@ -164,4 +165,22 @@ export function runScenario(id: string): boolean {
   if (!s) return false;
   s.run();
   return true;
+}
+
+/**
+ * 개발 서버 전용: `#scenario=<id>` 해시로 시나리오를 실행한다 (화면 UI 없음, E2E·스크린샷용).
+ * 해시를 지우면 실제 데이터로 돌아간다.
+ */
+export function useScenarioHash() {
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const apply = () => {
+      const id = /scenario=([\w-]+)/.exec(window.location.hash)?.[1];
+      if (id) runScenario(id);
+      else if (useRuntime.getState().demo) exitDemo();
+    };
+    apply();
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+  }, []);
 }

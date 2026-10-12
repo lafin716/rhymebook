@@ -1,11 +1,12 @@
-import { buildTurns, type ID, type Turn } from '@branch/core';
-import { ChevronDown, ChevronUp, GitBranch, ListOrdered, X } from 'lucide-react';
+import { buildTurns, type ID, type Session, type Turn } from '@branch/core';
+import { ChevronDown, ChevronUp, GitBranch, ListOrdered, LocateFixed, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useApp } from '../app/store';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
 import { isMac } from '../lib/platform';
+import { openBranch } from './open';
 
 export interface ChatNavProps {
   sessionId: ID;
@@ -41,12 +42,14 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
   const turns = useMemo(() => buildTurns(messages ?? []), [messages]);
   const mobile = useBreakpoint() === 'mobile';
   const [nav, setNav] = useState<NavState>({ active: -1, prev: -1, overflow: false });
-  const [open, setOpen] = useState(false);
+  const [panel, setPanel] = useState<'toc' | 'branches' | null>(null);
   const lockUntil = useRef(0);
   /** 버튼으로 이동한 질문. 바닥 근처라 질문을 맨 위로 올릴 수 없어도 사용자가 직접 스크롤하기 전까지 유지 */
   const pin = useRef<{ index: number; top: number | null } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const branchToggleRef = useRef<HTMLButtonElement>(null);
 
   // 답변 id → 그 답변에서 뻗은 가지 수
   const branchCount = useMemo(() => {
@@ -57,6 +60,23 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
     }
     return map;
   }, [sessions, sessionId]);
+
+  // 이 세션에서 뻗은 가지: 답변 순서 → 답변 안 위치 순
+  const branches = useMemo(() => {
+    const order = new Map((messages ?? []).map((m, i) => [m.id, i]));
+    const turnOf = new Map<ID, number>();
+    for (const t of turns) if (t.answerId) turnOf.set(t.answerId, t.index);
+    const subCount = new Map<ID, number>();
+    for (const s of Object.values(sessions)) if (s.parentId) subCount.set(s.parentId, (subCount.get(s.parentId) ?? 0) + 1);
+    return Object.values(sessions)
+      .filter((s) => s.parentId === sessionId && s.anchor)
+      .sort(
+        (a, b) =>
+          (order.get(a.anchor!.messageId) ?? Infinity) - (order.get(b.anchor!.messageId) ?? Infinity) ||
+          a.anchor!.startOffset - b.anchor!.startOffset,
+      )
+      .map((s) => ({ session: s, turn: turnOf.get(s.anchor!.messageId), sub: subCount.get(s.id) ?? 0 }));
+  }, [sessions, sessionId, messages, turns]);
 
   const measure = useCallback(() => {
     const root = scrollRef.current;
@@ -151,18 +171,18 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
 
   // 목차: 바깥 클릭·Esc로 닫고, 열 때 현재 질문을 보이게
   useEffect(() => {
-    if (!open) return;
+    if (!panel) return;
     panelRef.current?.querySelector<HTMLElement>('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
-      if (panelRef.current?.contains(t) || toggleRef.current?.contains(t)) return;
-      setOpen(false);
+      if (panelRef.current?.contains(t) || toolbarRef.current?.contains(t)) return;
+      setPanel(null);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        setOpen(false);
-        toggleRef.current?.focus();
+        setPanel(null);
+        (panel === 'branches' ? branchToggleRef : toggleRef).current?.focus();
       }
     };
     document.addEventListener('pointerdown', onDown);
@@ -171,9 +191,20 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey, true);
     };
-  }, [open]);
+  }, [panel]);
 
-  if (!turns.length || (!nav.overflow && turns.length < 2)) return null;
+  /** 이 패널 본문에서 가지 앵커로 스크롤하고 깜빡인다 */
+  const revealHere = (id: ID) => {
+    const el = scrollRef.current?.querySelector<HTMLElement>(`mark.anchor[data-session-ids~="${CSS.escape(id)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    el.classList.remove('anchor-flash');
+    void el.offsetWidth;
+    el.classList.add('anchor-flash');
+  };
+
+  const showTurns = turns.length > 0 && (nav.overflow || turns.length >= 2);
+  if (!showTurns && !branches.length) return null;
 
   const alt = isMac ? '⌥' : 'Alt+';
   const btnSize = mobile ? 'md' : 'sm';
@@ -184,66 +215,125 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
       {rail && !mobile && turns.length >= 2 && <TurnRail turns={turns} active={nav.active} onJump={jump} />}
 
       <div
+        ref={toolbarRef}
         className="absolute right-2.5 bottom-2.5 z-10 flex flex-col items-center rounded-xl border border-line bg-surface/95 p-0.5 shadow-pop backdrop-blur"
         role="toolbar"
         aria-label="질문 이동"
       >
-        <IconButton
-          ref={toggleRef}
-          size={btnSize}
-          label="대화 목차"
-          active={open}
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <ListOrdered size={16} />
-        </IconButton>
-        <div className="my-0.5 h-px w-5 bg-line" />
-        <IconButton size={btnSize} label={`이전 질문 (${alt}↑)`} disabled={!canPrev} onClick={goPrev}>
-          <ChevronUp size={18} />
-        </IconButton>
-        <span className="py-0.5 text-[11px] leading-none text-muted tabular-nums" aria-live="polite">
-          {position}
-        </span>
-        <IconButton size={btnSize} label={`다음 질문 (${alt}↓)`} disabled={!canNext} onClick={goNext}>
-          <ChevronDown size={18} />
-        </IconButton>
+        {branches.length > 0 && (
+          <>
+            <span className="relative">
+              <IconButton
+                ref={branchToggleRef}
+                size={btnSize}
+                label={`이 페이지의 가지 ${branches.length}개`}
+                active={panel === 'branches'}
+                aria-expanded={panel === 'branches'}
+                onClick={() => setPanel((p) => (p === 'branches' ? null : 'branches'))}
+              >
+                <GitBranch size={16} className="text-anchor-line" />
+              </IconButton>
+              <span className="pointer-events-none absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-anchor-line px-1 text-[10px] leading-none font-semibold text-accent-fg tabular-nums">
+                {branches.length}
+              </span>
+            </span>
+            {showTurns && <div className="my-0.5 h-px w-5 bg-line" />}
+          </>
+        )}
+        {showTurns && (
+          <>
+            <IconButton
+              ref={toggleRef}
+              size={btnSize}
+              label="대화 목차"
+              active={panel === 'toc'}
+              aria-expanded={panel === 'toc'}
+              onClick={() => setPanel((p) => (p === 'toc' ? null : 'toc'))}
+            >
+              <ListOrdered size={16} />
+            </IconButton>
+            <div className="my-0.5 h-px w-5 bg-line" />
+            <IconButton size={btnSize} label={`이전 질문 (${alt}↑)`} disabled={!canPrev} onClick={goPrev}>
+              <ChevronUp size={18} />
+            </IconButton>
+            <span className="py-0.5 text-[11px] leading-none text-muted tabular-nums" aria-live="polite">
+              {position}
+            </span>
+            <IconButton size={btnSize} label={`다음 질문 (${alt}↓)`} disabled={!canNext} onClick={goNext}>
+              <ChevronDown size={18} />
+            </IconButton>
+          </>
+        )}
       </div>
 
-      {open && (
+      {panel && (
         <div
           ref={panelRef}
           role="dialog"
-          aria-label="대화 목차"
+          aria-label={panel === 'toc' ? '대화 목차' : '가지 목록'}
           className={cn(
             'animate-pop-in absolute z-20 flex flex-col overflow-hidden rounded-xl border border-line bg-elev shadow-float',
             'inset-x-2 bottom-2 max-h-[72%]',
             '@md:inset-x-auto @md:right-15 @md:bottom-2.5 @md:max-h-[min(72%,520px)] @md:w-[340px]',
           )}
         >
-          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-3.5">
-            <ListOrdered size={15} className="text-muted" />
-            <span className="flex-1 text-[14px] font-semibold">대화 목차</span>
-            <span className="text-[12px] text-muted">질문 {turns.length}개</span>
-            <IconButton size="sm" label="목차 닫기" onClick={() => setOpen(false)}>
-              <X size={16} />
-            </IconButton>
-          </div>
-          <ol className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5">
-            {turns.map((t) => (
-              <li key={t.questionId}>
-                <TurnItem
-                  turn={t}
-                  active={t.index === nav.active}
-                  branches={t.answerId ? (branchCount.get(t.answerId) ?? 0) : 0}
-                  onClick={() => {
-                    jump(t.index);
-                    if (mobile) setOpen(false);
-                  }}
-                />
-              </li>
-            ))}
-          </ol>
+          {panel === 'toc' ? (
+            <>
+              <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-3.5">
+                <ListOrdered size={15} className="text-muted" />
+                <span className="flex-1 text-[14px] font-semibold">대화 목차</span>
+                <span className="text-[12px] text-muted">질문 {turns.length}개</span>
+                <IconButton size="sm" label="목차 닫기" onClick={() => setPanel(null)}>
+                  <X size={16} />
+                </IconButton>
+              </div>
+              <ol className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5">
+                {turns.map((t) => (
+                  <li key={t.questionId}>
+                    <TurnItem
+                      turn={t}
+                      active={t.index === nav.active}
+                      branches={t.answerId ? (branchCount.get(t.answerId) ?? 0) : 0}
+                      onClick={() => {
+                        jump(t.index);
+                        if (mobile) setPanel(null);
+                      }}
+                    />
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <>
+              <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-3.5">
+                <GitBranch size={15} className="text-anchor-line" />
+                <span className="flex-1 text-[14px] font-semibold">이 페이지의 가지</span>
+                <span className="text-[12px] text-muted">{branches.length}개</span>
+                <IconButton size="sm" label="가지 목록 닫기" onClick={() => setPanel(null)}>
+                  <X size={16} />
+                </IconButton>
+              </div>
+              <ul className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5">
+                {branches.map((b) => (
+                  <li key={b.session.id}>
+                    <BranchItem
+                      session={b.session}
+                      turn={b.turn}
+                      sub={b.sub}
+                      onOpen={() => {
+                        setPanel(null);
+                        openBranch(b.session.id);
+                      }}
+                      onReveal={() => {
+                        if (mobile) setPanel(null);
+                        revealHere(b.session.id);
+                      }}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </>
@@ -294,6 +384,55 @@ function TurnItem({ turn, active, branches, onClick }: { turn: Turn; active: boo
         </span>
       )}
     </button>
+  );
+}
+
+function BranchItem({
+  session,
+  turn,
+  sub,
+  onOpen,
+  onReveal,
+}: {
+  session: Session;
+  turn: number | undefined;
+  sub: number;
+  onOpen: () => void;
+  onReveal: () => void;
+}) {
+  const quote = session.anchor!.text.replace(/\s+/g, ' ');
+  return (
+    <div className="group/b flex items-stretch gap-1 rounded-lg transition-colors hover:bg-surface-2">
+      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 gap-2.5 px-2 py-2 text-left">
+        <span className="mt-0.5 flex h-5 shrink-0 items-center text-anchor-line">
+          <GitBranch size={14} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="line-clamp-1 text-[13.5px] leading-snug font-medium text-fg">{session.title}</span>
+          <span className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted">
+            <mark className="rounded bg-anchor px-0.5 text-fg-2">{quote}</mark>
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 text-[11.5px] text-muted">
+            {turn !== undefined && <span className="tabular-nums">Q{turn + 1} 답변</span>}
+            {sub > 0 && <span>하위 가지 {sub}</span>}
+            {session.summary && (
+              <span className="inline-flex items-center gap-0.5 text-anchor-line">
+                <Sparkles size={11} /> 요약됨
+              </span>
+            )}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onReveal}
+        aria-label={`"${session.title}" 원문 위치로 이동`}
+        title="본문에서 위치 보기"
+        className="my-1.5 mr-1 inline-flex w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface hover:text-fg"
+      >
+        <LocateFixed size={15} />
+      </button>
+    </div>
   );
 }
 

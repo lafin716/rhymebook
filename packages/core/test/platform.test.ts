@@ -29,14 +29,14 @@ describe('platformCaps', () => {
     expect(platformCaps('desktop', { hostPairing: false }).hostPairing).toBe(false);
   });
 
-  it('저장된 대체 순서를 플랫폼 provider로 정리', () => {
+  it('저장된 대체 순서를 플랫폼 provider로 정리 (데모 Mock은 빠진다)', () => {
     const web = platformCaps('web');
     expect(orderForPlatform(['anthropic-api', 'claude-cli', 'openai-api', 'codex-cli', 'mock'], web)).toEqual([
       'anthropic-api',
       'openai-api',
-      'mock',
       'remote-bridge',
     ]);
+    for (const kind of ['desktop', 'web', 'mobile'] as const) expect(platformCaps(kind).providers).not.toContain('mock');
   });
 });
 

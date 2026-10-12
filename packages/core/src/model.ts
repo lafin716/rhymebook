@@ -138,9 +138,28 @@ export type SummaryDraft =
   | { status: 'ready'; text: string }
   | { status: 'error'; text: string; message: string };
 
-/** 서식·메모 색상 팔레트 (실제 색은 UI 테마 변수) */
+/** 서식·메모 추천 색상 팔레트 (실제 색은 UI 테마 변수) */
 export const MARK_COLORS = ['yellow', 'green', 'blue', 'purple', 'red', 'orange'] as const;
-export type MarkColor = (typeof MARK_COLORS)[number];
+export type MarkPreset = (typeof MARK_COLORS)[number];
+/** 추천 색상 이름 또는 사용자 지정 색 `#rrggbb` (소문자) */
+export type MarkColor = MarkPreset | `#${string}`;
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/;
+
+/** 저장 가능한 색인지: 추천 색상 이름 또는 소문자 `#rrggbb` */
+export function isMarkColor(v: unknown): v is MarkColor {
+  return typeof v === 'string' && ((MARK_COLORS as readonly string[]).includes(v) || HEX_COLOR.test(v));
+}
+
+/** 입력한 색을 저장 형식으로 맞춘다 (`#ABC`·`abcdef` → `#aabbcc`). 해석할 수 없으면 null */
+export function normalizeMarkColor(input: string): MarkColor | null {
+  const v = input.trim().toLowerCase();
+  if ((MARK_COLORS as readonly string[]).includes(v)) return v as MarkPreset;
+  const hex = v.startsWith('#') ? v.slice(1) : v;
+  if (/^[0-9a-f]{3}$/.test(hex)) return `#${[...hex].map((c) => c + c).join('')}`;
+  if (/^[0-9a-f]{6}$/.test(hex)) return `#${hex}`;
+  return null;
+}
 
 export const MARK_FONTS = ['serif', 'mono'] as const;
 export type MarkFont = (typeof MARK_FONTS)[number];
