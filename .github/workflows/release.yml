@@ -60,7 +60,7 @@ jobs:
             apps/desktop/release/*.deb
 
   android:
-    name: android (debug APK)
+    name: android
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -75,12 +75,29 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @branch/mobile build:android
-      - run: cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk rhymebook-android-debug.apk
+      # 서명 secrets(ANDROID_KEYSTORE_BASE64·ANDROID_KEYSTORE_PASSWORD)가 있으면 서명된 release APK/AAB, 없으면 debug APK
+      - name: Android 빌드
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RHYMEBOOK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p out
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$RHYMEBOOK_KEYSTORE_PASSWORD" ]]; then
+            export RHYMEBOOK_KEYSTORE="$RUNNER_TEMP/release.jks"
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RHYMEBOOK_KEYSTORE"
+            pnpm --filter @branch/mobile build:android:release
+            cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk out/rhymebook-android.apk
+            cp apps/mobile/android/app/build/outputs/bundle/release/app-release.aab out/rhymebook-android.aab
+            rm -f "$RHYMEBOOK_KEYSTORE"
+          else
+            echo "Android 서명 secrets 없음 → debug APK"
+            pnpm --filter @branch/mobile build:android
+            cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk out/rhymebook-android-debug.apk
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: android-debug
-          path: rhymebook-android-debug.apk
+          name: android
+          path: out/*
 
   release:
     name: GitHub Release

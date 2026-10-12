@@ -153,3 +153,8 @@
 - 결정(프리셋): Claude = fable/opus/sonnet/haiku 별칭, Codex = gpt-6.1-sol, gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna. 설정에서 [직접 입력…]으로 다른 이름도 쓸 수 있다(`isValidModelName`: 영숫자 시작, `\w.:/-[]`, 80자 이하 — `-`로 시작하는 인자 주입 차단).
 - 결정(검증): bridge가 CLI 인자로 넘기기 전 다시 검증한다. IPC 경로(`cliModelOptions`)는 잘못된 값을 버리고 기본값으로 실행, 원격 경로(`validateClientMsg`)는 메시지 전체를 거부한다. 셸을 거치지 않는 spawn 인자 배열이라 따옴표 주입도 없다.
 - 근거: 확정 UX의 화면 구조는 유지하고 컨트롤만 추가(칩은 CLI provider일 때만 표시, 모바일 390px에서 한 줄). 정책 원칙 유지 — 공식 CLI의 공개 옵션만 사용.
+
+### ADR-024 · 2026-10-12 · Android release 서명
+- 결정: `apps/mobile/android/app/build.gradle`의 release 서명은 환경변수(`RHYMEBOOK_KEYSTORE`, `RHYMEBOOK_KEYSTORE_PASSWORD` 또는 `RHYMEBOOK_KEYSTORE_PASSWORD_FILE`, `RHYMEBOOK_KEY_ALIAS`)를 먼저 보고, 없으면 로컬 `~/rhymebook-release.jks` + `~/.rhymebook-keystore-pass`를 쓴다. 키가 없으면 서명 없이 빌드(기존 흐름 유지). 키·비밀번호는 저장소에 두지 않는다. PKCS12, alias `rhymebook`, 키/저장소 비밀번호 동일.
+- 결정: `pnpm --filter @branch/mobile build:android:release` = 서명된 APK + AAB(Play 업로드용). `release.yml`은 secrets `ANDROID_KEYSTORE_BASE64`·`ANDROID_KEYSTORE_PASSWORD`가 있으면 release APK/AAB, 없으면 debug APK를 첨부한다. 디코딩한 키는 `$RUNNER_TEMP`에 두고 빌드 후 삭제.
+- 메모: 키를 잃으면 같은 applicationId로 업데이트를 낼 수 없다 → 키 파일과 비밀번호 파일을 함께 별도 백업. Play 배포 시 업데이트마다 `versionCode` 증가 필요.

@@ -16,8 +16,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // release 서명 (ADR-024): 환경변수 → 없으면 ~/rhymebook-release.jks + ~/.rhymebook-keystore-pass.
+    // 키가 없으면 서명 없이 빌드한다. 비밀번호는 저장소에 두지 않는다.
+    def home = System.getProperty('user.home')
+    def ksFile = file(System.getenv('RHYMEBOOK_KEYSTORE') ?: "$home/rhymebook-release.jks")
+    def passFile = file(System.getenv('RHYMEBOOK_KEYSTORE_PASSWORD_FILE') ?: "$home/.rhymebook-keystore-pass")
+    def ksPass = System.getenv('RHYMEBOOK_KEYSTORE_PASSWORD') ?: (passFile.exists() ? passFile.text.trim() : null)
+    def canSign = ksFile.exists() && ksPass
+    signingConfigs {
+        if (canSign) {
+            release {
+                storeFile ksFile
+                storePassword ksPass
+                keyAlias System.getenv('RHYMEBOOK_KEY_ALIAS') ?: 'rhymebook'
+                keyPassword ksPass
+            }
+        }
+    }
     buildTypes {
         release {
+            if (canSign) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

@@ -11,6 +11,7 @@
     "android": "pnpm sync && cap open android",
     "build:ios-sim": "pnpm sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build",
     "build:android": "pnpm sync && cd android && ./gradlew assembleDebug",
+    "build:android:release": "pnpm sync && cd android && ./gradlew assembleRelease bundleRelease",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
