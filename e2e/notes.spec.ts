@@ -11,7 +11,7 @@ test('이해 노트: 가지 카드 목록 → Markdown·Anki 내보내기 → �
   const [md] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Markdown 저장' }).click()]);
   expect(md.suggestedFilename()).toMatch(/-이해노트-\d{4}-\d{2}-\d{2}\.md$/);
   const text = await readFile((await md.path())!, 'utf8');
-  expect(text).toMatch(/^# .+\n\n> Branch Learn 이해 노트 · /);
+  expect(text).toMatch(/^# .+\n\n> rhymebook 이해 노트 · /);
   expect(text).toContain('**이해한 내용** — ');
   await expect(dialog.getByRole('status')).toContainText('저장했어요');
 

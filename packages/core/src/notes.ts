@@ -71,7 +71,7 @@ export function buildStudyNotes(
   const lines: string[] = [
     `# ${oneLine(root.title)}`,
     '',
-    `> Branch Learn 이해 노트 · ${ymd(opts.now ?? Date.now())} · 가지 ${cards.length}개 · 요약 ${summarized}개`,
+    `> rhymebook 이해 노트 · ${ymd(opts.now ?? Date.now())} · 가지 ${cards.length}개 · 요약 ${summarized}개`,
     '',
   ];
   if (!cards.length) {
@@ -125,7 +125,7 @@ export function buildAnkiDeck(sessions: SessionMap, messages: MessageMap, rootId
   const header = [
     '#separator:tab',
     '#html:true',
-    `#deck:Branch Learn::${oneLine(root.title).replace(/[\t:]/g, ' ')}`,
+    `#deck:rhymebook::${oneLine(root.title).replace(/[\t:]/g, ' ')}`,
     '#tags column:3',
   ];
   return { text: [...header, ...rows].join('\n') + '\n', count: rows.length };

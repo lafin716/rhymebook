@@ -26,7 +26,7 @@ export function TopBar() {
   const rootTitle = useApp((s) => {
     const a = s.view.activeSessionId;
     const root = a ? s.sessions[s.sessions[a]?.rootId ?? ''] : undefined;
-    return root?.title ?? 'Branch Learn';
+    return root?.title ?? 'rhymebook';
   });
   const hasRoot = useApp((s) => !!(s.view.activeSessionId && s.sessions[s.view.activeSessionId]));
   const ThemeIcon = THEME_ICON[theme];

@@ -1,4 +1,4 @@
-<!-- Branch Learn 아이콘 글리프 (100×100 좌표계). scripts/gen-icons.mjs가 배경과 합쳐 렌더한다 -->
+<!-- rhymebook 아이콘 글리프 (100×100 좌표계). scripts/gen-icons.mjs가 배경과 합쳐 렌더한다 -->
 <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
   <!-- 줄기(대화) -->
   <path d="M34 20 V80" stroke-width="7"/>

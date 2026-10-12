@@ -148,7 +148,7 @@ describe('backup file names and markdown', () => {
 
   it('renders the tree with anchors and summaries', () => {
     const md = backupToMarkdown(seedStored(), 0);
-    expect(md).toMatch(/^# Branch Learn 백업/);
+    expect(md).toMatch(/^# rhymebook 백업/);
     expect(md).toContain('↳ ');
     expect(md).toContain('> 원문: "');
     expect(md).toContain('**가지 요약**');
@@ -280,7 +280,7 @@ describe('backup manager', () => {
     for (let i = 0; i < 4; i++) await m.backupNow({ keep: 2 });
     expect((await device.list()).length).toBe(2);
     expect((await gh.list()).length).toBe(2);
-    expect(gh.files.get('latest.md')).toContain('# Branch Learn 백업');
+    expect(gh.files.get('latest.md')).toContain('# rhymebook 백업');
     const r = await m.backupNow({ keep: 2 });
     expect(r.failures).toEqual([{ targetId: 'gdrive', message: '드라이브 실패' }]);
     const all = await m.list();

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Branch Learn 모바일 (Capacitor iOS/Android)",
+  "description": "rhymebook 모바일 (Capacitor iOS/Android)",
   "scripts": {
     "build": "vite build",
     "sync": "pnpm build && cap sync",

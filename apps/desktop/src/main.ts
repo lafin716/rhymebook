@@ -6,7 +6,7 @@ import { CH } from './ipc';
 import { createSecretVault } from './secrets';
 
 /**
- * Branch Learn 데스크톱 main 프로세스.
+ * rhymebook 데스크톱 main 프로세스.
  * - bridge를 내장: 렌더러가 IPC로 보낸 요청을 공식 CLI 무상태 실행으로 처리한다.
  * - 비밀 값은 safeStorage로 암호화해 userData에 저장한다.
  */
@@ -67,7 +67,7 @@ function createWindow() {
     height: 860,
     minWidth: 360,
     minHeight: 560,
-    title: 'Branch Learn',
+    title: 'rhymebook',
     backgroundColor: '#111113',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

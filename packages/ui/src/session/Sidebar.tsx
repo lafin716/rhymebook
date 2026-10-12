@@ -49,7 +49,7 @@ function SidebarBody() {
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-accent-fg">
             <GitBranch size={16} />
           </span>
-          Branch Learn
+          rhymebook
         </div>
       </div>
       <div className="px-3 pb-2">

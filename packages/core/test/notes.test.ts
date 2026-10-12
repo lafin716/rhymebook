@@ -33,7 +33,7 @@ describe('이해 노트', () => {
   it('Markdown 노트: 제목·통계·인용·요약/요약 없음 안내', () => {
     const { sessions, messages, root } = seedRoot();
     const md = buildStudyNotes(sessions, messages, root.id, { now: NOW });
-    expect(md.startsWith(`# ${root.title}\n\n> Branch Learn 이해 노트 · 2026-10-10 · 가지 `)).toBe(true);
+    expect(md.startsWith(`# ${root.title}\n\n> rhymebook 이해 노트 · 2026-10-10 · 가지 `)).toBe(true);
     expect(md).toMatch(/· 요약 2개/);
     expect(md).toContain('## 1. ');
     expect(md).toMatch(/\n#### \d+\.\d+\.\d+\. /);
@@ -59,7 +59,7 @@ describe('이해 노트', () => {
     expect(lines.slice(0, 4)).toEqual([
       '#separator:tab',
       '#html:true',
-      `#deck:Branch Learn::${root.title.replace(/[\t:]/g, ' ')}`,
+      `#deck:rhymebook::${root.title.replace(/[\t:]/g, ' ')}`,
       '#tags column:3',
     ]);
     expect(count).toBe(2);

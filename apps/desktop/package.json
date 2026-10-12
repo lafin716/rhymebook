@@ -2,7 +2,7 @@
   "name": "@branch/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Branch Learn 데스크톱 (Electron + 내장 bridge)",
+  "description": "rhymebook 데스크톱 (Electron + 내장 bridge)",
   "main": "dist/main.cjs",
   "scripts": {
     "build:main": "node build.mjs",
@@ -25,7 +25,7 @@
   },
   "build": {
     "appId": "app.branchlearn.desktop",
-    "productName": "Branch Learn",
+    "productName": "rhymebook",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -58,8 +58,8 @@
         "deb"
       ],
       "category": "Education",
-      "maintainer": "Branch Learn"
+      "maintainer": "rhymebook"
     }
   },
-  "author": "Branch Learn"
+  "author": "rhymebook"
 }
