@@ -45,6 +45,8 @@ export interface SyncClientOptions {
   isPaired: () => Promise<boolean>;
   timeoutMs?: number;
   backoff?: { base: number; max: number };
+  /** 끊기거나 연결에 실패하면 백오프로 자동 재연결한다 (기본 true). false면 offline에 머물고 reconnect()로만 다시 연결 */
+  autoReconnect?: boolean;
 }
 
 /** view에서 사라진 세션 참조를 걷어낸다. 활성 세션이 사라지면 남아 있는 가장 가까운 조상으로 */
@@ -81,7 +83,7 @@ function visibleSessions(v: ViewState): ID[] {
  * 낙관적으로 먼저 표시하고, 호스트 push(같은 id)가 덮어쓴다. 거절되면 되돌린다.
  */
 export function createSyncClient(opts: SyncClientOptions): SyncClient {
-  const { store, link, isPaired, timeoutMs = 15000, backoff = { base: 1000, max: 30000 } } = opts;
+  const { store, link, isPaired, timeoutMs = 15000, backoff = { base: 1000, max: 30000 }, autoReconnect = true } = opts;
   const get = () => store.getState();
   const apply = (patch: Partial<AppState>) => get().applyRemote(patch);
 
@@ -119,7 +121,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
   };
 
   const scheduleReconnect = () => {
-    if (!started || retryTimer) return;
+    if (!started || retryTimer || !autoReconnect) return;
     const delay = backoffMs;
     backoffMs = Math.min(backoffMs * 2, backoff.max);
     retryTimer = setTimeout(() => {

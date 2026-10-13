@@ -119,6 +119,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-14 · 개선(원격 수동 재연결·빈 화면 문구, Windows): 웹·모바일 sync client `autoReconnect: false`(끊기면 offline 유지, [다시 연결]로만), 학습이 있는데 선택이 없을 때 "이어서 볼 학습을 골라 주세요"+[학습 목록 열기]. `pnpm typecheck`·`pnpm lint` PASS, core sync +1 테스트 PASS(실패 `sync.reset`·store auto title은 변경 전과 동일 계열).
 - 2026-10-13 · 개선(IMP-10, Windows): `pnpm typecheck`·`pnpm lint` PASS, core 251/253(실패 2 기존 동일)·ui 36/36, bridge 19·relay 2 실패 기존 동일. e2e `--workers=2` 33 passed · 5 skipped(기본 병렬 실행은 느린 머신에서 타임아웃 12건 — 단독·2 worker 재실행 시 통과). Windows `package:dir` → 격리 userData Playwright `_electron` 조작으로 5개 기능 확인. 알려진 점: 가지 헤더 부모 원문 인용은 수식 원문(`\(d_k\)`)을 그대로 보여 준다.
 - 2026-10-13 · 개선(IMP-11, Windows): `pnpm typecheck`·`pnpm lint` PASS, core 245/247(+10 skill-assist, 실패 2는 기존과 동일)·ui 20/20, e2e `skill-assist`·`composer-split` desktop·mobile PASS. Windows `package:dir` 빌드·실행.
 - 2026-10-13 · 개선(IMP-09, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 235/237·ui 20/20 PASS(실패 2·bridge 19·relay 2는 변경 전과 동일), `pnpm e2e` 31 passed · 5 skipped. Windows `package:dir` 빌드·실행, 실제 Claude CLI 이미지 첨부 응답 확인. 커밋 `improve: …`.

@@ -50,6 +50,8 @@ export const syncClient: SyncClient | null = remoteMode
             store: appStore,
             link: syncLinkOf(remoteLink),
             isPaired: async () => !!(await loadRemotePairing()),
+            // 웹·모바일: 연결이 끊기거나 실패하면 그대로 두고 사용자가 [다시 연결]로 잇는다
+            autoReconnect: false,
           },
     )
   : null;

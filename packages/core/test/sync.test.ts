@@ -138,7 +138,7 @@ describe('sync host ↔ client', () => {
   let allowDelete: boolean;
   const clients: SyncClient[] = [];
 
-  const connectClient = async (peerId = 'p1', opts: { timeoutMs?: number } = {}) => {
+  const connectClient = async (peerId = 'p1', opts: { timeoutMs?: number; autoReconnect?: boolean } = {}) => {
     const store = makeClientStore();
     const peer = net.peer(peerId);
     const client = createSyncClient({
@@ -147,6 +147,7 @@ describe('sync host ↔ client', () => {
       isPaired: async () => true,
       timeoutMs: opts.timeoutMs ?? 1000,
       backoff: { base: 20, max: 40 },
+      ...(opts.autoReconnect === undefined ? {} : { autoReconnect: opts.autoReconnect }),
     });
     clients.push(client);
     client.start();
@@ -374,6 +375,19 @@ describe('sync host ↔ client', () => {
     await until(() => !!client.state.getState().loaded[SEED_IDS.root]);
     expect(store.getState().sessions[SEED_IDS.root]!.title).toBe('오프라인 중 변경');
     expect(store.getState().messages[SEED_IDS.root]).toEqual(hostStore.getState().messages[SEED_IDS.root]);
+  });
+
+  it('autoReconnect: false → stays offline until reconnect() is called', async () => {
+    const { store, client, peer } = await connectClient('p1', { autoReconnect: false });
+    peer.disconnect();
+    expect(client.state.getState().status).toBe('offline');
+    peer.connect();
+    await new Promise((r) => setTimeout(r, 120));
+    expect(client.state.getState().status).toBe('offline');
+
+    client.reconnect();
+    await until(() => client.state.getState().status === 'online');
+    expect(store.getState().sessions[SEED_IDS.root]).toBeTruthy();
   });
 
   it('active branch deleted on the PC while offline → focus moves to its parent after reconnect', async () => {

@@ -1,8 +1,10 @@
 import type { ID } from '@branch/core';
-import { GitBranch, Laptop, Link2, RefreshCw, Sparkles } from 'lucide-react';
+import { GitBranch, Laptop, Link2, List, RefreshCw, Sparkles } from 'lucide-react';
 import { remoteMode } from '../app/capabilities';
-import { actions } from '../app/store';
+import { actions, useApp } from '../app/store';
 import { syncClient, useSync } from '../app/sync';
+import { useUi } from '../app/uiState';
+import { useBreakpoint } from '../app/useBreakpoint';
 import { usePcOnline } from '../components/PcStatus';
 
 const SUGGESTIONS = ['트랜스포머의 어텐션이 뭔지 설명해줘', '역전파가 어떻게 동작하는지 알려줘', '멀티헤드 어텐션은 왜 필요해?'];
@@ -41,25 +43,52 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
 /** 세션이 하나도 없을 때. 원격 모드는 PC와 연결된 뒤에만 시작할 수 있다 */
 export function NoSessions() {
   const online = usePcOnline();
+  const hasSessions = useApp((s) => Object.keys(s.sessions).length > 0);
+  const bp = useBreakpoint();
   if (remoteMode && !online) return <PcNotConnected />;
+  const openList = () => {
+    const ui = useUi.getState();
+    if (bp !== 'desktop') ui.setDrawer(true);
+    else if (ui.sidebarCollapsed) ui.toggleSidebar();
+  };
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 text-center">
       <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
         <GitBranch size={28} />
       </div>
-      <h2 className="text-[19px] font-semibold">{remoteMode ? 'PC에 아직 학습 기록이 없어요' : '아직 학습 기록이 없어요'}</h2>
+      <h2 className="text-[19px] font-semibold">
+        {hasSessions ? '이어서 볼 학습을 골라 주세요' : remoteMode ? 'PC에 아직 학습 기록이 없어요' : '아직 학습 기록이 없어요'}
+      </h2>
       <p className="mt-1.5 max-w-xs text-[14px] leading-relaxed text-muted">
-        {remoteMode
-          ? '여기서 시작한 학습은 PC에 저장되고, 답변은 PC의 CLI가 만들어요.'
-          : '질문이 생긴 자리에서 가지를 치며 배우는 채팅입니다. 첫 학습을 시작해 보세요.'}
+        {hasSessions
+          ? '학습 목록에서 하나를 열거나, 새 학습을 시작해 보세요.'
+          : remoteMode
+            ? '여기서 시작한 학습은 PC에 저장되고, 답변은 PC의 CLI가 만들어요.'
+            : '질문이 생긴 자리에서 가지를 치며 배우는 채팅입니다. 첫 학습을 시작해 보세요.'}
       </p>
-      <button
-        type="button"
-        onClick={() => actions().newRootSession()}
-        className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg"
-      >
-        새 학습 시작
-      </button>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {hasSessions && (
+          <button
+            type="button"
+            onClick={openList}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg"
+          >
+            <List size={16} />
+            학습 목록 열기
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => actions().newRootSession()}
+          className={
+            hasSessions
+              ? 'inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2'
+              : 'inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg'
+          }
+        >
+          새 학습 시작
+        </button>
+      </div>
     </div>
   );
 }
