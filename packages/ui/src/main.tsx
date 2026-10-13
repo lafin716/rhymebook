@@ -2,13 +2,14 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { remoteMode } from './app/capabilities';
-import { isDemo, mobile } from './app/runtime';
+import { isDemo, mobile, sessionWindowId } from './app/runtime';
 import { actions, db } from './app/store';
 import { initRemoteSettings, startData } from './app/sync';
 import { useUi } from './app/uiState';
 import { initialThemePref } from './app/useTheme';
 import { startBackupService } from './backup/service';
 import { loadSkills } from './skills/skillsStore';
+import { SessionWindowApp } from './window/SessionWindowApp';
 import './styles.css';
 
 async function boot() {
@@ -25,11 +26,7 @@ async function boot() {
     actions().setOverlay('settings');
   });
 
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
+  createRoot(document.getElementById('root')!).render(<StrictMode>{sessionWindowId ? <SessionWindowApp /> : <App />}</StrictMode>);
 }
 
 void boot();

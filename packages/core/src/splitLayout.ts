@@ -184,3 +184,113 @@ export function isSplitNode(v: unknown, depth = 0): v is SplitNode {
   if (n.sizes !== undefined && (!Array.isArray(n.sizes) || !n.sizes.every((x) => typeof x === 'number'))) return false;
   return n.children.every((c) => isSplitNode(c, depth + 1));
 }
+
+/* ── 분할창 이동·스왑 (IMP-10) ──
+ * 자리 바꾸기는 칸(위치)의 비율을 그대로 두고 내용만 맞바꾼다. 경계선·칸 크기는 제자리, 창만 움직인다.
+ */
+
+export type SplitMoveDir = 'left' | 'right' | 'up' | 'down';
+
+export interface LeafRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** 잎마다 화면 위치 (전체를 0~100 정사각형으로 본 비율 좌표) */
+export function leafRects(layout: SplitNode | undefined): Record<ID, LeafRect> {
+  const out: Record<ID, LeafRect> = {};
+  const visit = (node: SplitNode, r: LeafRect) => {
+    if (node.kind === 'leaf') {
+      out[node.sessionId] = r;
+      return;
+    }
+    const sizes = fitSizes(node.sizes, node.children.length);
+    let off = 0;
+    node.children.forEach((c, i) => {
+      const s = sizes[i]! / 100;
+      if (node.dir === 'row') visit(c, { x: r.x + r.w * off, y: r.y, w: r.w * s, h: r.h });
+      else visit(c, { x: r.x, y: r.y + r.h * off, w: r.w, h: r.h * s });
+      off += s;
+    });
+  };
+  if (layout) visit(layout, { x: 0, y: 0, w: 100, h: 100 });
+  return out;
+}
+
+const EPS = 1e-6;
+
+/**
+ * id 칸의 dir 쪽 바로 옆 칸. 경계를 맞대고 겹치는 칸 중 내 가운데를 덮는 칸, 없으면 가장 많이 겹치는 칸.
+ * (트리로 보면: 그 방향 그룹까지 올라가 옆 형제 부분트리에서 나와 가장 가까운 잎)
+ */
+export function neighborOf(layout: SplitNode | undefined, id: ID, dir: SplitMoveDir): ID | null {
+  const rects = leafRects(layout);
+  const me = rects[id];
+  if (!me) return null;
+  const horiz = dir === 'left' || dir === 'right';
+  const edge = dir === 'left' ? me.x : dir === 'right' ? me.x + me.w : dir === 'up' ? me.y : me.y + me.h;
+  const mid = horiz ? me.y + me.h / 2 : me.x + me.w / 2;
+  let best: ID | null = null;
+  let bestScore = -1;
+  for (const [other, r] of Object.entries(rects)) {
+    if (other === id) continue;
+    const touch = dir === 'left' ? r.x + r.w : dir === 'right' ? r.x : dir === 'up' ? r.y + r.h : r.y;
+    if (Math.abs(touch - edge) > EPS) continue;
+    const [a0, a1] = horiz ? [r.y, r.y + r.h] : [r.x, r.x + r.w];
+    const [b0, b1] = horiz ? [me.y, me.y + me.h] : [me.x, me.x + me.w];
+    const overlap = Math.min(a1, b1) - Math.max(a0, b0);
+    if (overlap <= EPS) continue;
+    // 내 가운데를 덮는 칸이 우선
+    const score = overlap + (mid >= a0 - EPS && mid <= a1 + EPS ? 1000 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = other;
+    }
+  }
+  return best;
+}
+
+/** 두 잎의 세션을 맞바꾼다. 칸 비율은 위치에 남는다 */
+export function swapLeaves(layout: SplitNode | undefined, a: ID, b: ID): SplitNode | undefined {
+  if (!layout || a === b) return layout;
+  const ids = leafIds(layout);
+  if (!ids.includes(a) || !ids.includes(b)) return layout;
+  const visit = (node: SplitNode): SplitNode => {
+    if (node.kind === 'leaf') return node.sessionId === a ? leaf(b) : node.sessionId === b ? leaf(a) : node;
+    return { ...node, children: node.children.map(visit) };
+  };
+  return visit(layout);
+}
+
+/** path 그룹 안에서 노드를 고친다. 경로가 틀리면 원본 그대로 */
+function updateGroupAt(layout: SplitNode, path: readonly number[], fn: (g: Extract<SplitNode, { kind: 'group' }>) => SplitNode): SplitNode {
+  const visit = (node: SplitNode, depth: number): SplitNode => {
+    if (node.kind === 'leaf') return node;
+    if (depth === path.length) return fn(node);
+    const i = path[depth]!;
+    if (i < 0 || i >= node.children.length) return node;
+    return { ...node, children: node.children.map((c, j) => (j === i ? visit(c, depth + 1) : c)) };
+  };
+  return visit(layout, 0);
+}
+
+/** path 그룹의 i·j번째 자식(부분트리)을 맞바꾼다. 칸 비율은 위치에 남는다 (경계선이 움직이지 않음) */
+export function swapChildren(layout: SplitNode | undefined, path: readonly number[], i: number, j: number): SplitNode | undefined {
+  if (!layout || i === j) return layout;
+  return updateGroupAt(layout, path, (g) => {
+    const n = g.children.length;
+    if (i < 0 || j < 0 || i >= n || j >= n) return g;
+    const children = [...g.children];
+    [children[i], children[j]] = [children[j]!, children[i]!];
+    return { ...g, children, sizes: fitSizes(g.sizes, n) };
+  });
+}
+
+/** path 그룹의 방향을 좌우↔상하로 뒤집고 불변식(같은 방향 중첩 없음)에 맞게 정리한다 */
+export function flipGroupDir(layout: SplitNode | undefined, path: readonly number[]): SplitNode | undefined {
+  if (!layout) return layout;
+  const next = updateGroupAt(layout, path, (g) => ({ ...g, dir: g.dir === 'row' ? 'col' : 'row' }));
+  return next === layout ? layout : tidy(next);
+}

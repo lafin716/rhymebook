@@ -19,7 +19,8 @@ export interface SyncHostOptions {
   /** 스트리밍 증분(sync.append)을 모아 보내는 간격. 기본 120ms */
   throttleMs?: number;
   /** 원격 삭제 허용 여부 (PC 설정). 기본 거부 */
-  allowDelete?: () => boolean;
+  /** 이 피어의 삭제 허용 여부 (PC 설정, 같은 PC의 세션 창은 항상 허용) */
+  allowDelete?: (peerId: string) => boolean;
   onRemoteAction?: (peerId: string, op: SyncOp) => void;
 }
 
@@ -299,7 +300,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     return peer.streams.size > 0;
   };
 
-  const validateOp = (peer: PeerState, op: SyncOp): SyncActError | null => {
+  const validateOp = (peerId: string, peer: PeerState, op: SyncOp): SyncActError | null => {
     const state = store.getState();
     const has = (id: ID) => !!state.sessions[id];
     switch (op.kind) {
@@ -336,7 +337,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         return has(op.sessionId) ? null : 'not-found';
       case 'delete':
         if (!has(op.sessionId)) return 'not-found';
-        return allowDelete() ? null : 'forbidden';
+        return allowDelete(peerId) ? null : 'forbidden';
       case 'summary.attach':
         if (op.text && op.text.length > SYNC_LIMITS.text) return 'invalid';
         return has(op.sessionId) ? null : 'not-found';
@@ -357,8 +358,8 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     return null;
   };
 
-  const executeOp = (peer: PeerState, op: SyncOp): SyncActError | null => {
-    const err = validateOp(peer, op);
+  const executeOp = (peerId: string, peer: PeerState, op: SyncOp): SyncActError | null => {
+    const err = validateOp(peerId, peer, op);
     if (err) return err;
     const s = store.getState();
     try {
@@ -465,7 +466,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         send(peerId, { type: 'act.result', reqId: msg.reqId, ok: false, error: 'rate-limit' });
         return;
       }
-      const err = executeOp(peer, msg.op);
+      const err = executeOp(peerId, peer, msg.op);
       // 실행으로 생긴 변경(sync.session/message)이 act.result보다 먼저 가도록 증분까지 비운다
       flush();
       if (err) {

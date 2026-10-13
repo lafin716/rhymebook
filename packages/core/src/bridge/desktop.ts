@@ -18,6 +18,22 @@ export interface DesktopApi {
   };
   /** 이 PC를 원격 페어링 호스트로 열기 (ADR-025). 없으면 호스트 기능을 숨긴다 */
   host?: DesktopHostApi;
+  /** 세션을 별도 창으로 열기 (ADR-036). 없으면 메뉴를 숨긴다 */
+  windows?: DesktopWindowsApi;
+}
+
+/**
+ * 세션 창 (ADR-036): 저장소를 갖지 않고 메인 창(동기화 엔진)을 로컬 SyncClient로 미러링한다.
+ * main 프로세스가 `win-<id>` 피어로 엔진 창 SyncHost와 메시지를 중계한다.
+ */
+export interface DesktopWindowsApi {
+  /** sessionId를 새 창으로 연다. 같은 세션 창이 이미 있어도 새로 연다 */
+  openSession(sessionId: string): void;
+  /** 이 창이 세션 창일 때만: 엔진 창과의 동기화 링크 */
+  link?: {
+    send(msg: SyncClientMsg): void;
+    onMessage(cb: (msg: SyncServerMsg) => void): () => void;
+  };
 }
 
 export interface HostDevice {

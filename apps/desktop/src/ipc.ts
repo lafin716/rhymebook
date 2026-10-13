@@ -18,4 +18,7 @@ export const CH = {
   hostSyncOut: 'host:sync-out',
   hostSyncReady: 'host:sync-ready',
   hostSyncGone: 'host:sync-gone',
+  winOpenSession: 'win:open-session',
+  winSyncOut: 'win:sync-out',
+  winSyncIn: 'win:sync-in',
 } as const;

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, type WebContents } from 'electron';
 import path from 'node:path';
 import { createBridgeServer, type BridgeConnection } from '@branch/bridge';
-import { isHostPolicy, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
+import { isHostPolicy, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { createSecretVault } from './secrets';
@@ -87,9 +87,14 @@ function getTrayIconPath(): string {
   return path.join(__dirname, 'trayIcon.png');
 }
 
-function createWindow(): BrowserWindow {
+/** 세션 창 (ADR-036): webContents id → 창. 엔진 창 SyncHost의 `win-<id>` 피어가 된다 */
+const sessionWindows = new Map<number, BrowserWindow>();
+const SESSION_ID_RE = /^[\w-]{1,64}$/;
+const windowPeer = (wcId: number) => `win-${wcId}`;
+
+function createWindow(sessionId?: string): BrowserWindow {
   const win = new BrowserWindow({
-    width: 1280,
+    width: sessionId ? 820 : 1280,
     height: 860,
     minWidth: 360,
     minHeight: 560,
@@ -113,8 +118,9 @@ function createWindow(): BrowserWindow {
       if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     }
   });
-  if (DEV_URL) void win.loadURL(DEV_URL);
-  else void win.loadFile(RENDERER);
+  const query = sessionId ? { window: 'session', session: sessionId } : undefined;
+  if (DEV_URL) void win.loadURL(query ? `${DEV_URL}?${new URLSearchParams(query)}` : DEV_URL);
+  else void win.loadFile(RENDERER, query ? { query } : undefined);
   return win;
 }
 
@@ -142,6 +148,11 @@ function createTray(hostState: HostState): Tray | null {
 
 /** Show existing window or create new one */
 function showOrCreateWindow() {
+  const engine = engineWindow && !engineWindow.isDestroyed() ? BrowserWindow.fromWebContents(engineWindow) : null;
+  if (engine) {
+    showWindow(engine);
+    return;
+  }
   const existing = BrowserWindow.getAllWindows();
   const visible = existing.find((w) => w.isVisible());
   if (visible) {
@@ -256,6 +267,43 @@ void app.whenReady().then(() => {
       // Engine is ready, broadcast sync.reset to all clients
       host.broadcastSync?.({ type: 'sync.reset' });
     }
+    if (syncReady) toSessionWindows({ type: 'sync.reset' });
+  });
+
+  /** 세션 창들에 동기화 메시지를 보낸다 */
+  function toSessionWindows(msg: SyncServerMsg) {
+    for (const w of sessionWindows.values()) if (!w.isDestroyed()) w.webContents.send(CH.winSyncIn, msg);
+  }
+
+  /** 세션 창 열기 (ADR-036). 같은 세션이라도 매번 새 창 */
+  ipcMain.on(CH.winOpenSession, (_e, sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)) return;
+    const w = createWindow(sessionId);
+    const wcId = w.webContents.id;
+    sessionWindows.set(wcId, w);
+    applyThrottling();
+    w.once('closed', () => {
+      sessionWindows.delete(wcId);
+      applyThrottling();
+      if (engineWindow && !engineWindow.isDestroyed()) engineWindow.send(CH.hostSyncGone, windowPeer(wcId));
+    });
+    // 새로고침하면 새 피어처럼 hello부터 다시 받는다
+    w.webContents.on('did-start-navigation', (details) => {
+      if (details.isMainFrame && !details.isSameDocument && engineWindow && !engineWindow.isDestroyed()) {
+        engineWindow.send(CH.hostSyncGone, windowPeer(wcId));
+      }
+    });
+  });
+
+  // 세션 창 → 엔진 창 (피어 id는 main이 붙인다)
+  ipcMain.on(CH.winSyncOut, (e, msg: unknown) => {
+    if (!sessionWindows.has(e.sender.id)) return;
+    if (!msg || typeof msg !== 'object' || !isSyncClientType((msg as { type?: unknown }).type)) return;
+    if (!syncReady || !engineWindow || engineWindow.isDestroyed()) {
+      e.sender.send(CH.winSyncIn, { type: 'sync.error', error: 'not-ready' } satisfies SyncServerMsg);
+      return;
+    }
+    engineWindow.send(CH.hostSyncIn, { peerId: windowPeer(e.sender.id), msg });
   });
 
   ipcMain.on(CH.hostSyncOut, (e, data: unknown) => {
@@ -268,6 +316,13 @@ void app.whenReady().then(() => {
     // Validate message is a SyncServerMsg
     if (!isSyncServerMsg(m.msg)) return;
 
+    // 같은 PC의 세션 창 피어 (ADR-036)
+    if (m.peerId.startsWith('win-')) {
+      const w = sessionWindows.get(Number(m.peerId.slice(4)));
+      if (w && !w.isDestroyed()) w.webContents.send(CH.winSyncIn, m.msg);
+      return;
+    }
+    if (m.peerId === '*') toSessionWindows(m.msg);
     host?.syncSend?.(m.peerId, m.msg as SyncServerMsg);
   });
 
@@ -277,14 +332,18 @@ void app.whenReady().then(() => {
     wc.on('did-start-navigation', (details) => {
       if (details.isMainFrame && !details.isSameDocument) {
         syncReady = false;
+        toSessionWindows({ type: 'sync.error', error: 'not-ready' });
       }
     });
     wc.once('destroyed', () => {
       syncReady = false;
       if (engineWindow === wc) engineWindow = null;
+      // 메인 창을 닫으면 (백그라운드 호스트가 아니면) 세션 창도 함께 닫는다
+      for (const w of sessionWindows.values()) if (!w.isDestroyed()) w.close();
     });
     wc.on('render-process-gone', () => {
       syncReady = false;
+      toSessionWindows({ type: 'sync.error', error: 'not-ready' });
     });
   }
 
@@ -330,7 +389,8 @@ void app.whenReady().then(() => {
   /** 백그라운드 스로틀링을 호스트 상태에 맞춰 적용 */
   const applyThrottling = () => {
     if (engineWindow && !engineWindow.isDestroyed()) {
-      engineWindow.setBackgroundThrottling(!hostEnabled);
+      // 원격 기기나 세션 창이 엔진에 기대는 동안은 메인 창이 가려져도 늦추지 않는다
+      engineWindow.setBackgroundThrottling(!hostEnabled && sessionWindows.size === 0);
     }
   };
 

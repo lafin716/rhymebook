@@ -118,6 +118,28 @@ function dragProps(id: ID) {
   };
 }
 
+/** 세션(학습·가지) 삭제: 확인 후 하위 가지까지 함께 지운다 */
+function useRemoveSession(id: ID) {
+  return useCallback(async () => {
+    const st = appStore.getState();
+    const s = st.sessions[id];
+    if (!s) return;
+    const kids = childrenOf(st.sessions, id).length;
+    const ok = await confirm({
+      title: s.parentId ? '가지를 삭제할까요?' : '학습을 삭제할까요?',
+      message: (
+        <>
+          <b className="font-medium text-fg-2">“{s.title}”</b>
+          {kids > 0 ? '과(와) 모든 하위 가지가' : '이(가)'} 모두 삭제되며 되돌릴 수 없어요.
+        </>
+      ),
+      confirmLabel: '삭제',
+      tone: 'danger',
+    });
+    if (ok) actions().deleteSession(id);
+  }, [id]);
+}
+
 function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   const s = useApp((st) => st.sessions[id]);
   const activeRoot = useApp((st) => {
@@ -130,24 +152,11 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   const [menu, setMenu] = useState<MenuPoint | null>(null);
   const [renaming, setRenaming] = useState(false);
   const closeMenu = useCallback(() => setMenu(null), []);
+  const remove = useRemoveSession(id);
   useEffect(() => {
     if (isActiveRoot) setOpen(true);
   }, [isActiveRoot]);
   if (!s) return null;
-  const remove = async () => {
-    const ok = await confirm({
-      title: '학습을 삭제할까요?',
-      message: (
-        <>
-          <b className="font-medium text-fg-2">“{s.title}”</b>
-          {childCount > 0 ? '과(와) 모든 가지가' : '이(가)'} 모두 삭제되며 되돌릴 수 없어요.
-        </>
-      ),
-      confirmLabel: '삭제',
-      tone: 'danger',
-    });
-    if (ok) actions().deleteSession(id);
-  };
   return (
     <div className="mb-0.5">
       <div
@@ -226,6 +235,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
   const [menu, setMenu] = useState<MenuPoint | null>(null);
   const [renaming, setRenaming] = useState(false);
   const closeMenu = useCallback(() => setMenu(null), []);
+  const remove = useRemoveSession(id);
   if (!s) return null;
   return (
     <li>
@@ -264,7 +274,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
           {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
         </button>
       )}
-      {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} />}
+      {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
       {hasKids && <BranchTree parentId={id} depth={depth + 1} onPick={onPick} />}
     </li>
   );

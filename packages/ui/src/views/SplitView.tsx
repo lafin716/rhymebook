@@ -8,6 +8,7 @@ import { ChatPanel } from '../chat/ChatPanel';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
 import { DropZone } from './DropZone';
+import { PaneMoveButton, SeparatorMenuButton } from './SplitControls';
 
 /** 분할 보기: 데스크톱/태블릿은 좌우·상하 크기 조절 패널(최대 4), 모바일은 탭 전환 */
 export function SplitView() {
@@ -35,7 +36,8 @@ function SplitTree({ node, path }: { node: SplitNode; path: number[] }) {
   const defaultLayout = node.sizes && node.sizes.length === keys.length ? Object.fromEntries(keys.map((k, i) => [k, node.sizes![i]!])) : undefined;
   return (
     <Group
-      key={keys.join('|')}
+      // 방향도 키에 넣어 방향 전환·자리 바꾸기 뒤 새 비율(defaultLayout)로 다시 배치한다
+      key={`${node.dir}:${keys.join('|')}`}
       orientation={row ? 'horizontal' : 'vertical'}
       className="h-full"
       defaultLayout={defaultLayout}
@@ -51,6 +53,7 @@ function SplitTree({ node, path }: { node: SplitNode; path: number[] }) {
               )}
             >
               <span className={cn('absolute', row ? 'inset-y-0 -right-1.5 -left-1.5' : 'inset-x-0 -top-1.5 -bottom-1.5')} />
+              <SeparatorMenuButton path={path} index={i} row={row} />
             </Separator>
           )}
           <Panel id={keys[i]} minSize="18%" className="min-h-0 min-w-0">
@@ -75,9 +78,12 @@ function Pane({ sessionId }: { sessionId: ID }) {
         sessionId={sessionId}
         variant="pane"
         headerActions={
-          <IconButton size="sm" label="패널 닫기" onClick={() => actions().closeSplit(index)}>
-            <X size={16} />
-          </IconButton>
+          <>
+            <PaneMoveButton sessionId={sessionId} />
+            <IconButton size="sm" label="패널 닫기" onClick={() => actions().closeSplit(index)}>
+              <X size={16} />
+            </IconButton>
+          </>
         }
       />
       <DropZone targetId={sessionId} />

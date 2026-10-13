@@ -1,7 +1,8 @@
 import { MAX_SPLIT, type ID } from '@branch/core';
-import { Columns2, Pencil, Rows2, Trash2 } from 'lucide-react';
+import { AppWindow, Columns2, Pencil, Rows2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { desktop } from '../app/runtime';
 import { actions } from '../app/store';
 import { pushNotice } from '../app/sync';
 import { useUi } from '../app/uiState';
@@ -13,7 +14,7 @@ export interface MenuPoint {
   y: number;
 }
 
-/** 세션 행 우클릭 메뉴 (분할로 열기·이름 변경·삭제) */
+/** 세션 행 우클릭 메뉴 (분할로 열기·새 창으로 열기·이름 변경·삭제) */
 export function SessionMenu({
   at,
   sessionId,
@@ -36,6 +37,8 @@ export function SessionMenu({
     if (!actions().dropToSplit(split, target, edge)) pushNotice(`분할은 최대 ${MAX_SPLIT}개까지예요.`);
     useUi.getState().setDrawer(false);
   };
+  /** 데스크톱 앱: 별도 창으로 열기 (같은 세션 창이 있어도 새로 연다, ADR-036) */
+  const win = sessionId && desktop?.windows ? sessionId : null;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
@@ -61,7 +64,7 @@ export function SessionMenu({
   }, [onClose]);
 
   const w = 188;
-  const h = (onDelete ? 84 : 44) + (split ? 80 : 0);
+  const h = (onDelete ? 84 : 44) + (split ? 72 : 0) + (win ? 36 : 0) + (split || win ? 9 : 0);
   const item = 'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] outline-none';
   return createPortal(
     <div
@@ -96,9 +99,23 @@ export function SessionMenu({
           >
             <Rows2 size={14} className="text-muted" /> 아래에 분할로 열기
           </button>
-          <div className="my-1 h-px bg-line" />
         </>
       )}
+      {win && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            onClose();
+            desktop?.windows?.openSession(win);
+            useUi.getState().setDrawer(false);
+          }}
+          className={cn(item, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
+        >
+          <AppWindow size={14} className="text-muted" /> 새 창으로 열기
+        </button>
+      )}
+      {(split || win) && <div className="my-1 h-px bg-line" />}
       <button
         type="button"
         role="menuitem"

@@ -31,7 +31,19 @@ import type {
   ViewMode,
   ViewState,
 } from '../model';
-import { insertLeaf, leaf, leafIds, normalizeLayout, removeLeaf, replaceLeaf, rowLayout, setGroupSizes } from '../splitLayout';
+import {
+  flipGroupDir,
+  insertLeaf,
+  leaf,
+  leafIds,
+  normalizeLayout,
+  removeLeaf,
+  replaceLeaf,
+  rowLayout,
+  setGroupSizes,
+  swapChildren,
+  swapLeaves,
+} from '../splitLayout';
 import { MAX_SPLIT } from '../model';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId, isValidEffort, sessionModelOptions } from '../cli-options';
@@ -136,6 +148,12 @@ export interface AppState extends AppData {
   setSplitSizes(sizes: number[]): void;
   /** path(자식 인덱스 경로)의 분할 그룹 비율 */
   setSplitGroupSizes(path: number[], sizes: number[]): void;
+  /** 두 분할 패널의 자리를 바꾼다 (칸 비율은 위치에 남음, 포커스는 같은 세션 유지) */
+  swapSplit(a: ID, b: ID): void;
+  /** path 그룹의 i·j번째 부분트리를 맞바꾼다 (경계선 ⋯ 메뉴 '자리 바꾸기') */
+  swapSplitChildren(path: number[], i: number, j: number): void;
+  /** path 그룹의 방향을 좌우↔상하로 바꾼다 */
+  flipSplitGroup(path: number[]): void;
   movePopup(popupId: ID, rect: Partial<Pick<PopupWindow, 'x' | 'y' | 'w' | 'h'>>): void;
   focusPopup(popupId: ID): void;
   closePopup(popupId: ID): void;
@@ -819,6 +837,29 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
 
       setSplitGroupSizes(path, sizes) {
         setView((v) => ({ ...v, splitLayout: setGroupSizes(splitLayoutOf(v), path, sizes) }));
+      },
+
+      swapSplit(a, b) {
+        setView((v) => {
+          const layout = splitLayoutOf(v);
+          const next = swapLeaves(layout, a, b);
+          return next === layout ? v : withLayout(v, next, v.splitSessionIds[v.focusedSplitIndex] ?? null, {});
+        });
+      },
+
+      swapSplitChildren(path, i, j) {
+        // path는 화면(SplitView)과 같은 정리된 배치 기준
+        setView((v) => {
+          const layout = normalizeLayout(splitLayoutOf(v), v.splitSessionIds);
+          return withLayout(v, swapChildren(layout, path, i, j), v.splitSessionIds[v.focusedSplitIndex] ?? null, {});
+        });
+      },
+
+      flipSplitGroup(path) {
+        setView((v) => {
+          const layout = normalizeLayout(splitLayoutOf(v), v.splitSessionIds);
+          return withLayout(v, flipGroupDir(layout, path), v.splitSessionIds[v.focusedSplitIndex] ?? null, {});
+        });
       },
 
       movePopup(popupId, rect) {

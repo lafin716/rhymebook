@@ -2,10 +2,12 @@ import {
   createSyncClient,
   createSyncHost,
   syncLinkOf,
+  type DesktopWindowsApi,
   type RemotePairing,
   type SyncClient,
   type SyncClientState,
   type SyncHost,
+  type SyncLink,
   type SyncOp,
 } from '@branch/core';
 import { useEffect, useState } from 'react';
@@ -13,7 +15,7 @@ import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { isUsable } from '../lib/connection';
 import { remoteMode } from './capabilities';
-import { desktop, isDemo, loadRemotePairing, remoteLink, saveRemotePairing } from './runtime';
+import { desktop, isDemo, loadRemotePairing, remoteLink, saveRemotePairing, sessionWindowId } from './runtime';
 import { appStore, loadPersisted } from './store';
 
 /**
@@ -25,12 +27,31 @@ import { appStore, loadPersisted } from './store';
 
 /* ── 클라이언트 (웹·모바일) ─────────────────────────────── */
 
+/** 세션 창 → 같은 PC 메인 창(엔진) 링크 (ADR-036). 끊김은 main이 sync.error로 알린다 */
+function windowLink(link: NonNullable<DesktopWindowsApi['link']>): SyncLink {
+  return {
+    send: (msg) => {
+      link.send(msg);
+      return true;
+    },
+    subscribe: (cb) => link.onMessage(cb),
+    onDisconnect: () => () => {},
+    ensure: () => Promise.resolve(),
+  };
+}
+
+const localLink = sessionWindowId ? desktop?.windows?.link : undefined;
+
 export const syncClient: SyncClient | null = remoteMode
-  ? createSyncClient({
-      store: appStore,
-      link: syncLinkOf(remoteLink),
-      isPaired: async () => !!(await loadRemotePairing()),
-    })
+  ? createSyncClient(
+      localLink
+        ? { store: appStore, link: windowLink(localLink), isPaired: async () => true, backoff: { base: 300, max: 3000 } }
+        : {
+            store: appStore,
+            link: syncLinkOf(remoteLink),
+            isPaired: async () => !!(await loadRemotePairing()),
+          },
+    )
   : null;
 
 const idleState = createStore<SyncClientState>(() => ({ status: 'unsupported', loaded: {} }));
@@ -134,7 +155,11 @@ export function pushNotice(text: string) {
 
 const HOST_CLI_ORDER = ['claude-cli', 'codex-cli'] as const;
 
-const sync = desktop?.host?.sync;
+/** 세션 창은 엔진이 아니다 (메인 창만 호스트를 연다) */
+const sync = sessionWindowId ? undefined : desktop?.host?.sync;
+
+/** 같은 PC의 세션 창 피어 (main 프로세스가 붙이는 접두사) */
+const isWindowPeer = (peerId: string) => peerId.startsWith('win-');
 let hostName = 'PC';
 let deviceNames = new Map<string, string>();
 
@@ -150,8 +175,9 @@ export const syncHost: SyncHost | null = sync
         // 자동: 준비된 CLI (Claude 우선). 둘 다 없으면 PC 기본 provider
         return HOST_CLI_ORDER.find((p) => isUsable(st.connections[p]));
       },
-      allowDelete: remoteDeleteAllowed,
+      allowDelete: (peerId) => isWindowPeer(peerId) || remoteDeleteAllowed(),
       onRemoteAction: (peerId, op) => {
+        if (isWindowPeer(peerId)) return;
         // 스트리밍 중 잦은 조작(중지 등)은 묶지 않고 그대로 알린다
         const who = deviceNames.get(peerId) ?? '원격 기기';
         pushNotice(`${who}: ${OP_LABEL[op.kind]}`);
@@ -178,6 +204,8 @@ export async function startData(): Promise<void> {
   if (isDemo()) return;
   if (syncClient) {
     clearMirror();
+    // 세션 창: 스냅샷을 받으면 이 세션의 메시지를 바로 요청하도록 미리 활성화해 둔다
+    if (sessionWindowId) appStore.getState().applyRemote({ view: { ...appStore.getState().view, activeSessionId: sessionWindowId } });
     // 페어링 확인 전 '페어링 필요' 화면이 깜빡이지 않게 먼저 연결 중으로 둔다
     if (await loadRemotePairing()) syncClient.state.setState({ status: 'connecting' });
     syncClient.start();

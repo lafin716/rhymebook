@@ -74,6 +74,18 @@ const api: DesktopApiExt = {
       },
     } as DesktopSyncApi,
   },
+  // 세션 창 (ADR-036). link는 main이 세션 창으로 연 창에서만 동작한다
+  windows: {
+    openSession: (sessionId) => ipcRenderer.send(CH.winOpenSession, sessionId),
+    link: {
+      send: (msg) => ipcRenderer.send(CH.winSyncOut, msg),
+      onMessage(cb) {
+        const h = (_e: IpcRendererEvent, msg: SyncServerMsg) => cb(msg);
+        ipcRenderer.on(CH.winSyncIn, h);
+        return () => ipcRenderer.removeListener(CH.winSyncIn, h);
+      },
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('branchDesktop', api);

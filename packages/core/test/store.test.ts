@@ -126,6 +126,37 @@ describe('app store', () => {
     expect(first.sizes).toEqual([40, 60]);
   });
 
+  it('swaps split panels, separator sides and flips group direction keeping focus', () => {
+    const store = makeStore();
+    const { dropToSplit } = store.getState();
+    dropToSplit(SEED_IDS.qkv, null, 'right');
+    dropToSplit(SEED_IDS.dot, SEED_IDS.qkv, 'bottom');
+    // root | (qkv / dot), 포커스 dot
+    let v = store.getState().view;
+    expect(v.splitSessionIds[v.focusedSplitIndex]).toBe(SEED_IDS.dot);
+    store.getState().swapSplit(SEED_IDS.root, SEED_IDS.dot);
+    v = store.getState().view;
+    expect(v.splitSessionIds).toEqual([SEED_IDS.dot, SEED_IDS.qkv, SEED_IDS.root]);
+    expect(v.splitSessionIds[v.focusedSplitIndex]).toBe(SEED_IDS.dot);
+    // 경계선 양쪽 바꾸기: dot | (qkv / root) → (qkv / root) | dot
+    store.getState().swapSplitChildren([], 0, 1);
+    v = store.getState().view;
+    expect(v.splitSessionIds).toEqual([SEED_IDS.qkv, SEED_IDS.root, SEED_IDS.dot]);
+    expect(v.splitLayout).toMatchObject({ dir: 'row', children: [{ dir: 'col' }, { sessionId: SEED_IDS.dot }] });
+    expect(v.splitSessionIds[v.focusedSplitIndex]).toBe(SEED_IDS.dot);
+    // 방향 전환: 안쪽 상하 → 좌우 (바깥 좌우 그룹과 합쳐짐)
+    store.getState().flipSplitGroup([0]);
+    v = store.getState().view;
+    expect(v.splitLayout).toMatchObject({
+      dir: 'row',
+      children: [{ sessionId: SEED_IDS.qkv }, { sessionId: SEED_IDS.root }, { sessionId: SEED_IDS.dot }],
+    });
+    store.getState().flipSplitGroup([]);
+    v = store.getState().view;
+    expect(v.splitLayout).toMatchObject({ dir: 'col' });
+    expect(v.splitSessionIds[v.focusedSplitIndex]).toBe(SEED_IDS.dot);
+  });
+
   it('closing the mindmap returns to split when panels remain', () => {
     const store = makeStore();
     store.getState().dropToSplit(SEED_IDS.qkv, null, 'right');

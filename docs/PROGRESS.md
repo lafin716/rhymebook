@@ -54,6 +54,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-08 드래그 메뉴 비가림 배치·우클릭 모드·색상표(사용자 지정·즐겨찾기)·가지 테마색+아이콘·이 페이지의 가지 목록·원문 접기·세션 우클릭 이름 변경·원격 에이전트/모델/노력치 선택·데모 UI 제거 (ADR-031·032)
 - [x] IMP-06 웹·모바일 원격 전용: PC 데스크톱 앱 스토어 동기화(보기·실시간 스트리밍) + 액션 신호로 PC가 CLI 실행 + 원격 전용 UI 개편 (ADR-026, docs/plans/remote-only-plan.md)
 - [x] IMP-09 상단 단일/분할 제거(마인드맵 토글만)·사이드바 끌어 좌우·상하 분할(최대 4)·입력창 + 메뉴(사진·파일 첨부, 클립보드 이미지, 긴 붙여넣기 미리보기)·스킬(슬래시·+ 메뉴, 관리 페이지, 예시 커리큘럼 생성) (ADR-033~035)
+- [x] IMP-10 사이드바 우클릭 가지 삭제·새 창으로 열기(데스크톱 세션 창, 중복 허용)·수식($$·$·\[\]·\(\) KaTeX)·분할창 [자리 이동] 메뉴·경계선 ⋯ [자리 바꾸기·방향 전환] (ADR-036, docs/plans/imp-10-plan.md)
 - [x] IMP-11 AI로 스킬 만들기·고치기: 스킬 편집 칸 위 AI 도우미(요청·빠른 요청 칩·실시간 채움·중지·AI 변경 취소), + 메뉴 [AI로 스킬 만들기…] (ADR-037)
 
 ## Tasks
@@ -101,6 +102,11 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP09-T2 | IMP-09 | bridge: claude `--input-format stream-json` 첨부 블록, codex `--image` 임시 파일, 원격 chat.start 첨부 검증, WebSocket 프레임 16MB(bridge·relay) | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: bridge 단위 2건 추가, 실제 CLI(claude 2.1.296·codex 0.154.0)에 빨간 PNG → 둘 다 "빨강". bridge 19·relay 2 실패는 변경 전과 동일 |
 | IMP09-T3 | IMP-09 | UI: 상단 마인드맵 토글, 재귀 SplitView(좌우·상하 Group)·DropZone·사이드바 행 끌기·우클릭 분할 열기, Composer + 메뉴·첨부 미리보기·붙여넣기·슬래시 스킬, 보낸 질문 첨부·스킬 배지, 스킬 관리 페이지·Dexie v4 skills | lead | HIGH | inherit | default | DONE | 100% | T1 | PASS: typecheck·lint, ui 20 tests, 1440·390 스크린샷 |
 | IMP09-T4 | IMP-09 | E2E·데스크톱 빌드·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: e2e 31 passed·5 skipped(+끌어 분할·첨부·스킬 3×2, 보기 테스트 갱신). Windows `package:dir` → 격리 userData 앱에서 Claude CLI 이미지 질문 "빨간색"(31s)·스킬 칩, 콘솔 에러 0 |
+| IMP10-T1 | IMP-10 | 가지 우클릭 삭제(하위 포함 확인) | lead | LOW | inherit | default | DONE | 100% | - | PASS: 패키지 앱에서 가지 우클릭 → 삭제 → 확인 → 행 제거 |
+| IMP10-T2 | IMP-10 | 세션 별도 창: preload `windows`·main 세션 창/`win-*` 피어 중계·스로틀링, ui 세션 창 셸·로컬 SyncClient, host `allowDelete(peerId)` | lead | HIGH | inherit | default | DONE | 100% | - | PASS: 패키지 앱(격리 userData)에서 같은 가지 새 창 2개(창 3개), 세션 창 렌더·메인에서 이름 변경 → 세션 창 제목 실시간 반영 |
+| IMP10-T3 | IMP-10 | 수식 KaTeX + 앵커 맵·선택 offset 처리 | agent-math | MEDIUM | inherit | default | DONE | 100% | - | PASS: ui 36 tests(+17 math), 패키지 앱에서 인라인·블록 수식 + 수식 옆 가지 앵커 표시 |
+| IMP10-T4 | IMP-10 | core 분할 이동·스왑·방향 전환 + SplitControls | agent-split | MEDIUM | inherit | default | DONE | 100% | - | PASS: core splitLayout·store 테스트(+6), 패키지 앱에서 자리 이동(오른쪽과) → 순서 [b1, root1], ⋯ → 방향 전환 → 상하 분할 |
+| IMP10-T5 | IMP-10 | 통합·E2E·빌드·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T1–T4 | PASS: 아래 Latest Integration Result |
 
 ## Active Work
 - 없음 (IMP-11 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
@@ -113,6 +119,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-13 · 개선(IMP-10, Windows): `pnpm typecheck`·`pnpm lint` PASS, core 251/253(실패 2 기존 동일)·ui 36/36, bridge 19·relay 2 실패 기존 동일. e2e `--workers=2` 33 passed · 5 skipped(기본 병렬 실행은 느린 머신에서 타임아웃 12건 — 단독·2 worker 재실행 시 통과). Windows `package:dir` → 격리 userData Playwright `_electron` 조작으로 5개 기능 확인. 알려진 점: 가지 헤더 부모 원문 인용은 수식 원문(`\(d_k\)`)을 그대로 보여 준다.
 - 2026-10-13 · 개선(IMP-11, Windows): `pnpm typecheck`·`pnpm lint` PASS, core 245/247(+10 skill-assist, 실패 2는 기존과 동일)·ui 20/20, e2e `skill-assist`·`composer-split` desktop·mobile PASS. Windows `package:dir` 빌드·실행.
 - 2026-10-13 · 개선(IMP-09, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 235/237·ui 20/20 PASS(실패 2·bridge 19·relay 2는 변경 전과 동일), `pnpm e2e` 31 passed · 5 skipped. Windows `package:dir` 빌드·실행, 실제 Claude CLI 이미지 첨부 응답 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-08, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 214/215·ui 20/20 PASS, bridge 19·relay 2·core 1 실패는 변경 전 코드와 동일(기존). `pnpm e2e` 26 passed · 4 skipped. Windows `package:dir` 빌드·실행 확인. 커밋 `improve: …`.

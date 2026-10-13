@@ -44,12 +44,32 @@ export function placeMenu(
   return { top, left: centerX, placement: 'edge' };
 }
 
+/**
+ * 렌더 텍스트를 이루는 텍스트 노드 (문서 순서).
+ * KaTeX의 숨김 MathML(`.katex-mathml`)은 anchorPlugin의 renderText에서 빠지므로 여기서도 뺀다.
+ */
+function renderTextNodes(container: HTMLElement): Text[] {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.parentElement?.closest('.katex-mathml') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+  const out: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) out.push(n as Text);
+  return out;
+}
+
 /** 컨테이너 시작부터 (node, offset)까지의 렌더 텍스트 길이 */
 function offsetIn(container: HTMLElement, node: Node, offset: number): number {
   const r = document.createRange();
   r.selectNodeContents(container);
   r.setEnd(node, offset);
-  return r.toString().length;
+  let n = 0;
+  for (const t of renderTextNodes(container)) {
+    if (t === node) return n + Math.min(offset, t.length);
+    // 텍스트 노드 끝이 경계 안이면 통째로 포함, 아니면 경계를 지났다
+    if (r.comparePoint(t, t.length) !== 0) break;
+    n += t.length;
+  }
+  return n;
 }
 
 /**
@@ -72,7 +92,7 @@ export function readSelection(): PendingBranch | null {
   const rs = offsetIn(startEl, range.startContainer, range.startOffset);
   const re = startEl.contains(range.endContainer)
     ? offsetIn(startEl, range.endContainer, range.endOffset)
-    : (startEl.textContent ?? '').length;
+    : renderTextNodes(startEl).reduce((n, t) => n + t.length, 0);
   const anchor = selectionToAnchor(messageId, map, rs, re);
   if (!anchor) return null;
 
@@ -90,12 +110,11 @@ export function readSelection(): PendingBranch | null {
 export function selectText(messageId: ID, literal: string): boolean {
   const root = document.querySelector<HTMLElement>(`[data-anchorable][data-message-id="${messageId}"]`);
   if (!root) return false;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let acc = '';
   const nodes: { node: Text; start: number }[] = [];
-  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-    nodes.push({ node: n as Text, start: acc.length });
-    acc += (n as Text).data;
+  for (const n of renderTextNodes(root)) {
+    nodes.push({ node: n, start: acc.length });
+    acc += n.data;
   }
   const at = acc.indexOf(literal);
   if (at < 0) return false;

@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { SplitNode } from '../src/model';
-import { insertLeaf, isSplitNode, leafIds, normalizeLayout, removeLeaf, replaceLeaf, rowLayout, setGroupSizes } from '../src/splitLayout';
+import {
+  flipGroupDir,
+  insertLeaf,
+  isSplitNode,
+  leafIds,
+  leafRects,
+  neighborOf,
+  normalizeLayout,
+  removeLeaf,
+  replaceLeaf,
+  rowLayout,
+  setGroupSizes,
+  swapChildren,
+  swapLeaves,
+} from '../src/splitLayout';
 import { sanitizeView } from '../src/persist';
 import { emptyView } from '../src/seed';
 
@@ -77,5 +91,68 @@ describe('split layout tree', () => {
     const dead = sanitizeView({ ...emptyView('a'), mode: 'split', splitSessionIds: ['a', 'x'], splitLayout: row('a', 'x') }, sessions);
     expect(dead.mode).toBe('single');
     expect(dead.splitLayout).toBeUndefined();
+  });
+
+  describe('move & swap (IMP-10)', () => {
+    // a | (b / c)
+    const tri = (): SplitNode => insertLeaf(row('a', 'b'), 'b', 'c', 'bottom');
+    // (a | b) / (c | d)
+    const quad = (): SplitNode => ({ kind: 'group', dir: 'col', sizes: [50, 50], children: [row('a', 'b'), row('c', 'd')] });
+
+    it('computes leaf rects from sizes', () => {
+      const r = leafRects(tri());
+      expect(r.a).toEqual({ x: 0, y: 0, w: 50, h: 100 });
+      expect(r.c).toEqual({ x: 50, y: 50, w: 50, h: 50 });
+    });
+
+    it('finds spatial neighbors and returns null at the edges', () => {
+      const l = tri();
+      expect(neighborOf(l, 'a', 'right')).toBe('b');
+      expect(neighborOf(l, 'c', 'left')).toBe('a');
+      expect(neighborOf(l, 'b', 'down')).toBe('c');
+      expect(neighborOf(l, 'c', 'up')).toBe('b');
+      expect(neighborOf(l, 'a', 'left')).toBeNull();
+      expect(neighborOf(l, 'a', 'up')).toBeNull();
+      expect(neighborOf(l, 'b', 'up')).toBeNull();
+      expect(neighborOf(l, 'x', 'up')).toBeNull();
+      const q = quad();
+      expect(neighborOf(q, 'a', 'down')).toBe('c');
+      expect(neighborOf(q, 'b', 'down')).toBe('d');
+      expect(neighborOf(q, 'd', 'left')).toBe('c');
+      expect(neighborOf(q, 'd', 'up')).toBe('b');
+    });
+
+    it('swaps two leaves, keeping sizes on positions and not mutating input', () => {
+      const l = rowLayout(['a', 'b', 'c'], [20, 30, 50])!;
+      const copy = structuredClone(l);
+      const s = swapLeaves(l, 'a', 'c');
+      expect(leafIds(s)).toEqual(['c', 'b', 'a']);
+      expect(s).toMatchObject({ sizes: [20, 30, 50] });
+      expect(l).toEqual(copy);
+      expect(swapLeaves(l, 'a', 'x')).toBe(l);
+      expect(leafIds(swapLeaves(tri(), 'a', 'c'))).toEqual(['c', 'b', 'a']);
+    });
+
+    it('swaps subtrees on both sides of a separator', () => {
+      const l = setGroupSizes(tri(), [], [30, 70])!;
+      const copy = structuredClone(l);
+      const s = swapChildren(l, [], 0, 1)!;
+      expect(leafIds(s)).toEqual(['b', 'c', 'a']);
+      expect(s).toMatchObject({ dir: 'row', sizes: [30, 70], children: [{ kind: 'group', dir: 'col' }, { sessionId: 'a' }] });
+      expect(l).toEqual(copy);
+      expect(leafIds(swapChildren(l, [1], 0, 1))).toEqual(['a', 'c', 'b']);
+      expect(leafIds(swapChildren(l, [], 0, 5))).toEqual(['a', 'b', 'c']);
+    });
+
+    it('flips a group direction and re-tidies nested same-direction groups', () => {
+      expect(flipGroupDir(row('a', 'b'), [])).toMatchObject({ dir: 'col', children: [{ sessionId: 'a' }, { sessionId: 'b' }] });
+      // 안쪽 상하 그룹을 좌우로 바꾸면 바깥 좌우 그룹과 합쳐진다
+      const flat = flipGroupDir(tri(), [1])!;
+      expect(flat).toMatchObject({ kind: 'group', dir: 'row', sizes: [50, 25, 25] });
+      expect(leafIds(flat)).toEqual(['a', 'b', 'c']);
+      const q = flipGroupDir(quad(), [])!;
+      expect(q).toMatchObject({ dir: 'row', sizes: [25, 25, 25, 25] });
+      expect(isSplitNode(q)).toBe(true);
+    });
   });
 });

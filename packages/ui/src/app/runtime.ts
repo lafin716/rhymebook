@@ -34,6 +34,16 @@ declare global {
 export const desktop: DesktopApi | undefined = typeof window !== 'undefined' ? window.branchDesktop : undefined;
 export const mobile: MobileApi | undefined = typeof window !== 'undefined' ? window.branchMobile : undefined;
 
+/**
+ * 세션 창이면 처음 연 세션 id (ADR-036). main 프로세스가 `?window=session&session=<id>`로 연다.
+ * 동기화 링크가 있는 데스크톱 창에서만 유효하다.
+ */
+export const sessionWindowId: string | null = (() => {
+  if (!desktop?.windows?.link || typeof window === 'undefined') return null;
+  const q = new URLSearchParams(window.location.search);
+  return q.get('window') === 'session' ? q.get('session') : null;
+})();
+
 function platformSecretStore(api: DesktopApi['secrets']): SecretStore {
   return {
     kind: api.persistent ? 'os' : 'memory',

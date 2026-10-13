@@ -533,3 +533,18 @@ span.annot[data-note-end='true']::after {
 .md.is-streaming > :is(ul, ol):last-child::after {
   display: none;
 }
+
+/* 수식 (KaTeX) — 긴 블록 수식은 가로 스크롤, 앵커/서식은 수식 전체를 감싼다 */
+.md div[data-math='display'] {
+  margin: 0.5em 0;
+}
+.md .katex-display {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25em 0;
+}
+.md div[data-math='display'] > mark.anchor,
+.md div[data-math='display'] > span.annot {
+  display: block;
+}

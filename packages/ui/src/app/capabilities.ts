@@ -1,5 +1,5 @@
 import { orderForPlatform, platformCaps, type PlatformKind, type Settings } from '@branch/core';
-import { desktop, mobile } from './runtime';
+import { desktop, mobile, sessionWindowId } from './runtime';
 
 /**
  * 이 기기의 연결 능력 (ADR-025).
@@ -30,5 +30,6 @@ export function sanitizeSettings(s: Settings): Partial<Settings> | null {
 /**
  * 원격 전용 모드 (ADR-026): CLI를 실행할 수 없는 웹·모바일은 데이터를 갖지 않고 PC를 미러링한다.
  * 개발 서버의 `?platform=desktop`은 기존(로컬 저장) 화면을 그대로 쓴다.
+ * 데스크톱 세션 창(ADR-036)도 같은 PC의 메인 창을 미러링하는 원격 전용 모드다.
  */
-export const remoteMode = !caps.localCli;
+export const remoteMode = !caps.localCli || !!sessionWindowId;
