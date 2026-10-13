@@ -60,6 +60,54 @@ test('AI로 스킬을 만들고 고친 뒤 되돌리고 저장해 쓴다', async
 
   await main.getByLabel('메시지 입력').fill('/vocab apple');
   await main.getByRole('button', { name: '보내기' }).click();
-  await expect(main.getByText('스킬 /vocab 적용.')).toBeVisible();
+  await expect(main.getByText('스킬 /vocab 적용.', { exact: false })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('AI가 부수 파일을 만들고, 고급 옵션의 전용 모델로 그 질문만 답한다 (IMP-12)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const main = await start(page);
+
+  await main.getByRole('button', { name: '첨부·스킬' }).click();
+  await page.getByRole('menuitem', { name: 'AI로 스킬 만들기…' }).click();
+  const skills = page.getByRole('dialog', { name: '스킬 관리' });
+  const request = skills.getByLabel('AI에게 요청');
+  await request.fill('채점 기준 참고 파일도 만들어 줘');
+  await request.press('Enter');
+  await expect(skills.locator('[data-skill-assist]').getByRole('status')).toContainText('새 스킬을 만들었어요.');
+  const file = skills.locator('[data-skill-file="references/rubric.md"]');
+  await expect(file).toBeVisible();
+  await file.click();
+  await expect(skills.getByLabel('references/rubric.md 내용')).toHaveValue(/# 채점 기준/);
+
+  // 직접 파일 추가
+  await skills.getByRole('button', { name: '새 파일' }).click();
+  await skills.getByLabel('새 파일 경로').fill('scripts/demo.py');
+  await skills.getByRole('button', { name: '추가', exact: true }).click();
+  await skills.getByLabel('scripts/demo.py 내용').fill('print("hi")');
+
+  // 고급 옵션: 이 스킬만 다른 모델
+  const options = skills.locator('[data-skill-options]');
+  await options.getByRole('button', { name: /고급 옵션/ }).click();
+  await options.getByLabel('스킬 프로바이더').selectOption('anthropic-api');
+  await options.getByLabel('스킬 모델').fill('claude-e2e-skill');
+  await skills.getByRole('button', { name: '저장' }).click();
+  await expect(skills.locator('[data-skill-row="vocab"]')).toBeVisible();
+
+  // 다시 열어도 유지
+  await skills.locator('[data-skill-row="vocab"]').click();
+  await expect(skills.locator('[data-skill-file="scripts/demo.py"]')).toBeVisible();
+  await expect(options).toContainText('claude-e2e-skill');
+  await page.keyboard.press('Escape');
+
+  await main.getByLabel('메시지 입력').fill('/vocab apple');
+  await main.getByRole('button', { name: '보내기' }).click();
+  await expect(main.getByText(/스킬 \/vocab 적용\. 스킬 파일 2개\. 모델 claude-e2e-skill\./)).toBeVisible();
+  // 다음 일반 질문은 세션(연결 기본) 모델
+  await main.getByLabel('메시지 입력').fill('그냥 질문');
+  await main.getByRole('button', { name: '보내기' }).click();
+  await expect(main.getByText('마지막 문장 [그냥 질문].')).toBeVisible();
+  await expect(main.getByText(/모델 claude-e2e-skill/)).toHaveCount(1);
   expect(errors).toEqual([]);
 });

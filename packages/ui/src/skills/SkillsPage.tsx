@@ -1,13 +1,26 @@
-import { normalizeSkillName, SKILL_LIMITS, validateSkill, type ID, type Skill, type SkillProblem } from '@branch/core';
-import { ArrowLeft, Plus, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  makeSkillOptions,
+  normalizeSkillName,
+  SKILL_FILE_LIMITS,
+  SKILL_LIMITS,
+  validateSkill,
+  validateSkillFiles,
+  type ID,
+  type Skill,
+  type SkillFile,
+  type SkillFilesProblem,
+  type SkillProblem,
+} from '@branch/core';
+import { ArrowLeft, FolderOpen, Plus, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { actions, useApp } from '../app/store';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
 import { SkillAssist } from './SkillAssist';
-import { useSkills } from './skillsStore';
+import { SkillFilesField, SkillOptionsField, type OptionsDraft } from './SkillExtras';
+import { openSkillFolder, skillFoldersAvailable, skillFoldersRoot, syncSkillFolders, useSkills } from './skillsStore';
 
 const PROBLEM_TEXT: Record<SkillProblem, string> = {
   name: '명령 이름은 영문 소문자·숫자·한글·-·_ 로 32자까지 쓸 수 있어요 (공백 없이).',
@@ -17,19 +30,47 @@ const PROBLEM_TEXT: Record<SkillProblem, string> = {
   'too-long': `제목 ${SKILL_LIMITS.title}자, 설명 ${SKILL_LIMITS.description}자, 지시 ${SKILL_LIMITS.prompt}자까지 쓸 수 있어요.`,
 };
 
-interface Draft {
+const FILES_TEXT: Record<SkillFilesProblem, string> = {
+  path: '파일 경로는 영문·숫자·한글·._- 로 된 상대 경로만 쓸 수 있어요 (예: references/guide.md, SKILL.md 제외).',
+  duplicate: '같은 경로의 파일이 두 개 있어요.',
+  count: `파일은 ${SKILL_FILE_LIMITS.count}개까지 둘 수 있어요.`,
+  size: `파일 하나는 ${SKILL_FILE_LIMITS.file.toLocaleString()}자, 전체는 ${SKILL_FILE_LIMITS.total.toLocaleString()}자까지예요.`,
+};
+
+interface Draft extends OptionsDraft {
   id?: ID;
   name: string;
   title: string;
   description: string;
   prompt: string;
+  files: SkillFile[];
 }
 
-const EMPTY: Draft = { name: '', title: '', description: '', prompt: '' };
+const EMPTY: Draft = { name: '', title: '', description: '', prompt: '', files: [], providerId: '', model: '', effort: '' };
 
-const toDraft = (s: Skill): Draft => ({ id: s.id, name: s.name, title: s.title, description: s.description, prompt: s.prompt });
+const toDraft = (s: Skill): Draft => ({
+  id: s.id,
+  name: s.name,
+  title: s.title,
+  description: s.description,
+  prompt: s.prompt,
+  files: s.files ?? [],
+  providerId: s.options?.providerId ?? '',
+  model: s.options?.model ?? '',
+  effort: s.options?.effort ?? '',
+});
 
-const same = (a: Draft, b: Draft) => a.name === b.name && a.title === b.title && a.description === b.description && a.prompt === b.prompt;
+const sameFiles = (a: SkillFile[], b: SkillFile[]) => a.length === b.length && a.every((f, i) => f.path === b[i]!.path && f.content === b[i]!.content);
+
+const same = (a: Draft, b: Draft) =>
+  a.name === b.name &&
+  a.title === b.title &&
+  a.description === b.description &&
+  a.prompt === b.prompt &&
+  sameFiles(a.files, b.files) &&
+  a.providerId === b.providerId &&
+  a.model === b.model &&
+  a.effort === b.effort;
 
 /**
  * 스킬 관리 페이지 (IMP-09, ADR-034). 스킬은 채팅 입력창의 + 메뉴나 `/명령`으로 골라
@@ -52,16 +93,34 @@ function SkillsPageBody() {
   const current = useMemo(() => (selected && selected !== 'new' ? skills.find((s) => s.id === selected) : undefined), [selected, skills]);
   const base = current ? toDraft(current) : EMPTY;
   const [draft, setDraft] = useState<Draft>(base);
-  const [problem, setProblem] = useState<SkillProblem | null>(null);
+  const [problem, setProblem] = useState<SkillProblem | SkillFilesProblem | null>(null);
   const dirty = !same(draft, base);
 
-  // 선택이 바뀌면 편집 내용을 그 스킬로
+  // 선택이 바뀌면 편집 내용을 그 스킬로. 같은 스킬이 폴더에서 바뀌었으면 고치던 내용이 없을 때만 따라간다
   const baseKey = current ? `${current.id}:${current.updatedAt}` : String(selected);
+  const shown = useRef<{ key: string; id: ID | 'new' | null; draft: Draft }>({ key: baseKey, id: selected, draft });
+  /** 편집을 시작한 시점의 저장본: 폴더에서 바뀌었는지, 사용자가 어떤 파일을 뺐는지 알기 위해 */
+  const editBase = useRef({ updatedAt: current?.updatedAt ?? 0, files: draft.files });
   useEffect(() => {
-    setDraft(current ? toDraft(current) : EMPTY);
+    const prev = shown.current;
+    if (prev.key !== baseKey && prev.id === selected && current && !same(draftRef.current, prev.draft)) {
+      shown.current = { key: baseKey, id: selected, draft: toDraft(current) };
+      return;
+    }
+    const next = current ? toDraft(current) : EMPTY;
+    shown.current = { key: baseKey, id: selected, draft: next };
+    editBase.current = { updatedAt: current?.updatedAt ?? 0, files: next.files };
+    setDraft(next);
     setProblem(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseKey]);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  // 데스크톱: 페이지를 열 때 스킬 폴더에서 바뀐 내용을 읽어 온다
+  useEffect(() => {
+    void syncSkillFolders();
+  }, []);
 
   const leave = async (): Promise<boolean> =>
     (!dirty && !aiBusy) || (await confirm({ title: '저장하지 않은 변경이 있어요', message: '변경 내용을 버릴까요?', confirmLabel: '버리기', tone: 'danger' }));
@@ -85,16 +144,60 @@ function SkillsPageBody() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const save = () => {
+  const save = async () => {
     if (aiBusy) return;
     const next = { ...draft, name: normalizeSkillName(draft.name) };
-    const p = validateSkill({ ...next, id: draft.id ?? '' }, skills);
+    const p = validateSkill({ ...next, id: draft.id ?? '' }, skills) ?? validateSkillFiles(next.files);
     setProblem(p);
     if (p) return;
-    const saved = useSkills.getState().save({ ...next, ...(current?.builtin ? { builtin: true } : {}) });
+    // 편집하는 동안 폴더에서 이 스킬이 바뀌었으면 덮어쓰기 전에 묻는다
+    if (
+      current &&
+      current.updatedAt !== editBase.current.updatedAt &&
+      !(await confirm({
+        title: '폴더에서 바뀐 내용이 있어요',
+        message: '편집하는 동안 스킬 폴더에서 이 스킬이 바뀌었어요. 지금 편집 내용으로 덮어쓸까요? (폴더에 새로 넣은 파일은 그대로 둬요)',
+        confirmLabel: '덮어쓰기',
+        tone: 'danger',
+      }))
+    )
+      return;
+    const editedOut = editBase.current.files.map((f) => f.path).filter((path) => !next.files.some((f) => f.path.toLowerCase() === path.toLowerCase()));
+    const options = makeSkillOptions(next.providerId, next.model, next.effort);
+    const saved = useSkills.getState().save(
+      {
+      ...(next.id ? { id: next.id } : {}),
+      name: next.name,
+      title: next.title,
+      description: next.description,
+      prompt: next.prompt,
+      files: next.files,
+      ...(options ? { options } : {}),
+      ...(current?.builtin ? { builtin: true } : {}),
+      },
+      editedOut,
+    );
+    // 저장본이 새 편집 기준
+    editBase.current = { updatedAt: saved.updatedAt, files: saved.files ?? [] };
+    shown.current = { key: `${saved.id}:${saved.updatedAt}`, id: saved.id, draft: toDraft(saved) };
     // 모바일은 저장 후 목록으로 돌아간다
     setSelected(mobile ? null : saved.id);
     setDraft(mobile ? EMPTY : toDraft(saved));
+  };
+
+  /** 저장된 스킬의 폴더를 연다. 새 스킬·저장 안 한 변경은 먼저 저장을 권한다 */
+  const openFolder = async () => {
+    if (!current) {
+      setProblem(null);
+      await confirm({ title: '먼저 저장하세요', message: '스킬을 저장하면 폴더가 만들어지고, 그 뒤에 열 수 있어요.', confirmLabel: '확인' });
+      return;
+    }
+    if (dirty && !(await confirm({ title: '저장하지 않은 변경이 있어요', message: '폴더에는 저장된 내용만 있어요. 그대로 열까요?', confirmLabel: '열기' }))) return;
+    try {
+      await openSkillFolder(current);
+    } catch (e) {
+      await confirm({ title: '폴더를 열 수 없어요', message: e instanceof Error ? e.message : String(e), confirmLabel: '확인' });
+    }
   };
 
   const remove = async () => {
@@ -122,6 +225,11 @@ function SkillsPageBody() {
         </IconButton>
         <Sparkles size={17} className="text-accent" />
         <h2 className="flex-1 text-[16px] font-semibold">스킬 관리</h2>
+        {showList && skillFoldersAvailable && (
+          <IconButton label="스킬 폴더 열기" title={skillFoldersRoot} onClick={() => void openSkillFolder()}>
+            <FolderOpen size={18} />
+          </IconButton>
+        )}
         {showList && (
           <Button size="sm" variant="primary" icon={<Plus size={15} />} onClick={() => void pick('new')}>
             새 스킬
@@ -168,7 +276,7 @@ function SkillsPageBody() {
               className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-5 md:px-6"
               onSubmit={(e) => {
                 e.preventDefault();
-                save();
+                void save();
               }}
             >
               <div className="text-[13px] text-muted">
@@ -247,11 +355,27 @@ function SkillsPageBody() {
                     className="min-h-48 resize-y rounded-xl border border-line bg-surface px-3 py-2.5 font-mono text-[13px] leading-relaxed outline-none focus:border-accent"
                   />
                 </label>
+
+                <SkillFilesField
+                  files={draft.files}
+                  onChange={(files) => {
+                    setDraft((d) => ({ ...d, files }));
+                    setProblem(null);
+                  }}
+                  {...(skillFoldersAvailable
+                    ? {
+                        onOpenFolder: () => void openFolder(),
+                        folderHint: current ? `${skillFoldersRoot}/${current.name} — 폴더에서 고친 내용은 앱으로 돌아오면 반영돼요` : '저장하면 스킬 폴더가 만들어져요',
+                      }
+                    : {})}
+                />
+
+                <SkillOptionsField value={draft} onChange={(o) => setDraft((d) => ({ ...d, ...o }))} />
               </fieldset>
 
               {problem && (
                 <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger">
-                  {PROBLEM_TEXT[problem]}
+                  {problem in PROBLEM_TEXT ? PROBLEM_TEXT[problem as SkillProblem] : FILES_TEXT[problem as SkillFilesProblem]}
                 </p>
               )}
 

@@ -56,6 +56,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-09 상단 단일/분할 제거(마인드맵 토글만)·사이드바 끌어 좌우·상하 분할(최대 4)·입력창 + 메뉴(사진·파일 첨부, 클립보드 이미지, 긴 붙여넣기 미리보기)·스킬(슬래시·+ 메뉴, 관리 페이지, 예시 커리큘럼 생성) (ADR-033~035)
 - [x] IMP-10 사이드바 우클릭 가지 삭제·새 창으로 열기(데스크톱 세션 창, 중복 허용)·수식($$·$·\[\]·\(\) KaTeX)·분할창 [자리 이동] 메뉴·경계선 ⋯ [자리 바꾸기·방향 전환] (ADR-036, docs/plans/imp-10-plan.md)
 - [x] IMP-11 AI로 스킬 만들기·고치기: 스킬 편집 칸 위 AI 도우미(요청·빠른 요청 칩·실시간 채움·중지·AI 변경 취소), + 메뉴 [AI로 스킬 만들기…] (ADR-037)
+- [x] IMP-12 스킬 고도화: 부수 파일(references/·scripts/·assets/) 보기·추가·가져오기·편집, 데스크톱 스킬 폴더(`<userData>/skills/<name>/SKILL.md`) 열기·폴더 변경 반영·Claude 형식 폴더 가져오기, AI 작성 시 부수 파일 생성·수정·삭제, 고급 옵션(스킬 전용 provider·모델·노력치, 미설정 시 세션 설정) (ADR-038, docs/plans/imp-12-plan.md)
 
 ## Tasks
 
@@ -107,9 +108,14 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP10-T3 | IMP-10 | 수식 KaTeX + 앵커 맵·선택 offset 처리 | agent-math | MEDIUM | inherit | default | DONE | 100% | - | PASS: ui 36 tests(+17 math), 패키지 앱에서 인라인·블록 수식 + 수식 옆 가지 앵커 표시 |
 | IMP10-T4 | IMP-10 | core 분할 이동·스왑·방향 전환 + SplitControls | agent-split | MEDIUM | inherit | default | DONE | 100% | - | PASS: core splitLayout·store 테스트(+6), 패키지 앱에서 자리 이동(오른쪽과) → 순서 [b1, root1], ⋯ → 방향 전환 → 상하 분할 |
 | IMP10-T5 | IMP-10 | 통합·E2E·빌드·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T1–T4 | PASS: 아래 Latest Integration Result |
+| IMP12-T1 | IMP-12 | core: Skill files·options, 파일 경로·검증·`withSkill` 파일 첨부, `chatTarget`(스킬 턴만 전용 provider), host 원격 옵션 제한, `skillFolder`(SKILL.md 직렬화·가져오기·diff·frontmatter 유지), AI 도우미 `<file>`/`<delete>` | lead | HIGH | inherit | default | DONE | 100% | - | PASS: core skill-files·skill-assist·attachments-skills 43/43 |
+| IMP12-T2 | IMP-12 | desktop: 스킬 폴더 IPC `skillsDir.ts`(경로 검증·이름 변경 이동·지운 파일만 삭제·직렬 큐) | agent-desktop | MEDIUM | inherit | default | DONE | 100% | T1 계약 | PASS: 임시 폴더 왕복·경로 거부·이동·frontmatter 유지 스크립트 |
+| IMP12-T3 | IMP-12 | ui: 스킬 파일 편집·폴더 열기·고급 옵션, 폴더 거울·포커스 동기화·묘비, 칩 표시 | lead | HIGH | inherit | default | DONE | 100% | T1·T2 | PASS: e2e skill-assist 4/4 |
+| IMP12-T4 | IMP-12 | 독립 리뷰·수정·패키지 앱 스모크·문서 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: 리뷰 지적 8건 반영, 아래 Latest Integration Result |
 
 ## Active Work
-- 없음 (IMP-11 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
+- 없음 (IMP-12 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
+- 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
 
 ## Blockers
@@ -119,6 +125,8 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-14 · 개선(IMP-12 스킬 파일·폴더·전용 provider/모델/노력치, Windows): `pnpm typecheck` PASS, eslint(packages·apps·e2e) PASS — 루트 `pnpm lint`는 다른 세션 워크트리 `.claude/worktrees/imp-13`의 미사용 변수 1건으로 실패. core 274/276(+skill-files·skill-assist 신규, 실패 2는 기존 `sync.reset`·자동 제목)·ui 36/36, e2e `skill-assist` 4/4(desktop·mobile, `CI=1`로 단독 서버 — 다른 세션 e2e 서버 재사용 시 실패했음). 독립 리뷰 지적(긴 파일 AI 덮어쓰기, 앱이 모르는 파일·frontmatter 삭제, 이름 변경 시 바이너리 삭제, 편집 중 폴더 변경 덮어쓰기, 지운 스킬 부활, 이름 정규화 반복, 미닫힘 파일 태그, 원격 칩) 반영. Windows `package:dir` → 격리 userData Playwright `_electron` 스모크 PASS: 시작 시 폴더 생성, 저장 → SKILL.md 옵션·파일 기록, 폴더 수정·추가 파일·Claude 형식 폴더 가져오기, 가져온 스킬 저장 시 `allowed-tools` 유지, 삭제 후 되살아나지 않음.
+- 2026-10-14 · 개선(원격 AI 스킬 도우미·메뉴 막대, Windows): 웹·모바일 스킬 AI 도우미는 기기 기본 provider 대신 `remote-bridge`(PC 원격 설정 = `applyHostPolicy`)로 작성, PC 미연결이면 안내. 데스크톱 창 메뉴 막대 제거(Windows/Linux `setApplicationMenu(null)`, macOS는 앱·편집·창 역할 메뉴만). `pnpm typecheck`·`pnpm lint` PASS, ui 36/36. Windows `package:dir` 실행 — 창 메뉴 핸들 0 확인.
 - 2026-10-14 · 개선(원격 수동 재연결·빈 화면 문구, Windows): 웹·모바일 sync client `autoReconnect: false`(끊기면 offline 유지, [다시 연결]로만), 학습이 있는데 선택이 없을 때 "이어서 볼 학습을 골라 주세요"+[학습 목록 열기]. `pnpm typecheck`·`pnpm lint` PASS, core sync +1 테스트 PASS(실패 `sync.reset`·store auto title은 변경 전과 동일 계열).
 - 2026-10-13 · 개선(IMP-10, Windows): `pnpm typecheck`·`pnpm lint` PASS, core 251/253(실패 2 기존 동일)·ui 36/36, bridge 19·relay 2 실패 기존 동일. e2e `--workers=2` 33 passed · 5 skipped(기본 병렬 실행은 느린 머신에서 타임아웃 12건 — 단독·2 worker 재실행 시 통과). Windows `package:dir` → 격리 userData Playwright `_electron` 조작으로 5개 기능 확인. 알려진 점: 가지 헤더 부모 원문 인용은 수식 원문(`\(d_k\)`)을 그대로 보여 준다.
 - 2026-10-13 · 개선(IMP-11, Windows): `pnpm typecheck`·`pnpm lint` PASS, core 245/247(+10 skill-assist, 실패 2는 기존과 동일)·ui 20/20, e2e `skill-assist`·`composer-split` desktop·mobile PASS. Windows `package:dir` 빌드·실행.

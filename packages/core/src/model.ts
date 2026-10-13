@@ -81,14 +81,31 @@ export interface Skill {
   description: string;
   /** 모델에 줄 지시 */
   prompt: string;
+  /** 스킬 폴더의 부수 파일 (references/·scripts/·assets/ 등 텍스트, IMP-12) */
+  files?: SkillFile[];
+  /** 이 스킬 전용 provider·모델·노력치. 없으면 세션 설정을 따른다 (IMP-12) */
+  options?: SkillOptions;
   /** 앱이 기본 제공하는 예시 스킬 */
   builtin?: boolean;
   createdAt: number;
   updatedAt: number;
 }
 
+/** 스킬 부수 파일. path는 스킬 폴더 기준 상대 경로(`references/guide.md`) */
+export interface SkillFile {
+  path: string;
+  content: string;
+}
+
+/** 스킬 전용 실행 설정. 모델·노력치를 비우면 그 provider 연결의 기본값 */
+export interface SkillOptions {
+  providerId: ProviderId;
+  model?: string;
+  effort?: string;
+}
+
 /** 메시지에 남기는 스킬 사본: 스킬을 고치거나 지워도 그 질문의 맥락은 유지된다 */
-export type SkillRef = Pick<Skill, 'id' | 'name' | 'title' | 'prompt'>;
+export type SkillRef = Pick<Skill, 'id' | 'name' | 'title' | 'prompt' | 'files' | 'options'>;
 
 export type ProviderId =
   | 'mock'

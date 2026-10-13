@@ -253,3 +253,11 @@
 - 형식: core `skillAssist.ts` — `buildSkillAssistRequest`(현재 스킬·다른 명령 이름·요청, `purpose: 'skill'`), 모델은 `<name>/<title>/<description>/<prompt>/<note>` 태그로만 답한다. `parseSkillAssist(raw, partial)`는 코드 블록·앞뒤 말·닫는 태그 누락을 견디고, 스트리밍 중에는 닫히지 않은 태그도 지금까지만큼 돌려줘 편집 칸이 실시간으로 채워진다. `finalizeSkillAssist`가 빠진 필드는 현재 값으로, 이름 충돌은 `-2…`(`uniqueSkillName`), 길이는 제한에 맞춘다.
 - 저장: AI 결과는 편집 칸에만 채우고 저장은 사용자가 한다. 완료 후 [AI 변경 취소]로 요청 전 내용으로 되돌린다. 작성 중에는 편집 칸·저장을 잠그고 [중지]하면 원래 내용으로 돌아간다.
 - provider: 설정 기본 provider, 준비되지 않았으면 대체 순서에서 준비된 것(칸 오른쪽에 표시). 웹·모바일은 원격 Bridge(PC CLI) 그대로. `purpose: 'skill'`은 채팅과 같은 출력 한도(4096).
+### ADR-038 · 2026-10-14 · 스킬 부수 파일·스킬 폴더·스킬 전용 provider/모델/노력치
+- 배경: 사용자 요청 — Claude·Codex 스킬처럼 reference·스크립트 등 파일을 두고 스킬 폴더를 열어 확인, AI 작성 시 부수 파일도 생성, 스킬마다 전용 provider·모델·노력치(미설정이면 세션 설정).
+- 모델: `Skill.files?: SkillFile[]`(상대 경로 + 텍스트), `Skill.options?: { providerId; model?; effort? }`. `SkillRef`(메시지 사본·동기화)에도 같은 선택 필드. 파일 제한 30개·파일 40,000자·합계 120,000자, 경로는 `/`로 나눈 안전한 이름(깊이 4, `..`·숨김·`SKILL.md` 불가). 지시 한도 8,000→20,000자, 설명 200→1,024자(Claude SKILL.md 가져오기).
+- 파일 사용: 도구 없는 CLI·API·원격 모두 같게 동작하도록 스킬을 쓴 질문의 system 프롬프트에 지시 뒤 `### 스킬 파일`로 경로별 코드 블록을 싣는다(`withSkill`). 스크립트는 실행하지 않고 내용·실행 방법을 안내하게 한다. 대안(CLI cwd를 스킬 폴더로 두고 읽기 도구 허용)은 API·원격에서 동작하지 않고 도구 권한을 넓혀 채택하지 않음.
+- 폴더(데스크톱 메인 창): `<userData>/skills/<name>/SKILL.md`(frontmatter name·description + title·provider·model·effort) + 파일. IndexedDB가 기준이고 폴더는 거울: 앱에서 저장하면 폴더를 똑같이 맞추고(이름 변경 시 이전 폴더 삭제, 앱이 읽을 수 없는 바이너리·큰 파일·숨김 파일은 두고), 시작·창 포커스·스킬 관리 열 때 폴더를 읽어 바뀐 스킬은 고치고 앱에 없는 폴더(예: Claude 스킬 폴더 복사)는 새 스킬로 가져온다(`diffSkillFolders`). 편집 중(저장 안 함)이면 편집 칸은 그대로 둔다. main은 이름·경로·크기를 다시 검증하고 폴더 밖·심볼릭 링크로는 쓰지 않는다. frontmatter의 다른 키(allowed-tools 등)는 앱에서 다시 저장하면 빠진다.
+- AI 도우미: `<file path="…">…</file>`·`<delete path="…"/>` 태그를 더했다. 필요할 때만 references/·scripts/·assets/에 만들고 지시에서 경로로 가리키게 한다. 고칠 때 기존 파일(파일당 6,000자까지)을 요청에 싣고, 출력하지 않은 파일은 유지(`mergeSkillFiles`).
+- 실행 설정: `chatTarget` — 마지막 사용자 메시지의 스킬에 옵션이 있고 그 provider가 등록돼 있으면 그 턴만 스킬 설정(비운 모델·노력치는 그 provider 연결 기본값), 아니면 세션 설정. 제목·요약은 세션 설정. 실패 후 대체 provider로 다시 시도하면 스킬 설정을 무시한다. 원격 피어가 보낸 스킬 옵션은 PC CLI(claude·codex)일 때만 따르고(ADR-031과 같은 범위), 같은 PC 세션 창은 모두 따른다. 웹·모바일의 고급 옵션은 PC 에이전트만 고른다.
+- 호환: 새 클라이언트가 파일·옵션이 있는 스킬을 이전 버전 PC로 보내면 PC 검증(키 엄격)에서 거절된다 — PC를 먼저 업데이트한다.

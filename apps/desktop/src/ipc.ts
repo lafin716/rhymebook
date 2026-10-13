@@ -21,4 +21,9 @@ export const CH = {
   winOpenSession: 'win:open-session',
   winSyncOut: 'win:sync-out',
   winSyncIn: 'win:sync-in',
+  skillsRoot: 'skills:root',
+  skillsWrite: 'skills:write',
+  skillsRemove: 'skills:remove',
+  skillsOpen: 'skills:open',
+  skillsReadAll: 'skills:read-all',
 } as const;

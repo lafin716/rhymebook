@@ -5,6 +5,7 @@ export * from './annotations';
 export * from './attachments';
 export * from './skills';
 export * from './skillAssist';
+export * from './skillFolder';
 export * from './splitLayout';
 export * from './provider';
 export * from './cli-options';

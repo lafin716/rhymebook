@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState, SyncClientMsg, SyncServerMsg } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState, SkillFolder, SyncClientMsg, SyncServerMsg } from '@branch/core';
 import { CH } from './ipc';
 
 /** DesktopApi.sync with onPeerGone extension (ADR-026) */
@@ -15,6 +15,7 @@ type DesktopApiExt = Omit<DesktopApi, 'sync'> & { sync?: DesktopSyncApi };
 
 // 렌더러에는 좁은 API만 노출한다 (ipcRenderer 자체는 노출하지 않음)
 const persistent = ipcRenderer.sendSync(CH.secretPersistent) === true;
+const skillsRoot = String(ipcRenderer.sendSync(CH.skillsRoot) ?? '');
 
 // DesktopApi 타입을 확장해서 onPeerGone을 추가로 노출한다
 const api: DesktopApiExt = {
@@ -85,6 +86,14 @@ const api: DesktopApiExt = {
         return () => ipcRenderer.removeListener(CH.winSyncIn, h);
       },
     },
+  },
+  // 스킬 폴더 (IMP-12, ADR-038). main이 이름·경로를 다시 확인한다
+  skills: {
+    root: skillsRoot,
+    write: (folder, opts) => ipcRenderer.invoke(CH.skillsWrite, folder, opts) as Promise<void>,
+    remove: (name) => ipcRenderer.invoke(CH.skillsRemove, name) as Promise<void>,
+    open: (folder) => ipcRenderer.invoke(CH.skillsOpen, folder) as Promise<void>,
+    readAll: () => ipcRenderer.invoke(CH.skillsReadAll) as Promise<SkillFolder[]>,
   },
 };
 

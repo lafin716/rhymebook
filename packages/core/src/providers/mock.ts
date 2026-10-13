@@ -159,6 +159,8 @@ export function mockAnswer(req: StreamRequest): string {
       '<prompt>',
       cur ? `${cur}\n- 추가 요청 반영: ${ask}` : `학습자가 준 주제로 퀴즈를 낸다.\n\n1. 핵심 개념 **3개**를 골라 문제를 하나씩 낸다.\n2. 요청: ${ask}`,
       '</prompt>',
+      // 부수 파일을 요청하면 참고 파일을 하나 만든다 (IMP-12)
+      ...(/파일|참고/.test(ask) ? ['<file path="references/rubric.md">', '# 채점 기준', '- 정답: 핵심 용어를 **굵게** 짚었는가', '</file>'] : []),
       `<note>${cur ? '요청한 내용을 지시에 더했어요.' : '퀴즈 스킬을 만들었어요.'}</note>`,
     ].join('\n');
   }

@@ -50,6 +50,7 @@ import { isCliId, isValidEffort, sessionModelOptions } from '../cli-options';
 import { collectStream, providerError, type ProviderError, type ProviderRegistry } from '../provider';
 import { memoryRepository, type Repository } from '../repo';
 import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
+import { chatTarget } from '../skills';
 import { descendantIds, type SessionMap } from '../tree';
 
 export const NEW_SESSION_TITLE = '새 학습';
@@ -289,8 +290,13 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
     };
 
     /** assistant 메시지 하나를 스트리밍으로 채운다 */
-    const runAssistant = async (sessionId: ID, messageId: ID) => {
-      const providerId = effectiveProviderId(get(), sessionId);
+    /** 이 턴을 답할 provider·모델·노력치: 스킬 전용 설정 → 세션 설정 (IMP-12) */
+    const targetOf = (sessionId: ID, ignoreSkill?: boolean) =>
+      chatTarget(get(), sessionId, { usable: (id) => !!registry.get(id), ...(ignoreSkill ? { ignoreSkill } : {}) });
+
+    const runAssistant = async (sessionId: ID, messageId: ID, ignoreSkill?: boolean) => {
+      const target = targetOf(sessionId, ignoreSkill);
+      const providerId = target.providerId;
       const provider = registry.get(providerId);
       const fail = (error: ProviderError, content?: string) => {
         const m = getMessage(sessionId, messageId);
@@ -328,7 +334,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         sessionId,
         contextWindow: state.settings.contextWindow,
       });
-      Object.assign(req, sessionModelOptions(state, sessionId, providerId));
+      Object.assign(req, target.options);
       req.signal = ctrl.signal;
 
       let text = '';
@@ -361,7 +367,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       if (ok) void maybeTitle(sessionId);
     };
 
-    const startAssistant = (sessionId: ID) => {
+    /** ignoreSkill: 대체 provider로 다시 시도할 때처럼 사용자가 provider를 직접 고르면 스킬 설정을 쓰지 않는다 */
+    const startAssistant = (sessionId: ID, ignoreSkill?: boolean) => {
       const msg: Message = {
         id: newId('m'),
         sessionId,
@@ -369,10 +376,10 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         content: '',
         createdAt: Date.now(),
         status: 'streaming',
-        providerId: effectiveProviderId(get(), sessionId),
+        providerId: targetOf(sessionId, ignoreSkill).providerId,
       };
       putMessage(msg);
-      void runAssistant(sessionId, msg.id);
+      void runAssistant(sessionId, msg.id, ignoreSkill);
     };
 
     const nextPopup = (sessionId: ID, z: number): PopupWindow => {
@@ -568,7 +575,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         } else if (last.role !== 'user') {
           return false;
         }
-        startAssistant(sessionId);
+        startAssistant(sessionId, !!providerId);
         return true;
       },
 

@@ -10,8 +10,8 @@ import {
 } from '../src/skillAssist';
 import { SKILL_LIMITS, validateSkill } from '../src/skills';
 
-const EMPTY: SkillFields = { name: '', title: '', description: '', prompt: '' };
-const CUR: SkillFields = { name: 'quiz', title: '퀴즈', description: '퀴즈를 내요', prompt: '세 문제를 낸다.' };
+const EMPTY: SkillFields = { name: '', title: '', description: '', prompt: '', files: [] };
+const CUR: SkillFields = { name: 'quiz', title: '퀴즈', description: '퀴즈를 내요', prompt: '세 문제를 낸다.', files: [] };
 
 const OUT = [
   '<name>Word Card</name>',
@@ -112,5 +112,66 @@ describe('mockAnswer (skill)', () => {
     const edited = parseSkillAssist(mockAnswer(buildSkillAssistRequest({ request: '표로', current: CUR })));
     expect(edited).toMatchObject({ name: 'quiz', title: '퀴즈' });
     expect(edited.prompt).toContain('세 문제를 낸다.');
+    expect(edited.files).toBeUndefined();
+    const withFile = parseSkillAssist(mockAnswer(buildSkillAssistRequest({ request: '채점 참고 파일도 만들어 줘' })));
+    expect(withFile.files?.[0]?.path).toBe('references/rubric.md');
+  });
+});
+
+describe('부수 파일 (IMP-12)', () => {
+  const FILES = [
+    OUT.replace('<note>', '<file path="references/glossary.md">\n# 용어\n- <b>태그 모양</b>도 내용\n</file>\n<delete path="old.txt"/>\n<note>'),
+  ][0]!;
+
+  it('파일·삭제 태그를 읽고, 파일 본문 안의 태그 모양 글자는 필드로 보지 않는다', () => {
+    const p = parseSkillAssist(FILES);
+    expect(p.files).toEqual([{ path: 'references/glossary.md', content: '# 용어\n- <b>태그 모양</b>도 내용' }]);
+    expect(p.deletes).toEqual(['old.txt']);
+    expect(p.note).toBe('만들었어요.');
+    expect(p.prompt).toBe('1. 단어를 **굵게** 쓴다.\n2. 예문을 단다.');
+  });
+
+  it('스트리밍 중에는 닫히지 않은 파일도 지금까지만큼', () => {
+    const cut = FILES.slice(0, FILES.indexOf('태그 모양'));
+    expect(parseSkillAssist(cut, true).files).toEqual([{ path: 'references/glossary.md', content: '# 용어\n- <b>' }]);
+    expect(parseSkillAssist(cut).files).toBeUndefined();
+  });
+
+  it('닫는 태그를 빠뜨린 파일이 다음 파일을 삼키지 않는다', () => {
+    const raw = '<prompt>\np\n</prompt>\n<file path="a.md">\nA\n<file path="b.md">\nB\n</file>';
+    expect(parseSkillAssist(raw).files).toEqual([
+      { path: 'a.md', content: 'A' },
+      { path: 'b.md', content: 'B' },
+    ]);
+  });
+
+  it('요청에 앞부분만 보낸 긴 파일은 읽기 전용: AI가 다시 써도 원본을 지킨다', () => {
+    const big = { path: 'references/big.md', content: 'x'.repeat(7000) };
+    const cur = { ...CUR, files: [big] };
+    expect(buildSkillAssistRequest({ request: 'x', current: cur }).messages[0]!.content).toContain('<file path="references/big.md" readonly>');
+    const f = finalizeSkillAssist({ prompt: 'p', files: [{ path: 'references/big.md', content: '잘린 내용' }] }, cur, [])!;
+    expect(f.files).toEqual([big]);
+    expect(finalizeSkillAssist({ prompt: 'p', deletes: ['references/big.md'] }, cur, [])!.files).toEqual([]);
+  });
+
+  it('고칠 때 기존 파일을 요청에 싣는다', () => {
+    const cur = { ...CUR, files: [{ path: 'scripts/run.py', content: 'print(1)' }] };
+    expect(buildSkillAssistRequest({ request: 'x', current: cur }).messages[0]!.content).toContain('<file path="scripts/run.py">\nprint(1)\n</file>');
+  });
+
+  it('결과 파일을 합친다: 쓴 파일은 덮고, 지운 파일은 빼고, 언급 없는 파일은 둔다', () => {
+    const cur = {
+      ...CUR,
+      files: [
+        { path: 'a.md', content: 'A' },
+        { path: 'old.txt', content: 'O' },
+        { path: 'references/glossary.md', content: '이전' },
+      ],
+    };
+    const f = finalizeSkillAssist(parseSkillAssist(FILES), cur, [])!;
+    expect(f.files.map((x) => x.path)).toEqual(['a.md', 'references/glossary.md']);
+    expect(f.files[1]!.content).toContain('# 용어');
+    // 잘못된 경로는 버린다
+    expect(finalizeSkillAssist({ prompt: 'p', files: [{ path: '../x.md', content: 'x' }, { path: 'SKILL.md', content: 'x' }] }, EMPTY, [])!.files).toEqual([]);
   });
 });

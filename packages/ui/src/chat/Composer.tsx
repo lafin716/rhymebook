@@ -1,9 +1,11 @@
 import {
   effectiveProviderId,
   filterSkills,
+  isCliId,
   isLongPaste,
   nextFallback,
   parseSlash,
+  PROVIDER_LABELS,
   skillRef,
   slashQuery,
   type Attachment,
@@ -17,7 +19,7 @@ import { actions, useApp } from '../app/store';
 import { pushNotice } from '../app/sync';
 import { Button } from '../components/Button';
 import { PcOfflineBanner, usePcOnline } from '../components/PcStatus';
-import { remoteMode } from '../app/capabilities';
+import { caps, remoteMode } from '../app/capabilities';
 import { cn } from '../lib/cn';
 import { isUsable, providerLabel, STATUS_LABEL } from '../lib/connection';
 import { openSkillsWithAI, useSkills } from '../skills/skillsStore';
@@ -178,6 +180,12 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
                   <Sparkles size={13} />
                   <span className="truncate font-medium">{skill.title}</span>
                   <code className="text-[11.5px] opacity-75">/{skill.name}</code>
+                  {/* 웹·모바일에서 PC CLI가 아닌 설정은 PC가 따르지 않아 보이지 않는다 */}
+                  {skill.options && (caps.localCli || isCliId(skill.options.providerId)) && (
+                    <span className="truncate text-[11.5px] opacity-75" title="이 스킬 전용 설정으로 답해요">
+                      · {[PROVIDER_LABELS[skill.options.providerId], skill.options.model, skill.options.effort].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
                   <button type="button" aria-label="스킬 빼기" onClick={() => setSkill(null)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
                     <X size={12} />
                   </button>

@@ -2,6 +2,7 @@ import {
   buildSkillAssistRequest,
   collectStream,
   finalizeSkillAssist,
+  mergeSkillFiles,
   parseSkillAssist,
   PROVIDER_LABELS,
   resolveModelOptions,
@@ -15,7 +16,9 @@ import {
 import { Square, Undo2, WandSparkles } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { appStore, caps, registry, useApp } from '../app/store';
+import { useSync } from '../app/sync';
 import { Button } from '../components/Button';
+import { usePcOnline } from '../components/PcStatus';
 import { cn } from '../lib/cn';
 
 /** 새 스킬 예시 요청 */
@@ -34,8 +37,13 @@ const EDIT_IDEAS = [
   { label: '초보자 눈높이', text: '처음 배우는 사람 눈높이에 맞게 설명 수준을 낮추도록 고쳐 줘.' },
 ];
 
-/** 이 스킬 작성에 쓸 provider: 기본 provider가 준비되지 않았으면 대체 순서에서 준비된 것 */
+/**
+ * 이 스킬 작성에 쓸 provider.
+ * - 웹·모바일: 채팅과 같이 PC로 보낸다(원격 Bridge). 에이전트·모델·노력치는 PC의 원격 설정이 정한다
+ * - PC: 기본 provider, 준비되지 않았으면 대체 순서에서 준비된 것
+ */
 function pickProvider({ settings, connections }: Pick<AppState, 'settings' | 'connections'>): ProviderId {
+  if (!caps.localCli) return 'remote-bridge';
   const order = [settings.defaultProviderId, ...settings.fallbackOrder].filter((id) => caps.providers.includes(id) || id === 'mock');
   const ready = order.find((id) => connections[id]?.enabled && connections[id]?.status === 'ready');
   return ready ?? settings.defaultProviderId;
@@ -63,7 +71,10 @@ export function SkillAssist({ draft, onDraft, skills, onBusy, autoFocus }: Props
   const ctrl = useRef<AbortController | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const providerId = useApp(pickProvider);
-  const editing = !!(draft.title.trim() || draft.prompt.trim());
+  const viaPc = providerId === 'remote-bridge' && !caps.localCli;
+  const pcOnline = usePcOnline();
+  const hostName = useSync((s) => s.hostName);
+  const editing = !!(draft.title.trim() || draft.prompt.trim() || draft.files.length);
   const running = status.kind === 'running';
 
   useEffect(() => () => ctrl.current?.abort(), []);
@@ -73,7 +84,11 @@ export function SkillAssist({ draft, onDraft, skills, onBusy, autoFocus }: Props
 
   const run = async () => {
     if (running) return;
-    const before: SkillFields = { name: draft.name, title: draft.title, description: draft.description, prompt: draft.prompt };
+    if (viaPc && !pcOnline) {
+      setStatus({ kind: 'error', message: 'PC와 연결되어 있지 않아요. 먼저 PC에 연결하세요.' });
+      return;
+    }
+    const before: SkillFields = { name: draft.name, title: draft.title, description: draft.description, prompt: draft.prompt, files: draft.files };
     const provider = registry.get(providerId);
     if (!provider) {
       setStatus({ kind: 'error', message: '쓸 수 있는 AI 연결이 없어요. 설정에서 연결을 확인하세요.' });
@@ -95,6 +110,7 @@ export function SkillAssist({ draft, onDraft, skills, onBusy, autoFocus }: Props
           title: p.title ?? before.title,
           description: p.description ?? before.description,
           prompt: p.prompt ?? before.prompt,
+          files: p.files || p.deletes ? mergeSkillFiles(before.files, p) : before.files,
         });
       });
       if (c.signal.aborted) {
@@ -136,8 +152,11 @@ export function SkillAssist({ draft, onDraft, skills, onBusy, autoFocus }: Props
       <div className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-fg-2">
         <WandSparkles size={15} className="text-accent" />
         {editing ? 'AI로 고치기' : 'AI로 만들기'}
-        <span className="ml-auto truncate text-[11.5px] font-normal text-muted" title="설정의 기본 연결을 써요">
-          {PROVIDER_LABELS[providerId]}
+        <span
+          className="ml-auto truncate text-[11.5px] font-normal text-muted"
+          title={viaPc ? 'PC의 원격 설정(에이전트·모델·노력치)으로 작성해요' : '설정의 기본 연결을 써요'}
+        >
+          {viaPc ? `${hostName ?? 'PC'} · 원격 설정` : PROVIDER_LABELS[providerId]}
         </span>
       </div>
       <textarea

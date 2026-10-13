@@ -1,4 +1,5 @@
 import type { HostPolicy } from '../platform';
+import type { SkillFolder } from '../skillFolder';
 import type { BridgeClientMsg, BridgeServerMsg } from './protocol';
 import type { SyncClientMsg, SyncServerMsg } from './sync';
 
@@ -20,6 +21,28 @@ export interface DesktopApi {
   host?: DesktopHostApi;
   /** 세션을 별도 창으로 열기 (ADR-036). 없으면 메뉴를 숨긴다 */
   windows?: DesktopWindowsApi;
+  /** 스킬 폴더 (IMP-12, ADR-038). 없으면 폴더 기능을 숨긴다 */
+  skills?: DesktopSkillsApi;
+}
+
+/**
+ * 스킬 폴더 `<userData>/skills/<name>/` (SKILL.md + 부수 파일).
+ * main 프로세스가 이름·경로를 다시 확인하고 그 폴더 밖에는 쓰지 않는다.
+ */
+export interface DesktopSkillsApi {
+  /** 스킬 폴더 루트의 절대 경로 (표시용) */
+  root: string;
+  /**
+   * 폴더에 SKILL.md와 파일을 쓴다(SKILL.md의 모르는 frontmatter 키는 유지).
+   * 지우는 파일은 removed(앱에서 사용자가 뺀 경로)뿐 — 앱이 모르는 파일은 둔다.
+   * prevName이 다르면 이전 폴더를 새 이름으로 옮긴 뒤 쓴다.
+   */
+  write(folder: SkillFolder, opts?: { prevName?: string; removed?: string[] }): Promise<void>;
+  remove(name: string): Promise<void>;
+  /** 폴더가 없으면 folder로 만든 뒤 OS 파일 탐색기로 연다. 없으면 루트를 연다 */
+  open(folder?: SkillFolder): Promise<void>;
+  /** SKILL.md가 있는 모든 하위 폴더 (텍스트 부수 파일 포함, 숨김·바이너리·너무 큰 파일 제외) */
+  readAll(): Promise<SkillFolder[]>;
 }
 
 /**

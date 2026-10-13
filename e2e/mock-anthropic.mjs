@@ -24,6 +24,9 @@ function reply(body) {
     images ? `이미지 ${images}개를 받았다.` : '',
     texts ? `첨부 텍스트 ${texts}개를 읽었다.` : '',
     skill ? `스킬 /${skill} 적용.` : '',
+    // 스킬 부수 파일·전용 모델 확인용 (IMP-12)
+    system.includes('### 스킬 파일') ? `스킬 파일 ${(system.match(/^#### /gm) ?? []).length}개.` : '',
+    skill ? `모델 ${body.model}.` : '',
   ].filter(Boolean);
   if (system.startsWith('다음 대화의 주제')) return '어텐션 학습';
   if (system.startsWith('다음은 학습자가')) {
@@ -44,6 +47,7 @@ function reply(body) {
       '<prompt>',
       cur ? `${cur}\n추가: ${ask}` : `요청: ${ask}`,
       '</prompt>',
+      ...(/파일/.test(ask) ? ['<file path="references/rubric.md">', '# 채점 기준', '- 핵심 용어를 굵게', '</file>'] : []),
       `<note>${cur ? '요청을 지시에 더했어요.' : '새 스킬을 만들었어요.'}</note>`,
       '```',
     ].join('\n');

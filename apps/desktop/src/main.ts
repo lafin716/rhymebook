@@ -5,6 +5,7 @@ import { isHostPolicy, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, 
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { createSecretVault } from './secrets';
+import { createSkillsDir } from './skillsDir';
 
 /**
  * rhymebook 데스크톱 main 프로세스.
@@ -244,6 +245,11 @@ function showWindow(win: BrowserWindow) {
 }
 
 void app.whenReady().then(() => {
+  // 창 위 기본 메뉴 막대(File·Edit·View…)는 쓰지 않는다. macOS는 화면 위 메뉴가 없으면
+  // ⌘C/⌘V/⌘Q 등 기본 단축키가 동작하지 않아 앱·편집 역할 메뉴만 남긴다
+  Menu.setApplicationMenu(
+    process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null,
+  );
   const vault = createSecretVault(app.getPath('userData'));
 
   ipcMain.on(CH.secretPersistent, (e) => {
@@ -259,6 +265,16 @@ void app.whenReady().then(() => {
   ipcMain.on(CH.bridgeSend, (e, msg: unknown) => {
     if (isClientMsg(msg)) connectionFor(e.sender).receive(msg);
   });
+
+  // 스킬 폴더 (IMP-12, ADR-038). 이름·경로 확인은 skillsDir가 한다
+  const skillsDir = createSkillsDir(path.join(app.getPath('userData'), 'skills'), (dir) => shell.openPath(dir));
+  ipcMain.on(CH.skillsRoot, (e) => {
+    e.returnValue = skillsDir.root;
+  });
+  ipcMain.handle(CH.skillsWrite, (_e, folder: unknown, opts: unknown) => skillsDir.write(folder, opts));
+  ipcMain.handle(CH.skillsRemove, (_e, name: unknown) => skillsDir.remove(name));
+  ipcMain.handle(CH.skillsOpen, (_e, folder: unknown) => skillsDir.open(folder));
+  ipcMain.handle(CH.skillsReadAll, () => skillsDir.readAll());
 
   // 동기화 IPC 핸들러
   ipcMain.on(CH.hostSyncReady, (_e, ready: unknown) => {

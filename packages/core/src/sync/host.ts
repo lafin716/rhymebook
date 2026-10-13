@@ -1,4 +1,5 @@
 import type { AppState, AppStore } from '../store';
+import { isCliId } from '../cli-options';
 import type { ID, Message, ProviderId } from '../model';
 import {
   SYNC_LIMITS,
@@ -21,6 +22,11 @@ export interface SyncHostOptions {
   /** 원격 삭제 허용 여부 (PC 설정). 기본 거부 */
   /** 이 피어의 삭제 허용 여부 (PC 설정, 같은 PC의 세션 창은 항상 허용) */
   allowDelete?: (peerId: string) => boolean;
+  /**
+   * 이 피어의 스킬 전용 provider를 모두 따를지 (같은 PC의 세션 창). 아니면 PC CLI(claude·codex)만 따른다 —
+   * 원격 기기는 PC 에이전트만 고를 수 있다 (ADR-031, ADR-038)
+   */
+  anySkillProvider?: (peerId: string) => boolean;
   onRemoteAction?: (peerId: string, op: SyncOp) => void;
 }
 
@@ -65,7 +71,7 @@ function idTaken(state: Synced, id: ID): boolean {
 
 /** 데스크톱(호스트) 스토어 변경을 원격 피어에 내보내고, 피어의 조작(act)을 스토어 액션으로 실행한다 */
 export function createSyncHost(opts: SyncHostOptions): SyncHost {
-  const { store, hostName, send, rootProvider, throttleMs = 120, allowDelete = () => false, onRemoteAction } = opts;
+  const { store, hostName, send, rootProvider, throttleMs = 120, allowDelete = () => false, anySkillProvider = () => false, onRemoteAction } = opts;
 
   const peers = new Map<string, PeerState>();
   const pick = (s: AppState): Synced => ({
@@ -375,10 +381,16 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           if (providerId) store.getState().setSessionProvider(op.id, providerId);
           return null;
         }
-        case 'send':
-          if (!s.sendMessage(op.sessionId, op.text, op.messageId, { ...(op.attachments ? { attachments: op.attachments } : {}), ...(op.skill ? { skill: op.skill } : {}) })) return 'failed';
+        case 'send': {
+          let skill = op.skill;
+          if (skill?.options && !isCliId(skill.options.providerId) && !anySkillProvider(peerId)) {
+            const { options: _o, ...rest } = skill;
+            skill = rest;
+          }
+          if (!s.sendMessage(op.sessionId, op.text, op.messageId, { ...(op.attachments ? { attachments: op.attachments } : {}), ...(skill ? { skill } : {}) })) return 'failed';
           peer.streams.add(op.sessionId);
           return null;
+        }
         case 'retry':
           if (!s.retry(op.sessionId)) return 'failed';
           peer.streams.add(op.sessionId);

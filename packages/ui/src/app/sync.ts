@@ -178,6 +178,7 @@ export const syncHost: SyncHost | null = sync
         return HOST_CLI_ORDER.find((p) => isUsable(st.connections[p]));
       },
       allowDelete: (peerId) => isWindowPeer(peerId) || remoteDeleteAllowed(),
+      anySkillProvider: isWindowPeer,
       onRemoteAction: (peerId, op) => {
         if (isWindowPeer(peerId)) return;
         // 스트리밍 중 잦은 조작(중지 등)은 묶지 않고 그대로 알린다
