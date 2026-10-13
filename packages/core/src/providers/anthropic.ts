@@ -61,7 +61,7 @@ export function createAnthropicProvider(opts: ApiProviderOptions): LLMProvider {
           headers: headers(key),
           body: JSON.stringify({
             model: req.model || opts.getModel?.() || ANTHROPIC_DEFAULT_MODEL,
-            max_tokens: opts.maxTokens ?? (req.purpose === 'chat' || !req.purpose ? 4096 : 512),
+            max_tokens: opts.maxTokens ?? (req.purpose === 'chat' || req.purpose === 'skill' || !req.purpose ? 4096 : 512),
             system: req.system,
             messages,
             stream: true,

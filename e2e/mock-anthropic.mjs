@@ -30,6 +30,24 @@ function reply(body) {
     const topic = content.match(/질문 대상: "([^"]+)"/)?.[1] ?? '?';
     return `요약[${topic}]: 쿼리와 키의 유사도로 값을 섞는다는 점을 이해했다.`;
   }
+  if (system.startsWith('너는 학습 채팅앱의 "스킬" 작성 도우미')) {
+    // 새 스킬: 요청을 지시에 담는다. 고치기: 기존 이름·제목은 두고 지시 끝에 요청을 더한다
+    const ask = content.match(/## 요청\n([\s\S]*)$/)?.[1]?.trim() ?? '';
+    const cur = content.match(/<prompt>\n([\s\S]*?)\n<\/prompt>/)?.[1];
+    const name = content.match(/<name>([^<]*)<\/name>/)?.[1] || 'vocab';
+    const title = content.match(/<title>([^<]*)<\/title>/)?.[1] || '단어 암기';
+    return [
+      '```',
+      `<name>${name}</name>`,
+      `<title>${title}</title>`,
+      '<description>AI가 만든 스킬</description>',
+      '<prompt>',
+      cur ? `${cur}\n추가: ${ask}` : `요청: ${ask}`,
+      '</prompt>',
+      `<note>${cur ? '요청을 지시에 더했어요.' : '새 스킬을 만들었어요.'}</note>`,
+      '```',
+    ].join('\n');
+  }
   const topic = content.match(/"([^"]+)"/)?.[1] ?? content.slice(0, 12);
   const depth = (system.match(/^\d+\. "/gm) ?? []).length;
   return [

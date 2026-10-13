@@ -1,5 +1,6 @@
 import { defaultSkills, isSkill, newId, type ID, type Skill } from '@branch/core';
 import { create } from 'zustand';
+import { actions } from '../app/store';
 import type { BranchDB } from '../persist/db';
 
 /**
@@ -15,6 +16,10 @@ interface SkillsState {
   remove(id: ID): void;
   /** 지운 예시 스킬을 다시 넣는다 */
   restoreDefaults(): void;
+  /** 다음에 여는 스킬 관리 페이지를 '새 스킬 + AI 입력'으로 연다 (IMP-11) */
+  aiIntent: boolean;
+  /** aiIntent를 읽고 지운다 */
+  takeAiIntent(): boolean;
 }
 
 let db: BranchDB | null = null;
@@ -29,6 +34,13 @@ function persist(fn: (db: BranchDB) => Promise<unknown>) {
 export const useSkills = create<SkillsState>((set, get) => ({
   skills: [],
   loaded: false,
+  aiIntent: false,
+
+  takeAiIntent() {
+    const v = get().aiIntent;
+    if (v) set({ aiIntent: false });
+    return v;
+  },
 
   save(input) {
     const now = Date.now();
@@ -86,4 +98,10 @@ export async function loadSkills(database: BranchDB | null) {
     skills = defaultSkills();
   }
   useSkills.setState({ skills: skills.sort(byTitle), loaded: true });
+}
+
+/** 스킬 관리 페이지를 새 스킬 + AI 입력으로 연다 */
+export function openSkillsWithAI() {
+  useSkills.setState({ aiIntent: true });
+  actions().setOverlay('skills');
 }

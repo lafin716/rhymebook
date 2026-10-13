@@ -6,6 +6,7 @@ import { useBreakpoint } from '../app/useBreakpoint';
 import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
+import { SkillAssist } from './SkillAssist';
 import { useSkills } from './skillsStore';
 
 const PROBLEM_TEXT: Record<SkillProblem, string> = {
@@ -43,7 +44,11 @@ export function SkillsPage() {
 function SkillsPageBody() {
   const skills = useSkills((s) => s.skills);
   const mobile = useBreakpoint() === 'mobile';
-  const [selected, setSelected] = useState<ID | 'new' | null>(() => (mobile ? null : (skills[0]?.id ?? 'new')));
+  // + 메뉴의 'AI로 스킬 만들기'로 열면 새 스킬(AI 칸에 바로 입력)부터
+  const [selected, setSelected] = useState<ID | 'new' | null>(() =>
+    useSkills.getState().takeAiIntent() ? 'new' : mobile ? null : (skills[0]?.id ?? 'new'),
+  );
+  const [aiBusy, setAiBusy] = useState(false);
   const current = useMemo(() => (selected && selected !== 'new' ? skills.find((s) => s.id === selected) : undefined), [selected, skills]);
   const base = current ? toDraft(current) : EMPTY;
   const [draft, setDraft] = useState<Draft>(base);
@@ -59,7 +64,7 @@ function SkillsPageBody() {
   }, [baseKey]);
 
   const leave = async (): Promise<boolean> =>
-    !dirty || (await confirm({ title: '저장하지 않은 변경이 있어요', message: '변경 내용을 버릴까요?', confirmLabel: '버리기', tone: 'danger' }));
+    (!dirty && !aiBusy) || (await confirm({ title: '저장하지 않은 변경이 있어요', message: '변경 내용을 버릴까요?', confirmLabel: '버리기', tone: 'danger' }));
 
   const close = async () => {
     if (await leave()) actions().setOverlay('none');
@@ -81,6 +86,7 @@ function SkillsPageBody() {
   });
 
   const save = () => {
+    if (aiBusy) return;
     const next = { ...draft, name: normalizeSkillName(draft.name) };
     const p = validateSkill({ ...next, id: draft.id ?? '' }, skills);
     setProblem(p);
@@ -171,63 +177,77 @@ function SkillsPageBody() {
                     채팅 입력창에서 <code className="rounded bg-surface-2 px-1 text-accent">/{current.name}</code>을 입력하거나 <b className="font-medium text-fg-2">+ › 스킬</b>에서 고르면, 그 질문에 아래 지시가 더해져요.
                   </>
                 ) : (
-                  '새 스킬을 만들어요. 명령 이름으로 채팅에서 바로 부를 수 있어요.'
+                  '새 스킬을 만들어요. 원하는 것을 AI에게 말하거나 아래 칸을 직접 채우세요. 명령 이름으로 채팅에서 바로 부를 수 있어요.'
                 )}
               </div>
 
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[13px] font-medium text-fg-2">명령 이름</span>
-                <div className="flex h-10 items-center rounded-xl border border-line bg-surface px-3 focus-within:border-accent">
-                  <span className="text-accent">/</span>
+              <SkillAssist
+                key={baseKey}
+                draft={draft}
+                onDraft={(f) => {
+                  setDraft((d) => ({ ...d, ...f }));
+                  setProblem(null);
+                }}
+                skills={skills}
+                onBusy={setAiBusy}
+                autoFocus={selected === 'new'}
+              />
+
+              <fieldset disabled={aiBusy} aria-busy={aiBusy} className="flex min-w-0 flex-col gap-4 disabled:opacity-70">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[13px] font-medium text-fg-2">명령 이름</span>
+                  <div className="flex h-10 items-center rounded-xl border border-line bg-surface px-3 focus-within:border-accent">
+                    <span className="text-accent">/</span>
+                    <input
+                      value={draft.name}
+                      maxLength={SKILL_LIMITS.name + 1}
+                      placeholder="curriculum"
+                      aria-label="명령 이름"
+                      onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                      onBlur={() => setDraft((d) => ({ ...d, name: normalizeSkillName(d.name) }))}
+                      className="min-w-0 flex-1 bg-transparent pl-0.5 text-[14.5px] outline-none"
+                    />
+                  </div>
+                </label>
+  
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[13px] font-medium text-fg-2">제목</span>
                   <input
-                    value={draft.name}
-                    maxLength={SKILL_LIMITS.name + 1}
-                    placeholder="curriculum"
-                    aria-label="명령 이름"
-                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                    onBlur={() => setDraft((d) => ({ ...d, name: normalizeSkillName(d.name) }))}
-                    className="min-w-0 flex-1 bg-transparent pl-0.5 text-[14.5px] outline-none"
+                    value={draft.title}
+                    maxLength={SKILL_LIMITS.title}
+                    placeholder="커리큘럼 생성"
+                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                    className="h-10 rounded-xl border border-line bg-surface px-3 text-[14.5px] outline-none focus:border-accent"
                   />
-                </div>
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[13px] font-medium text-fg-2">제목</span>
-                <input
-                  value={draft.title}
-                  maxLength={SKILL_LIMITS.title}
-                  placeholder="커리큘럼 생성"
-                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                  className="h-10 rounded-xl border border-line bg-surface px-3 text-[14.5px] outline-none focus:border-accent"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[13px] font-medium text-fg-2">설명 <span className="font-normal text-muted">(목록과 메뉴에 보여요)</span></span>
-                <input
-                  value={draft.description}
-                  maxLength={SKILL_LIMITS.description}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                  className="h-10 rounded-xl border border-line bg-surface px-3 text-[14.5px] outline-none focus:border-accent"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="flex items-baseline justify-between text-[13px] font-medium text-fg-2">
-                  지시
-                  <span className="font-normal text-muted">
-                    {draft.prompt.length.toLocaleString()} / {SKILL_LIMITS.prompt.toLocaleString()}
+                </label>
+  
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[13px] font-medium text-fg-2">설명 <span className="font-normal text-muted">(목록과 메뉴에 보여요)</span></span>
+                  <input
+                    value={draft.description}
+                    maxLength={SKILL_LIMITS.description}
+                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                    className="h-10 rounded-xl border border-line bg-surface px-3 text-[14.5px] outline-none focus:border-accent"
+                  />
+                </label>
+  
+                <label className="flex flex-col gap-1.5">
+                  <span className="flex items-baseline justify-between text-[13px] font-medium text-fg-2">
+                    지시
+                    <span className="font-normal text-muted">
+                      {draft.prompt.length.toLocaleString()} / {SKILL_LIMITS.prompt.toLocaleString()}
+                    </span>
                   </span>
-                </span>
-                <textarea
-                  value={draft.prompt}
-                  maxLength={SKILL_LIMITS.prompt}
-                  rows={16}
-                  placeholder="이 스킬을 고른 질문에 모델이 따를 지시를 적어요."
-                  onChange={(e) => setDraft({ ...draft, prompt: e.target.value })}
-                  className="min-h-48 resize-y rounded-xl border border-line bg-surface px-3 py-2.5 font-mono text-[13px] leading-relaxed outline-none focus:border-accent"
-                />
-              </label>
+                  <textarea
+                    value={draft.prompt}
+                    maxLength={SKILL_LIMITS.prompt}
+                    rows={16}
+                    placeholder="이 스킬을 고른 질문에 모델이 따를 지시를 적어요."
+                    onChange={(e) => setDraft({ ...draft, prompt: e.target.value })}
+                    className="min-h-48 resize-y rounded-xl border border-line bg-surface px-3 py-2.5 font-mono text-[13px] leading-relaxed outline-none focus:border-accent"
+                  />
+                </label>
+              </fieldset>
 
               {problem && (
                 <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger">
@@ -242,12 +262,12 @@ function SkillsPageBody() {
                   </Button>
                 )}
                 <span className="flex-1" />
-                {dirty && current && (
-                  <Button variant="ghost" onClick={() => setDraft(toDraft(current))}>
+                {dirty && current && !aiBusy && (
+                  <Button variant="ghost" disabled={aiBusy} onClick={() => setDraft(toDraft(current))}>
                     되돌리기
                   </Button>
                 )}
-                <Button type="submit" variant="primary" icon={<Save size={15} />} disabled={!dirty}>
+                <Button type="submit" variant="primary" icon={<Save size={15} />} disabled={!dirty || aiBusy}>
                   저장
                 </Button>
               </div>

@@ -15,7 +15,7 @@ export interface StreamRequest {
   effort?: string;
   signal?: AbortSignal;
   /** 요청 목적. Mock/로깅용 힌트 */
-  purpose?: 'chat' | 'summary' | 'title';
+  purpose?: 'chat' | 'summary' | 'title' | 'skill';
 }
 
 export interface ProviderError {

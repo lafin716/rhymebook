@@ -25,14 +25,17 @@ let persistEnabled = false;
  * provider는 실제 레지스트리(Anthropic/OpenAI BYOK)이며, 데모 모드에서는 Mock으로 라우팅된다.
  * 초기값은 빈 데이터이고, 실제 모드에서는 시작 시 `loadPersisted()`로 저장된 데이터로 교체한다.
  */
+/** provider 레지스트리. 채팅 밖의 단발 생성(AI 스킬 작성 등)도 이것을 쓴다 */
+export const registry = createRuntimeRegistry({
+  secrets,
+  getConnections: () => appStore.getState().connections,
+  isDemo,
+  baseUrls,
+  overrides: platformProviders,
+});
+
 export const appStore = createAppStore({
-  registry: createRuntimeRegistry({
-    secrets,
-    getConnections: () => appStore.getState().connections,
-    isDemo,
-    baseUrls,
-    overrides: platformProviders,
-  }),
+  registry,
   repo: gatedRepository(persistence, () => persistEnabled && !isDemo()),
   // 웹·모바일은 이 기기에 저장하지 않는다. 데이터는 PC에 있고 SyncClient가 미러링한다 (ADR-026)
   remote: remoteMode,

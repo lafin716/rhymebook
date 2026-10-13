@@ -54,6 +54,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-08 드래그 메뉴 비가림 배치·우클릭 모드·색상표(사용자 지정·즐겨찾기)·가지 테마색+아이콘·이 페이지의 가지 목록·원문 접기·세션 우클릭 이름 변경·원격 에이전트/모델/노력치 선택·데모 UI 제거 (ADR-031·032)
 - [x] IMP-06 웹·모바일 원격 전용: PC 데스크톱 앱 스토어 동기화(보기·실시간 스트리밍) + 액션 신호로 PC가 CLI 실행 + 원격 전용 UI 개편 (ADR-026, docs/plans/remote-only-plan.md)
 - [x] IMP-09 상단 단일/분할 제거(마인드맵 토글만)·사이드바 끌어 좌우·상하 분할(최대 4)·입력창 + 메뉴(사진·파일 첨부, 클립보드 이미지, 긴 붙여넣기 미리보기)·스킬(슬래시·+ 메뉴, 관리 페이지, 예시 커리큘럼 생성) (ADR-033~035)
+- [x] IMP-11 AI로 스킬 만들기·고치기: 스킬 편집 칸 위 AI 도우미(요청·빠른 요청 칩·실시간 채움·중지·AI 변경 취소), + 메뉴 [AI로 스킬 만들기…] (ADR-037)
 
 ## Tasks
 
@@ -102,7 +103,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP09-T4 | IMP-09 | E2E·데스크톱 빌드·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: e2e 31 passed·5 skipped(+끌어 분할·첨부·스킬 3×2, 보기 테스트 갱신). Windows `package:dir` → 격리 userData 앱에서 Claude CLI 이미지 질문 "빨간색"(31s)·스킬 칩, 콘솔 에러 0 |
 
 ## Active Work
-- 없음 (IMP-09 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
+- 없음 (IMP-11 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
 
 ## Blockers
@@ -112,6 +113,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-13 · 개선(IMP-11, Windows): `pnpm typecheck`·`pnpm lint` PASS, core 245/247(+10 skill-assist, 실패 2는 기존과 동일)·ui 20/20, e2e `skill-assist`·`composer-split` desktop·mobile PASS. Windows `package:dir` 빌드·실행.
 - 2026-10-13 · 개선(IMP-09, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 235/237·ui 20/20 PASS(실패 2·bridge 19·relay 2는 변경 전과 동일), `pnpm e2e` 31 passed · 5 skipped. Windows `package:dir` 빌드·실행, 실제 Claude CLI 이미지 첨부 응답 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-08, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 214/215·ui 20/20 PASS, bridge 19·relay 2·core 1 실패는 변경 전 코드와 동일(기존). `pnpm e2e` 26 passed · 4 skipped. Windows `package:dir` 빌드·실행 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-05): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 128, bridge 31+3 skipped, ui 9, relay 9), `pnpm e2e` 11 passed · 1 skipped. 데스크톱 `package:dir` 빌드·실행 확인. 커밋 `improve: …`.

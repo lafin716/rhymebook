@@ -148,6 +148,20 @@ export function mockAnswer(req: StreamRequest): string {
     const first = user.replace(/\[[^\]]+\]\s*/g, '').split(/\s+/).slice(0, 3).join(' ');
     return first || '새 학습';
   }
+  if (req.purpose === 'skill') {
+    const ask = /## 요청\n([\s\S]*)$/.exec(user)?.[1]?.trim() ?? '';
+    const cur = /<prompt>\n([\s\S]*?)\n<\/prompt>/.exec(user)?.[1];
+    const keep = (tag: string, fallback: string) => new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(user)?.[1] || fallback;
+    return [
+      `<name>${keep('name', 'quiz')}</name>`,
+      `<title>${keep('title', '개념 퀴즈')}</title>`,
+      `<description>${keep('description', '주제의 핵심 개념을 퀴즈로 점검해요.')}</description>`,
+      '<prompt>',
+      cur ? `${cur}\n- 추가 요청 반영: ${ask}` : `학습자가 준 주제로 퀴즈를 낸다.\n\n1. 핵심 개념 **3개**를 골라 문제를 하나씩 낸다.\n2. 요청: ${ask}`,
+      '</prompt>',
+      `<note>${cur ? '요청한 내용을 지시에 더했어요.' : '퀴즈 스킬을 만들었어요.'}</note>`,
+    ].join('\n');
+  }
   if (req.purpose === 'summary') {
     const target = /질문 대상: "([^"]+)"/.exec(user)?.[1] ?? '이 개념';
     const hit = CANNED.find((c) => c.keys.test(target));

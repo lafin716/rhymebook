@@ -11,7 +11,7 @@ import {
   type Skill,
   type SkillRef,
 } from '@branch/core';
-import { ArrowUp, ImagePlus, Paperclip, Plus, Settings2, Sparkles, Square, WifiOff, X } from 'lucide-react';
+import { ArrowUp, ImagePlus, Paperclip, Plus, Settings2, Sparkles, Square, WandSparkles, WifiOff, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { actions, useApp } from '../app/store';
 import { pushNotice } from '../app/sync';
@@ -20,7 +20,7 @@ import { PcOfflineBanner, usePcOnline } from '../components/PcStatus';
 import { remoteMode } from '../app/capabilities';
 import { cn } from '../lib/cn';
 import { isUsable, providerLabel, STATUS_LABEL } from '../lib/connection';
-import { useSkills } from '../skills/skillsStore';
+import { openSkillsWithAI, useSkills } from '../skills/skillsStore';
 import { fileToAttachment, pastedTextAttachment } from './attach';
 import { AttachmentList } from './Attachments';
 import { ModelChips } from './ModelChips';
@@ -378,6 +378,9 @@ function PlusMenu({
               </MenuItem>
             ))}
           </div>
+          <MenuItem className={item} icon={<WandSparkles size={16} className="text-accent" />} onClick={run(openSkillsWithAI)}>
+            AI로 스킬 만들기…
+          </MenuItem>
           <MenuItem className={item} icon={<Settings2 size={16} className="text-muted" />} onClick={run(() => actions().setOverlay('skills'))}>
             스킬 관리…
           </MenuItem>
