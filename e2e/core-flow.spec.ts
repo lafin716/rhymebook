@@ -144,7 +144,7 @@ test('루트 질문 → 3단계 가지 → 요약 카드 → 새로고침 후 �
   expect(errors).toEqual([]);
 });
 
-test('보기 모드(분할·마인드맵)와 Cmd+K 검색', async ({ page }, info) => {
+test('보기(단일·분할 버튼 없음, 마인드맵 토글)와 Cmd+K 검색', async ({ page }, info) => {
   test.skip(info.project.name === 'mobile', '모바일은 탭/전체화면 규칙이라 데스크톱에서 검증');
   const errors = collectErrors(page);
   await page.goto(LOCAL);
@@ -153,12 +153,16 @@ test('보기 모드(분할·마인드맵)와 Cmd+K 검색', async ({ page }, inf
   await askRoot(page, '행렬 곱을 알려줘');
   await branchFrom(page, '[data-panel="main"]', '스케일링');
 
-  const modes = page.getByRole('radiogroup', { name: '보기 모드' });
-  await modes.getByRole('radio', { name: /분할/ }).click();
-  await expect(page.locator('[data-panel]')).not.toHaveCount(0);
-  await modes.getByRole('radio', { name: /마인드맵/ }).click();
+  const banner = page.getByRole('banner');
+  await expect(banner.getByRole('radiogroup')).toHaveCount(0);
+  await expect(banner.getByRole('button', { name: /^(단일|분할)$/ })).toHaveCount(0);
+  const mindmap = banner.getByRole('button', { name: '마인드맵' });
+  await mindmap.click();
+  await expect(mindmap).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.react-flow__node').first()).toBeVisible();
   expect(await page.locator('.react-flow__node').count()).toBeGreaterThanOrEqual(2);
+  await mindmap.click();
+  await expect(page.locator('[data-panel="main"]')).toBeVisible();
 
   await page.keyboard.press('ControlOrMeta+k');
   const search = page.getByRole('dialog').getByRole('textbox').first();

@@ -1,4 +1,4 @@
-import type { ID } from '@branch/core';
+import { leafIds, normalizeLayout, type ID, type SplitNode } from '@branch/core';
 import { X } from 'lucide-react';
 import { Fragment } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
@@ -7,54 +7,81 @@ import { useBreakpoint } from '../app/useBreakpoint';
 import { ChatPanel } from '../chat/ChatPanel';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
+import { DropZone } from './DropZone';
 
-/** 분할 보기: 데스크톱/태블릿은 크기 조절 패널(최대 3), 모바일은 탭 전환 */
+/** 분할 보기: 데스크톱/태블릿은 좌우·상하 크기 조절 패널(최대 4), 모바일은 탭 전환 */
 export function SplitView() {
   const ids = useAppShallow((s) => s.view.splitSessionIds);
   const focused = useApp((s) => s.view.focusedSplitIndex);
-  const sizes = useAppShallow((s) => s.view.splitSizes);
+  const saved = useApp((s) => s.view.splitLayout);
   const bp = useBreakpoint();
 
   if (bp === 'mobile') return <SplitTabs ids={ids} focused={focused} />;
+  const layout = normalizeLayout(saved, ids);
+  if (!layout) return null;
+  return (
+    <div className="h-full" data-split-root="">
+      <SplitTree node={layout} path={[]} />
+    </div>
+  );
+}
 
-  const defaultLayout = sizes && sizes.length === ids.length
-    ? Object.fromEntries(ids.map((id, i) => [`p-${i}-${id}`, sizes[i]!]))
-    : undefined;
+const nodeKey = (n: SplitNode) => (n.kind === 'leaf' ? `l-${n.sessionId}` : `g-${n.dir}-${leafIds(n).join('_')}`);
 
+function SplitTree({ node, path }: { node: SplitNode; path: number[] }) {
+  if (node.kind === 'leaf') return <Pane sessionId={node.sessionId} />;
+  const row = node.dir === 'row';
+  const keys = node.children.map(nodeKey);
+  const defaultLayout = node.sizes && node.sizes.length === keys.length ? Object.fromEntries(keys.map((k, i) => [k, node.sizes![i]!])) : undefined;
   return (
     <Group
-      key={ids.join('|')}
-      orientation="horizontal"
+      key={keys.join('|')}
+      orientation={row ? 'horizontal' : 'vertical'}
       className="h-full"
       defaultLayout={defaultLayout}
-      onLayoutChanged={(layout) => actions().setSplitSizes(ids.map((id, i) => layout[`p-${i}-${id}`] ?? 100 / ids.length))}
+      onLayoutChanged={(l) => actions().setSplitGroupSizes(path, keys.map((k) => l[k] ?? 100 / keys.length))}
     >
-      {ids.map((id, i) => (
-        <Fragment key={`${i}-${id}`}>
+      {node.children.map((child, i) => (
+        <Fragment key={keys[i]}>
           {i > 0 && (
-            <Separator className="group relative w-px bg-line outline-none data-[separator=active]:bg-accent data-[separator=hover]:bg-accent">
-              <span className="absolute inset-y-0 -left-1.5 -right-1.5" />
+            <Separator
+              className={cn(
+                'group relative bg-line outline-none data-[separator=active]:bg-accent data-[separator=hover]:bg-accent',
+                row ? 'w-px' : 'h-px',
+              )}
+            >
+              <span className={cn('absolute', row ? 'inset-y-0 -right-1.5 -left-1.5' : 'inset-x-0 -top-1.5 -bottom-1.5')} />
             </Separator>
           )}
-          <Panel id={`p-${i}-${id}`} minSize="22%" className="min-w-0">
-            <div
-              className={cn('relative h-full', i === focused && ids.length > 1 && 'shadow-[inset_0_2px_0_var(--accent)]')}
-              onMouseDownCapture={() => i !== focused && actions().focusSplit(i)}
-            >
-              <ChatPanel
-                sessionId={id}
-                variant="pane"
-                headerActions={
-                  <IconButton size="sm" label="패널 닫기" onClick={() => actions().closeSplit(i)}>
-                    <X size={16} />
-                  </IconButton>
-                }
-              />
-            </div>
+          <Panel id={keys[i]} minSize="18%" className="min-h-0 min-w-0">
+            <SplitTree node={child} path={[...path, i]} />
           </Panel>
         </Fragment>
       ))}
     </Group>
+  );
+}
+
+function Pane({ sessionId }: { sessionId: ID }) {
+  const index = useApp((s) => s.view.splitSessionIds.indexOf(sessionId));
+  const focused = useApp((s) => s.view.focusedSplitIndex === index);
+  return (
+    <div
+      data-split-pane={sessionId}
+      className={cn('relative h-full', focused && 'shadow-[inset_0_2px_0_var(--accent)]')}
+      onMouseDownCapture={() => !focused && index >= 0 && actions().focusSplit(index)}
+    >
+      <ChatPanel
+        sessionId={sessionId}
+        variant="pane"
+        headerActions={
+          <IconButton size="sm" label="패널 닫기" onClick={() => actions().closeSplit(index)}>
+            <X size={16} />
+          </IconButton>
+        }
+      />
+      <DropZone targetId={sessionId} />
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 import type { MessageMap } from './context';
 import type { Annotation, ConnectionState, ID, Message, ProviderId, Session, Settings, ViewState } from './model';
 import { DEFAULT_SETTINGS, emptyView, initialConnections } from './seed';
+import { isSplitNode, leafIds, normalizeLayout, rowLayout } from './splitLayout';
 import type { AppData } from './store';
 
 /** 저장소에서 읽은 원본 (어떤 플랫폼 저장소든 이 형태로 넘긴다) */
@@ -92,7 +93,9 @@ export function sanitizeView(view: ViewState | undefined, sessions: Record<ID, S
   if (!view) return emptyView(fallback);
   const ok = (id: ID) => id in sessions;
   const split = view.splitSessionIds.filter(ok);
+  // 이전 버전의 좌우 비율(splitSizes)은 배치 트리로 옮긴다
   const sizesOk = view.splitSizes && split.length === view.splitSessionIds.length;
+  const saved = isSplitNode(view.splitLayout) ? view.splitLayout : rowLayout(split, sizesOk ? view.splitSizes : undefined);
   const next: ViewState = {
     ...view,
     activeSessionId: view.activeSessionId && ok(view.activeSessionId) ? view.activeSessionId : fallback,
@@ -101,8 +104,17 @@ export function sanitizeView(view: ViewState | undefined, sessions: Record<ID, S
     popups: view.popups.filter((p) => ok(p.sessionId)),
     sheetSessionIds: view.sheetSessionIds.filter(ok),
   };
-  if (!sizesOk) delete next.splitSizes;
-  if (next.mode === 'split' && split.length === 0) next.mode = 'single';
+  delete next.splitSizes;
+  const layout = normalizeLayout(saved, split);
+  if (layout && split.length >= 2) {
+    next.splitLayout = layout;
+    next.splitSessionIds = leafIds(layout);
+  } else {
+    delete next.splitLayout;
+    next.splitSessionIds = [];
+    next.focusedSplitIndex = 0;
+    if (next.mode === 'split') next.mode = 'single';
+  }
   return next;
 }
 

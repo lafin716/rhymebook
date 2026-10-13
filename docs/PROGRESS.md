@@ -1,8 +1,8 @@
 # Project Progress
 
-Last Updated: 2026-10-12
+Last Updated: 2026-10-13
 Current Stage: **3단계 — 전체 개발 완료**
-Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~06 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
+Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
 > 재개 방법: 루트 `CLAUDE.md` → 이 파일 → `docs/02-ARCHITECTURE.md` → `git log`/`git status` 순으로 읽고,
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
@@ -53,6 +53,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-07 백그라운드 호스트(트레이)·여러 줄 가지 왼쪽 영역 표시·드래그 메뉴 서식(형광펜·밑줄·글자색·글꼴)·메모 (ADR-028~030)
 - [x] IMP-08 드래그 메뉴 비가림 배치·우클릭 모드·색상표(사용자 지정·즐겨찾기)·가지 테마색+아이콘·이 페이지의 가지 목록·원문 접기·세션 우클릭 이름 변경·원격 에이전트/모델/노력치 선택·데모 UI 제거 (ADR-031·032)
 - [x] IMP-06 웹·모바일 원격 전용: PC 데스크톱 앱 스토어 동기화(보기·실시간 스트리밍) + 액션 신호로 PC가 CLI 실행 + 원격 전용 UI 개편 (ADR-026, docs/plans/remote-only-plan.md)
+- [x] IMP-09 상단 단일/분할 제거(마인드맵 토글만)·사이드바 끌어 좌우·상하 분할(최대 4)·입력창 + 메뉴(사진·파일 첨부, 클립보드 이미지, 긴 붙여넣기 미리보기)·스킬(슬래시·+ 메뉴, 관리 페이지, 예시 커리큘럼 생성) (ADR-033~035)
 
 ## Tasks
 
@@ -95,10 +96,14 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP08-T1 | IMP-08 | core: MarkColor #rrggbb·isMarkColor, sync op `session.agent`(호스트·클라이언트), Mock을 플랫폼 provider 목록에서 제외 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 214 passed(+색 검증·session.agent 왕복/검증). 기존 실패 1건(sync.reset, Windows) 변경 전 코드에서도 동일 |
 | IMP08-T2 | IMP-08 | UI: placeMenu·우클릭 모드 설정·색상표(즐겨찾기·추천·사용자 지정)·가지 테마색+끝 아이콘·가지 목록 플로팅·원문 접기 토글·RemoteAgentPicker·세션 우클릭 이름 변경·데모 바/카드 제거 | lead | HIGH | inherit | default | DONE | 100% | T1 | PASS: typecheck·lint, ui 20 tests(placeMenu 6·가지 끝·사용자 지정 색), 1440/390 스크린샷 |
 | IMP08-T3 | IMP-08 | E2E·데스크톱 빌드·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: e2e 26 passed·4 skipped(색상표·즐겨찾기·비가림·우클릭 모드·가지 목록·원문 접기·이름 변경). Windows `package:dir` 빌드·실행. bridge 19·relay 2 실패는 변경 전 코드에서도 동일(Windows 가짜 CLI 실행 환경) |
+| IMP09-T1 | IMP-09 | core: SplitNode 배치 트리(splitLayout.ts)·fixSplit·dropToSplit·closeMindmap, Attachment·Skill 모델·검증, toTurns 텍스트 첨부·마지막 질문 스킬, Anthropic/OpenAI content 블록, sync send 첨부·스킬, MAX_SPLIT 4 | lead | HIGH | inherit | default | DONE | 100% | - | PASS: core 235/237(+22: splitLayout 8·첨부/스킬 11·store 드롭/마인드맵/첨부 3). 실패 2건(store 자동 제목, sync.reset)은 변경 전 코드에서도 동일(Windows) |
+| IMP09-T2 | IMP-09 | bridge: claude `--input-format stream-json` 첨부 블록, codex `--image` 임시 파일, 원격 chat.start 첨부 검증, WebSocket 프레임 16MB(bridge·relay) | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: bridge 단위 2건 추가, 실제 CLI(claude 2.1.296·codex 0.154.0)에 빨간 PNG → 둘 다 "빨강". bridge 19·relay 2 실패는 변경 전과 동일 |
+| IMP09-T3 | IMP-09 | UI: 상단 마인드맵 토글, 재귀 SplitView(좌우·상하 Group)·DropZone·사이드바 행 끌기·우클릭 분할 열기, Composer + 메뉴·첨부 미리보기·붙여넣기·슬래시 스킬, 보낸 질문 첨부·스킬 배지, 스킬 관리 페이지·Dexie v4 skills | lead | HIGH | inherit | default | DONE | 100% | T1 | PASS: typecheck·lint, ui 20 tests, 1440·390 스크린샷 |
+| IMP09-T4 | IMP-09 | E2E·데스크톱 빌드·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: e2e 31 passed·5 skipped(+끌어 분할·첨부·스킬 3×2, 보기 테스트 갱신). Windows `package:dir` → 격리 userData 앱에서 Claude CLI 이미지 질문 "빨간색"(31s)·스킬 칩, 콘솔 에러 0 |
 
 ## Active Work
-- 없음 (IMP-08 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
-- 확인 필요: Windows에서 core `sync.reset` 1건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
+- 없음 (IMP-09 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
+- 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
 
 ## Blockers
 - 없음 (docs/BLOCKERS.md 참조)
@@ -107,6 +112,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-13 · 개선(IMP-09, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 235/237·ui 20/20 PASS(실패 2·bridge 19·relay 2는 변경 전과 동일), `pnpm e2e` 31 passed · 5 skipped. Windows `package:dir` 빌드·실행, 실제 Claude CLI 이미지 첨부 응답 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-08, Windows): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` core 214/215·ui 20/20 PASS, bridge 19·relay 2·core 1 실패는 변경 전 코드와 동일(기존). `pnpm e2e` 26 passed · 4 skipped. Windows `package:dir` 빌드·실행 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-05): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 128, bridge 31+3 skipped, ui 9, relay 9), `pnpm e2e` 11 passed · 1 skipped. 데스크톱 `package:dir` 빌드·실행 확인. 커밋 `improve: …`.
 - 2026-10-12 · 개선(IMP-04): `pnpm typecheck` PASS, `pnpm lint` PASS, `pnpm test` PASS(core 118, bridge 30+3 skipped, ui 9, relay 9), `pnpm e2e` 9 passed · 1 skipped. 실제 CLI(claude haiku/low, codex gpt-6-luna/low) bridge 경유 응답 확인. 커밋 `improve: …`.

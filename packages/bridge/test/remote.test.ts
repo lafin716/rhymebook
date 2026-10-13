@@ -190,6 +190,14 @@ describe('validateClientMsg', () => {
     expect(validateClientMsg({ type: 'status.get', reqId: 'a b' })).toBeNull();
     expect(validateClientMsg({ type: 'chat.abort', reqId: 'r1' })).toEqual({ type: 'chat.abort', reqId: 'r1' });
   });
+
+  it('첨부는 형식이 맞을 때만 넘기고 틀리면 메시지를 거부', () => {
+    const img = { id: 'a1', kind: 'image', name: 'x.png', mime: 'image/png', size: 3, data: 'AAAA' };
+    const msg = (attachments: unknown) => ({ type: 'chat.start', reqId: 'r1', providerId: 'claude-cli', system: '', messages: [{ role: 'user', content: 'hi', attachments }] });
+    expect(validateClientMsg(msg([img]))).toEqual(msg([img]));
+    expect(validateClientMsg(msg([{ ...img, mime: 'text/html' }]))).toBeNull();
+    expect(validateClientMsg(msg('nope'))).toBeNull();
+  });
 });
 
 describe('원격 bridge — PC 정책 (데스크톱 호스트)', () => {

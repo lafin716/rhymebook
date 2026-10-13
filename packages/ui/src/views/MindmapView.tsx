@@ -152,7 +152,7 @@ export function MindmapView() {
     <div className="fixed inset-0 z-30 flex flex-col bg-bg pt-[env(safe-area-inset-top)]">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3">
         <span className="flex-1 truncate text-[15px] font-semibold">마인드맵</span>
-        <IconButton label="마인드맵 닫기" onClick={() => actions().setMode('single')}>
+        <IconButton label="마인드맵 닫기" onClick={() => actions().closeMindmap()}>
           <X size={18} />
         </IconButton>
       </div>

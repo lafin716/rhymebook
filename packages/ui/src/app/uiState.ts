@@ -30,6 +30,9 @@ interface UiState {
   toggleFavoriteColor(c: MarkColor): void;
   /** 딥링크로 받은 페어링 링크. 설정 › 원격 Bridge 폼이 가져가면 비운다 */
   pairLink: string | null;
+  /** 사이드바에서 끌고 있는 세션 (분할 놓기 영역 표시용) */
+  dragSessionId: string | null;
+  setDragSession(id: string | null): void;
 }
 
 function load(key: string): string | null {
@@ -85,4 +88,6 @@ export const useUi = create<UiState>((set, get) => ({
     save(FAVORITES_KEY, JSON.stringify(favoriteColors));
   },
   pairLink: null,
+  dragSessionId: null,
+  setDragSession: (dragSessionId) => set({ dragSessionId }),
 }));

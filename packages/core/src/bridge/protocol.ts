@@ -8,7 +8,13 @@ import type { Availability, ChatTurn, ProviderError } from '../provider';
 export type CliProviderId = Extract<ProviderId, 'claude-cli' | 'codex-cli'>;
 export const CLI_PROVIDER_IDS: CliProviderId[] = ['claude-cli', 'codex-cli'];
 
-export type BridgeStatus = Record<CliProviderId, Availability>;
+/**
+ * 원격 WebSocket 프레임 한도 (bridge·relay 공통). 첨부(메시지당 원본 6MB)가 base64 + E2E 암호화를 거쳐도
+ * 들어가도록 16MB (ADR-033)
+ */
+export const REMOTE_MAX_PAYLOAD = 16 * 1024 * 1024;
+
+export type BridgeStatus =Record<CliProviderId, Availability>;
 
 export interface ChatStartMsg {
   type: 'chat.start';

@@ -6,6 +6,7 @@ import {
   parseRelayFrame,
   RELAY_CLOSE_OFFLINE,
   relayRegisterTranscript,
+  REMOTE_MAX_PAYLOAD,
   verifyTranscript,
   type BridgeToRelay,
   type RelayToBridge,
@@ -37,7 +38,7 @@ export interface RelayServer {
 
 export const RELAY_CLOSE_REPLACED = 4409;
 export const RELAY_CLOSE_FULL = 4429;
-const MAX_PAYLOAD = 4 * 1024 * 1024;
+const MAX_PAYLOAD = REMOTE_MAX_PAYLOAD;
 
 interface BridgeEntry {
   ws: WebSocket;

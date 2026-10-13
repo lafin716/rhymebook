@@ -1,4 +1,4 @@
-import { providerError, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
+import { providerError, type Availability, type ChatTurn, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
 import { readSse } from '../sse';
 import { resolveBase, verifyGet, type ApiProviderOptions } from './anthropic';
 import { defaultFetch, httpError, maskSecret, thrownError, type FetchLike } from './http';
@@ -26,7 +26,7 @@ export function createOpenAIProvider(opts: ApiProviderOptions): LLMProvider {
       }
       const messages = [
         ...(req.system ? [{ role: 'system', content: req.system }] : []),
-        ...req.messages.map((m) => ({ role: m.role, content: m.content })),
+        ...req.messages.map((m) => ({ role: m.role, content: m.role === 'user' ? openaiContent(m) : m.content })),
       ];
       let res: Response;
       try {
@@ -80,6 +80,20 @@ export function createOpenAIProvider(opts: ApiProviderOptions): LLMProvider {
       else yield { type: 'error', error: providerError('network', '응답 스트림이 완료 전에 끊겼습니다.') };
     },
   };
+}
+
+/** 첨부가 있으면 content 파트(image_url data URL, PDF는 file) + 텍스트, 없으면 문자열 */
+export function openaiContent(turn: ChatTurn): string | Record<string, unknown>[] {
+  const files = turn.attachments ?? [];
+  if (!files.length) return turn.content;
+  return [
+    { type: 'text', text: turn.content },
+    ...files.map((a) =>
+      a.kind === 'image'
+        ? { type: 'image_url', image_url: { url: `data:${a.mime};base64,${a.data}` } }
+        : { type: 'file', file: { filename: a.name, file_data: `data:application/pdf;base64,${a.data}` } },
+    ),
+  ];
 }
 
 interface OpenAIChunk {

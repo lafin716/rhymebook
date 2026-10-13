@@ -37,9 +37,11 @@ const CODEX_OFF_FEATURES = [
  * 사용자 config.toml/rules 미적용(앱이 모델과 지시를 정한다), 도구 비활성. 프롬프트는 stdin('-').
  * 값에 따옴표를 넣지 않는다 — win32 cmd 경유 시 이스케이프가 깨진다(TOML이 아니면 문자열로 읽힌다).
  */
-export function codexArgs(opts: { model?: string; effort?: string }): string[] {
+export function codexArgs(opts: { model?: string; effort?: string; images?: string[] }): string[] {
   return [
     'exec',
+    // --image는 값을 여러 개 받으므로 다른 옵션 앞에 둬 마지막 '-'(stdin)를 먹지 않게 한다
+    ...(opts.images ?? []).flatMap((f) => ['--image', f]),
     '--json',
     '--sandbox',
     'read-only',

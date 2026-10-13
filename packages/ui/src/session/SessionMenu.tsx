@@ -1,6 +1,11 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { MAX_SPLIT, type ID } from '@branch/core';
+import { Columns2, Pencil, Rows2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { actions } from '../app/store';
+import { pushNotice } from '../app/sync';
+import { useUi } from '../app/uiState';
+import { isMobileNow } from '../app/useBreakpoint';
 import { cn } from '../lib/cn';
 
 export interface MenuPoint {
@@ -8,18 +13,29 @@ export interface MenuPoint {
   y: number;
 }
 
-/** 세션 행 우클릭 메뉴 (이름 변경·삭제) */
+/** 세션 행 우클릭 메뉴 (분할로 열기·이름 변경·삭제) */
 export function SessionMenu({
   at,
+  sessionId,
   onRename,
   onDelete,
   onClose,
 }: {
   at: MenuPoint;
+  /** 있으면 '오른쪽·아래에 분할로 열기' 항목을 보인다 (모바일 제외) */
+  sessionId?: ID;
   onRename(): void;
   onDelete?: () => void;
   onClose(): void;
 }) {
+  const split = sessionId && !isMobileNow() ? sessionId : null;
+  const openSplit = (edge: 'right' | 'bottom') => {
+    if (!split) return;
+    const v = actions().view;
+    const target = v.mode === 'split' ? (v.splitSessionIds[v.focusedSplitIndex] ?? null) : v.activeSessionId;
+    if (!actions().dropToSplit(split, target, edge)) pushNotice(`분할은 최대 ${MAX_SPLIT}개까지예요.`);
+    useUi.getState().setDrawer(false);
+  };
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
@@ -44,8 +60,8 @@ export function SessionMenu({
     };
   }, [onClose]);
 
-  const w = 168;
-  const h = onDelete ? 84 : 44;
+  const w = 188;
+  const h = (onDelete ? 84 : 44) + (split ? 80 : 0);
   const item = 'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] outline-none';
   return createPortal(
     <div
@@ -56,6 +72,33 @@ export function SessionMenu({
       style={{ top: Math.min(at.y, window.innerHeight - h - 8), left: Math.min(at.x, window.innerWidth - w - 8), width: w }}
       className="animate-pop-in fixed z-[90] rounded-lg border border-line bg-elev p-1 shadow-float"
     >
+      {split && (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onClose();
+              openSplit('right');
+            }}
+            className={cn(item, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
+          >
+            <Columns2 size={14} className="text-muted" /> 오른쪽에 분할로 열기
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onClose();
+              openSplit('bottom');
+            }}
+            className={cn(item, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
+          >
+            <Rows2 size={14} className="text-muted" /> 아래에 분할로 열기
+          </button>
+          <div className="my-1 h-px bg-line" />
+        </>
+      )}
       <button
         type="button"
         role="menuitem"

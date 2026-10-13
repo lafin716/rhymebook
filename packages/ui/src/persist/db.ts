@@ -8,6 +8,7 @@ import {
   type Repository,
   type Session,
   type Settings,
+  type Skill,
   type StoredData,
   type ViewState,
 } from '@branch/core';
@@ -17,7 +18,7 @@ import Dexie, { type Table } from 'dexie';
 type MessageRow = Message & { seq: number };
 
 interface KvRow {
-  key: 'view' | 'settings' | 'connections' | 'backup';
+  key: 'view' | 'settings' | 'connections' | 'backup' | 'skillsSeeded';
   value: unknown;
 }
 
@@ -43,6 +44,7 @@ export class BranchDB extends Dexie {
   annotations!: Table<Annotation, ID>;
   kv!: Table<KvRow, KvRow['key']>;
   backups!: Table<BackupRow, string>;
+  skills!: Table<Skill, ID>;
 
   constructor(name = 'branch-learn') {
     super(name);
@@ -55,6 +57,8 @@ export class BranchDB extends Dexie {
     this.version(2).stores({ backups: 'id, targetId, at' });
     // v3 (IMP-07): 어노테이션
     this.version(3).stores({ annotations: 'id, sessionId' });
+    // v4 (IMP-09): 스킬 (기기별. 원격 모드에서도 이 기기에 둔다)
+    this.version(4).stores({ skills: 'id, name' });
   }
 }
 

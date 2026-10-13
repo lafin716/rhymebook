@@ -8,6 +8,7 @@ import { branchQuestion } from '../context';
 import { newId } from '../id';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId } from '../cli-options';
+import { normalizeLayout } from '../splitLayout';
 
 export type SyncStatus = 'unpaired' | 'connecting' | 'online' | 'offline' | 'unsupported';
 
@@ -56,6 +57,7 @@ function pruneView(v: ViewState, gone: Set<ID>, sessions: Record<ID, Session> = 
     ...v,
     activeSessionId: active,
     splitSessionIds: split,
+    splitLayout: normalizeLayout(v.splitLayout, split),
     mode: v.mode === 'split' && split.length < 2 ? 'single' : v.mode,
     focusedSplitIndex: Math.min(v.focusedSplitIndex, Math.max(0, split.length - 1)),
     popups: v.popups.filter((p) => !gone.has(p.sessionId)),
@@ -381,13 +383,15 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       return act({ kind: 'newRoot', id: sessionId }, () => removeSession(sessionId)) ? sessionId : false;
     },
 
-    sendMessage(sessionId, text, messageId) {
+    sendMessage(sessionId, text, messageId, extra) {
       const content = text.trim();
       const s = get();
-      if (!content || !s.sessions[sessionId] || s.streaming[sessionId]) return false;
+      const attachments = extra?.attachments?.length ? extra.attachments : undefined;
+      if ((!content && !attachments) || !s.sessions[sessionId] || s.streaming[sessionId]) return false;
       const id = messageId ?? newId('m');
-      apply({ messages: { ...s.messages, [sessionId]: [...(s.messages[sessionId] ?? []), userMessage(sessionId, id, content)] } });
-      return act({ kind: 'send', sessionId, text: content, messageId: id }, () => removeMessage(sessionId, id)) ? id : false;
+      const more = { ...(attachments ? { attachments } : {}), ...(extra?.skill ? { skill: extra.skill } : {}) };
+      apply({ messages: { ...s.messages, [sessionId]: [...(s.messages[sessionId] ?? []), { ...userMessage(sessionId, id, content), ...more }] } });
+      return act({ kind: 'send', sessionId, text: content, messageId: id, ...more }, () => removeMessage(sessionId, id)) ? id : false;
     },
 
     createBranch(parentSessionId: ID, anchor: Anchor, kind: BranchKind, customQuestion?: string, ids?: { sessionId?: ID; messageId?: ID }) {

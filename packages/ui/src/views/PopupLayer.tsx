@@ -2,6 +2,7 @@ import type { PopupWindow } from '@branch/core';
 import { Columns2, Maximize2, X } from 'lucide-react';
 import { Rnd } from 'react-rnd';
 import { actions, useAppShallow } from '../app/store';
+import { useUi } from '../app/uiState';
 import { ChatPanel } from '../chat/ChatPanel';
 import { IconButton } from '../components/Button';
 
@@ -19,6 +20,8 @@ export function PopupLayer() {
 }
 
 function PopupItem({ popup }: { popup: PopupWindow }) {
+  // 사이드바에서 세션을 끄는 동안은 아래 패널의 놓기 영역을 가리지 않게 흐리게·통과시킨다
+  const dragging = useUi((s) => !!s.dragSessionId);
   return (
     <Rnd
       position={{ x: popup.x, y: popup.y }}
@@ -29,7 +32,7 @@ function PopupItem({ popup }: { popup: PopupWindow }) {
       dragHandleClassName="popup-handle"
       cancel="button, select, a, input"
       style={{ zIndex: popup.z }}
-      className="pointer-events-auto"
+      className={dragging ? 'pointer-events-none opacity-40 transition-opacity' : 'pointer-events-auto'}
       onMouseDown={() => actions().focusPopup(popup.id)}
       onDragStop={(_, d) => actions().movePopup(popup.id, { x: d.x, y: d.y })}
       onResizeStop={(_, __, ref, ___, pos) =>

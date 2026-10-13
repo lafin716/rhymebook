@@ -13,8 +13,10 @@ import type {
   Annotation,
   AnnotationPatch,
   AnnotationStyle,
+  Attachment,
   BranchKind,
   ConnectionState,
+  DropEdge,
   ID,
   Message,
   Overlay,
@@ -22,11 +24,14 @@ import type {
   ProviderId,
   Session,
   Settings,
+  SkillRef,
+  SplitNode,
   SummaryDraft,
   ThemePref,
   ViewMode,
   ViewState,
 } from '../model';
+import { insertLeaf, leaf, leafIds, normalizeLayout, removeLeaf, replaceLeaf, rowLayout, setGroupSizes } from '../splitLayout';
 import { MAX_SPLIT } from '../model';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId, isValidEffort, sessionModelOptions } from '../cli-options';
@@ -41,6 +46,25 @@ export const NEW_SESSION_TITLE = '새 학습';
 export const STREAM_SAVE_INTERVAL = 1000;
 
 export type OpenTarget = 'main' | 'split' | 'popup' | 'sheet';
+
+/** 질문에 덧붙이는 첨부·스킬 (IMP-09) */
+export interface SendExtra {
+  attachments?: Attachment[];
+  skill?: SkillRef;
+}
+
+const splitLayoutOf = (v: ViewState): SplitNode | undefined =>
+  v.splitLayout ?? rowLayout(v.splitSessionIds, v.splitSizes);
+
+/** 배치를 바꾸고 잎 순서·포커스를 맞춘다 */
+function withLayout(v: ViewState, layout: SplitNode | undefined, focusId: ID | null, patch: Partial<ViewState>): ViewState {
+  const ids = leafIds(layout);
+  const fi = focusId ? ids.indexOf(focusId) : -1;
+  const next: ViewState = { ...v, ...patch, splitSessionIds: ids, focusedSplitIndex: fi >= 0 ? fi : 0 };
+  if (layout) next.splitLayout = layout;
+  else delete next.splitLayout;
+  return next;
+}
 
 export interface AppData {
   sessions: SessionMap;
@@ -72,7 +96,8 @@ export interface AppState extends AppData {
   setSessionModel(id: ID, patch: { model?: string | undefined; effort?: string | undefined }): void;
 
   // 메시지
-  sendMessage(sessionId: ID, text: string, messageId?: ID): ID | false;
+  /** 질문 보내기. 첨부가 있으면 text가 비어도 된다 */
+  sendMessage(sessionId: ID, text: string, messageId?: ID, extra?: SendExtra): ID | false;
   stopStream(sessionId: ID): void;
   /** 마지막 실패/중지 응답을 다시 생성. providerId를 주면 세션 provider를 바꾼 뒤 재시도 */
   retry(sessionId: ID, providerId?: ProviderId): boolean;
@@ -97,9 +122,20 @@ export interface AppState extends AppData {
   // 보기
   openSession(id: ID, target?: OpenTarget): void;
   setMode(mode: ViewMode): void;
+  /** 마인드맵을 닫고 이전 보기(분할이 있으면 분할, 없으면 단일)로 */
+  closeMindmap(): void;
+  /**
+   * 세션을 분할 패널에 놓는다 (사이드바에서 끌어 놓기, ADR-035).
+   * targetId 패널의 edge 쪽에 새 칸을 만들고, center면 그 패널을 바꾼다. 단일 보기면 현재 세션 옆에 나눈다.
+   * 패널이 가득 차 새 칸을 만들 수 없으면 false
+   */
+  dropToSplit(id: ID, targetId: ID | null, edge: DropEdge): boolean;
   closeSplit(index: number): void;
   focusSplit(index: number): void;
+  /** 최상위 분할 그룹 비율 */
   setSplitSizes(sizes: number[]): void;
+  /** path(자식 인덱스 경로)의 분할 그룹 비율 */
+  setSplitGroupSizes(path: number[], sizes: number[]): void;
   movePopup(popupId: ID, rect: Partial<Pick<PopupWindow, 'x' | 'y' | 'w' | 'h'>>): void;
   focusPopup(popupId: ID): void;
   closePopup(popupId: ID): void;
@@ -147,6 +183,34 @@ export function nextFallback(
   return null;
 }
 
+/**
+ * 분할 상태를 불변식에 맞춘다: 배치 트리와 splitSessionIds 순서를 맞추고, 포커스 세션을 유지하며,
+ * 패널이 하나 이하로 줄면 단일 보기로 돌아간다 (ADR-035).
+ */
+export function fixSplit(v: ViewState): ViewState {
+  const layout = normalizeLayout(v.splitLayout ?? rowLayout(v.splitSessionIds, v.splitSizes), v.splitSessionIds);
+  const ids = leafIds(layout);
+  const focusedId = v.splitSessionIds[v.focusedSplitIndex];
+  const fi = focusedId ? ids.indexOf(focusedId) : -1;
+  const next: ViewState = {
+    ...v,
+    splitSessionIds: ids,
+    focusedSplitIndex: fi >= 0 ? fi : Math.min(Math.max(0, v.focusedSplitIndex), Math.max(0, ids.length - 1)),
+  };
+  delete next.splitSizes;
+  if (layout && ids.length >= 2) next.splitLayout = layout;
+  else delete next.splitLayout;
+  if (ids.length < 2) {
+    if (next.mode === 'split') {
+      next.mode = 'single';
+      next.activeSessionId = ids[0] ?? v.activeSessionId;
+    }
+    next.splitSessionIds = [];
+    next.focusedSplitIndex = 0;
+  }
+  return next;
+}
+
 export function createAppStore(opts: AppStoreOptions): AppStore {
   const { registry } = opts;
   const repo = opts.remote ? memoryRepository() : (opts.repo ?? memoryRepository());
@@ -180,7 +244,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       get().messages[sessionId]?.find((m) => m.id === messageId);
 
     const setView = (fn: (v: ViewState) => ViewState) => {
-      const next = fn(get().view);
+      const next = fixSplit(fn(get().view));
       set({ view: next });
       repo.saveView(next);
     };
@@ -398,8 +462,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           return {
             ...v,
             activeSessionId: active,
+            // 남은 패널이 하나뿐이면 fixSplit이 그 세션을 단일 보기로 연다
             splitSessionIds: split,
-            mode: v.mode === 'split' && split.length < 2 ? 'single' : v.mode,
             focusedSplitIndex: Math.min(v.focusedSplitIndex, Math.max(0, split.length - 1)),
             popups: v.popups.filter((p) => !gone.has(p.sessionId)),
             sheetSessionIds: v.sheetSessionIds.filter((x) => !gone.has(x)),
@@ -445,9 +509,10 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         repo.saveSession(next);
       },
 
-      sendMessage(sessionId, text, messageId?: ID) {
+      sendMessage(sessionId, text, messageId?: ID, extra?: SendExtra) {
         const content = text.trim();
-        if (!content || !get().sessions[sessionId] || get().streaming[sessionId]) return false;
+        const attachments = extra?.attachments?.length ? extra.attachments : undefined;
+        if ((!content && !attachments) || !get().sessions[sessionId] || get().streaming[sessionId]) return false;
 
         // messageId 충돌 확인
         if (messageId && (get().sessions[messageId] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === messageId)))) {
@@ -455,7 +520,15 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         }
 
         const id = messageId ?? newId('m');
-        putMessage({ id, sessionId, role: 'user', content, createdAt: Date.now() });
+        putMessage({
+          id,
+          sessionId,
+          role: 'user',
+          content,
+          createdAt: Date.now(),
+          ...(attachments ? { attachments } : {}),
+          ...(extra?.skill ? { skill: extra.skill } : {}),
+        });
         touch(sessionId);
         startAssistant(sessionId);
         return id;
@@ -634,10 +707,9 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           setView((v) => {
             if (v.mode === 'split' && v.splitSessionIds.length) {
               const existing = v.splitSessionIds.indexOf(id);
-              if (existing >= 0) return { ...v, focusedSplitIndex: existing };
-              const split = [...v.splitSessionIds];
-              split[v.focusedSplitIndex] = id;
-              return { ...v, splitSessionIds: split, activeSessionId: id, sheetSessionIds: [] };
+              if (existing >= 0) return { ...v, focusedSplitIndex: existing, activeSessionId: id };
+              const cur = v.splitSessionIds[v.focusedSplitIndex];
+              if (cur) return withLayout(v, replaceLeaf(splitLayoutOf(v), cur, id), id, { activeSessionId: id, sheetSessionIds: [] });
             }
             return { ...v, mode: 'single', activeSessionId: id, sheetSessionIds: [] };
           });
@@ -645,26 +717,22 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         }
         if (target === 'split') {
           setView((v) => {
-            const base =
-              v.mode === 'split' && v.splitSessionIds.length
-                ? v.splitSessionIds
-                : v.activeSessionId
-                  ? [v.activeSessionId]
-                  : [];
-            const existing = base.indexOf(id);
-            if (existing >= 0) return { ...v, mode: 'split', splitSessionIds: base, focusedSplitIndex: existing };
-            const split = base.length >= MAX_SPLIT ? [...base.slice(0, MAX_SPLIT - 1), id] : [...base, id];
-            const sizesChanged = split.length !== (v.splitSessionIds.length || 0);
-            const next: ViewState = {
-              ...v,
+            const inSplit = v.mode !== 'single' && v.splitSessionIds.length >= 2;
+            if (inSplit && v.splitSessionIds.includes(id)) {
+              return { ...v, mode: 'split', focusedSplitIndex: v.splitSessionIds.indexOf(id), activeSessionId: id };
+            }
+            const layout = inSplit ? splitLayoutOf(v) : v.activeSessionId ? leaf(v.activeSessionId) : undefined;
+            const ids = leafIds(layout);
+            if (!layout || !ids.length) return { ...v, mode: 'single', activeSessionId: id };
+            // 가득 차면 마지막 패널을 바꾸고, 아니면 포커스 패널 오른쪽에 붙인다
+            const focused = inSplit ? (v.splitSessionIds[v.focusedSplitIndex] ?? ids.at(-1)!) : ids[0]!;
+            const next = ids.length >= MAX_SPLIT ? replaceLeaf(layout, ids.at(-1)!, id) : insertLeaf(layout, focused, id, 'right');
+            return withLayout(v, next, id, {
               mode: 'split',
-              splitSessionIds: split,
-              focusedSplitIndex: split.length - 1,
+              activeSessionId: id,
               popups: v.popups.filter((p) => p.sessionId !== id),
               sheetSessionIds: [],
-            };
-            if (sizesChanged) delete next.splitSizes;
-            return next;
+            });
           });
           return;
         }
@@ -683,33 +751,57 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       setMode(mode) {
         setView((v) => {
           if (mode === 'split') {
-            const split = v.splitSessionIds.length ? v.splitSessionIds : v.activeSessionId ? [v.activeSessionId] : [];
-            return { ...v, mode, splitSessionIds: split, focusedSplitIndex: Math.min(v.focusedSplitIndex, Math.max(0, split.length - 1)) };
+            // 패널이 둘 이상일 때만 분할 보기가 된다 (fixSplit)
+            return { ...v, mode };
           }
           if (mode === 'single' && v.mode === 'split') {
             const focused = v.splitSessionIds[v.focusedSplitIndex] ?? v.activeSessionId;
-            return { ...v, mode, activeSessionId: focused };
+            return { ...v, mode, activeSessionId: focused, splitSessionIds: [] };
           }
           return { ...v, mode };
         });
       },
 
+      closeMindmap() {
+        setView((v) => (v.mode !== 'mindmap' ? v : { ...v, mode: v.splitSessionIds.length >= 2 ? 'split' : 'single' }));
+      },
+
+      dropToSplit(id, targetId, edge) {
+        if (!get().sessions[id]) return false;
+        const v = get().view;
+        const inSplit = v.mode === 'split' && v.splitSessionIds.length >= 2;
+        const layout = inSplit ? splitLayoutOf(v) : v.activeSessionId ? leaf(v.activeSessionId) : undefined;
+        const ids = leafIds(layout);
+        const target = targetId && ids.includes(targetId) ? targetId : ids.at(-1);
+        if (!layout || !target || edge === 'center') {
+          // 가운데: 그 패널(단일 보기면 메인)을 이 세션으로 바꾼다
+          if (inSplit && target) {
+            setView((cur) => withLayout(cur, replaceLeaf(splitLayoutOf(cur), target, id), id, { activeSessionId: id, sheetSessionIds: [] }));
+          } else get().openSession(id, 'main');
+          return true;
+        }
+        if (target === id) return true;
+        if (!ids.includes(id) && ids.length >= MAX_SPLIT) return false;
+        setView((cur) =>
+          withLayout(cur, insertLeaf(layout, target, id, edge), id, {
+            mode: 'split',
+            activeSessionId: id,
+            popups: cur.popups.filter((p) => p.sessionId !== id),
+            sheetSessionIds: [],
+          }),
+        );
+        return true;
+      },
+
       closeSplit(index) {
         setView((v) => {
-          const split = v.splitSessionIds.filter((_, i) => i !== index);
-          const next: ViewState = {
-            ...v,
-            splitSessionIds: split,
-            focusedSplitIndex: Math.min(v.focusedSplitIndex, Math.max(0, split.length - 1)),
-          };
-          delete next.splitSizes;
-          if (split.length <= 1) {
-            next.mode = 'single';
-            next.activeSessionId = split[0] ?? v.activeSessionId;
-            next.splitSessionIds = [];
-            next.focusedSplitIndex = 0;
-          }
-          return next;
+          const id = v.splitSessionIds[index];
+          if (!id) return v;
+          const layout = removeLeaf(splitLayoutOf(v), id);
+          const ids = leafIds(layout);
+          const focusedId = v.splitSessionIds[v.focusedSplitIndex];
+          const keep = focusedId && focusedId !== id ? focusedId : (ids[Math.min(index, ids.length - 1)] ?? null);
+          return withLayout(v, layout, keep, keep ? { activeSessionId: keep } : {});
         });
       },
 
@@ -722,7 +814,11 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       },
 
       setSplitSizes(sizes) {
-        setView((v) => ({ ...v, splitSizes: sizes }));
+        setView((v) => ({ ...v, splitLayout: setGroupSizes(splitLayoutOf(v), [], sizes) }));
+      },
+
+      setSplitGroupSizes(path, sizes) {
+        setView((v) => ({ ...v, splitLayout: setGroupSizes(splitLayoutOf(v), path, sizes) }));
       },
 
       movePopup(popupId, rect) {

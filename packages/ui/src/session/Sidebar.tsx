@@ -1,11 +1,12 @@
 import { childrenOf, rootSessions, type ID } from '@branch/core';
-import { ChevronRight, GitBranch, Plus, Settings2, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { actions, useApp, useAppShallow } from '../app/store';
+import { ChevronRight, GitBranch, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState, type DragEvent } from 'react';
+import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
 import { useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
-import { useBreakpoint } from '../app/useBreakpoint';
+import { isMobileNow, useBreakpoint } from '../app/useBreakpoint';
+import { SESSION_DRAG_TYPE } from '../views/DropZone';
 import { Button, IconButton } from '../components/Button';
 import { StatusDot } from '../components/Badge';
 import { confirm } from '../components/ConfirmDialog';
@@ -82,9 +83,39 @@ function SidebarBody() {
           roots.map((id) => <RootItem key={id} id={id} onPick={close} />)
         )}
       </nav>
+      <button
+        type="button"
+        onClick={() => {
+          actions().setOverlay('skills');
+          close();
+        }}
+        className="flex items-center gap-2 border-t border-line px-4 py-2.5 text-left text-[13px] text-fg-2 hover:bg-surface-2/60"
+      >
+        <Sparkles size={15} className="text-accent" />
+        <span className="flex-1">스킬 관리</span>
+      </button>
       <ConnectionFooter />
     </>
   );
+}
+
+/**
+ * 세션 행 끌기 (데스크톱·태블릿): 메인 영역 패널 가장자리에 놓으면 그쪽으로 분할해 연다 (ADR-035).
+ * 모바일은 분할 대신 탭이라 끌기를 쓰지 않는다.
+ */
+function dragProps(id: ID) {
+  if (isMobileNow()) return {};
+  return {
+    draggable: true,
+    onDragStart: (e: DragEvent<HTMLElement>) => {
+      e.dataTransfer.setData(SESSION_DRAG_TYPE, id);
+      e.dataTransfer.setData('text/plain', appStore.getState().sessions[id]?.title ?? '');
+      e.dataTransfer.effectAllowed = 'copyMove';
+      // 놓기 영역은 다음 프레임에 띄운다 (같은 프레임에 DOM이 바뀌면 끌기가 취소될 수 있다)
+      requestAnimationFrame(() => useUi.getState().setDragSession(id));
+    },
+    onDragEnd: () => useUi.getState().setDragSession(null),
+  };
 }
 
 function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
@@ -148,6 +179,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
         ) : (
           <button
             type="button"
+            {...dragProps(id)}
             onClick={() => {
               actions().openSession(id, 'main');
               onPick();
@@ -170,7 +202,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
           <Trash2 size={14} />
         </IconButton>
       </div>
-      {menu && <SessionMenu at={menu} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
+      {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
       {open && childCount > 0 && <BranchTree parentId={id} depth={1} onPick={onPick} />}
     </div>
   );
@@ -213,6 +245,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
         <button
           type="button"
           data-session-row={id}
+          {...dragProps(id)}
           onClick={() => {
             actions().openSession(id, 'main');
             onPick();
@@ -231,7 +264,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
           {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
         </button>
       )}
-      {menu && <SessionMenu at={menu} onClose={closeMenu} onRename={() => setRenaming(true)} />}
+      {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} />}
       {hasKids && <BranchTree parentId={id} depth={depth + 1} onPick={onPick} />}
     </li>
   );

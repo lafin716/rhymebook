@@ -13,7 +13,18 @@ const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers
 function reply(body) {
   const system = typeof body.system === 'string' ? body.system : '';
   const last = [...body.messages].reverse().find((m) => m.role === 'user');
-  const content = typeof last?.content === 'string' ? last.content : '';
+  // 첨부가 있으면 content는 블록 배열 (이미지·문서 + 텍스트)
+  const blocks = Array.isArray(last?.content) ? last.content : [];
+  const raw = typeof last?.content === 'string' ? last.content : (blocks.find((b) => b.type === 'text')?.text ?? '');
+  const texts = (raw.match(/<attachment name="/g) ?? []).length;
+  const content = raw.replace(/<attachment[\s\S]*?<\/attachment>\s*/g, '');
+  const images = blocks.filter((b) => b.type === 'image').length;
+  const skill = system.match(/## 스킬: .+ \(\/([^)]+)\)/)?.[1];
+  const extras = [
+    images ? `이미지 ${images}개를 받았다.` : '',
+    texts ? `첨부 텍스트 ${texts}개를 읽었다.` : '',
+    skill ? `스킬 /${skill} 적용.` : '',
+  ].filter(Boolean);
   if (system.startsWith('다음 대화의 주제')) return '어텐션 학습';
   if (system.startsWith('다음은 학습자가')) {
     const topic = content.match(/질문 대상: "([^"]+)"/)?.[1] ?? '?';
@@ -31,6 +42,7 @@ function reply(body) {
     'w = softmax(q @ k.T / d**0.5)',
     '```',
     '',
+    ...(extras.length ? [extras.join(' '), ''] : []),
     `마지막 문장 [${topic}].`,
   ].join('\n');
 }

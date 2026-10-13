@@ -46,7 +46,49 @@ export interface Message {
   error?: { code: ProviderErrorCode; message: string };
   /** 이 응답을 생성한 provider */
   providerId?: ProviderId;
+  /** 사용자 메시지 첨부 (사진·파일·붙여넣은 긴 텍스트, IMP-09) */
+  attachments?: Attachment[];
+  /** 사용자 메시지에 적용한 스킬 (보낸 시점 사본) */
+  skill?: SkillRef;
 }
+
+/**
+ * 메시지 첨부 (ADR-033).
+ * - image: base64 (UI가 긴 변 1600px 이하로 줄여 넣는다)
+ * - pdf: base64
+ * - text: 텍스트 파일·붙여넣은 긴 텍스트. data는 UTF-8 원문
+ */
+export type AttachmentKind = 'image' | 'pdf' | 'text';
+
+export interface Attachment {
+  id: ID;
+  kind: AttachmentKind;
+  name: string;
+  mime: string;
+  /** 원본 바이트 수 (text는 UTF-8 길이) */
+  size: number;
+  data: string;
+  /** 클립보드에서 붙여넣은 긴 텍스트 */
+  pasted?: boolean;
+}
+
+/** 스킬 (IMP-09, ADR-034): 슬래시 명령이나 + 메뉴로 골라 이번 질문에 지시를 더한다 */
+export interface Skill {
+  id: ID;
+  /** 슬래시 명령 이름 (`/name`) */
+  name: string;
+  title: string;
+  description: string;
+  /** 모델에 줄 지시 */
+  prompt: string;
+  /** 앱이 기본 제공하는 예시 스킬 */
+  builtin?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** 메시지에 남기는 스킬 사본: 스킬을 고치거나 지워도 그 질문의 맥락은 유지된다 */
+export type SkillRef = Pick<Skill, 'id' | 'name' | 'title' | 'prompt'>;
 
 export type ProviderId =
   | 'mock'
@@ -79,13 +121,27 @@ export interface PopupWindow {
   z: number;
 }
 
+/** 분할 방향: row = 좌우, col = 상하 */
+export type SplitDir = 'row' | 'col';
+
+/** 분할 배치 트리 (IMP-09, ADR-035). 잎은 세션, 그룹은 한 방향으로 나눈 칸들 */
+export type SplitNode =
+  | { kind: 'leaf'; sessionId: ID }
+  | { kind: 'group'; dir: SplitDir; children: SplitNode[]; sizes?: number[] };
+
+/** 분할 패널에 놓을 위치: 대상 패널의 가장자리 또는 가운데(교체) */
+export type DropEdge = 'left' | 'right' | 'top' | 'bottom' | 'center';
+
 export interface ViewState {
   mode: ViewMode;
   /** 단일 보기/모바일에서 메인으로 보이는 세션 */
   activeSessionId: ID | null;
-  /** 분할 보기 패널 (최대 3) */
+  /** 분할 보기 패널 (최대 MAX_SPLIT). splitLayout 잎 순서와 같다 */
   splitSessionIds: ID[];
+  /** @deprecated 이전 버전의 좌우 분할 비율. splitLayout을 쓴다 */
   splitSizes?: number[];
+  /** 분할 배치 (좌우·상하). 없으면 splitSessionIds를 좌우로 나란히 둔다 */
+  splitLayout?: SplitNode;
   /** 분할 패널 중 포커스(모바일 탭에서 선택된 탭) */
   focusedSplitIndex: number;
   /** 데스크톱 팝업 레이어 */
@@ -94,7 +150,7 @@ export interface ViewState {
   sheetSessionIds: ID[];
 }
 
-export type Overlay = 'none' | 'search' | 'settings' | 'notes';
+export type Overlay = 'none' | 'search' | 'settings' | 'notes' | 'skills';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
@@ -195,4 +251,4 @@ export type AnnotationPatch = {
 
 export const MAX_NOTE_LENGTH = 4000;
 
-export const MAX_SPLIT = 3;
+export const MAX_SPLIT = 4;

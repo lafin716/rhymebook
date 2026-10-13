@@ -4,9 +4,11 @@ import {
   applyHostPolicy,
   relayClientUrl,
   isTailscaleHost,
+  isAttachmentList,
   isValidEffort,
   isValidModelName,
   pairingUri,
+  REMOTE_MAX_PAYLOAD,
   parseWireFrame,
   randomCode,
   randomToken,
@@ -18,6 +20,7 @@ import {
   type AuthReason,
   type AuthRequest,
   type AuthResponse,
+  type Attachment,
   type BridgeClientMsg,
   type ChatTurn,
   type HostPolicy,
@@ -116,7 +119,12 @@ export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
   for (const t of m.messages as unknown[]) {
     const turn = t as Record<string, unknown>;
     if (!turn || (turn.role !== 'user' && turn.role !== 'assistant') || typeof turn.content !== 'string') return null;
-    messages.push({ role: turn.role, content: turn.content });
+    if (turn.attachments !== undefined && !isAttachmentList(turn.attachments)) return null;
+    messages.push({
+      role: turn.role,
+      content: turn.content,
+      ...(turn.attachments && (turn.attachments as Attachment[]).length ? { attachments: turn.attachments as Attachment[] } : {}),
+    });
   }
   return {
     type: 'chat.start',
@@ -361,7 +369,7 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
   return {
     listen() {
       return new Promise((resolve, reject) => {
-        const server = new WebSocketServer({ host, port, maxPayload: 4 * 1024 * 1024 });
+        const server = new WebSocketServer({ host, port, maxPayload: REMOTE_MAX_PAYLOAD });
         server.once('error', reject);
         server.once('listening', () => {
           server.off('error', reject);

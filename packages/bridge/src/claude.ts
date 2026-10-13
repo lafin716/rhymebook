@@ -1,4 +1,4 @@
-import { providerError, type StreamEvent } from '@branch/core';
+import { providerError, type Attachment, type StreamEvent } from '@branch/core';
 import { classifyCliError, type CliErrorContext } from './errors';
 import { isObj, str, type CliParser } from './parser';
 import type { RunResult } from './run';
@@ -9,11 +9,13 @@ export const CLAUDE_CTX: CliErrorContext = { label: 'Claude CLI', loginHint: 'cl
  * 공식 claude CLI 무상태 실행 인자 (03-PROVIDERS 정책).
  * 도구 전부 비활성, 세션 저장 안 함, MCP/사용자 설정 미적용. 프롬프트는 stdin으로 넘긴다.
  */
-export function claudeArgs(opts: { systemFile: string; model?: string; effort?: string }): string[] {
+export function claudeArgs(opts: { systemFile: string; model?: string; effort?: string; inputJson?: boolean }): string[] {
   return [
     '-p',
     '--output-format',
     'stream-json',
+    // 첨부(이미지·PDF)가 있으면 stdin으로 content 블록을 담은 사용자 메시지 한 줄을 넘긴다
+    ...(opts.inputJson ? ['--input-format', 'stream-json'] : []),
     '--verbose',
     '--include-partial-messages',
     '--tools',
@@ -27,6 +29,18 @@ export function claudeArgs(opts: { systemFile: string; model?: string; effort?: 
     ...(opts.model ? ['--model', opts.model] : []),
     ...(opts.effort ? ['--effort', opts.effort] : []),
   ];
+}
+
+/** --input-format stream-json용 stdin: 첨부 블록 + 프롬프트를 담은 사용자 메시지 한 줄 */
+export function claudeJsonInput(prompt: string, attachments: readonly Attachment[]): string {
+  const content = [
+    ...attachments.map((a) => ({
+      type: a.kind === 'image' ? 'image' : 'document',
+      source: { type: 'base64', media_type: a.kind === 'image' ? a.mime : 'application/pdf', data: a.data },
+    })),
+    { type: 'text', text: prompt },
+  ];
+  return `${JSON.stringify({ type: 'user', message: { role: 'user', content } })}\n`;
 }
 
 function textOf(content: unknown): string {

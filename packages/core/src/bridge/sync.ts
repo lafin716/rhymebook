@@ -1,6 +1,8 @@
 import { isValidModelName, type CliId } from '../cli-options';
-import type { Anchor, Annotation, BranchKind, ID, Message, Session, SummaryDraft } from '../model';
+import { isAttachmentList } from '../attachments';
+import type { Anchor, Annotation, Attachment, BranchKind, ID, Message, Session, SkillRef, SummaryDraft } from '../model';
 import { isMarkColor, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
+import { isSkillRef } from '../skills';
 
 /**
  * 원격 동기화 프로토콜 (ADR-026). 웹·모바일(클라이언트)이 PC 데스크톱 앱(호스트)의 학습 데이터를 보고,
@@ -11,7 +13,7 @@ import { isMarkColor, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
 /** 클라이언트가 호스트에 요청하는 조작. id는 클라이언트가 만든다(낙관적 표시 후 호스트 push가 덮어쓴다) */
 export type SyncOp =
   | { kind: 'newRoot'; id: ID }
-  | { kind: 'send'; sessionId: ID; text: string; messageId: ID }
+  | { kind: 'send'; sessionId: ID; text: string; messageId: ID; attachments?: Attachment[]; skill?: SkillRef }
   | { kind: 'stop'; sessionId: ID }
   | { kind: 'retry'; sessionId: ID }
   | {
@@ -118,7 +120,10 @@ function validateOp(op: unknown): boolean {
       typeof o.text === 'string' &&
       o.text.length <= SYNC_LIMITS.text &&
       typeof o.messageId === 'string' &&
-      SYNC_ID_RE.test(o.messageId)
+      SYNC_ID_RE.test(o.messageId) &&
+      (o.attachments === undefined || isAttachmentList(o.attachments)) &&
+      (o.skill === undefined || isSkillRef(o.skill)) &&
+      Object.keys(o).every((k) => ['kind', 'sessionId', 'text', 'messageId', 'attachments', 'skill'].includes(k))
     );
   }
   if (kind === 'stop') {

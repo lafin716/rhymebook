@@ -2,7 +2,9 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  binaryNote,
   cliPrompt,
+  isAttachment,
   isValidEffort,
   isValidModelName,
   providerError,
@@ -13,7 +15,7 @@ import {
   type ChatStartMsg,
   type StreamEvent,
 } from '@branch/core';
-import { claudeArgs, createClaudeParser } from './claude';
+import { claudeArgs, claudeJsonInput, createClaudeParser } from './claude';
 import { codexArgs, createCodexParser } from './codex';
 import { detectAll } from './detect';
 import { resolveCliEnv, type CliEnv } from './env';
@@ -45,6 +47,8 @@ export interface BridgeServer {
   /** 모든 연결의 진행 중 요청 중지 */
   shutdown(): void;
 }
+
+const IMAGE_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
 
 const FALLBACK_SYSTEM = '당신은 학습을 돕는 친절한 튜터입니다. 한국어로 짧고 명확하게 답하세요.';
 
@@ -125,18 +129,28 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
     try {
       const prompt = cliPrompt(msg.messages);
       const system = msg.system.trim() || FALLBACK_SYSTEM;
+      // 대화 전체의 이미지·PDF 첨부 (형식이 맞는 것만)
+      const files = msg.messages.flatMap((m) => m.attachments ?? []).filter((a) => isAttachment(a) && a.kind !== 'text');
       let args: string[];
       let stdin: string;
       let parser: CliParser;
       if (msg.providerId === 'claude-cli') {
         const systemFile = path.join(workDir, 'system.txt');
         await writeFile(systemFile, system, { mode: 0o600 });
-        args = claudeArgs({ systemFile, ...cliModelOptions(msg) });
-        stdin = prompt;
+        args = claudeArgs({ systemFile, ...cliModelOptions(msg), inputJson: files.length > 0 });
+        stdin = files.length ? claudeJsonInput(prompt, files) : prompt;
         parser = createClaudeParser();
       } else {
-        args = codexArgs(cliModelOptions(msg));
-        stdin = withInstructions(system, prompt);
+        // Codex는 이미지만 파일로 넘길 수 있다. PDF는 이름만 알린다
+        const images: string[] = [];
+        for (const [i, a] of files.filter((f) => f.kind === 'image').entries()) {
+          const file = path.join(workDir, `image-${i}.${IMAGE_EXT[a.mime] ?? 'png'}`);
+          await writeFile(file, Buffer.from(a.data, 'base64'), { mode: 0o600 });
+          images.push(file);
+        }
+        const note = binaryNote(files.filter((f) => f.kind === 'pdf'));
+        args = codexArgs({ ...cliModelOptions(msg), images });
+        stdin = withInstructions(system, note ? `${prompt}\n\n${note}` : prompt);
         parser = createCodexParser();
       }
 

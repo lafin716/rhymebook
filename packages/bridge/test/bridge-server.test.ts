@@ -7,7 +7,7 @@ import {
   type BridgeTransport,
   type StreamEvent,
 } from '@branch/core';
-import { claudeArgs, classifyCliError, cliModelOptions, codexArgs, winQuote, createBridgeServer, sanitize, type CliEnv } from '../src';
+import { claudeArgs, claudeJsonInput, classifyCliError, cliModelOptions, codexArgs, winQuote, createBridgeServer, sanitize, type CliEnv } from '../src';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const fakeClaude = path.join(dir, 'fixtures/fake-claude.mjs');
@@ -146,6 +146,27 @@ describe('모델·노력치 인자', () => {
     expect(args).toContain('web_search=disabled');
     expect(args).not.toContain('--disable');
     expect(args.some((a) => a.includes('"'))).toBe(false);
+  });
+
+  it('첨부: claude는 stream-json 입력으로 블록을 넘기고, codex는 --image를 맨 앞에 둔다', () => {
+    expect(claudeArgs({ systemFile: 's.txt' })).not.toContain('--input-format');
+    const withFiles = claudeArgs({ systemFile: 's.txt', inputJson: true });
+    expect(withFiles[withFiles.indexOf('--input-format') + 1]).toBe('stream-json');
+    const line = claudeJsonInput('이건 뭐야?', [{ id: 'a', kind: 'image', name: 'x.png', mime: 'image/png', size: 3, data: 'AAAA' }]);
+    expect(line.endsWith('\n')).toBe(true);
+    expect(JSON.parse(line)).toEqual({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },
+          { type: 'text', text: '이건 뭐야?' },
+        ],
+      },
+    });
+    const args = codexArgs({ images: ['/tmp/a.png', '/tmp/b.jpg'] });
+    expect(args.slice(0, 5)).toEqual(['exec', '--image', '/tmp/a.png', '--image', '/tmp/b.jpg']);
+    expect(args.at(-1)).toBe('-');
   });
 
   it('win32 cmd 인자: 빈 문자열은 ""로 남고, 공백·메타문자는 따옴표로 감싼다', () => {

@@ -307,7 +307,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         if (!SYNC_ID_RE.test(op.id)) return 'invalid';
         return idTaken(state, op.id) ? 'conflict' : null;
       case 'send':
-        if (!SYNC_ID_RE.test(op.messageId) || !op.text.trim() || op.text.length > SYNC_LIMITS.text) return 'invalid';
+        if (!SYNC_ID_RE.test(op.messageId) || (!op.text.trim() && !op.attachments?.length) || op.text.length > SYNC_LIMITS.text) return 'invalid';
         if (!has(op.sessionId)) return 'not-found';
         if (idTaken(state, op.messageId)) return 'conflict';
         if (state.streaming[op.sessionId] || peerBusy(peer)) return 'busy';
@@ -375,7 +375,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           return null;
         }
         case 'send':
-          if (!s.sendMessage(op.sessionId, op.text, op.messageId)) return 'failed';
+          if (!s.sendMessage(op.sessionId, op.text, op.messageId, { ...(op.attachments ? { attachments: op.attachments } : {}), ...(op.skill ? { skill: op.skill } : {}) })) return 'failed';
           peer.streams.add(op.sessionId);
           return null;
         case 'retry':

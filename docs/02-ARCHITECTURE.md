@@ -77,16 +77,20 @@ interface Message {
   createdAt: number;
   status?: 'streaming' | 'done' | 'error' | 'stopped';
   error?: string;
+  attachments?: Attachment[]; // 사용자 메시지 첨부: image·pdf(base64)·text (ADR-033)
+  skill?: SkillRef;           // 보낸 시점의 스킬 사본, 마지막 질문의 스킬만 system에 (ADR-034)
 }
 ```
+스킬(`Skill`)은 기기별 IndexedDB(`skills`)에 두고, 질문에는 사본만 싣는다.
 
 `ViewState`(영속 대상):
 ```ts
 interface ViewState {
   mode: 'single' | 'split' | 'mindmap';
   activeSessionId: ID | null;
-  splitSessionIds: ID[];      // 최대 3
-  splitSizes?: number[];
+  splitSessionIds: ID[];      // 최대 4, splitLayout 잎 순서 (ADR-035)
+  splitLayout?: SplitNode;    // 좌우(row)·상하(col) 배치 트리 + 비율. core/splitLayout.ts 순수 함수
+  splitSizes?: number[];      // (이전 버전, 복원 시 splitLayout으로 옮김)
   popups: { id: ID; sessionId: ID; x: number; y: number; w: number; h: number; z: number }[];
   mobileSheetSessionId: ID | null;
 }

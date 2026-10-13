@@ -1,4 +1,6 @@
 import { excerptAround } from './anchor';
+import { withTextAttachments } from './attachments';
+import { withSkill } from './skills';
 import type { ID, Message, Session } from './model';
 import type { ChatTurn, StreamRequest } from './provider';
 import { pathToRoot, type SessionMap } from './tree';
@@ -69,14 +71,25 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
 /** 세션 메시지를 provider 요청 턴으로 변환 (스트리밍 중/오류 메시지 제외) */
 export function toTurns(msgs: Message[]): ChatTurn[] {
   return msgs
-    .filter((m) => m.status !== 'streaming' && m.status !== 'error' && m.content.trim() !== '')
-    .map((m) => ({ role: m.role, content: m.content }));
+    .filter((m) => m.status !== 'streaming' && m.status !== 'error' && (m.content.trim() !== '' || !!m.attachments?.length))
+    .map((m) => {
+      const binary = m.attachments?.filter((a) => a.kind !== 'text') ?? [];
+      const content = withTextAttachments(m.content, m.attachments);
+      return {
+        role: m.role,
+        content: content.trim() ? content : '첨부한 내용을 봐 줘.',
+        ...(binary.length ? { attachments: binary } : {}),
+      };
+    });
 }
 
 export function buildChatRequest(opts: BranchContextOptions): StreamRequest {
+  const msgs = opts.messages[opts.sessionId] ?? [];
+  // 스킬은 마지막 질문에만 적용한다
+  const lastUser = msgs.findLast((m) => m.role === 'user');
   return {
-    system: buildSystemPrompt(opts),
-    messages: toTurns(opts.messages[opts.sessionId] ?? []),
+    system: withSkill(buildSystemPrompt(opts), lastUser?.skill),
+    messages: toTurns(msgs),
     purpose: 'chat',
   };
 }

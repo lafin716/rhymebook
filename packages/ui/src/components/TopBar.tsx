@@ -1,5 +1,4 @@
-import type { ViewMode } from '@branch/core';
-import { BookOpenCheck, Columns2, Menu, MessageSquare, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun } from 'lucide-react';
+import { BookOpenCheck, Menu, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun } from 'lucide-react';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
@@ -9,17 +8,12 @@ import { IconButton } from './Button';
 import { Kbd } from './Kbd';
 import { PcStatusChip } from './PcStatus';
 
-const MODES: { mode: ViewMode; label: string; icon: typeof MessageSquare }[] = [
-  { mode: 'single', label: '단일', icon: MessageSquare },
-  { mode: 'split', label: '분할', icon: Columns2 },
-  { mode: 'mindmap', label: '마인드맵', icon: Network },
-];
 
 const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
 const THEME_LABEL = { system: '시스템', light: '라이트', dark: '다크' };
 
-/** 상단 바: 목록(모바일/태블릿 드로어, 데스크톱 접기), 루트 제목, 보기 모드, 검색, 설정, 테마 */
+/** 상단 바: 목록(모바일/태블릿 드로어, 데스크톱 접기), 루트 제목, 마인드맵 토글, 검색, 설정, 테마 */
 export function TopBar() {
   const bp = useBreakpoint();
   const mode = useApp((s) => s.view.mode);
@@ -54,27 +48,22 @@ export function TopBar() {
 
       <PcStatusChip compact={mobile} />
 
-      <div role="radiogroup" aria-label="보기 모드" className="flex rounded-lg bg-surface-2 p-0.5">
-        {MODES.map(({ mode: m, label, icon: Icon }) => (
-          <button
-            key={m}
-            type="button"
-            role="radio"
-            aria-checked={mode === m}
-            aria-label={label}
-            title={label}
-            onClick={() => actions().setMode(m)}
-            className={cn(
-              'flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] transition-colors',
-              mode === m ? 'bg-surface font-medium text-fg shadow-pop' : 'text-muted hover:text-fg',
-            )}
-          >
-            <Icon size={15} />
-            {!mobile && <span>{label}</span>}
-          </button>
-        ))}
-      </div>
-
+      {hasRoot && (
+        <button
+          type="button"
+          aria-pressed={mode === 'mindmap'}
+          title={mode === 'mindmap' ? '마인드맵 닫기' : '마인드맵'}
+          aria-label="마인드맵"
+          onClick={() => (mode === 'mindmap' ? actions().closeMindmap() : actions().setMode('mindmap'))}
+          className={cn(
+            'flex h-8 items-center gap-1.5 rounded-lg px-2 text-[13px] transition-colors',
+            mode === 'mindmap' ? 'bg-accent-soft font-medium text-accent' : 'text-fg-2 hover:bg-surface-2 hover:text-fg',
+          )}
+        >
+          <Network size={15} />
+          {!mobile && <span>마인드맵</span>}
+        </button>
+      )}
       {mobile ? (
         <IconButton label="세션 검색" onClick={() => actions().setOverlay('search')}>
           <Search size={18} />

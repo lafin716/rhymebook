@@ -1,10 +1,11 @@
 import { nextFallback, PROVIDER_LABELS, annotationsForMessage, type Message, type SegmentMap, type Session } from '@branch/core';
-import { AlertTriangle, RefreshCw, RotateCcw, Shuffle, Square } from 'lucide-react';
+import { AlertTriangle, RefreshCw, RotateCcw, Shuffle, Sparkles, Square } from 'lucide-react';
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
 import type { AnchorMark } from './anchorPlugin';
+import { AttachmentList } from './Attachments';
 import { Markdown } from './Markdown';
 import { openBranch } from './open';
 import { setSegmentMap } from './segmentRegistry';
@@ -23,15 +24,23 @@ const FALLBACK_CODES = new Set(['offline', 'auth', 'cli']);
 
 export const MessageItem = memo(function MessageItem({ message, branches, isLast }: MessageItemProps) {
   if (message.role === 'user') {
+    const files = message.attachments ?? [];
+    // 스킬만 고르고 비워 보낸 질문은 본문이 스킬 제목이다
+    const body = message.skill && message.content === message.skill.title ? '' : message.content;
     return (
-      <div className="flex justify-end">
-        <div
-          data-turn={message.id}
-          tabIndex={-1}
-          className="max-w-[85%] scroll-mt-3 rounded-2xl rounded-br-md bg-accent-soft px-3.5 py-2 text-[15px] leading-relaxed whitespace-pre-wrap text-fg focus:outline-none"
-        >
-          {message.content}
-        </div>
+      <div data-turn={message.id} tabIndex={-1} className="flex scroll-mt-3 flex-col items-end gap-1.5 focus:outline-none">
+        {message.skill && (
+          <span data-skill-badge={message.skill.name} title={`스킬: /${message.skill.name}`} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-medium text-accent">
+            <Sparkles size={12} />
+            {message.skill.title}
+          </span>
+        )}
+        {files.length > 0 && <AttachmentList items={files} align="end" className="max-w-[85%]" />}
+        {body && (
+          <div className="max-w-[85%] rounded-2xl rounded-br-md bg-accent-soft px-3.5 py-2 text-[15px] leading-relaxed whitespace-pre-wrap text-fg">
+            {body}
+          </div>
+        )}
       </div>
     );
   }

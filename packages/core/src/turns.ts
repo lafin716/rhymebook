@@ -32,7 +32,9 @@ export function buildTurns(messages: readonly Message[]): Turn[] {
   const turns: Turn[] = [];
   for (const m of messages) {
     if (m.role === 'user') {
-      turns.push({ index: turns.length, questionId: m.id, question: m.content.trim(), answerPreview: '' });
+      // 첨부만 보낸 질문은 첨부 이름으로 목차에 보인다
+      const question = m.content.trim() || (m.attachments?.length ? `[첨부] ${m.attachments.map((a) => a.name).join(', ')}` : '');
+      turns.push({ index: turns.length, questionId: m.id, question, answerPreview: '' });
       continue;
     }
     const cur = turns.at(-1);

@@ -69,20 +69,87 @@ describe('app store', () => {
     expect(store.getState().summaryDrafts[SEED_IDS.scale]).toBeUndefined();
   });
 
-  it('split view holds at most 3 panels and collapses to single', () => {
+  it('split view holds at most 4 panels and collapses to single', () => {
     const store = makeStore();
     const { openSession } = store.getState();
     openSession(SEED_IDS.qkv, 'split');
     openSession(SEED_IDS.dot, 'split');
     openSession(SEED_IDS.cos, 'split');
+    openSession(SEED_IDS.scale, 'split');
     let v = store.getState().view;
     expect(v.mode).toBe('split');
-    expect(v.splitSessionIds).toEqual([SEED_IDS.root, SEED_IDS.qkv, SEED_IDS.cos]);
+    expect(v.splitSessionIds).toEqual([SEED_IDS.root, SEED_IDS.qkv, SEED_IDS.dot, SEED_IDS.scale]);
+    store.getState().closeSplit(0);
     store.getState().closeSplit(0);
     store.getState().closeSplit(0);
     v = store.getState().view;
     expect(v.mode).toBe('single');
-    expect(v.activeSessionId).toBe(SEED_IDS.cos);
+    expect(v.activeSessionId).toBe(SEED_IDS.scale);
+    expect(v.splitLayout).toBeUndefined();
+  });
+
+  it('drops sessions from the sidebar into left/right/top/bottom splits', () => {
+    const store = makeStore();
+    const { dropToSplit } = store.getState();
+    // 단일 보기에서 오른쪽에 놓으면 좌우 분할
+    expect(dropToSplit(SEED_IDS.qkv, null, 'right')).toBe(true);
+    let v = store.getState().view;
+    expect(v.mode).toBe('split');
+    expect(v.splitLayout).toMatchObject({ kind: 'group', dir: 'row' });
+    expect(v.splitSessionIds).toEqual([SEED_IDS.root, SEED_IDS.qkv]);
+    expect(v.activeSessionId).toBe(SEED_IDS.qkv);
+    // qkv 아래에 놓으면 오른쪽 칸이 상하로 나뉜다
+    dropToSplit(SEED_IDS.dot, SEED_IDS.qkv, 'bottom');
+    v = store.getState().view;
+    expect(v.splitSessionIds).toEqual([SEED_IDS.root, SEED_IDS.qkv, SEED_IDS.dot]);
+    expect(v.splitLayout).toMatchObject({
+      dir: 'row',
+      children: [{ kind: 'leaf', sessionId: SEED_IDS.root }, { kind: 'group', dir: 'col' }],
+    });
+    // 가운데는 그 패널 교체
+    dropToSplit(SEED_IDS.cos, SEED_IDS.root, 'center');
+    expect(store.getState().view.splitSessionIds).toEqual([SEED_IDS.cos, SEED_IDS.qkv, SEED_IDS.dot]);
+    // 이미 있는 세션을 다른 가장자리에 놓으면 옮긴다
+    dropToSplit(SEED_IDS.dot, SEED_IDS.cos, 'top');
+    v = store.getState().view;
+    expect(v.splitSessionIds).toEqual([SEED_IDS.dot, SEED_IDS.cos, SEED_IDS.qkv]);
+    dropToSplit(SEED_IDS.root, SEED_IDS.qkv, 'left');
+    // 가득 차면 새 칸은 거절, 교체는 허용
+    expect(dropToSplit(SEED_IDS.scale, SEED_IDS.qkv, 'right')).toBe(false);
+    expect(dropToSplit(SEED_IDS.scale, SEED_IDS.qkv, 'center')).toBe(true);
+    expect(store.getState().view.splitSessionIds).toHaveLength(4);
+    // 비율 저장
+    store.getState().setSplitGroupSizes([], [20, 30, 50]);
+    expect((store.getState().view.splitLayout as { sizes?: number[] }).sizes).toEqual([20, 30, 50]);
+    store.getState().setSplitGroupSizes([0], [40, 60]);
+    const first = (store.getState().view.splitLayout as { children: { sizes?: number[] }[] }).children[0]!;
+    expect(first.sizes).toEqual([40, 60]);
+  });
+
+  it('closing the mindmap returns to split when panels remain', () => {
+    const store = makeStore();
+    store.getState().dropToSplit(SEED_IDS.qkv, null, 'right');
+    store.getState().setMode('mindmap');
+    expect(store.getState().view.splitSessionIds).toHaveLength(2);
+    store.getState().closeMindmap();
+    expect(store.getState().view.mode).toBe('split');
+    store.getState().closeSplit(1);
+    store.getState().setMode('mindmap');
+    store.getState().closeMindmap();
+    expect(store.getState().view.mode).toBe('single');
+  });
+
+  it('sends attachments and a skill with the question', async () => {
+    const store = makeStore();
+    const id = store.getState().newRootSession() as string;
+    const skill = { id: 'sk1', name: 'curriculum', title: '커리큘럼 생성', prompt: '단계별로' };
+    const attachments = [{ id: 'a1', kind: 'text' as const, name: 'notes.txt', mime: 'text/plain', size: 5, data: 'hello' }];
+    expect(store.getState().sendMessage(id, '', undefined, { attachments, skill })).toBeTruthy();
+    const user = store.getState().messages[id]![0]!;
+    expect(user.attachments).toEqual(attachments);
+    expect(user.skill).toEqual(skill);
+    await idle(store);
+    expect(store.getState().sendMessage(id, '   ')).toBe(false);
   });
 
   it('popups stack and dock into split', () => {

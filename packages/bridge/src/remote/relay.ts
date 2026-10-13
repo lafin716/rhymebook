@@ -2,6 +2,7 @@ import {
   parseRelayFrame,
   relayBridgeUrl,
   relayRegisterTranscript,
+  REMOTE_MAX_PAYLOAD,
   signTranscript,
   type BridgeToRelay,
   type RelayToBridge,
@@ -94,7 +95,7 @@ export function createRelayConnector(opts: RelayConnectorOptions): RelayConnecto
   function connect() {
     if (stopped) return;
     setState(current === 'ready' ? 'connecting' : current);
-    const sock = new WebSocket(target, { maxPayload: 4 * 1024 * 1024 });
+    const sock = new WebSocket(target, { maxPayload: REMOTE_MAX_PAYLOAD });
     ws = sock;
     sock.on('message', (data, isBinary) => {
       if (isBinary) return;

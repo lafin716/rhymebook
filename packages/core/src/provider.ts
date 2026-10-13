@@ -1,8 +1,10 @@
-import type { ConnectionStatus, ProviderErrorCode, ProviderId, Role } from './model';
+import type { Attachment, ConnectionStatus, ProviderErrorCode, ProviderId, Role } from './model';
 
 export interface ChatTurn {
   role: Role;
   content: string;
+  /** 이미지·PDF 첨부 (텍스트 첨부는 content에 이미 들어 있다) */
+  attachments?: Attachment[];
 }
 
 export interface StreamRequest {

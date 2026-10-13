@@ -1,5 +1,5 @@
 import type { ProviderId } from '../model';
-import { providerError, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
+import { providerError, type Availability, type ChatTurn, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
 import { readSse } from '../sse';
 import { defaultFetch, httpError, maskSecret, thrownError, trimBase, type FetchLike } from './http';
 
@@ -53,7 +53,7 @@ export function createAnthropicProvider(opts: ApiProviderOptions): LLMProvider {
       }
       const messages = req.messages
         .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .map((m) => ({ role: m.role, content: m.content }));
+        .map((m) => ({ role: m.role, content: anthropicContent(m) }));
       let res: Response;
       try {
         res = await fetcher(`${base()}/v1/messages`, {
@@ -111,6 +111,19 @@ export function createAnthropicProvider(opts: ApiProviderOptions): LLMProvider {
       yield { type: 'error', error: providerError('network', '응답 스트림이 완료 전에 끊겼습니다.') };
     },
   };
+}
+
+/** 첨부가 있으면 content 블록(이미지·PDF 문서 + 텍스트), 없으면 문자열 */
+export function anthropicContent(turn: ChatTurn): string | Record<string, unknown>[] {
+  const files = turn.attachments ?? [];
+  if (!files.length) return turn.content;
+  return [
+    ...files.map((a) => ({
+      type: a.kind === 'image' ? 'image' : 'document',
+      source: { type: 'base64', media_type: a.kind === 'image' ? a.mime : 'application/pdf', data: a.data },
+    })),
+    { type: 'text', text: turn.content },
+  ];
 }
 
 interface AnthropicEvent {

@@ -1,0 +1,157 @@
+import { describe, expect, it } from 'vitest';
+import {
+  ATTACHMENT_LIMITS,
+  attachmentKindOf,
+  binaryNote,
+  canAddAttachment,
+  isAttachment,
+  isAttachmentList,
+  isLongPaste,
+  withTextAttachments,
+} from '../src/attachments';
+import { buildChatRequest, toTurns } from '../src/context';
+import type { Attachment, Message } from '../src/model';
+import { anthropicContent } from '../src/providers/anthropic';
+import { openaiContent } from '../src/providers/openai';
+import { validateSyncClientMsg } from '../src/bridge/sync';
+import {
+  defaultSkills,
+  filterSkills,
+  isSkillRef,
+  normalizeSkillName,
+  parseSlash,
+  skillRef,
+  slashQuery,
+  validateSkill,
+  withSkill,
+} from '../src/skills';
+
+const img: Attachment = { id: 'a1', kind: 'image', name: 'cat.png', mime: 'image/png', size: 3, data: 'AAAA' };
+const txt: Attachment = { id: 'a2', kind: 'text', name: 'note.md', mime: 'text/markdown', size: 5, data: '# 메모', pasted: false };
+
+describe('attachments', () => {
+  it('classifies files by mime/extension', () => {
+    expect(attachmentKindOf('a.png', 'image/png')).toBe('image');
+    expect(attachmentKindOf('a.pdf', '')).toBe('pdf');
+    expect(attachmentKindOf('main.ts', '')).toBe('text');
+    expect(attachmentKindOf('data.csv', 'text/csv')).toBe('text');
+    expect(attachmentKindOf('x.zip', 'application/zip')).toBeNull();
+    expect(attachmentKindOf('x.bmp', 'image/bmp')).toBeNull();
+  });
+
+  it('detects long pastes by length or line count', () => {
+    expect(isLongPaste('짧은 글')).toBe(false);
+    expect(isLongPaste('x'.repeat(ATTACHMENT_LIMITS.pasteChars))).toBe(true);
+    expect(isLongPaste('a\n'.repeat(ATTACHMENT_LIMITS.pasteLines))).toBe(true);
+  });
+
+  it('enforces count and size limits', () => {
+    expect(canAddAttachment([], { size: ATTACHMENT_LIMITS.fileBytes + 1 })).toBe('file-size');
+    const big = { ...img, size: ATTACHMENT_LIMITS.fileBytes };
+    expect(canAddAttachment([big], { size: ATTACHMENT_LIMITS.totalBytes - ATTACHMENT_LIMITS.fileBytes + 1 })).toBe('total-size');
+    expect(canAddAttachment(Array(ATTACHMENT_LIMITS.count).fill(img), { size: 1 })).toBe('count');
+    expect(canAddAttachment([img], { size: 10 })).toBeNull();
+  });
+
+  it('validates attachment shape', () => {
+    expect(isAttachment(img)).toBe(true);
+    expect(isAttachment(txt)).toBe(true);
+    expect(isAttachment({ ...img, data: 'not base64!' })).toBe(false);
+    expect(isAttachment({ ...img, mime: 'image/svg+xml' })).toBe(false);
+    expect(isAttachment({ ...img, id: '../x' })).toBe(false);
+    expect(isAttachmentList([img, txt])).toBe(true);
+    expect(isAttachmentList(Array(ATTACHMENT_LIMITS.count + 1).fill(img))).toBe(false);
+  });
+
+  it('inlines text attachments and keeps binaries on the turn', () => {
+    expect(withTextAttachments('질문', [txt])).toBe('<attachment name="note.md">\n# 메모\n</attachment>\n\n질문');
+    const msgs: Message[] = [
+      { id: 'm1', sessionId: 's', role: 'user', content: '', createdAt: 0, attachments: [img, txt] },
+      { id: 'm2', sessionId: 's', role: 'assistant', content: '답', createdAt: 0, status: 'done' },
+      { id: 'm3', sessionId: 's', role: 'user', content: '', createdAt: 0, attachments: [img] },
+    ];
+    const turns = toTurns(msgs);
+    expect(turns[0]!.content).toContain('# 메모');
+    expect(turns[0]!.attachments).toEqual([img]);
+    // 텍스트가 없으면 기본 문구
+    expect(turns[2]!.content).toBe('첨부한 내용을 봐 줘.');
+    expect(binaryNote([img, txt])).toContain('cat.png');
+    expect(binaryNote([txt])).toBe('');
+  });
+
+  it('maps attachments to provider content blocks', () => {
+    const turn = { role: 'user' as const, content: '이건 뭐야?', attachments: [img, { ...img, id: 'p', kind: 'pdf' as const, mime: 'application/pdf', name: 'a.pdf' }] };
+    expect(anthropicContent(turn)).toEqual([
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'AAAA' } },
+      { type: 'text', text: '이건 뭐야?' },
+    ]);
+    expect(anthropicContent({ role: 'user', content: 'x' })).toBe('x');
+    const oa = openaiContent(turn) as Record<string, unknown>[];
+    expect(oa[1]).toEqual({ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } });
+    expect(oa[2]).toMatchObject({ type: 'file', file: { filename: 'a.pdf' } });
+  });
+
+  it('sync send op accepts valid attachments/skill and rejects junk', () => {
+    const base = { kind: 'send', sessionId: 's1', text: '', messageId: 'm1' };
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r', op: { ...base, attachments: [img], skill: { id: 'k', name: 'curriculum', title: 't', prompt: 'p' } } })).toBeTruthy();
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r', op: { ...base, attachments: [{ ...img, kind: 'exe' }] } })).toBeNull();
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r', op: { ...base, skill: { id: 'k', name: 'Bad Name', title: 't', prompt: 'p' } } })).toBeNull();
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r', op: { ...base, extra: 1 } })).toBeNull();
+  });
+});
+
+describe('skills', () => {
+  const skills = defaultSkills(0);
+
+  it('ships a curriculum example skill', () => {
+    expect(skills[0]).toMatchObject({ name: 'curriculum', title: '커리큘럼 생성', builtin: true });
+    expect(isSkillRef(skillRef(skills[0]!))).toBe(true);
+  });
+
+  it('parses slash commands', () => {
+    expect(parseSlash('/curriculum 러스트 입문')).toEqual({ name: 'curriculum', rest: '러스트 입문' });
+    expect(parseSlash('/커리큘럼')).toEqual({ name: '커리큘럼', rest: '' });
+    expect(parseSlash('경로 /usr/bin')).toBeNull();
+    expect(slashQuery('/cur')).toBe('cur');
+    expect(slashQuery('/')).toBe('');
+    expect(slashQuery('/cur 공부')).toBeNull();
+    expect(filterSkills(skills, 'cur').map((s) => s.name)).toEqual(['curriculum']);
+    expect(filterSkills(skills, '커리')).toHaveLength(1);
+    expect(filterSkills(skills, 'zzz')).toHaveLength(0);
+  });
+
+  it('validates names and duplicates', () => {
+    expect(normalizeSkillName(' /My Skill ')).toBe('my-skill');
+    const draft = { id: 'n', name: 'curriculum', title: 'x', description: '', prompt: 'p' };
+    expect(validateSkill(draft, skills)).toBe('name-taken');
+    expect(validateSkill({ ...draft, name: 'ok-name' }, skills)).toBeNull();
+    expect(validateSkill({ ...draft, name: 'has space' }, skills)).toBe('name');
+    expect(validateSkill({ ...draft, name: 'ok', prompt: ' ' }, skills)).toBe('prompt');
+  });
+
+  it('adds the skill of the last question to the system prompt', () => {
+    const ref = skillRef(skills[0]!);
+    expect(withSkill('BASE', undefined)).toBe('BASE');
+    expect(withSkill('BASE', ref)).toContain('## 스킬: 커리큘럼 생성 (/curriculum)');
+    const sessions = { s: { id: 's', parentId: null, rootId: 's', title: 't', createdAt: 0, updatedAt: 0 } };
+    const req = buildChatRequest({
+      sessions,
+      messages: { s: [{ id: 'm', sessionId: 's', role: 'user', content: '러스트', createdAt: 0, skill: ref }] },
+      sessionId: 's',
+    });
+    expect(req.system).toContain('단계별 학습 커리큘럼');
+    const later = buildChatRequest({
+      sessions,
+      messages: {
+        s: [
+          { id: 'm', sessionId: 's', role: 'user', content: '러스트', createdAt: 0, skill: ref },
+          { id: 'a', sessionId: 's', role: 'assistant', content: '커리큘럼', createdAt: 0, status: 'done' },
+          { id: 'm2', sessionId: 's', role: 'user', content: '2단계 더', createdAt: 0 },
+        ],
+      },
+      sessionId: 's',
+    });
+    expect(later.system).not.toContain('## 스킬');
+  });
+});
