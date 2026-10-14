@@ -41,6 +41,10 @@ export function createMobileApi(): MobileApi | null {
       set: (name, value) => SecureStorage.setItem(name, value),
       delete: (name) => SecureStorage.removeItem(name),
     },
+    onActiveChange(listener) {
+      const handle = App.addListener('appStateChange', (s) => listener(s.isActive));
+      return () => void handle.then((h) => h.remove());
+    },
     onPairLink(listener) {
       listeners.add(listener);
       if (pending) {

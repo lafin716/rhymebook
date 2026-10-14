@@ -146,6 +146,22 @@ describe('원격 bridge — provider', () => {
     link.reset();
   });
 
+  it('reset()은 끊김을 바로 알리고, 버린 연결의 늦은 닫힘은 새 연결 구독자에 오지 않는다', async () => {
+    const { link } = remote(await pairByQr());
+    await link.ensure();
+    let gone = 0;
+    const off = link.onDisconnect(() => gone++);
+    link.reset();
+    expect(gone).toBe(1);
+    off();
+    let lateGone = 0;
+    link.onDisconnect(() => lateGone++);
+    await link.ensure();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(lateGone).toBe(0);
+    link.reset();
+  });
+
   it('페어링이 없으면 unpaired, CLI는 웹 안내', async () => {
     const { providers } = remote(null);
     expect((await providers['remote-bridge']!.available()).status).toBe('unpaired');

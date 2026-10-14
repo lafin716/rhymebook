@@ -118,6 +118,8 @@ export interface MobileApi {
   secrets: DesktopApi['secrets'];
   /** `branch://pair?…` 딥링크(카메라로 QR 스캔 등)를 받으면 호출 */
   onPairLink(listener: (uri: string) => void): () => void;
+  /** 앱이 포그라운드(true)·백그라운드(false)로 바뀌면 호출 — 복귀 시 PC에 다시 연결한다 */
+  onActiveChange?(listener: (active: boolean) => void): () => void;
   /** 앱 안에서 카메라로 QR을 스캔해 문자열을 돌려준다. 취소하면 null */
   scanQr?(): Promise<string | null>;
   /** 텍스트 파일을 만들어 OS 공유 시트로 넘긴다 (WebView는 <a download>를 지원하지 않음) */

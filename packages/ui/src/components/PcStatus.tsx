@@ -1,9 +1,8 @@
 import type { SyncStatus } from '@branch/core';
-import { Laptop, Link2, RefreshCw, WifiOff } from 'lucide-react';
+import { Laptop, Link2, LoaderCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { actions } from '../app/store';
 import { useRuntime } from '../app/runtime';
 import { syncClient, useSync } from '../app/sync';
-import { cn } from '../lib/cn';
 import { StatusDot } from './Badge';
 import { Button } from './Button';
 
@@ -24,13 +23,14 @@ export function usePcOnline(): boolean {
   return demo || !syncClient || status === 'online';
 }
 
-/** 상단 바의 PC 연결 상태 칩 (원격 모드 전용). 누르면 연결 설정 */
+/** 상단 바의 PC 연결 상태 칩 (원격 모드 전용). 누르면 연결 설정. 연결 중에는 좁은 화면에서도 글자로 알린다 */
 export function PcStatusChip({ compact }: { compact?: boolean }) {
   const demo = useRuntime((s) => s.demo);
   const status = useSync((s) => s.status);
   const hostName = useSync((s) => s.hostName);
   if (!syncClient || demo) return null;
-  const label = status === 'online' && hostName ? hostName : PC_STATUS_LABEL[status];
+  const connecting = status === 'connecting';
+  const label = status === 'online' && hostName ? hostName : connecting && hostName ? `${hostName} 연결 중` : PC_STATUS_LABEL[status];
   return (
     <button
       type="button"
@@ -39,11 +39,15 @@ export function PcStatusChip({ compact }: { compact?: boolean }) {
       title={`연결된 PC · ${PC_STATUS_LABEL[status]}`}
       className="flex h-8 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-lg border border-line px-2 text-[13px] text-fg-2 hover:bg-surface-2"
     >
-      <span className="relative">
-        <Laptop size={15} />
-        <StatusDot tone={TONE[status]} className={cn('absolute -right-1 -bottom-0.5 size-1.5 ring-2 ring-surface', status === 'connecting' && 'animate-pulse')} />
-      </span>
-      {!compact && <span className="truncate">{label}</span>}
+      {connecting ? (
+        <LoaderCircle size={15} className="shrink-0 animate-spin text-warn" aria-hidden />
+      ) : (
+        <span className="relative">
+          <Laptop size={15} />
+          <StatusDot tone={TONE[status]} className="absolute -right-1 -bottom-0.5 size-1.5 ring-2 ring-surface" />
+        </span>
+      )}
+      {(!compact || connecting) && <span className="truncate">{compact ? PC_STATUS_LABEL.connecting : label}</span>}
     </button>
   );
 }

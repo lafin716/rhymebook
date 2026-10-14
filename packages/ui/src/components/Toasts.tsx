@@ -25,6 +25,7 @@ export function Toasts() {
     return syncClient.state.subscribe((s, prev) => {
       const f = s.lastFailure;
       if (f && f !== prev.lastFailure) pushNotice(FAILURE_TEXT[f.code] ?? FAILURE_TEXT.failed!);
+      if (s.resumeFailedAt && s.resumeFailedAt !== prev.resumeFailedAt) pushNotice(`${s.hostName ?? 'PC'}에 다시 연결하지 못했어요. PC 앱이 켜져 있는지 확인하고 [다시 연결]을 눌러 주세요.`);
     });
   }, []);
 

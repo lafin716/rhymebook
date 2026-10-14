@@ -320,6 +320,8 @@ export function createRemoteBridgeLink(opts: {
             for (const l of [...listeners]) l(m);
           },
           onClose: () => {
+            // reset()으로 버린 연결의 늦은 닫힘 — reset이 이미 알렸고, 새 연결의 구독자를 끊지 않는다
+            if (gen !== generation) return;
             if (session?.ws === s.ws) session = null;
             emitDisconnect();
           },
@@ -358,6 +360,7 @@ export function createRemoteBridgeLink(opts: {
       session = null;
       pending = [];
       s?.ws.close();
+      if (s) emitDisconnect();
     },
     trySend(msg) {
       if (!session || session.ws.readyState !== 1) return false;
@@ -393,6 +396,8 @@ export interface SyncLink {
   subscribe(cb: (msg: SyncServerMsg) => void): () => void;
   onDisconnect(cb: () => void): () => void;
   ensure(): Promise<unknown>;
+  /** 지금 연결을 버린다. 다음 ensure()는 새로 연결한다 */
+  reset?(): void;
 }
 
 export function syncLinkOf(link: RemoteBridgeLink): SyncLink {
@@ -405,6 +410,7 @@ export function syncLinkOf(link: RemoteBridgeLink): SyncLink {
     },
     onDisconnect: (cb) => link.onDisconnect(cb),
     ensure: () => link.ensure(),
+    reset: () => link.reset(),
   };
 }
 
