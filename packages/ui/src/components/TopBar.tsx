@@ -79,11 +79,9 @@ export function TopBar() {
           <Kbd>{modKeyLabel}K</Kbd>
         </button>
       )}
-      {hasRoot && (
-        <IconButton label="이해 노트" title="이해 노트" onClick={() => actions().setOverlay('notes')}>
-          <BookOpenCheck size={18} />
-        </IconButton>
-      )}
+      <IconButton label="이해 노트" title="이해 노트" onClick={() => actions().setOverlay('notes')}>
+        <BookOpenCheck size={18} />
+      </IconButton>
       <IconButton label={`테마: ${THEME_LABEL[theme]}`} title={`테마: ${THEME_LABEL[theme]}`} onClick={() => actions().setTheme(THEME_NEXT[theme])}>
         <ThemeIcon size={18} />
       </IconButton>

@@ -311,6 +311,7 @@ export function mergeSkills(
 
 /** 기본 제공 예시 스킬 id (처음 실행 시 한 번 넣는다. 지우면 다시 넣지 않는다) */
 export const CURRICULUM_SKILL_ID = 'skill-curriculum';
+export const BOOK_SKILL_ID = 'skill-book';
 
 export function defaultSkills(now = Date.now()): Skill[] {
   return [
@@ -339,5 +340,78 @@ export function defaultSkills(now = Date.now()): Skill[] {
       createdAt: now,
       updatedAt: now,
     },
+    {
+      id: BOOK_SKILL_ID,
+      name: 'book',
+      title: '책으로 만들기',
+      description: '학습 기록(이해 노트의 [책으로 만들기] 첨부 또는 현재 대화)을 구조적으로 분석해 목차부터 잡고 한 권의 책으로 엮어요.',
+      prompt: [
+        '학습자의 학습 기록(이해 노트의 첨부 학습 원문 또는 현재 대화)을 책 한 권으로 엮는다.',
+        '',
+        '## 1단계: 구조 분석 (짧게)',
+        '첨부된 학습 원문(rhymebook 세션 트리: 번호 매긴 가지 예: "1.2", anchors = 학습자가 선택한 원문, summaries = 학습자의 이해, 전체 Q&A)을 읽거나, 첨부가 없으면 현재 대화를 분석한다.',
+        '- 핵심 주제 한 줄',
+        '- 학습자의 질문·가지들을 개념 군집으로 묶기 (예: 기본 개념 3개, 실전 활용 2개)',
+        '- 선수 지식 순서 (무엇부터 먼저 와야 하는가)',
+        '- 약점 찾기 (요약 없는 가지, 반복된 질문)',
+        '',
+        '## 2단계: 목차 잡기',
+        '- 책 제목 정하기 (학습 주제를 담은 한 제목)',
+        '- 3~8개 장 계획: `## 목차` 아래 각 장의 제목과 한 줄 목표',
+        '  - 예: `## 1장. 기초 개념 — 이 장을 읽으면 핵심 용어를 알 수 있어요`',
+        '  - 각 장은 1.1, 1.2, 1.3 같은 절(sections) 포함',
+        '  - 원문 가지 번호 명시: `(가지 1.2, 2.1)` 형태로 각 절이 어느 원문에서 나왔는지 표시',
+        '- 대화 순서가 아니라 개념 의존성(앞 장이 뒷장의 기초)에 따라 재정렬',
+        '',
+        '## 3단계: 본문 쓰기',
+        '- **머리말**: 이 책을 읽은 후 할 수 있게 될 것 (1~2문단)',
+        '- 각 장 `## N장. 제목`으로 시작',
+        '  - `### N.M 절 제목` (각 절)',
+        '  - 학습자 이해(summaries)를 바탕으로 흐르는 산문으로 설명 (채팅 기록 그대로가 아니라 책다운 문체)',
+        '  - 원문에서 헷갈렸던 용어(anchors)를 **굵은 글씨**로 표시하고 명확한 정의·예시로 설명',
+        '  - 장 끝에 **핵심 정리**: 2~4개의 핵심 내용을 글머리 기호로',
+        '  - 장 끝에 **확인 문제**: 2~3개의 점검 질문 (학습자가 이해했는지 확인)',
+        '- **맺음말**: 이 책을 읽은 후 다음 학습 방향 제안 (1문단)',
+        '- **용어 찾아보기**: 책에서 굵게 표시한 용어들의 간단한 정의 (한 줄씩, 가나다순)',
+        '',
+        '## 주의',
+        '- 원문에 없는 사실을 만들지 않는다. 명백한 빈틈을 채울 때만 "(보충)"이라고 표시한다.',
+        '- 한 번의 답변에 책 전체가 안 나오면 완성한 장까지만 마친 후 끝에 이 줄을 쓴다:',
+        '  "— N장까지 썼어요. \'계속\'이라고 보내면 다음 장부터 이어서 씁니다."',
+        '- "계속" 요청이 오면 목차 반복 없이 다음 장부터 이어 쓴다.',
+        '',
+        '## 산출물 형식',
+        '- 순수 마크다운 (한국어)',
+      ].join('\n'),
+      builtin: true,
+      createdAt: now,
+      updatedAt: now,
+    },
   ];
+}
+
+/**
+ * 기존 스킬 중 새로 시드해야 할 스킬 목록과 갱신된 시드 id 목록을 반환한다.
+ * existing: 현재 DB의 스킬들
+ * seeded: 이미 시드한 builtin id들 (unknown이면 호환성 처리: `true`면 [CURRICULUM_SKILL_ID], 배열이면 그대로)
+ */
+export function skillsToSeed(
+  existing: readonly Skill[],
+  seeded: unknown,
+): { add: Skill[]; seeded: string[] } {
+  // 호환성: 기존 true 값을 변환
+  const oldSeeded = Array.isArray(seeded) ? seeded : seeded === true ? [CURRICULUM_SKILL_ID] : [];
+  const seedSet = new Set(oldSeeded.filter((id) => typeof id === 'string'));
+  const nameSet = new Set(existing.map((s) => s.name));
+
+  const defaults = defaultSkills();
+  const add: Skill[] = [];
+  for (const def of defaults) {
+    if (!seedSet.has(def.id) && !nameSet.has(def.name)) {
+      add.push(def);
+      seedSet.add(def.id);
+    }
+  }
+
+  return { add, seeded: Array.from(seedSet).sort() };
 }

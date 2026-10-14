@@ -26,6 +26,7 @@ export * from './providers/runtime';
 export * from './persist';
 export * from './backup';
 export * from './notes';
+export * from './study';
 export * from './bridge';
 export * from './platform';
 export * from './sync';

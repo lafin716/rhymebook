@@ -3,6 +3,7 @@ import { isAttachmentList } from '../attachments';
 import type { Anchor, Annotation, Attachment, BranchKind, ID, Message, Session, Skill, SkillRef, SummaryDraft } from '../model';
 import { isMarkColor, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
 import { isSkill, isSkillRef, SKILL_LIMITS } from '../skills';
+import { STUDY_LIMITS, validateStudyBundle, type StudyBundle } from '../study';
 
 /**
  * 원격 동기화 프로토콜 (ADR-026). 웹·모바일(클라이언트)이 PC 데스크톱 앱(호스트)의 학습 데이터를 보고,
@@ -40,7 +41,9 @@ export type SyncOp =
   | { kind: 'summary.attach'; sessionId: ID; text?: string }
   | { kind: 'summary.remove'; sessionId: ID }
   | { kind: 'annot.set'; annotation: Annotation }
-  | { kind: 'annot.delete'; ids: ID[] };
+  | { kind: 'annot.delete'; ids: ID[] }
+  /** 학습 꾸러미 가져오기 (ADR-043). 꾸러미 JSON 길이는 STUDY_LIMITS.remoteChars 이하 */
+  | { kind: 'study.import'; bundle: StudyBundle };
 
 export type SyncOpKind = SyncOp['kind'];
 
@@ -279,6 +282,15 @@ function validateOp(op: unknown): boolean {
     return o.ids.length > 0 &&
       o.ids.length <= SYNC_LIMITS.id &&
       o.ids.every((id: unknown) => typeof id === 'string' && SYNC_ID_RE.test(id as string));
+  }
+  if (kind === 'study.import') {
+    if (Object.keys(o).some((k) => k !== 'kind' && k !== 'bundle')) return false;
+    try {
+      validateStudyBundle(o.bundle);
+      return JSON.stringify(o.bundle).length <= STUDY_LIMITS.remoteChars;
+    } catch {
+      return false;
+    }
   }
   return false;
 }

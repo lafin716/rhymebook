@@ -3,6 +3,7 @@ import { isCliId } from '../cli-options';
 import { canDeleteTurn } from '../turns';
 import type { ID, Message, ProviderId, Skill } from '../model';
 import { SKILL_LIMITS } from '../skills';
+import { planStudyImport, StudyError, validateStudyBundle } from '../study';
 import {
   SYNC_LIMITS,
   SYNC_ID_RE,
@@ -396,6 +397,16 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       }
       case 'annot.delete':
         return null;
+      case 'study.import': {
+        try {
+          const plan = planStudyImport(state, validateStudyBundle(op.bundle), state.streaming);
+          // 이미 있는 세션을 덮어쓰면 그 세션의 옛 메시지가 지워질 수 있다 — 삭제 권한과 같이 묶는다
+          if (plan.updated > 0 && !allowDelete(peerId)) return 'forbidden';
+          return null;
+        } catch (e) {
+          return e instanceof StudyError && e.code === 'conflict' ? 'conflict' : 'invalid';
+        }
+      }
     }
     return null;
   };
@@ -480,6 +491,13 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           return null;
         case 'annot.delete':
           s.deleteAnnotations(op.ids);
+          return null;
+        case 'study.import':
+          try {
+            s.importStudy(validateStudyBundle(op.bundle));
+          } catch (e) {
+            return e instanceof StudyError && e.code === 'conflict' ? 'conflict' : 'failed';
+          }
           return null;
       }
       return null;

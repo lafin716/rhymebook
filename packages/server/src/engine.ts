@@ -1,4 +1,4 @@
-import { mkdir, stat } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -24,6 +24,7 @@ import {
   RUNTIME_SETTINGS,
   secretName,
   skillFromFolder,
+  skillsToSeed,
   toSkillFolder,
   toStoredData,
   type AppStore,
@@ -137,15 +138,59 @@ export async function createHeadlessHost(opts: HeadlessHostOptions): Promise<Hea
     return HOST_ORDER.find((p) => isUsable(conns[p]));
   };
 
-  // 스킬: <dir>/skills 폴더를 읽기만 한다. 처음이면 예시 스킬 폴더를 만든다
+  // 스킬: <dir>/skills 폴더를 읽기만 한다. 새 builtin을 한 번 시드한다 (기존 이름의 폴더는 덮어쓰지 않음)
   const skillsDir = createSkillsDir(path.join(opts.dir, 'skills'));
   const skillsStat = await stat(skillsDir.root).catch(() => null);
   if (skillsStat && !skillsStat.isDirectory()) log(`스킬 경로가 폴더가 아닙니다: ${skillsDir.root}`);
+
+  // skills-seeded.json 파일로 시드된 builtin id 추적
+  const seededPath = path.join(opts.dir, 'skills-seeded.json');
+  let seeded: unknown = undefined;
+  try {
+    const content = await readFile(seededPath, 'utf-8');
+    seeded = JSON.parse(content);
+  } catch {
+    // 파일 없음 또는 파싱 실패 → 신규 또는 레거시 (이 경우 skillsToSeed가 호환성 처리)
+  }
+
   if (!skillsStat) {
+    // 폴더 없음 → 모든 기본값 스킬 시드
     for (const s of defaultSkills()) {
       await skillsDir.write(toSkillFolder(s), {}).catch((e: unknown) => log(`예시 스킬 "${s.name}" 만들기 실패: ${e instanceof Error ? e.message : String(e)}`));
     }
+    // 시드된 id 목록 저장
+    const { seeded: newSeeded } = skillsToSeed([], seeded);
+    await writeFile(seededPath, JSON.stringify(newSeeded), 'utf-8').catch((e: unknown) =>
+      log(`스킬 시드 파일 저장 실패: ${e instanceof Error ? e.message : String(e)}`),
+    );
+  } else {
+    // 폴더 있음 → 새로 추가된 builtin만 시드 (기존 이름의 폴더는 건드리지 않음)
+    const readSkills = async (): Promise<Skill[]> => {
+      const now = Date.now();
+      const out: Skill[] = [];
+      for (const f of await skillsDir.readAll()) {
+        const fields = skillFromFolder(f);
+        if (fields) out.push({ id: `k-${fields.name}`, ...fields, createdAt: now, updatedAt: now });
+      }
+      return out;
+    };
+    const existing = await readSkills();
+    const { add, seeded: newSeeded } = skillsToSeed(existing, seeded);
+    for (const s of add) {
+      await skillsDir.write(toSkillFolder(s), {}).catch((e: unknown) => log(`예시 스킬 "${s.name}" 만들기 실패: ${e instanceof Error ? e.message : String(e)}`));
+    }
+    if (add.length) {
+      await writeFile(seededPath, JSON.stringify(newSeeded), 'utf-8').catch((e: unknown) =>
+        log(`스킬 시드 파일 저장 실패: ${e instanceof Error ? e.message : String(e)}`),
+      );
+    } else if (!Array.isArray(seeded) && seeded !== true) {
+      // 호환성: 기존 값이 없거나 유효하지 않으면 새로운 형식으로 저장
+      await writeFile(seededPath, JSON.stringify(newSeeded), 'utf-8').catch((e: unknown) =>
+        log(`스킬 시드 파일 저장 실패: ${e instanceof Error ? e.message : String(e)}`),
+      );
+    }
   }
+
   const readSkills = async (): Promise<Skill[]> => {
     const now = Date.now();
     const out: Skill[] = [];

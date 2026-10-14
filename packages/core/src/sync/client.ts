@@ -4,6 +4,7 @@ import { NEW_SESSION_TITLE } from '../store';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, ViewState } from '../model';
 import type { SyncOp, SyncOpKind, SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
+import type { StudyBundle } from '../study';
 import { branchQuestion } from '../context';
 import { newId } from '../id';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
@@ -30,6 +31,8 @@ export interface SyncClientState {
   /** 메시지를 받아 온 세션 */
   loaded: Record<ID, true>;
   lastFailure?: SyncActFailure;
+  /** 앱 복귀 후 자동 재연결(1회)이 실패한 시각. UI가 알림을 띄운다 */
+  resumeFailedAt?: number;
 }
 
 export interface SyncClient {
@@ -37,10 +40,18 @@ export interface SyncClient {
   start(): void;
   stop(): void;
   reconnect(): void;
+  /**
+   * 앱이 다시 활성화될 때 (모바일 백그라운드 복귀 등). 자동 재연결을 끈 클라이언트도 한 번은 다시 잇는다.
+   * 끊겨 있으면 바로, 연결된 상태면 곧이어 끊김이 올 때. fresh면 살아 보이는 연결도 버리고 새로 연결한다.
+   * 그 한 번이 실패하면 offline에 머물고 resumeFailedAt을 남긴다.
+   */
+  resume(opts?: { fresh?: boolean }): void;
   /** 세션 메시지를 아직 받지 않았으면 호스트에 요청한다 */
   ensureMessages(sessionId: ID): void;
   /** PC 스킬 목록을 받아 온다. 온라인이 아니거나 응답이 없으면 실패 */
   pullSkills(): Promise<Skill[]>;
+  /** 학습 꾸러미를 PC로 보낸다 (ADR-043). 실패하면 SyncActError 또는 'offline' | 'timeout'을 메시지로 reject */
+  importStudy(bundle: StudyBundle): Promise<void>;
 }
 
 export interface SyncClientOptions {
@@ -51,6 +62,8 @@ export interface SyncClientOptions {
   backoff?: { base: number; max: number };
   /** 끊기거나 연결에 실패하면 백오프로 자동 재연결한다 (기본 true). false면 offline에 머물고 reconnect()로만 다시 연결 */
   autoReconnect?: boolean;
+  /** resume() 뒤 이 시간 안에 끊기면 한 번 다시 잇는다 (기본 5초) */
+  resumeGraceMs?: number;
 }
 
 /** view에서 사라진 세션 참조를 걷어낸다. 활성 세션이 사라지면 남아 있는 가장 가까운 조상으로 */
@@ -87,7 +100,7 @@ function visibleSessions(v: ViewState): ID[] {
  * 낙관적으로 먼저 표시하고, 호스트 push(같은 id)가 덮어쓴다. 거절되면 되돌린다.
  */
 export function createSyncClient(opts: SyncClientOptions): SyncClient {
-  const { store, link, isPaired, timeoutMs = 15000, backoff = { base: 1000, max: 30000 }, autoReconnect = true } = opts;
+  const { store, link, isPaired, timeoutMs = 15000, backoff = { base: 1000, max: 30000 }, autoReconnect = true, resumeGraceMs = 5000 } = opts;
   const get = () => store.getState();
   const apply = (patch: Partial<AppState>) => get().applyRemote(patch);
 
@@ -100,9 +113,14 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
   let offDisconnect: (() => void) | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let backoffMs = backoff.base;
+  /** resume()이 연 유예 시간 끝 — 이 전에 끊기면 한 번 다시 잇는다 */
+  let resumeGraceUntil = 0;
+  /** resume()으로 다시 잇는 중 — 실패하면 resumeFailedAt을 남긴다 */
+  let resumeRetrying = false;
   /** 이번 연결에서 메시지를 요청한 세션 */
   const requested = new Set<ID>();
-  const pending = new Map<string, { kind: SyncOpKind; rollback: () => void; timer: ReturnType<typeof setTimeout> }>();
+  /** done이 있으면 결과를 그쪽으로만 알린다(실패 토스트 없음) */
+  const pending = new Map<string, { kind: SyncOpKind; rollback: () => void; timer: ReturnType<typeof setTimeout>; done?: (code: string | null) => void }>();
 
   const markLoaded = (sessionId: ID) => {
     requested.add(sessionId);
@@ -130,7 +148,10 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
 
   /** 응답 대기 중인 조작을 버린다. 스냅샷이 진실 원천이므로 되돌리지 않는다 */
   const dropPending = () => {
-    for (const p of pending.values()) clearTimeout(p.timer);
+    for (const p of pending.values()) {
+      clearTimeout(p.timer);
+      p.done?.('offline');
+    }
     pending.clear();
   };
 
@@ -151,12 +172,39 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
     }, delay);
   };
 
+  /** 기다리던 조작을 버리고 처음(hello)부터 다시 연결한다. fresh면 링크도 새로 연다 */
+  const restart = (reason: string, fresh = false) => {
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
+    backoffMs = backoff.base;
+    dropPending();
+    endSkillPull(new Error(reason));
+    requested.clear();
+    setState({ status: 'connecting', loaded: {} });
+    if (fresh && link.reset) {
+      // 지금 연결의 끊김 알림이 새 연결을 offline으로 돌리지 않게 먼저 떼어 낸다
+      generation++;
+      closeListeners();
+      link.reset();
+    }
+    void connect();
+  };
+
   const goOffline = (error?: string) => {
     closeListeners();
+    if (resumeGraceUntil > Date.now()) {
+      // 앱 복귀 직후의 끊김(백그라운드에서 죽은 연결) → 한 번 다시 잇는다
+      resumeGraceUntil = 0;
+      resumeRetrying = true;
+      restart(error ?? 'PC와 연결이 끊겼습니다.');
+      return;
+    }
     dropPending();
     endSkillPull(new Error(error ?? 'PC와 연결이 끊겼습니다.'));
     requested.clear();
-    setState({ status: 'offline', loaded: {}, ...(error ? { error } : {}) });
+    const failed = resumeRetrying;
+    resumeRetrying = false;
+    setState({ status: 'offline', loaded: {}, ...(error ? { error } : {}), ...(failed ? { resumeFailedAt: Date.now() } : {}) });
     scheduleReconnect();
   };
 
@@ -225,6 +273,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
           view: pruneView(s.view, gone, s.sessions),
         });
         backoffMs = backoff.base;
+        resumeRetrying = false;
         setState({ status: 'online', hostName: msg.hostName, error: undefined, loaded: {} });
         for (const id of visibleSessions(get().view)) requestMessages(id);
         return;
@@ -320,7 +369,8 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         if (!p) return;
         clearTimeout(p.timer);
         pending.delete(msg.reqId);
-        if (!msg.ok) {
+        if (p.done) p.done(msg.ok ? null : (msg.error ?? 'failed'));
+        else if (!msg.ok) {
           p.rollback();
           fail(p.kind, msg.error ?? 'failed');
         }
@@ -345,26 +395,28 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
   };
 
   /** 조작 신호를 보낸다. 온라인이 아니거나 보내지 못하면 되돌리고 false */
-  const act = (op: SyncOp, rollback: () => void = () => {}): boolean => {
-    if (state.getState().status !== 'online') {
+  const act = (op: SyncOp, rollback: () => void = () => {}, o: { done?: (code: string | null) => void; timeoutMs?: number } = {}): boolean => {
+    const failWith = (code: string) => {
       rollback();
-      fail(op.kind, 'offline');
+      if (o.done) o.done(code);
+      else fail(op.kind, code);
+    };
+    if (state.getState().status !== 'online') {
+      failWith('offline');
       return false;
     }
     const reqId = newId('r');
     const timer = setTimeout(() => {
       if (!pending.delete(reqId)) return;
-      rollback();
-      fail(op.kind, 'timeout');
+      failWith('timeout');
       // 실제로 실행되었을 수 있으므로 스냅샷으로 다시 맞춘다
       link.send({ type: 'sync.hello' });
-    }, timeoutMs);
-    pending.set(reqId, { kind: op.kind, rollback, timer });
+    }, o.timeoutMs ?? timeoutMs);
+    pending.set(reqId, { kind: op.kind, rollback, timer, ...(o.done ? { done: o.done } : {}) });
     if (!link.send({ type: 'act', reqId, op })) {
       clearTimeout(timer);
       pending.delete(reqId);
-      rollback();
-      fail(op.kind, 'offline');
+      failWith('offline');
       return false;
     }
     return true;
@@ -589,6 +641,8 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       if (!started) return;
       started = false;
       generation++;
+      resumeGraceUntil = 0;
+      resumeRetrying = false;
       if (retryTimer) clearTimeout(retryTimer);
       retryTimer = null;
       closeListeners();
@@ -604,18 +658,34 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
 
     reconnect() {
       if (!started) return;
-      if (retryTimer) clearTimeout(retryTimer);
-      retryTimer = null;
-      backoffMs = backoff.base;
-      dropPending();
-      endSkillPull(new Error('PC에 다시 연결하는 중입니다.'));
-      requested.clear();
-      setState({ loaded: {} });
-      void connect();
+      resumeGraceUntil = 0;
+      resumeRetrying = false;
+      restart('PC에 다시 연결하는 중입니다.');
+    },
+
+    resume({ fresh = false } = {}) {
+      if (!started) return;
+      const { status } = state.getState();
+      if (status === 'unpaired' || status === 'unsupported') return;
+      if (status === 'offline' || (fresh && status === 'online')) {
+        resumeGraceUntil = 0;
+        resumeRetrying = true;
+        restart('PC에 다시 연결하는 중입니다.', fresh);
+        return;
+      }
+      // 연결된(또는 연결 중인) 것처럼 보여도 곧 끊김이 올 수 있다
+      resumeGraceUntil = Date.now() + resumeGraceMs;
     },
 
     ensureMessages(sessionId) {
       if (!state.getState().loaded[sessionId]) requestMessages(sessionId);
+    },
+
+    importStudy(bundle) {
+      return new Promise<void>((resolve, reject) => {
+        // 큰 꾸러미는 올리는 데 오래 걸릴 수 있다
+        act({ kind: 'study.import', bundle }, undefined, { timeoutMs: Math.max(timeoutMs, 60_000), done: (code) => (code ? reject(new Error(code)) : resolve()) });
+      });
     },
 
     pullSkills() {

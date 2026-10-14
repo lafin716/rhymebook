@@ -9,6 +9,7 @@ import { createSeed, emptyView, SEED_IDS } from '../src/seed';
 import { branchQuestion } from '../src/context';
 import type { ID, Skill } from '../src/model';
 import { defaultSkills } from '../src/skills';
+import { collectStudy, STUDY_LIMITS } from '../src/study';
 import type { SyncClientMsg, SyncServerMsg } from '../src/bridge/sync';
 import { SYNC_LIMITS, validateSyncClientMsg, isSyncServerMsg } from '../src/bridge/sync';
 
@@ -62,7 +63,7 @@ describe('sync validators', () => {
 
 /** 호스트 1 + 피어 N 을 잇는 메모리 링크. 메시지는 비동기(매크로태스크)로 순서대로 전달된다 */
 function createNet(host: () => SyncHost) {
-  const peers = new Map<string, { connected: boolean; listeners: Set<(m: SyncServerMsg) => void>; gone: Set<() => void>; received: SyncServerMsg[]; sent: SyncClientMsg[]; dropActs: boolean }>();
+  const peers = new Map<string, { connected: boolean; listeners: Set<(m: SyncServerMsg) => void>; gone: Set<() => void>; received: SyncServerMsg[]; sent: SyncClientMsg[]; dropActs: boolean; resets: number }>();
 
   const deliver = (peerId: string, msg: SyncServerMsg) => {
     const p = peers.get(peerId);
@@ -81,7 +82,7 @@ function createNet(host: () => SyncHost) {
       else deliver(peerId, msg);
     },
     peer(peerId: string) {
-      const p = { connected: true, listeners: new Set<(m: SyncServerMsg) => void>(), gone: new Set<() => void>(), received: [] as SyncServerMsg[], sent: [] as SyncClientMsg[], dropActs: false };
+      const p = { connected: true, listeners: new Set<(m: SyncServerMsg) => void>(), gone: new Set<() => void>(), received: [] as SyncServerMsg[], sent: [] as SyncClientMsg[], dropActs: false, resets: 0 };
       peers.set(peerId, p);
       const link: SyncLink = {
         send(msg) {
@@ -103,6 +104,11 @@ function createNet(host: () => SyncHost) {
         async ensure() {
           if (!p.connected) throw new Error('offline');
           return {};
+        },
+        reset() {
+          p.resets++;
+          // 실제 링크처럼 버린 연결의 끊김을 바로 알린다
+          for (const cb of [...p.gone]) cb();
         },
       };
       return {
@@ -191,7 +197,7 @@ describe('sync host ↔ client', () => {
 
   it('pullSkills: the client receives the PC skill list, paged by size', async () => {
     const { client } = await connectClient();
-    expect((await client.pullSkills()).map((s) => s.name)).toEqual(['curriculum']);
+    expect((await client.pullSkills()).map((s) => s.name)).toEqual(['curriculum', 'book']);
     // 1MB 페이지 예산을 넘는 목록은 여러 페이지로 나눠 받아도 모두 모인다
     const big = (i: number): Skill => ({
       id: `k${i}`,
@@ -217,7 +223,7 @@ describe('sync host ↔ client', () => {
     const pending = client.pullSkills();
     // 이전 요청의 남은 페이지가 늦게 도착해도 지금 요청의 결과가 되지 않는다
     for (const l of peer.state.listeners) l({ type: 'sync.skills', reqId: 'stale', skills: [], first: false, done: true });
-    expect((await pending).map((s) => s.name)).toEqual(['curriculum']);
+    expect((await pending).map((s) => s.name)).toEqual(['curriculum', 'book']);
   });
 
   it('pullSkills fails when offline', async () => {
@@ -372,6 +378,55 @@ describe('sync host ↔ client', () => {
     expect(hostStore.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(false);
   });
 
+  it('study.import: a remote client brings a study into the PC; overwriting needs the delete permission', async () => {
+    const bundle = JSON.parse(JSON.stringify(collectStudy(hostStore.getState(), SEED_IDS.root)!)) as NonNullable<ReturnType<typeof collectStudy>>;
+    const ids = bundle.sessions.map((s) => s.id);
+    hostStore.getState().deleteSession(SEED_IDS.root);
+    expect(ids.some((id) => hostStore.getState().sessions[id])).toBe(false);
+
+    const { store, client } = await connectClient();
+    // 새 학습 추가는 삭제 권한 없이도 된다
+    await client.importStudy(bundle);
+    await until(() => ids.every((id) => !!store.getState().sessions[id]));
+    expect(ids.every((id) => !!hostStore.getState().sessions[id])).toBe(true);
+    expect(hostStore.getState().messages[SEED_IDS.root]).toEqual(bundle.messages.filter((m) => m.sessionId === SEED_IDS.root));
+    // 실패 토스트로 새지 않는다
+    expect(client.state.getState().lastFailure).toBeUndefined();
+
+    // 이미 있는 세션을 덮어쓰려면 삭제 권한이 필요하다
+    const newer = JSON.parse(JSON.stringify(bundle)) as typeof bundle;
+    newer.sessions[0]!.updatedAt = Date.now() + 60_000;
+    newer.sessions[0]!.title = '다른 기기에서 고친 제목';
+    await expect(client.importStudy(newer)).rejects.toThrow('forbidden');
+    expect(hostStore.getState().sessions[SEED_IDS.root]!.title).not.toBe('다른 기기에서 고친 제목');
+    allowDelete = true;
+    await client.importStudy(newer);
+    await until(() => store.getState().sessions[SEED_IDS.root]?.title === '다른 기기에서 고친 제목');
+    expect(hostStore.getState().sessions[SEED_IDS.root]!.title).toBe('다른 기기에서 고친 제목');
+  });
+
+  it('study.import: validators reject malformed or oversized bundles', async () => {
+    const bundle = collectStudy(hostStore.getState(), SEED_IDS.root)!;
+    const act = (op: Record<string, unknown>) => validateSyncClientMsg({ type: 'act', reqId: 'r', op });
+    expect(act({ kind: 'study.import', bundle })).toBeTruthy();
+    expect(act({ kind: 'study.import', bundle, extra: 1 })).toBe(null);
+    expect(act({ kind: 'study.import', bundle: { ...bundle, app: 'x' } })).toBe(null);
+    expect(act({ kind: 'study.import', bundle: { ...bundle, rootId: 's-nope' } })).toBe(null);
+    const huge = { ...bundle, messages: bundle.messages.map((m, i) => (i === 0 ? { ...m, content: 'x'.repeat(STUDY_LIMITS.remoteChars) } : m)) };
+    expect(act({ kind: 'study.import', bundle: huge })).toBe(null);
+    // 같은 id를 다른 학습이 쓰고 있으면 conflict
+    const { client } = await connectClient();
+    const clash = JSON.parse(JSON.stringify(bundle)) as typeof bundle;
+    clash.rootId = 's-other-root';
+    clash.sessions[0] = { ...clash.sessions[0]!, id: 's-other-root' };
+    for (const s of clash.sessions) {
+      s.rootId = 's-other-root';
+      if (s.parentId === SEED_IDS.root) s.parentId = 's-other-root';
+    }
+    for (const m of clash.messages) if (m.sessionId === SEED_IDS.root) m.sessionId = 's-other-root';
+    await expect(client.importStudy(clash)).rejects.toThrow('conflict');
+  });
+
   it('host validates ops: bad anchor, id conflict, unknown session, not-ready, rate limit', async () => {
     const out: SyncServerMsg[] = [];
     const raw = createSyncHost({ store: hostStore, hostName: () => 'pc', send: (_p, m) => out.push(m), throttleMs: 0 });
@@ -453,6 +508,54 @@ describe('sync host ↔ client', () => {
     client.reconnect();
     await until(() => client.state.getState().status === 'online');
     expect(store.getState().sessions[SEED_IDS.root]).toBeTruthy();
+  });
+
+  it('resume(): offline → reconnects once without autoReconnect', async () => {
+    const { client, peer } = await connectClient('p1', { autoReconnect: false });
+    peer.disconnect();
+    peer.connect();
+    client.resume();
+    expect(client.state.getState().status).toBe('connecting');
+    await until(() => client.state.getState().status === 'online');
+    expect(client.state.getState().resumeFailedAt).toBeUndefined();
+  });
+
+  it('resume(): the single retry fails → offline with resumeFailedAt, no further attempts', async () => {
+    const { client, peer } = await connectClient('p1', { autoReconnect: false });
+    peer.disconnect();
+    client.resume();
+    await until(() => client.state.getState().status === 'offline');
+    expect(client.state.getState().resumeFailedAt).toBeTypeOf('number');
+    const hellos = peer.state.sent.filter((m) => m.type === 'sync.hello').length;
+    peer.connect();
+    await new Promise((r) => setTimeout(r, 120));
+    expect(client.state.getState().status).toBe('offline');
+    expect(peer.state.sent.filter((m) => m.type === 'sync.hello').length).toBe(hellos);
+  });
+
+  it('resume() while online: a disconnect within the grace period reconnects once', async () => {
+    const { client, peer } = await connectClient('p1', { autoReconnect: false });
+    client.resume();
+    expect(client.state.getState().status).toBe('online');
+    peer.disconnect();
+    expect(client.state.getState().status).toBe('connecting');
+    peer.connect();
+    await until(() => client.state.getState().status === 'online');
+    // 유예는 한 번만 — 다음 끊김은 offline에 머문다
+    peer.disconnect();
+    expect(client.state.getState().status).toBe('offline');
+    expect(client.state.getState().resumeFailedAt).toBeUndefined();
+  });
+
+  it('resume({ fresh }) while online: resets the link and resyncs', async () => {
+    const { client, peer } = await connectClient('p1', { autoReconnect: false });
+    const hellos = peer.state.sent.filter((m) => m.type === 'sync.hello').length;
+    client.resume({ fresh: true });
+    expect(peer.state.resets).toBe(1);
+    await until(() => peer.state.sent.filter((m) => m.type === 'sync.hello').length === hellos + 1);
+    await until(() => client.state.getState().status === 'online');
+    await new Promise((r) => setTimeout(r, 30));
+    expect(client.state.getState().status).toBe('online');
   });
 
   it('active branch deleted on the PC while offline → focus moves to its parent after reconnect', async () => {

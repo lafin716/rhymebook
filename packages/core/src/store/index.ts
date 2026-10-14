@@ -51,6 +51,7 @@ import { collectStream, providerError, type ProviderError, type ProviderRegistry
 import { memoryRepository, type Repository } from '../repo';
 import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
 import { chatTarget } from '../skills';
+import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
 import { descendantIds, type SessionMap } from '../tree';
 import { turnMessageIds } from '../turns';
 
@@ -104,6 +105,11 @@ export interface AppState extends AppData {
   // 세션
   newRootSession(id?: ID, opts?: { focus?: boolean }): ID | false;
   deleteSession(id: ID): void;
+  /**
+   * 학습 꾸러미 가져오기 (ADR-043). 세션별로 더 최근에 바뀐 쪽을 남기고, 이 기기에만 있는 가지는 둔다.
+   * 다른 학습과 id가 겹치면 StudyError('conflict')
+   */
+  importStudy(bundle: StudyBundle): StudyImportResult;
   /**
    * 질문 하나와 그 답변을 지운다. 그 답변에서 뻗은 가지·서식도 함께 지운다.
    * 첫 질문이거나 이 세션이 응답 생성 중이면 false
@@ -462,6 +468,44 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           setView(() => emptyView(sessionId));
         }
         return sessionId;
+      },
+
+      importStudy(bundle) {
+        const st = get();
+        const { apply, ...result } = planStudyImport(st, bundle, st.streaming);
+        if (!apply.length) return result;
+        const ids = new Set(apply);
+        const nextMsgs = new Map<ID, Message[]>();
+        for (const m of bundle.messages) if (ids.has(m.sessionId)) nextMsgs.set(m.sessionId, [...(nextMsgs.get(m.sessionId) ?? []), m]);
+        const nextAnnos = bundle.annotations.filter((a) => ids.has(a.sessionId));
+        const keepMsg = new Set(bundle.messages.map((m) => m.id));
+        const keepAnno = new Set(nextAnnos.map((a) => a.id));
+        const goneMsgs = apply.flatMap((sid) => (st.messages[sid] ?? []).filter((m) => !keepMsg.has(m.id)).map((m) => m.id));
+        const goneAnnos = Object.values(st.annotations)
+          .filter((a) => ids.has(a.sessionId) && !keepAnno.has(a.id))
+          .map((a) => a.id);
+        set((s) => {
+          const sessions = { ...s.sessions };
+          const messages = { ...s.messages };
+          const annotations = { ...s.annotations };
+          for (const sess of bundle.sessions) {
+            if (!ids.has(sess.id)) continue;
+            sessions[sess.id] = sess;
+            messages[sess.id] = nextMsgs.get(sess.id) ?? [];
+          }
+          for (const id of goneAnnos) delete annotations[id];
+          for (const a of nextAnnos) annotations[a.id] = a;
+          return { sessions, messages, annotations };
+        });
+        for (const id of goneMsgs) repo.deleteMessage(id);
+        if (goneAnnos.length) repo.deleteAnnotations(goneAnnos);
+        for (const sess of bundle.sessions) {
+          if (!ids.has(sess.id)) continue;
+          repo.saveSession(sess);
+          (nextMsgs.get(sess.id) ?? []).forEach((m, i) => repo.saveMessage(m, i));
+        }
+        for (const a of nextAnnos) repo.saveAnnotation(a);
+        return result;
       },
 
       deleteSession(id) {

@@ -147,17 +147,17 @@ function checkEnvelope(raw: Record<string, unknown>) {
 const str = (v: unknown) => typeof v === 'string';
 const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
 
-function isSession(v: unknown): v is Session {
+export function isSession(v: unknown): v is Session {
   const s = v as Session;
   return !!s && str(s.id) && (s.parentId === null || str(s.parentId)) && str(s.rootId) && str(s.title) && num(s.createdAt) && num(s.updatedAt);
 }
 
-function isMessage(v: unknown): v is Message {
+export function isMessage(v: unknown): v is Message {
   const m = v as Message;
   return !!m && str(m.id) && str(m.sessionId) && (m.role === 'user' || m.role === 'assistant') && str(m.content) && num(m.createdAt);
 }
 
-function isAnnotation(v: unknown): v is Annotation {
+export function isAnnotation(v: unknown): v is Annotation {
   const a = v as Annotation;
   if (!a || !str(a.id) || !str(a.sessionId) || !num(a.createdAt) || !num(a.updatedAt)) return false;
   // anchor 검증

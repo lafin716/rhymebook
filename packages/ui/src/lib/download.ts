@@ -15,6 +15,18 @@ export async function saveBase64File(name: string, base64: string, mime: string)
   download(name, new Blob([bytes], { type: mime }));
 }
 
+/** 바이트 배열(zip 등)을 파일로 저장한다 */
+export async function saveBytesFile(name: string, bytes: Uint8Array, mime: string): Promise<void> {
+  if (mobile?.saveBase64File) return mobile.saveBase64File(name, bytesToBase64(bytes));
+  download(name, new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime }));
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
 function download(name: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

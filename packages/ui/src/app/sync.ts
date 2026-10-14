@@ -15,7 +15,7 @@ import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { isUsable } from '../lib/connection';
 import { remoteMode } from './capabilities';
-import { desktop, isDemo, loadRemotePairing, remoteLink, saveRemotePairing, sessionWindowId } from './runtime';
+import { desktop, isDemo, mobile, loadRemotePairing, remoteLink, saveRemotePairing, sessionWindowId } from './runtime';
 import { appStore, loadPersisted } from './store';
 import { syncSkillFolders, useSkills } from '../skills/skillsStore';
 
@@ -56,6 +56,31 @@ export const syncClient: SyncClient | null = remoteMode
           },
     )
   : null;
+
+/** 이만큼 넘게 백그라운드에 있다가 돌아오면 살아 보이는 연결도 새로 연다 (OS가 소켓을 조용히 죽였을 수 있다) */
+const FRESH_AFTER_MS = 60_000;
+
+/**
+ * 앱 복귀 시 자동 재연결 (모바일 백그라운드 → 포그라운드, 웹 탭 전환).
+ * 평소 끊김은 [다시 연결]로 잇지만, 복귀 직후에는 한 번 스스로 다시 잇는다. 실패하면 알림(Toasts).
+ */
+function watchResume(client: SyncClient) {
+  let hiddenAt: number | null = null;
+  const onActive = (active: boolean) => {
+    if (!active) {
+      hiddenAt ??= Date.now();
+      return;
+    }
+    const away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+    hiddenAt = null;
+    if (isDemo()) return;
+    client.resume({ fresh: away >= FRESH_AFTER_MS });
+  };
+  if (mobile?.onActiveChange) mobile.onActiveChange(onActive);
+  else if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => onActive(document.visibilityState === 'visible'));
+}
+
+if (syncClient && !localLink) watchResume(syncClient);
 
 const idleState = createStore<SyncClientState>(() => ({ status: 'unsupported', loaded: {} }));
 
@@ -140,6 +165,7 @@ const OP_LABEL: Record<SyncOp['kind'], string> = {
   'summary.remove': '요약을 떼어 냈어요',
   'annot.set': '메모를 추가했어요',
   'annot.delete': '메모를 삭제했어요',
+  'study.import': '학습을 가져왔어요',
 };
 
 export interface RemoteNotice {

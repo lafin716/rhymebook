@@ -6,6 +6,7 @@ import {
   newId,
   normalizeSkillName,
   sanitizeSkillFiles,
+  skillsToSeed,
   toSkillFolder,
   type ID,
   type Skill,
@@ -118,9 +119,8 @@ export const useSkills = create<SkillsState>((set, get) => ({
   },
 
   restoreDefaults() {
-    const have = new Set(get().skills.map((s) => s.id));
-    const names = new Set(get().skills.map((s) => s.name));
-    const add = defaultSkills().filter((s) => !have.has(s.id) && !names.has(s.name));
+    const existing = get().skills;
+    const { add } = skillsToSeed(existing, undefined);
     if (!add.length) return;
     set((s) => ({ skills: [...s.skills, ...add].sort(byTitle) }));
     persist((d) => d.skills.bulkPut(add));
@@ -191,23 +191,31 @@ export function openSkillFolder(skill?: Skill): Promise<void> {
 export const skillFoldersAvailable = !!folders;
 export const skillFoldersRoot = folders?.root ?? '';
 
-/** 시작 시 한 번: 저장된 스킬을 읽고, 처음이면 예시 스킬을 넣는다. 저장소를 못 쓰면 메모리에서만 */
+/** 시작 시 한 번: 저장된 스킬을 읽고, 시드되지 않은 예시 스킬을 넣는다. 저장소를 못 쓰면 메모리에서만 */
 export async function loadSkills(database: BranchDB | null) {
   db = database;
-  let skills: Skill[] = [];
+  let skills: Skill[];
   try {
     if (database) {
-      skills = (await database.skills.toArray()).filter(isSkill);
+      const dbSkills = (await database.skills.toArray()).filter(isSkill);
       const seeded = await database.kv.get('skillsSeeded');
-      if (!seeded) {
-        const add = defaultSkills().filter((d) => !skills.some((s) => s.name === d.name));
+      const { add, seeded: newSeeded } = skillsToSeed(dbSkills, seeded?.value);
+      if (add.length) {
         await database.transaction('rw', database.skills, database.kv, async () => {
           await database.skills.bulkPut(add);
-          await database.kv.put({ key: 'skillsSeeded', value: true });
+          await database.kv.put({ key: 'skillsSeeded', value: newSeeded });
         });
-        skills = [...skills, ...add];
+        skills = [...dbSkills, ...add];
+      } else {
+        skills = dbSkills;
+        // 예전 형식(true)이나 기록 없음도 지금 id 목록으로 남긴다 — 지운 내장 스킬이 다시 들어오지 않게
+        if (JSON.stringify(seeded?.value) !== JSON.stringify(newSeeded)) {
+          await database.kv.put({ key: 'skillsSeeded', value: newSeeded });
+        }
       }
-    } else skills = defaultSkills();
+    } else {
+      skills = defaultSkills();
+    }
   } catch (e) {
     console.warn('[skills] 불러오기 실패, 이번 실행은 저장되지 않습니다', e);
     db = null;

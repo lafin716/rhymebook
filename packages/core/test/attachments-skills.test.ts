@@ -15,12 +15,15 @@ import { anthropicContent } from '../src/providers/anthropic';
 import { openaiContent } from '../src/providers/openai';
 import { validateSyncClientMsg } from '../src/bridge/sync';
 import {
+  BOOK_SKILL_ID,
+  CURRICULUM_SKILL_ID,
   defaultSkills,
   filterSkills,
   isSkillRef,
   normalizeSkillName,
   parseSlash,
   skillRef,
+  skillsToSeed,
   slashQuery,
   validateSkill,
   withSkill,
@@ -114,9 +117,12 @@ describe('attachments', () => {
 describe('skills', () => {
   const skills = defaultSkills(0);
 
-  it('ships a curriculum example skill', () => {
+  it('ships curriculum and book example skills', () => {
+    expect(skills).toHaveLength(2);
     expect(skills[0]).toMatchObject({ name: 'curriculum', title: '커리큘럼 생성', builtin: true });
+    expect(skills[1]).toMatchObject({ name: 'book', title: '책으로 만들기', builtin: true });
     expect(isSkillRef(skillRef(skills[0]!))).toBe(true);
+    expect(isSkillRef(skillRef(skills[1]!))).toBe(true);
   });
 
   it('parses slash commands', () => {
@@ -163,5 +169,43 @@ describe('skills', () => {
       sessionId: 's',
     });
     expect(later.system).not.toContain('## 스킬');
+  });
+
+  it('seeds new builtin skills and tracks seeded ids', () => {
+    const defaults = defaultSkills();
+    // 신규: 아무 스킬도 없고, 아무것도 시드되지 않음
+    const { add: add1, seeded: seeded1 } = skillsToSeed([], undefined);
+    expect(add1).toHaveLength(2);
+    expect(seeded1).toEqual([BOOK_SKILL_ID, CURRICULUM_SKILL_ID]);
+
+    // 호환성: 기존 true 값은 [CURRICULUM_SKILL_ID]로 변환
+    const { add: add2, seeded: seeded2 } = skillsToSeed([], true);
+    expect(add2).toHaveLength(1);
+    expect(add2[0]?.name).toBe('book');
+    expect(seeded2).toEqual([BOOK_SKILL_ID, CURRICULUM_SKILL_ID]);
+
+    // 이미 시드됨: 모든 것이 있으면 추가 없음
+    const existing = defaults;
+    const { add: add3, seeded: seeded3 } = skillsToSeed(existing, [CURRICULUM_SKILL_ID, BOOK_SKILL_ID]);
+    expect(add3).toHaveLength(0);
+    expect(seeded3).toEqual([BOOK_SKILL_ID, CURRICULUM_SKILL_ID]);
+
+    // 부분적으로 시드됨: 새 스킬만 추가
+    const hasOldSkills = [defaults[0]!];
+    const { add: add4, seeded: seeded4 } = skillsToSeed(hasOldSkills, [CURRICULUM_SKILL_ID]);
+    expect(add4).toHaveLength(1);
+    expect(add4[0]?.name).toBe('book');
+    expect(seeded4).toEqual([BOOK_SKILL_ID, CURRICULUM_SKILL_ID]);
+
+    // 사용자가 지운 스킬: 시드되지 않은 상태로 다시 추가
+    const userDeleted = [defaults[0]!];
+    const { add: add5 } = skillsToSeed(userDeleted, [CURRICULUM_SKILL_ID]);
+    expect(add5).toHaveLength(1);
+    expect(add5[0]?.name).toBe('book');
+
+    // 빈 배열로 시드: 모든 스킬 추가 (신규)
+    const { add: add6, seeded: seeded6 } = skillsToSeed([], []);
+    expect(add6).toHaveLength(2);
+    expect(seeded6).toEqual([BOOK_SKILL_ID, CURRICULUM_SKILL_ID]);
   });
 });
