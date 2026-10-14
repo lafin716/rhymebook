@@ -17,6 +17,7 @@ import { isUsable } from '../lib/connection';
 import { remoteMode } from './capabilities';
 import { desktop, isDemo, loadRemotePairing, remoteLink, saveRemotePairing, sessionWindowId } from './runtime';
 import { appStore, loadPersisted } from './store';
+import { syncSkillFolders, useSkills } from '../skills/skillsStore';
 
 /**
  * 원격 전용 동기화 연결 (ADR-026).
@@ -180,6 +181,11 @@ export const syncHost: SyncHost | null = sync
       },
       allowDelete: (peerId) => isWindowPeer(peerId) || remoteDeleteAllowed(),
       anySkillProvider: isWindowPeer,
+      // 원격 기기의 스킬 동기화: 스킬 폴더에서 바뀐 내용까지 읽은 뒤 보낸다
+      skills: async () => {
+        await syncSkillFolders();
+        return useSkills.getState().skills;
+      },
       onRemoteAction: (peerId, op) => {
         if (isWindowPeer(peerId)) return;
         // 스트리밍 중 잦은 조작(중지 등)은 묶지 않고 그대로 알린다

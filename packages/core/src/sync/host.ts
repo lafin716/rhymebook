@@ -1,7 +1,8 @@
 import type { AppState, AppStore } from '../store';
 import { isCliId } from '../cli-options';
 import { canDeleteTurn } from '../turns';
-import type { ID, Message, ProviderId } from '../model';
+import type { ID, Message, ProviderId, Skill } from '../model';
+import { SKILL_LIMITS } from '../skills';
 import {
   SYNC_LIMITS,
   SYNC_ID_RE,
@@ -29,6 +30,8 @@ export interface SyncHostOptions {
    */
   anySkillProvider?: (peerId: string) => boolean;
   onRemoteAction?: (peerId: string, op: SyncOp) => void;
+  /** 원격 기기가 받아 갈 PC 스킬 목록 (sync.skills). 없으면 빈 목록 */
+  skills?: () => readonly Skill[] | Promise<readonly Skill[]>;
 }
 
 export interface SyncHost {
@@ -72,7 +75,7 @@ function idTaken(state: Synced, id: ID): boolean {
 
 /** 데스크톱(호스트) 스토어 변경을 원격 피어에 내보내고, 피어의 조작(act)을 스토어 액션으로 실행한다 */
 export function createSyncHost(opts: SyncHostOptions): SyncHost {
-  const { store, hostName, send, rootProvider, throttleMs = 120, allowDelete = () => false, anySkillProvider = () => false, onRemoteAction } = opts;
+  const { store, hostName, send, rootProvider, throttleMs = 120, allowDelete = () => false, anySkillProvider = () => false, onRemoteAction, skills } = opts;
 
   const peers = new Map<string, PeerState>();
   const pick = (s: AppState): Synced => ({
@@ -300,6 +303,33 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     send(peerId, { type: 'sync.messages', sessionId, messages: page, first, done: true });
   };
 
+  /** PC 스킬 목록을 바이트 예산 페이지로 나눠 보낸다 (스킬 하나는 최대 약 14만 자라 한 페이지에 들어간다) */
+  const sendSkills = async (peerId: string, reqId: string) => {
+    let list: readonly Skill[] = [];
+    try {
+      list = (await skills?.()) ?? [];
+    } catch {
+      /* 목록을 못 읽으면 빈 목록으로 답해 기다리지 않게 한다 */
+    }
+    // 기다리는 동안 연결이 끊겼으면 보내지 않는다
+    if (!peers.get(peerId)?.synced) return;
+    let page: Skill[] = [];
+    let bytes = 0;
+    let first = true;
+    for (const s of list) {
+      const size = JSON.stringify(s).length;
+      if (page.length && (bytes + size > SYNC_LIMITS.pageBytes || page.length >= SKILL_LIMITS.count)) {
+        send(peerId, { type: 'sync.skills', reqId, skills: page, first, done: false });
+        first = false;
+        page = [];
+        bytes = 0;
+      }
+      page.push(s);
+      bytes += size;
+    }
+    send(peerId, { type: 'sync.skills', reqId, skills: page, first, done: true });
+  };
+
   /** 이 피어가 시작시킨 스트림이 아직 진행 중이면 busy */
   const peerBusy = (peer: PeerState): boolean => {
     const streaming = store.getState().streaming;
@@ -476,6 +506,14 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           return;
         }
         sendMessages(peerId, peer, msg.sessionId);
+        return;
+      }
+      if (msg.type === 'sync.skills') {
+        if (!peer.synced) {
+          send(peerId, { type: 'sync.error', error: 'not-ready' });
+          return;
+        }
+        void sendSkills(peerId, msg.reqId);
         return;
       }
       // act

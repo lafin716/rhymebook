@@ -11,16 +11,21 @@ import {
   type SkillFilesProblem,
   type SkillProblem,
 } from '@branch/core';
-import { ArrowLeft, FolderOpen, Plus, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Plus, RefreshCw, RotateCcw, Save, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { sessionWindowId } from '../app/runtime';
 import { actions, useApp } from '../app/store';
+import { pushNotice, syncClient, useSync } from '../app/sync';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
 import { SkillAssist } from './SkillAssist';
 import { SkillFilesField, SkillOptionsField, type OptionsDraft } from './SkillExtras';
-import { openSkillFolder, skillFoldersAvailable, skillFoldersRoot, syncSkillFolders, useSkills } from './skillsStore';
+import { openSkillFolder, pullSkillsFromPc, skillFoldersAvailable, skillFoldersRoot, syncSkillFolders, useSkills } from './skillsStore';
+
+/** 웹·모바일: PC 스킬 동기화 버튼 (세션 창은 PC와 같은 스킬 DB를 쓰므로 필요 없다) */
+const pcSkillSync = !!syncClient && !sessionWindowId;
 
 const PROBLEM_TEXT: Record<SkillProblem, string> = {
   name: '명령 이름은 영문 소문자·숫자·한글·-·_ 로 32자까지 쓸 수 있어요 (공백 없이).',
@@ -90,6 +95,8 @@ function SkillsPageBody() {
     useSkills.getState().takeAiIntent() ? 'new' : mobile ? null : (skills[0]?.id ?? 'new'),
   );
   const [aiBusy, setAiBusy] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const syncStatus = useSync((s) => s.status);
   const current = useMemo(() => (selected && selected !== 'new' ? skills.find((s) => s.id === selected) : undefined), [selected, skills]);
   const base = current ? toDraft(current) : EMPTY;
   const [draft, setDraft] = useState<Draft>(base);
@@ -214,6 +221,24 @@ function SkillsPageBody() {
     setSelected(mobile ? null : (rest[0]?.id ?? 'new'));
   };
 
+  /** PC 스킬을 받아 와 합친다 (명령 이름이 같으면 PC 내용으로) */
+  const pullFromPc = async () => {
+    if (!syncClient || pulling) return;
+    setPulling(true);
+    try {
+      const r = await pullSkillsFromPc(() => syncClient!.pullSkills());
+      const parts = [r.added && `${r.added}개 추가`, r.updated && `${r.updated}개 갱신`].filter(Boolean);
+      pushNotice(
+        parts.length ? `PC 스킬을 동기화했어요 (${parts.join(', ')})` : 'PC 스킬과 이미 같아요.',
+      );
+      if (r.skipped) pushNotice(`스킬은 ${SKILL_LIMITS.count}개까지라 ${r.skipped}개는 가져오지 못했어요.`);
+    } catch (e) {
+      pushNotice(`스킬을 동기화하지 못했어요. ${e instanceof Error ? e.message : ''}`.trim());
+    } finally {
+      setPulling(false);
+    }
+  };
+
   const showList = !mobile || selected === null;
   const showEditor = !mobile || selected !== null;
 
@@ -229,6 +254,18 @@ function SkillsPageBody() {
           <IconButton label="스킬 폴더 열기" title={skillFoldersRoot} onClick={() => void openSkillFolder()}>
             <FolderOpen size={18} />
           </IconButton>
+        )}
+        {showList && pcSkillSync && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<RefreshCw size={14} className={cn(pulling && 'animate-spin')} />}
+            disabled={pulling || syncStatus !== 'online'}
+            title={syncStatus === 'online' ? 'PC에서 만든 스킬을 받아 와요' : 'PC와 연결되면 동기화할 수 있어요'}
+            onClick={() => void pullFromPc()}
+          >
+            동기화
+          </Button>
         )}
         {showList && (
           <Button size="sm" variant="primary" icon={<Plus size={15} />} onClick={() => void pick('new')}>

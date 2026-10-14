@@ -258,6 +258,57 @@ export function withSkill(system: string, skill: SkillRef | undefined): string {
   return out.join('\n');
 }
 
+const sameSkillContent = (a: Skill, b: Skill) =>
+  a.title === b.title &&
+  a.description === b.description &&
+  a.prompt === b.prompt &&
+  JSON.stringify(a.files ?? []) === JSON.stringify(b.files ?? []) &&
+  JSON.stringify(a.options ?? null) === JSON.stringify(b.options ?? null);
+
+/**
+ * PC 스킬을 이 기기 스킬에 합친다 (웹·모바일 스킬 동기화). 명령 이름이 같으면 PC 내용으로 고치고(이 기기 id 유지),
+ * 없으면 더한다. 이 기기에만 있는 스킬은 그대로 둔다. 개수 제한을 넘는 새 스킬은 넣지 않는다.
+ */
+export function mergeSkills(
+  local: readonly Skill[],
+  incoming: readonly Skill[],
+  makeId: () => ID,
+): { skills: Skill[]; added: number; updated: number; skipped: number } {
+  const out = [...local];
+  const ids = new Set(local.map((s) => s.id));
+  let added = 0;
+  let updated = 0;
+  let skipped = 0;
+  for (const raw of incoming) {
+    // 받은 내용은 그대로 믿지 않는다: 예시 표시(builtin)는 이 기기 것만, 설명은 길이 제한
+    const { builtin: _pcBuiltin, ...plain } = raw;
+    const pc: Skill = { ...plain, description: raw.description.slice(0, SKILL_LIMITS.description) };
+    const i = out.findIndex((s) => s.name === pc.name);
+    if (i >= 0) {
+      const cur = out[i]!;
+      if (sameSkillContent(cur, pc)) continue;
+      const { files, options, ...rest } = pc;
+      out[i] = {
+        ...rest,
+        id: cur.id,
+        ...(files?.length ? { files } : {}),
+        ...(options ? { options } : {}),
+        ...(cur.builtin ? { builtin: true } : {}),
+        createdAt: cur.createdAt,
+      };
+      updated++;
+    } else if (out.length >= SKILL_LIMITS.count) {
+      skipped++;
+    } else {
+      const id = ids.has(pc.id) ? makeId() : pc.id;
+      ids.add(id);
+      out.push({ ...pc, id });
+      added++;
+    }
+  }
+  return { skills: out, added, updated, skipped };
+}
+
 /** 기본 제공 예시 스킬 id (처음 실행 시 한 번 넣는다. 지우면 다시 넣지 않는다) */
 export const CURRICULUM_SKILL_ID = 'skill-curriculum';
 

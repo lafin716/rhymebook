@@ -7,7 +7,8 @@ import { createDemoRegistry } from '../src/providers/demo';
 import { mockControl } from '../src/providers/mock';
 import { createSeed, emptyView, SEED_IDS } from '../src/seed';
 import { branchQuestion } from '../src/context';
-import type { ID } from '../src/model';
+import type { ID, Skill } from '../src/model';
+import { defaultSkills } from '../src/skills';
 import type { SyncClientMsg, SyncServerMsg } from '../src/bridge/sync';
 import { SYNC_LIMITS, validateSyncClientMsg, isSyncServerMsg } from '../src/bridge/sync';
 
@@ -50,6 +51,12 @@ describe('sync validators', () => {
     expect(isSyncServerMsg({ type: 'sync.snapshot', hostName: 'pc', sessions: {}, streaming: {}, summaryDrafts: {} })).toBe(true);
     expect(isSyncServerMsg({ type: 'sync.reset' })).toBe(true);
     expect(isSyncServerMsg({ type: 'chat.delta' })).toBe(false);
+    expect(validateSyncClientMsg({ type: 'sync.skills', reqId: 'r1', extra: 1 })).toEqual({ type: 'sync.skills', reqId: 'r1' });
+    expect(validateSyncClientMsg({ type: 'sync.skills' })).toBe(null);
+    expect(isSyncServerMsg({ type: 'sync.skills', reqId: 'r1', skills: [], first: true, done: true })).toBe(true);
+    expect(isSyncServerMsg({ type: 'sync.skills', skills: [], first: true, done: true })).toBe(false);
+    expect(isSyncServerMsg({ type: 'sync.skills', reqId: 'r1', skills: [{ id: 'k1', name: 'Bad Name' }], first: true, done: true })).toBe(false);
+    expect(isSyncServerMsg({ type: 'sync.skills', reqId: 'r1', skills: {}, first: true, done: true })).toBe(false);
   });
 });
 
@@ -136,6 +143,7 @@ describe('sync host ↔ client', () => {
   let host: SyncHost;
   let net: ReturnType<typeof createNet>;
   let allowDelete: boolean;
+  let hostSkills: Skill[];
   const clients: SyncClient[] = [];
 
   const connectClient = async (peerId = 'p1', opts: { timeoutMs?: number; autoReconnect?: boolean } = {}) => {
@@ -160,6 +168,7 @@ describe('sync host ↔ client', () => {
     mockControl.speed = 0;
     mockControl.failNext = false;
     allowDelete = false;
+    hostSkills = defaultSkills(1);
     hostStore = makeHostStore();
     // 이 테스트의 호스트·넷끼리만 잇는다 (이전 테스트에서 지연된 메시지가 새 호스트로 새지 않게)
     let own: SyncHost | undefined;
@@ -171,12 +180,51 @@ describe('sync host ↔ client', () => {
       send: (peerId, msg) => ownNet.hostSend(peerId, msg),
       throttleMs: 0,
       allowDelete: () => allowDelete,
+      skills: async () => hostSkills,
     });
   });
 
   afterEach(() => {
     for (const c of clients.splice(0)) c.stop();
     host.dispose();
+  });
+
+  it('pullSkills: the client receives the PC skill list, paged by size', async () => {
+    const { client } = await connectClient();
+    expect((await client.pullSkills()).map((s) => s.name)).toEqual(['curriculum']);
+    // 1MB 페이지 예산을 넘는 목록은 여러 페이지로 나눠 받아도 모두 모인다
+    const big = (i: number): Skill => ({
+      id: `k${i}`,
+      name: `big-${i}`,
+      title: `큰 스킬 ${i}`,
+      description: '',
+      prompt: 'p'.repeat(20000),
+      files: [{ path: 'references/a.md', content: 'x'.repeat(40000) }, { path: 'references/b.md', content: 'y'.repeat(40000) }],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    hostSkills = Array.from({ length: 12 }, (_, i) => big(i));
+    const list = await client.pullSkills();
+    expect(list).toHaveLength(12);
+    expect(list[11]!.files![1]!.content).toHaveLength(40000);
+    // 개수 제한(100)을 넘는 PC 목록도 페이지를 나눠 모두 받는다
+    hostSkills = Array.from({ length: 150 }, (_, i) => ({ ...big(i), prompt: 'p', files: [] }));
+    expect(await client.pullSkills()).toHaveLength(150);
+  });
+
+  it('pullSkills ignores pages answering an older (timed-out) request', async () => {
+    const { client, peer } = await connectClient();
+    const pending = client.pullSkills();
+    // 이전 요청의 남은 페이지가 늦게 도착해도 지금 요청의 결과가 되지 않는다
+    for (const l of peer.state.listeners) l({ type: 'sync.skills', reqId: 'stale', skills: [], first: false, done: true });
+    expect((await pending).map((s) => s.name)).toEqual(['curriculum']);
+  });
+
+  it('pullSkills fails when offline', async () => {
+    const { client, peer } = await connectClient('p1', { autoReconnect: false });
+    peer.disconnect();
+    await until(() => client.state.getState().status === 'offline');
+    await expect(client.pullSkills()).rejects.toThrow();
   });
 
   it('hello → snapshot with sessions only; messages load lazily when opened', async () => {

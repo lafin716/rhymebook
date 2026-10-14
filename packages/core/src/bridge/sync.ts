@@ -1,8 +1,8 @@
 import { isValidModelName, type CliId } from '../cli-options';
 import { isAttachmentList } from '../attachments';
-import type { Anchor, Annotation, Attachment, BranchKind, ID, Message, Session, SkillRef, SummaryDraft } from '../model';
+import type { Anchor, Annotation, Attachment, BranchKind, ID, Message, Session, Skill, SkillRef, SummaryDraft } from '../model';
 import { isMarkColor, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
-import { isSkillRef } from '../skills';
+import { isSkill, isSkillRef, SKILL_LIMITS } from '../skills';
 
 /**
  * 원격 동기화 프로토콜 (ADR-026). 웹·모바일(클라이언트)이 PC 데스크톱 앱(호스트)의 학습 데이터를 보고,
@@ -47,6 +47,8 @@ export type SyncOpKind = SyncOp['kind'];
 export type SyncClientMsg =
   | { type: 'sync.hello' }
   | { type: 'sync.messages'; sessionId: ID }
+  /** PC 스킬 목록 요청 (웹·모바일 스킬 관리의 동기화 버튼) */
+  | { type: 'sync.skills'; reqId: string }
   | { type: 'act'; reqId: string; op: SyncOp };
 
 export type SyncServerMsg =
@@ -74,6 +76,11 @@ export type SyncServerMsg =
   | { type: 'sync.annot'; annotation: Annotation }
   | { type: 'sync.annot'; deleted: ID[] }
   | { type: 'act.result'; reqId: string; ok: boolean; error?: string }
+  /**
+   * PC 스킬 목록 페이지 (sync.skills 응답, 요청의 reqId를 그대로 붙인다).
+   * 바이트 예산·개수(SKILL_LIMITS.count)로 나눠 보내고 done=true면 끝
+   */
+  | { type: 'sync.skills'; reqId: string; skills: Skill[]; first: boolean; done: boolean }
   /** 호스트가 동기화를 처리할 수 없음 (PC 앱 창 닫힘, 헤드리스 bridge 등) */
   | { type: 'sync.error'; error: string }
   /** 호스트 엔진이 다시 준비됨 → 클라이언트는 sync.hello부터 다시 */
@@ -291,6 +298,10 @@ export function validateSyncClientMsg(raw: unknown): SyncClientMsg | null {
     }
     return null;
   }
+  if (type === 'sync.skills') {
+    if (typeof msg.reqId === 'string' && msg.reqId.length <= SYNC_LIMITS.id) return { type: 'sync.skills', reqId: msg.reqId };
+    return null;
+  }
   if (type === 'act') {
     if (
       typeof msg.reqId === 'string' &&
@@ -322,6 +333,17 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
     return true;
   }
 
+  if (type === 'sync.skills') {
+    return (
+      typeof msg.reqId === 'string' &&
+      Array.isArray(msg.skills) &&
+      msg.skills.length <= SKILL_LIMITS.count &&
+      msg.skills.every(isSkill) &&
+      typeof msg.first === 'boolean' &&
+      typeof msg.done === 'boolean'
+    );
+  }
+
   if (type === 'sync.annot') {
     const annotation = msg.annotation as unknown;
     const deleted = msg.deleted as unknown;
@@ -349,5 +371,5 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
 
 /** 메시지 타입 검증 */
 export function isSyncClientType(type: unknown): boolean {
-  return type === 'sync.hello' || type === 'sync.messages' || type === 'act';
+  return type === 'sync.hello' || type === 'sync.messages' || type === 'sync.skills' || type === 'act';
 }

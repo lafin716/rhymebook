@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
 import { NEW_SESSION_TITLE } from '../store';
-import type { Anchor, Annotation, BranchKind, ID, Message, Session, ViewState } from '../model';
+import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, ViewState } from '../model';
 import type { SyncOp, SyncOpKind, SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
 import { branchQuestion } from '../context';
@@ -10,6 +10,7 @@ import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../an
 import { isCliId } from '../cli-options';
 import { canDeleteTurn } from '../turns';
 import { normalizeLayout } from '../splitLayout';
+import { SKILL_LIMITS } from '../skills';
 
 export type SyncStatus = 'unpaired' | 'connecting' | 'online' | 'offline' | 'unsupported';
 
@@ -38,6 +39,8 @@ export interface SyncClient {
   reconnect(): void;
   /** 세션 메시지를 아직 받지 않았으면 호스트에 요청한다 */
   ensureMessages(sessionId: ID): void;
+  /** PC 스킬 목록을 받아 온다. 온라인이 아니거나 응답이 없으면 실패 */
+  pullSkills(): Promise<Skill[]>;
 }
 
 export interface SyncClientOptions {
@@ -108,6 +111,23 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
 
   const fail = (kind: SyncOpKind, code: string) => setState({ lastFailure: { kind, code, at: Date.now() } });
 
+  /** 받는 중인 PC 스킬 목록 (sync.skills 페이지를 모은다) */
+  let skillPull: { reqId: string; list: Skill[]; resolve: (v: Skill[]) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> } | null = null;
+  /** 받는 동안 페이지가 올 때마다 다시 잰다 (느린 PC·큰 목록) */
+  const armSkillTimer = () => {
+    if (!skillPull) return;
+    clearTimeout(skillPull.timer);
+    skillPull.timer = setTimeout(() => endSkillPull(new Error('PC에서 응답이 없습니다.')), timeoutMs);
+  };
+  const endSkillPull = (result: Skill[] | Error) => {
+    const p = skillPull;
+    if (!p) return;
+    skillPull = null;
+    clearTimeout(p.timer);
+    if (result instanceof Error) p.reject(result);
+    else p.resolve(result);
+  };
+
   /** 응답 대기 중인 조작을 버린다. 스냅샷이 진실 원천이므로 되돌리지 않는다 */
   const dropPending = () => {
     for (const p of pending.values()) clearTimeout(p.timer);
@@ -134,6 +154,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
   const goOffline = (error?: string) => {
     closeListeners();
     dropPending();
+    endSkillPull(new Error(error ?? 'PC와 연결이 끊겼습니다.'));
     requested.clear();
     setState({ status: 'offline', loaded: {}, ...(error ? { error } : {}) });
     scheduleReconnect();
@@ -284,6 +305,16 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         }
         return;
       }
+      case 'sync.skills': {
+        // 지금 받는 요청의 응답만 (시간이 지나 버린 이전 요청의 남은 페이지는 버린다)
+        if (!skillPull || msg.reqId !== skillPull.reqId) return;
+        skillPull.list = msg.first ? [...msg.skills] : [...skillPull.list, ...msg.skills];
+        // 정상 PC는 스킬을 이만큼 두지 않는다: 끝없이 보내는 페이지로 메모리를 채우지 않게 끊는다
+        if (skillPull.list.length > SKILL_LIMITS.count * 10) endSkillPull(new Error('PC 스킬 목록이 너무 큽니다.'));
+        else if (msg.done) endSkillPull(skillPull.list);
+        else armSkillTimer();
+        return;
+      }
       case 'act.result': {
         const p = pending.get(msg.reqId);
         if (!p) return;
@@ -298,6 +329,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       case 'sync.error':
         if (msg.error === 'unsupported') {
           if (started) closeListeners();
+          endSkillPull(new Error('이 PC는 동기화를 지원하지 않습니다.'));
           setState({ status: 'unsupported', error: msg.error });
         } else {
           // 호스트 엔진 미준비(PC 앱 창 닫힘 등) → 잠시 후 hello부터 다시
@@ -306,6 +338,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         return;
       case 'sync.reset':
         dropPending();
+        endSkillPull(new Error('PC가 다시 시작했습니다. 다시 시도하세요.'));
         void connect();
         return;
     }
@@ -562,6 +595,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       offView?.();
       offView = null;
       dropPending();
+      endSkillPull(new Error('동기화를 멈췄습니다.'));
       requested.clear();
       if (originals) store.setState(originals);
       originals = null;
@@ -574,6 +608,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       retryTimer = null;
       backoffMs = backoff.base;
       dropPending();
+      endSkillPull(new Error('PC에 다시 연결하는 중입니다.'));
       requested.clear();
       setState({ loaded: {} });
       void connect();
@@ -581,6 +616,25 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
 
     ensureMessages(sessionId) {
       if (!state.getState().loaded[sessionId]) requestMessages(sessionId);
+    },
+
+    pullSkills() {
+      if (state.getState().status !== 'online') return Promise.reject(new Error('PC와 연결되어 있지 않습니다.'));
+      // 이미 받는 중이면 그 결과를 함께 기다린다
+      if (skillPull) {
+        const p = skillPull;
+        return new Promise<Skill[]>((resolve, reject) => {
+          const { resolve: r0, reject: j0 } = p;
+          p.resolve = (v) => (r0(v), resolve(v));
+          p.reject = (e) => (j0(e), reject(e));
+        });
+      }
+      return new Promise<Skill[]>((resolve, reject) => {
+        const reqId = newId('r');
+        skillPull = { reqId, list: [], resolve, reject, timer: setTimeout(() => {}, 0) };
+        armSkillTimer();
+        if (!link.send({ type: 'sync.skills', reqId })) endSkillPull(new Error('PC와 연결이 끊겼습니다.'));
+      });
     },
   };
 }

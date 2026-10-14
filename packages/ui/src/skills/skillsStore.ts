@@ -2,6 +2,7 @@ import {
   defaultSkills,
   diffSkillFolders,
   isSkill,
+  mergeSkills,
   newId,
   normalizeSkillName,
   sanitizeSkillFiles,
@@ -163,6 +164,22 @@ export function syncSkillFolders(writeMissing = false): Promise<void> {
     }
   })();
   return syncing;
+}
+
+/**
+ * 웹·모바일: PC에서 만든 스킬을 받아 이 기기 스킬에 합친다 (명령 이름이 같으면 PC 내용으로).
+ * 이 기기에만 있는 스킬은 지우지 않는다.
+ */
+export async function pullSkillsFromPc(pull: () => Promise<Skill[]>): Promise<{ added: number; updated: number; skipped: number }> {
+  const incoming = (await pull()).filter(isSkill);
+  const { skills, added, updated, skipped } = mergeSkills(useSkills.getState().skills, incoming, () => newId('k'));
+  if (added || updated) {
+    const before = new Map(useSkills.getState().skills.map((s) => [s.id, s]));
+    const changed = skills.filter((s) => before.get(s.id) !== s);
+    useSkills.setState({ skills: [...skills].sort(byTitle) });
+    persist((d) => d.skills.bulkPut(changed));
+  }
+  return { added, updated, skipped };
 }
 
 /** 스킬 폴더를 OS 파일 탐색기로 연다. 스킬을 주지 않으면 스킬 폴더 루트 */
