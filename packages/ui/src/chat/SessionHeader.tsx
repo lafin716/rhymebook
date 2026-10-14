@@ -7,6 +7,7 @@ import { useUi } from '../app/uiState';
 import { Badge, StatusDot } from '../components/Badge';
 import { IconButton } from '../components/Button';
 import { RemoteAgentPicker } from './RemoteAgentPicker';
+import { BookPdfButton } from '../book/BookPdfButton';
 import { cn } from '../lib/cn';
 import { PROVIDER_ORDER, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 import { revealAnchor } from './open';
@@ -85,6 +86,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
             <Sparkles size={14} className="text-anchor-line" />
           </IconButton>
         )}
+        <BookPdfButton sessionId={sessionId} compact={compact} />
         {!remoteMode && <ProviderSelect sessionId={sessionId} compact={compact} />}
         {collapsible && (
           <button

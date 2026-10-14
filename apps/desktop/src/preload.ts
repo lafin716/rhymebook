@@ -95,6 +95,10 @@ const api: DesktopApiExt = {
     open: (folder) => ipcRenderer.invoke(CH.skillsOpen, folder) as Promise<void>,
     readAll: () => ipcRenderer.invoke(CH.skillsReadAll) as Promise<SkillFolder[]>,
   },
+  // 책 PDF (ADR-044)
+  pdf: {
+    fromHtml: (html) => ipcRenderer.invoke(CH.pdfFromHtml, html) as Promise<Uint8Array>,
+  },
 };
 
 contextBridge.exposeInMainWorld('branchDesktop', api);

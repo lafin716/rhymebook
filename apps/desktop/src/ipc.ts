@@ -26,4 +26,5 @@ export const CH = {
   skillsRemove: 'skills:remove',
   skillsOpen: 'skills:open',
   skillsReadAll: 'skills:read-all',
+  pdfFromHtml: 'pdf:from-html',
 } as const;

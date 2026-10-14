@@ -4,6 +4,7 @@ import { createBridgeServer, createSkillsDir, type BridgeConnection } from '@bra
 import { isHostPolicy, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
+import { htmlToPdf } from './pdf';
 import { createSecretVault } from './secrets';
 
 /**
@@ -274,6 +275,9 @@ void app.whenReady().then(() => {
   ipcMain.handle(CH.skillsRemove, (_e, name: unknown) => skillsDir.remove(name));
   ipcMain.handle(CH.skillsOpen, (_e, folder: unknown) => skillsDir.open(folder));
   ipcMain.handle(CH.skillsReadAll, () => skillsDir.readAll());
+
+  // 책 PDF (ADR-044). 숨은 창에서 인쇄한다
+  ipcMain.handle(CH.pdfFromHtml, (_e, html: unknown) => htmlToPdf(html));
 
   // 동기화 IPC 핸들러
   ipcMain.on(CH.hostSyncReady, (_e, ready: unknown) => {

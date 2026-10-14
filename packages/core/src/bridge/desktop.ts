@@ -23,6 +23,16 @@ export interface DesktopApi {
   windows?: DesktopWindowsApi;
   /** 스킬 폴더 (IMP-12, ADR-038). 없으면 폴더 기능을 숨긴다 */
   skills?: DesktopSkillsApi;
+  /** 책 PDF (ADR-044). 없으면 웹 인쇄 대화상자로 대신한다 */
+  pdf?: DesktopPdfApi;
+}
+
+/**
+ * 렌더러가 만든 책 HTML을 숨은 창에서 PDF로 인쇄한다 (ADR-044).
+ * main은 차례의 `.toc-pg[data-for="<id>"]`에 해당 `id` 요소가 실린 쪽 번호를 채워 두 번째로 인쇄한다.
+ */
+export interface DesktopPdfApi {
+  fromHtml(html: string): Promise<Uint8Array>;
 }
 
 /**
