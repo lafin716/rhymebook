@@ -18,6 +18,17 @@ import { providerKind, providerLabel, STATUS_LABEL, statusTone } from '../lib/co
 
 type Tab = 'connections' | 'backup' | 'general';
 
+const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
+
+function SettingsTitle() {
+  return (
+    <h2 className="flex flex-1 items-baseline gap-2 text-[16px] font-semibold">
+      설정
+      {APP_VERSION && <span className="text-[11.5px] font-normal text-muted">v{APP_VERSION}</span>}
+    </h2>
+  );
+}
+
 export function SettingsModal() {
   const open = useApp((s) => s.overlay === 'settings');
   const [tab, setTab] = useState<Tab>('connections');
@@ -28,7 +39,7 @@ export function SettingsModal() {
     return (
       <Modal open={open} onClose={close} label="설정" className="md:max-w-xl">
         <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
-          <h2 className="flex-1 text-[16px] font-semibold">설정</h2>
+          <SettingsTitle />
           <IconButton label="설정 닫기" onClick={close}>
             <X size={18} />
           </IconButton>
@@ -42,7 +53,7 @@ export function SettingsModal() {
   return (
     <Modal open={open} onClose={close} label="설정" className="md:max-w-2xl">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
-        <h2 className="flex-1 text-[16px] font-semibold">설정</h2>
+        <SettingsTitle />
         <IconButton label="설정 닫기" onClick={close}>
           <X size={18} />
         </IconButton>
