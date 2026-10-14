@@ -246,6 +246,12 @@ describe('오류 분류', () => {
     expect(classifyCliError('getaddrinfo ENOTFOUND api', ctx).code).toBe('network');
     expect(classifyCliError('weird', ctx).code).toBe('cli');
   });
+  it('계정이 허용하지 않는 모델은 모델 변경을 안내', () => {
+    const e = classifyCliError("The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account.", ctx);
+    expect(e.code).toBe('cli');
+    expect(e.message).toContain("'gpt-6.1-sol' 모델을 사용할 수 없습니다");
+    expect(e.message).toContain('ChatGPT 계정');
+  });
   it('비밀 값 제거', () => {
     expect(sanitize('key sk-ant-abcdefghijk1234 a@b.com Bearer abc.def')).toBe('key [redacted] [email] Bearer [redacted]');
   });

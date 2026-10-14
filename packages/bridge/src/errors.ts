@@ -34,5 +34,15 @@ export function classifyCliError(raw: string, ctx: CliErrorContext): ProviderErr
   if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|network|fetch failed|getaddrinfo|socket hang up|stream disconnected/i.test(text)) {
     return providerError('network', `${ctx.label}가 네트워크에 연결하지 못했습니다.${text ? ` (${sanitize(text, 160)})` : ''}`);
   }
+  // 예: "The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account."
+  // 앱 문제가 아니라 로그인 계정(요금제)이 그 모델을 허용하지 않는 경우다
+  const unsupported = /['"`]([^'"`\s]+)['"`] model is not supported/i.exec(text);
+  if (unsupported) {
+    const why = /chatgpt account/i.test(text) ? ' ChatGPT 계정 로그인으로는 쓸 수 없는 모델입니다.' : '';
+    return providerError(
+      'cli',
+      `${ctx.label}에서 '${sanitize(unsupported[1]!, 80)}' 모델을 사용할 수 없습니다.${why} 설정(또는 스킬 고급 설정)에서 다른 모델을 고르세요.`,
+    );
+  }
   return providerError('cli', `${ctx.label} 실행 오류${text ? `: ${sanitize(text)}` : '가 발생했습니다.'}`);
 }

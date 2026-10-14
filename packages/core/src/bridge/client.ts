@@ -30,7 +30,8 @@ export interface BridgeClient {
 const ABORTED = '사용자가 중지했습니다.';
 
 export function createBridgeClient(transport: BridgeTransport, opts: BridgeClientOptions = {}): BridgeClient {
-  const statusTimeoutMs = opts.statusTimeoutMs ?? 20_000;
+  // bridge의 CLI 확인(명령당 최대 40초, 병렬)보다 길어야 느린 PC에서 "연결 안 됨"으로 오판하지 않는다
+  const statusTimeoutMs = opts.statusTimeoutMs ?? 50_000;
   const statusCacheMs = opts.statusCacheMs ?? 3_000;
   const offline = opts.offlineMessage ?? 'Bridge에 연결할 수 없습니다.';
   let inflight: Promise<BridgeStatus> | null = null;
