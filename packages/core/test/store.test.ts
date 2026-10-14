@@ -171,6 +171,18 @@ describe('app store', () => {
     expect(store.getState().view.mode).toBe('single');
   });
 
+  it('closes the other split panels and shows only the chosen one', () => {
+    const store = makeStore();
+    store.getState().dropToSplit(SEED_IDS.qkv, null, 'right');
+    store.getState().dropToSplit(SEED_IDS.dot, SEED_IDS.qkv, 'bottom');
+    expect(store.getState().view.splitSessionIds).toHaveLength(3);
+    store.getState().closeOtherSplits(SEED_IDS.qkv);
+    const v = store.getState().view;
+    expect(v.mode).toBe('single');
+    expect(v.activeSessionId).toBe(SEED_IDS.qkv);
+    expect(v.splitLayout).toBeUndefined();
+  });
+
   it('sends attachments and a skill with the question', async () => {
     const store = makeStore();
     const id = store.getState().newRootSession() as string;

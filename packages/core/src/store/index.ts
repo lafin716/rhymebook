@@ -150,6 +150,8 @@ export interface AppState extends AppData {
    */
   dropToSplit(id: ID, targetId: ID | null, edge: DropEdge): boolean;
   closeSplit(index: number): void;
+  /** 이 패널만 남기고 다른 분할 패널을 모두 닫는다 (단일 보기로) */
+  closeOtherSplits(id: ID): void;
   focusSplit(index: number): void;
   /** 최상위 분할 그룹 비율 */
   setSplitSizes(sizes: number[]): void;
@@ -858,6 +860,10 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           const keep = focusedId && focusedId !== id ? focusedId : (ids[Math.min(index, ids.length - 1)] ?? null);
           return withLayout(v, layout, keep, keep ? { activeSessionId: keep } : {});
         });
+      },
+
+      closeOtherSplits(id) {
+        setView((v) => (v.splitSessionIds.includes(id) ? withLayout(v, { kind: 'leaf', sessionId: id }, id, { activeSessionId: id }) : v));
       },
 
       focusSplit(index) {

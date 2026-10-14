@@ -1,5 +1,5 @@
 import { neighborOf, normalizeLayout, type ID, type SplitMoveDir } from '@branch/core';
-import { ArrowDown, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUp, ArrowUpDown, Columns2, Ellipsis, EllipsisVertical, Move, Rows2 } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUp, ArrowUpDown, Columns2, Ellipsis, EllipsisVertical, Move, Rows2, SquareX } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { actions } from '../app/store';
@@ -93,7 +93,7 @@ function neighbors(sessionId: ID): Record<SplitMoveDir, ID | null> {
   };
 }
 
-/** 패널 헤더의 이동 버튼: 왼/오/위/아래 이웃과 자리를 바꾼다 (이웃이 없는 방향은 비활성) */
+/** 패널 헤더의 이동 버튼: 왼/오/위/아래 이웃과 자리를 바꾼다 (이웃이 없는 방향은 비활성). 이 패널만 남기고 다른 창 닫기 */
 export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
   const btn = useRef<HTMLButtonElement>(null);
   const [near, setNear] = useState<Record<SplitMoveDir, ID | null> | null>(null);
@@ -112,7 +112,7 @@ export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
         <Move size={15} />
       </IconButton>
       {near && (
-        <FloatingMenu anchor={btn} label="자리 이동" width={168} height={4 * 36 + 8} onClose={close}>
+        <FloatingMenu anchor={btn} label="자리 이동" width={168} height={5 * 36 + 17} onClose={close}>
           {MOVES.map((m) => {
             const target = near[m.dir];
             return (
@@ -131,6 +131,21 @@ export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
               </button>
             );
           })}
+          <div role="separator" className="my-1 h-px bg-line" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              close();
+              actions().closeOtherSplits(sessionId);
+            }}
+            className={cn(ITEM, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
+          >
+            <span className="text-muted">
+              <SquareX size={14} />
+            </span>{' '}
+            다른 창 닫기
+          </button>
         </FloatingMenu>
       )}
     </>
