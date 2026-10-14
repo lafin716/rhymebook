@@ -106,6 +106,15 @@ pnpm rhymebook -- unpair <id|all>       # 해제 (실행 중인 serve는 다시 
 # 빌드 산출물 하나로도 실행 가능: node packages/server/dist/rhymebook.cjs serve --pair
 ```
 
+저장소 루트의 실행 스크립트로 더 짧게 실행할 수 있습니다. 처음 실행하면 의존성을 설치하고, 실행할 때마다 서버를 다시 빌드합니다(1~2초, `RHYMEBOOK_NO_BUILD=1`이면 건너뜀). 인자가 없으면 `serve`로 실행하고, 옵션으로 시작하는 인자를 주면 앞에 `serve`를 붙입니다.
+
+```bash
+./rhymebook.sh --pair          # macOS·Linux  (= serve --pair)
+./rhymebook.sh                 # = serve
+./rhymebook.sh devices
+rhymebook.cmd --pair           # Windows (탐색기에서 더블클릭하면 serve, 오류 시 창이 멈춤)
+```
+
 | 옵션 | 내용 |
 |---|---|
 | `--port` / `--host` | 기본 `7777`(`RHYMEBOOK_PORT`) / `0.0.0.0` |
