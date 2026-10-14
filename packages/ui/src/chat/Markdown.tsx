@@ -7,6 +7,8 @@ import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { rehypeAnchors, rehypeMathSource, type AnchorMark } from './anchorPlugin';
+import { rehypeSvgPreview, svgRanges } from './svgPlugin';
+import { SvgPreview } from './SvgPreview';
 
 export interface MarkdownProps {
   content: string;
@@ -17,6 +19,7 @@ export interface MarkdownProps {
 }
 
 const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkMath];
+const components: Options['components'] = { pre: SvgPreview };
 
 /** 코드(펜스 블록·인라인 코드) 영역 마스크. 수식 구분자 변환에서 제외한다 */
 function codeMask(src: string): Uint8Array {
@@ -43,6 +46,7 @@ function codeMask(src: string): Uint8Array {
   for (let m = re.exec(src); m; m = re.exec(src)) {
     if (!mask[m.index]) mark(m.index, m.index + m[0].length);
   }
+  for (const range of svgRanges(src, mask)) mark(range.start, range.end);
   return mask;
 }
 
@@ -112,6 +116,7 @@ export const Markdown = memo(function Markdown({
   const key = `${anchorKey}|${annotKey}`;
   const rehypePlugins = useMemo<Options['rehypePlugins']>(
     () => [
+      rehypeSvgPreview,
       // 수식은 KaTeX가 코드 하이라이트보다 먼저 (math 코드 요소를 KaTeX 출력으로 바꾼다)
       rehypeMathSource,
       [rehypeKatex, { throwOnError: false, strict: 'ignore' }],
@@ -132,7 +137,7 @@ export const Markdown = memo(function Markdown({
   );
   const source = useMemo(() => normalizeMathDelimiters(content), [content]);
   return (
-    <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
+    <ReactMarkdown components={components} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
       {source}
     </ReactMarkdown>
   );

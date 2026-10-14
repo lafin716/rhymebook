@@ -46,11 +46,11 @@ export function placeMenu(
 
 /**
  * 렌더 텍스트를 이루는 텍스트 노드 (문서 순서).
- * KaTeX의 숨김 MathML(`.katex-mathml`)은 anchorPlugin의 renderText에서 빠지므로 여기서도 뺀다.
+ * KaTeX 숨김 MathML과 렌더러가 추가한 조작 문구는 anchorPlugin의 renderText에 없으므로 뺀다.
  */
 function renderTextNodes(container: HTMLElement): Text[] {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-    acceptNode: (n) => (n.parentElement?.closest('.katex-mathml') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    acceptNode: (n) => (n.parentElement?.closest('.katex-mathml, [data-anchor-ignore]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
   });
   const out: Text[] = [];
   for (let n = walker.nextNode(); n; n = walker.nextNode()) out.push(n as Text);
