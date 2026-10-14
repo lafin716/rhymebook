@@ -27,7 +27,9 @@ export interface ProviderError {
 export type StreamEvent =
   | { type: 'delta'; text: string }
   | { type: 'done'; stopReason?: string }
-  | { type: 'error'; error: ProviderError };
+  | { type: 'error'; error: ProviderError }
+  /** 모델이 만든 이미지 (Codex 이미지 생성, ADR-041). 응답 메시지의 첨부가 된다 */
+  | { type: 'image'; attachment: Attachment };
 
 export type Availability =
   | { status: 'ready'; detail?: string }

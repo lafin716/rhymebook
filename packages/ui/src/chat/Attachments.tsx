@@ -1,15 +1,29 @@
 import { formatBytes, textPreview, type Attachment } from '@branch/core';
-import { ClipboardPaste, FileText, X } from 'lucide-react';
+import { ClipboardPaste, Download, FileText, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
+import { saveBase64File } from '../lib/download';
 import { dataUrl } from './attach';
 
 /**
  * 첨부 미리보기 (IMP-09). 입력창 위(지울 수 있음)와 보낸 질문 위(읽기 전용)에서 같이 쓴다.
  * 사진은 썸네일, PDF·파일은 이름·크기 칩, 붙여넣은 긴 텍스트는 첫 줄 미리보기. 누르면 크게 본다.
+ * large: 답변에 붙은 생성 이미지 (ADR-041) — 본문 폭에 맞춰 크게 보여 준다.
  */
-export function AttachmentList({ items, onRemove, align = 'start', className }: { items: readonly Attachment[]; onRemove?: (id: string) => void; align?: 'start' | 'end'; className?: string }) {
+export function AttachmentList({
+  items,
+  onRemove,
+  align = 'start',
+  large,
+  className,
+}: {
+  items: readonly Attachment[];
+  onRemove?: (id: string) => void;
+  align?: 'start' | 'end';
+  large?: boolean;
+  className?: string;
+}) {
   const [viewing, setViewing] = useState<Attachment | null>(null);
   if (!items.length) return null;
   return (
@@ -25,10 +39,16 @@ export function AttachmentList({ items, onRemove, align = 'start', className }: 
         )}
       >
         {items.map((a) => (
-          <li key={a.id} className="group/att relative shrink-0" data-attachment={a.kind}>
+          <li key={a.id} className={cn('group/att relative', large ? 'max-w-full min-w-0' : 'shrink-0')} data-attachment={a.kind}>
             {a.kind === 'image' ? (
               <button type="button" onClick={() => setViewing(a)} title={a.name} className="block overflow-hidden rounded-xl border border-line bg-surface-2">
-                <img src={dataUrl(a)} alt={a.name} className={cn('object-cover', onRemove ? 'size-14' : 'h-28 w-auto max-w-[14rem] min-w-12')} />
+                <img
+                  src={dataUrl(a)}
+                  alt={a.name}
+                  className={cn(
+                    onRemove ? 'size-14 object-cover' : large ? 'max-h-[32rem] w-auto max-w-full object-contain' : 'h-28 w-auto max-w-[14rem] min-w-12 object-cover',
+                  )}
+                />
               </button>
             ) : (
               <button
@@ -89,9 +109,22 @@ function AttachmentViewer({ attachment: a, onClose }: { attachment: Attachment; 
       className="animate-fade-in fixed inset-0 z-[85] flex items-center justify-center bg-black/60 p-4 md:p-10"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
-      <button type="button" aria-label="닫기" onClick={onClose} className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 grid size-9 place-items-center rounded-full bg-black/50 text-white">
-        <X size={18} />
-      </button>
+      <div className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 flex gap-2">
+        {a.kind === 'image' && (
+          <button
+            type="button"
+            aria-label="이미지 저장"
+            title="저장"
+            onClick={() => void saveBase64File(a.name, a.data, a.mime).catch(() => {})}
+            className="grid size-9 place-items-center rounded-full bg-black/50 text-white"
+          >
+            <Download size={18} />
+          </button>
+        )}
+        <button type="button" aria-label="닫기" onClick={onClose} className="grid size-9 place-items-center rounded-full bg-black/50 text-white">
+          <X size={18} />
+        </button>
+      </div>
       {a.kind === 'image' ? (
         <img src={dataUrl(a)} alt={a.name} className="max-h-full max-w-full rounded-lg object-contain shadow-float" />
       ) : (

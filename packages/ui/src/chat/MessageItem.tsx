@@ -95,6 +95,7 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
   };
 
   const summaries = branches.filter((b) => b.summary);
+  const images = message.attachments?.filter((a) => a.kind === 'image') ?? [];
 
   return (
     <div className="group/msg space-y-2.5">
@@ -103,7 +104,7 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
           <span className="stream-caret" />
           생각 중…
         </div>
-      ) : (
+      ) : !message.content && images.length ? null : (
         <div className="relative">
           <div
             ref={ref}
@@ -124,6 +125,8 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
           {!streaming && <RegionGutter target={ref} />}
         </div>
       )}
+
+      {images.length > 0 && <AttachmentList items={images} large />}
 
       {noteOpen && allAnnotations[noteOpen.id] && (
         <AnnotationPopover

@@ -1,3 +1,5 @@
+import { existsSync, mkdtempSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -7,22 +9,23 @@ import {
   type BridgeTransport,
   type StreamEvent,
 } from '@branch/core';
-import { claudeArgs, claudeJsonInput, classifyCliError, cliModelOptions, codexArgs, winQuote, createBridgeServer, sanitize, type CliEnv } from '../src';
+import { PNG } from 'pngjs';
+import { claudeArgs, claudeJsonInput, classifyCliError, cliModelOptions, codexArgs, codexImagesDir, recompress, winQuote, createBridgeServer, sanitize, type CliEnv } from '../src';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const fakeClaude = path.join(dir, 'fixtures/fake-claude.mjs');
 const fakeCodex = path.join(dir, 'fixtures/fake-codex.mjs');
 
-function env(mode: string, bins: Partial<CliEnv['bin']> = {}): CliEnv {
+function env(mode: string, bins: Partial<CliEnv['bin']> = {}, extra: NodeJS.ProcessEnv = {}): CliEnv {
   return {
-    env: { ...process.env, FAKE_MODE: mode },
+    env: { ...process.env, FAKE_MODE: mode, ...extra },
     bin: { 'claude-cli': fakeClaude, 'codex-cli': fakeCodex, ...bins },
   };
 }
 
 /** 같은 프로세스 안에서 서버와 클라이언트를 잇는 전송로 */
-function localTransport(mode: string, bins?: Partial<CliEnv['bin']>): BridgeTransport {
-  const server = createBridgeServer({ cliEnv: env(mode, bins) });
+function localTransport(mode: string, bins?: Partial<CliEnv['bin']>, extra?: NodeJS.ProcessEnv): BridgeTransport {
+  const server = createBridgeServer({ cliEnv: env(mode, bins, extra) });
   const listeners = new Set<(m: BridgeServerMsg) => void>();
   const conn = server.connect((m) => listeners.forEach((l) => l(m)));
   return {
@@ -195,7 +198,8 @@ describe('bridge server — codex', () => {
 
   it('읽기 전용 샌드박스·임시 세션·사용자 설정 무시, 지시는 프롬프트 앞에', async () => {
     const client = createBridgeClient(localTransport('echo'));
-    const echo = JSON.parse(text(await collect(client.stream('codex-cli', req)))) as { args: string[]; stdin: string };
+    // 이미지 생성 지시가 붙지 않는 보조 요청으로 확인한다
+    const echo = JSON.parse(text(await collect(client.stream('codex-cli', { ...req, purpose: 'summary' })))) as { args: string[]; stdin: string };
     expect(echo.args.slice(0, 2)).toEqual(['exec', '--json']);
     expect(echo.args[echo.args.indexOf('--sandbox') + 1]).toBe('read-only');
     expect(echo.args).toEqual(expect.arrayContaining(['--ephemeral', '--ignore-user-config', '--skip-git-repo-check']));
@@ -208,6 +212,44 @@ describe('bridge server — codex', () => {
     const last = (await collect(client.stream('codex-cli', req))).at(-1)!;
     expect(last.type === 'error' && last.error.code).toBe('cli');
     expect(last.type === 'error' && last.error.message).toContain('model is not supported');
+  });
+
+  it('일반 대화만 이미지 생성을 켜고, 만든 이미지를 done 앞에 첨부로 보낸 뒤 thread 폴더를 지운다 (ADR-041)', async () => {
+    const home = mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+    const client = createBridgeClient(localTransport('image', {}, { CODEX_HOME: home }));
+    const evs = await collect(client.stream('codex-cli', { ...req, purpose: 'chat' }));
+    const echo = JSON.parse(text(evs)) as { args: string[] };
+    expect(echo.args).not.toContain('features.image_generation=false');
+    expect(echo.args).toContain('features.view_image=false');
+    expect(evs.map((e) => e.type)).toEqual(['delta', 'image', 'image', 'done']);
+    const imgs = evs.flatMap((e) => (e.type === 'image' ? [e.attachment] : []));
+    expect(imgs.map((a) => [a.kind, a.mime, a.name])).toEqual([
+      ['image', 'image/png', '생성 이미지 1.png'],
+      ['image', 'image/png', '생성 이미지 2.png'],
+    ]);
+    expect(existsSync(path.join(home, 'generated_images', 't-img'))).toBe(false);
+
+    // 제목·요약 같은 보조 요청은 끈 채로 둔다
+    const off = await collect(createBridgeClient(localTransport('image', {}, { CODEX_HOME: home })).stream('codex-cli', { ...req, purpose: 'title' }));
+    expect((JSON.parse(text(off)) as { args: string[] }).args).toContain('features.image_generation=false');
+    expect(off.some((e) => e.type === 'image')).toBe(false);
+  });
+
+  it('thread id가 경로처럼 보이면 이미지 폴더를 찾지 않는다', () => {
+    expect(codexImagesDir({ CODEX_HOME: '/h' }, '../x')).toBeNull();
+    expect(codexImagesDir({ CODEX_HOME: '/h' }, 'abc-1')).toBe(path.join('/h', 'generated_images', 'abc-1'));
+  });
+
+  it('1MB 넘는 PNG는 JPEG로 줄이고, 작은 PNG는 그대로', () => {
+    const png = new PNG({ width: 700, height: 700 });
+    for (let i = 0; i < png.data.length; i++) png.data[i] = Math.floor(Math.random() * 256);
+    const big = PNG.sync.write(png);
+    expect(big.length).toBeGreaterThan(1024 * 1024);
+    const out = recompress(big, 'image/png');
+    expect(out.mime).toBe('image/jpeg');
+    expect(out.data.length).toBeLessThan(big.length);
+    const small = Buffer.from([1, 2, 3]);
+    expect(recompress(small, 'image/png')).toEqual({ data: small, mime: 'image/png' });
   });
 
   it('401 → auth 오류', async () => {

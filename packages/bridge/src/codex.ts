@@ -37,7 +37,9 @@ const CODEX_OFF_FEATURES = [
  * 사용자 config.toml/rules 미적용(앱이 모델과 지시를 정한다), 도구 비활성. 프롬프트는 stdin('-').
  * 값에 따옴표를 넣지 않는다 — win32 cmd 경유 시 이스케이프가 깨진다(TOML이 아니면 문자열로 읽힌다).
  */
-export function codexArgs(opts: { model?: string; effort?: string; images?: string[] }): string[] {
+export function codexArgs(opts: { model?: string; effort?: string; images?: string[]; imageGen?: boolean }): string[] {
+  // 이미지 생성은 일반 대화에서만 켠다 (ADR-041). 결과는 runChat이 generated_images에서 거둔다
+  const off = opts.imageGen ? CODEX_OFF_FEATURES.filter((f) => f !== 'image_generation') : CODEX_OFF_FEATURES;
   return [
     'exec',
     // --image는 값을 여러 개 받으므로 다른 옵션 앞에 둬 마지막 '-'(stdin)를 먹지 않게 한다
@@ -52,7 +54,7 @@ export function codexArgs(opts: { model?: string; effort?: string; images?: stri
     '--color',
     'never',
     // --ignore-user-config 여도 -c 덮어쓰기는 적용된다
-    ...CODEX_OFF_FEATURES.flatMap((f) => ['-c', `features.${f}=false`]),
+    ...off.flatMap((f) => ['-c', `features.${f}=false`]),
     '-c',
     'web_search=disabled',
     ...(opts.model ? ['-m', opts.model] : []),
@@ -81,15 +83,21 @@ function innerMessage(raw: string): string {
  * codex exec --json은 토큰 단위 델타가 없고 agent_message 항목 단위로 온다.
  * item.updated가 오면 그만큼, 아니면 item.completed에서 한 번에 내보낸다.
  */
-export function createCodexParser(): CliParser {
+export function createCodexParser(): CliParser & { threadId(): string | undefined } {
   const sent = new Map<string, number>();
   let any = false;
   let lastError = '';
+  let thread: string | undefined;
 
   return {
+    threadId: () => thread,
     line(obj) {
       if (!isObj(obj)) return [];
       const t = str(obj.type);
+      if (t === 'thread.started') {
+        thread = str(obj.thread_id);
+        return [];
+      }
       if ((t === 'item.started' || t === 'item.updated' || t === 'item.completed') && isObj(obj.item)) {
         const item = obj.item;
         if (item.type !== 'agent_message') return [];

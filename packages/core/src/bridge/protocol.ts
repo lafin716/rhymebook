@@ -1,4 +1,4 @@
-import type { ProviderId } from '../model';
+import type { Attachment, ProviderId } from '../model';
 import type { Availability, ChatTurn, ProviderError } from '../provider';
 
 /**
@@ -25,6 +25,8 @@ export interface ChatStartMsg {
   model?: string;
   /** CLI 노력치 (bridge가 다시 검증) */
   effort?: string;
+  /** 이미지 생성 도구 허용 (Codex만, 일반 대화 요청일 때). 만든 이미지는 chat.image로 온다 (ADR-041) */
+  imageGen?: boolean;
 }
 
 export type BridgeClientMsg =
@@ -35,6 +37,7 @@ export type BridgeClientMsg =
 export type BridgeServerMsg =
   | { type: 'status'; reqId: string; providers: BridgeStatus }
   | { type: 'chat.delta'; reqId: string; text: string }
+  | { type: 'chat.image'; reqId: string; attachment: Attachment }
   | { type: 'chat.done'; reqId: string; stopReason?: string }
   | { type: 'chat.error'; reqId: string; error: ProviderError };
 

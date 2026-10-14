@@ -67,11 +67,20 @@ export function createMobileApi(): MobileApi | null {
     async saveFile(name, text) {
       // 앱 캐시에 쓰고 공유 시트로 넘긴다 (파일 앱 저장·메일·Anki 등)
       const { uri } = await Filesystem.writeFile({ path: name, data: text, directory: Directory.Cache, encoding: Encoding.UTF8 });
-      try {
-        await Share.share({ title: name, files: [uri] });
-      } catch (e) {
-        if (!/cancel/i.test(e instanceof Error ? e.message : String(e))) throw e;
-      }
+      await shareFile(name, uri);
+    },
+    async saveBase64File(name, base64) {
+      // encoding을 빼면 data를 base64로 보고 바이너리로 쓴다 (사진 앱 저장은 공유 시트에서)
+      const { uri } = await Filesystem.writeFile({ path: name, data: base64, directory: Directory.Cache });
+      await shareFile(name, uri);
     },
   };
+}
+
+async function shareFile(name: string, uri: string): Promise<void> {
+  try {
+    await Share.share({ title: name, files: [uri] });
+  } catch (e) {
+    if (!/cancel/i.test(e instanceof Error ? e.message : String(e))) throw e;
+  }
 }

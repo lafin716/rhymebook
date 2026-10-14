@@ -79,6 +79,16 @@ describe('attachments', () => {
     expect(binaryNote([txt])).toBe('');
   });
 
+  it('assistant 이미지는 첨부 대신 메모로 넘긴다 (ADR-041)', () => {
+    const turns = toTurns([
+      { id: 'm1', sessionId: 's', role: 'user', content: '그려 줘', createdAt: 0 },
+      { id: 'm2', sessionId: 's', role: 'assistant', content: '완성!', createdAt: 0, status: 'done', attachments: [img, img] },
+    ]);
+    expect(turns[1]!.attachments).toBeUndefined();
+    expect(turns[1]!.content).toContain('완성!');
+    expect(turns[1]!.content).toContain('[이미지 2장을 만들어 보여 줌]');
+  });
+
   it('maps attachments to provider content blocks', () => {
     const turn = { role: 'user' as const, content: '이건 뭐야?', attachments: [img, { ...img, id: 'p', kind: 'pdf' as const, mime: 'application/pdf', name: 'a.pdf' }] };
     expect(anthropicContent(turn)).toEqual([

@@ -17,6 +17,7 @@ import {
 } from '@branch/core';
 import { claudeArgs, claudeJsonInput, createClaudeParser } from './claude';
 import { codexArgs, createCodexParser } from './codex';
+import { codexImagesDir, collectCodexImages } from './codexImages';
 import { detectAll } from './detect';
 import { resolveCliEnv, type CliEnv } from './env';
 import type { CliParser } from './parser';
@@ -49,6 +50,10 @@ export interface BridgeServer {
 }
 
 const IMAGE_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
+
+/** 이미지 생성을 켤 때 덧붙이는 지시. 결과는 앱이 답변에 붙이므로 경로·저장 위치를 말할 필요가 없다 */
+const IMAGE_GEN_NOTE =
+  '이미지가 필요하면 이미지 생성 도구로 만드세요. 만든 이미지는 앱이 답변 아래에 자동으로 붙이므로 파일 경로나 저장 위치는 말하지 마세요. SVG·ASCII 그림으로 대신하지 마세요.';
 
 const FALLBACK_SYSTEM = '당신은 학습을 돕는 친절한 튜터입니다. 한국어로 짧고 명확하게 답하세요.';
 
@@ -134,6 +139,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
       let args: string[];
       let stdin: string;
       let parser: CliParser;
+      let codexThread: (() => string | undefined) | null = null;
       if (msg.providerId === 'claude-cli') {
         const systemFile = path.join(workDir, 'system.txt');
         await writeFile(systemFile, system, { mode: 0o600 });
@@ -149,12 +155,17 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
           images.push(file);
         }
         const note = binaryNote(files.filter((f) => f.kind === 'pdf'));
-        args = codexArgs({ ...cliModelOptions(msg), images });
-        stdin = withInstructions(system, note ? `${prompt}\n\n${note}` : prompt);
-        parser = createCodexParser();
+        const imageGen = msg.imageGen === true;
+        args = codexArgs({ ...cliModelOptions(msg), images, imageGen });
+        stdin = withInstructions(imageGen ? `${system}\n\n${IMAGE_GEN_NOTE}` : system, note ? `${prompt}\n\n${note}` : prompt);
+        const codex = createCodexParser();
+        parser = codex;
+        if (imageGen) codexThread = codex.threadId;
       }
 
       let ended = false;
+      // 이미지 생성 중이면 done을 붙잡아 두고 프로세스가 끝난 뒤 이미지를 먼저 보낸다
+      let heldDone: StreamEvent | null = null;
       const started = Date.now();
       const res = await runCli({
         bin: env.bin[msg.providerId],
@@ -174,7 +185,8 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
           }
           for (const ev of parser.line(obj)) {
             if (ended) break;
-            emit(ev);
+            if (ev.type === 'done' && codexThread) heldDone = ev;
+            else emit(ev);
             if (ev.type !== 'delta') ended = true;
           }
         },
@@ -182,8 +194,23 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
       log(`${msg.providerId} exit=${res.code} ${Date.now() - started}ms${res.aborted ? ' aborted' : ''}${res.timedOut ? ' timeout' : ''}`);
       if (!ended) {
         if (res.aborted) emit({ type: 'error', error: providerError('aborted', '사용자가 중지했습니다.') });
-        else emit(parser.finish(res));
+        else {
+          const fin = parser.finish(res);
+          if (fin.type === 'done' && codexThread) heldDone = fin;
+          else emit(fin);
+        }
       }
+      const thread = codexThread?.();
+      const dir = thread ? codexImagesDir(env.env, thread) : null;
+      if (dir) {
+        const { images, skipped } = await collectCodexImages(dir);
+        if (heldDone) {
+          for (const attachment of images) emit({ type: 'image', attachment });
+          if (skipped) emit({ type: 'delta', text: `\n\n(이미지 ${skipped}장은 크기·개수 한도를 넘어 붙이지 못했습니다.)` });
+          if (images.length || skipped) log(`codex images=${images.length} skipped=${skipped}`);
+        }
+      }
+      if (heldDone) emit(heldDone);
     } finally {
       gate.release();
       await rm(workDir, { recursive: true, force: true }).catch(() => {});
@@ -240,6 +267,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
             const reqId = msg.reqId;
             runChat(msg, ac.signal, (ev) => {
               if (ev.type === 'delta') safeSend({ type: 'chat.delta', reqId, text: ev.text });
+              else if (ev.type === 'image') safeSend({ type: 'chat.image', reqId, attachment: ev.attachment });
               else if (ev.type === 'done') safeSend({ type: 'chat.done', reqId, ...(ev.stopReason ? { stopReason: ev.stopReason } : {}) });
               else safeSend({ type: 'chat.error', reqId, error: ev.error });
             })

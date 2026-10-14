@@ -97,6 +97,25 @@ describe('bridge client', () => {
     expect(sent.some((m) => m.type === 'chat.abort')).toBe(false);
   });
 
+  it('일반 대화에만 imageGen을 켜고 chat.image를 image 이벤트로 넘긴다', async () => {
+    const att = { id: 'img1', kind: 'image' as const, name: 'a.png', mime: 'image/png', size: 3, data: 'AAAA' };
+    const { t, sent } = fakeTransport((m, reply) => {
+      if (m.type !== 'chat.start') return;
+      reply({ type: 'chat.delta', reqId: m.reqId, text: '완성' });
+      reply({ type: 'chat.image', reqId: m.reqId, attachment: att });
+      reply({ type: 'chat.done', reqId: m.reqId, stopReason: 'end_turn' });
+    });
+    const p = createBridgeProviders(createBridgeClient(t))['codex-cli']!;
+    const evs = [];
+    for await (const ev of p.stream({ system: '', messages: [{ role: 'user', content: 'q' }] })) evs.push(ev);
+    expect(evs.map((e) => e.type)).toEqual(['delta', 'image', 'done']);
+    expect(evs[1]).toEqual({ type: 'image', attachment: att });
+    expect(sent.find((m) => m.type === 'chat.start')).toMatchObject({ imageGen: true });
+
+    for await (const _ of p.stream({ system: '', messages: [{ role: 'user', content: 'q' }], purpose: 'title' })) void _;
+    expect(sent.filter((m) => m.type === 'chat.start').at(-1)).not.toHaveProperty('imageGen');
+  });
+
   it('sends chat.abort and ends with an aborted error when the signal fires', async () => {
     const ac = new AbortController();
     const { t, sent } = fakeTransport((m, reply) => {

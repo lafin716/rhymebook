@@ -122,4 +122,6 @@ export interface MobileApi {
   scanQr?(): Promise<string | null>;
   /** 텍스트 파일을 만들어 OS 공유 시트로 넘긴다 (WebView는 <a download>를 지원하지 않음) */
   saveFile?(name: string, text: string, mime: string): Promise<void>;
+  /** 바이너리(base64) 파일을 공유 시트로 넘긴다 — 생성 이미지 저장 */
+  saveBase64File?(name: string, base64: string): Promise<void>;
 }

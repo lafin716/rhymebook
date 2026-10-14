@@ -357,6 +357,9 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
             const persist = Date.now() - savedAt >= STREAM_SAVE_INTERVAL;
             if (persist) savedAt = Date.now();
             if (m) putMessage({ ...m, content: text }, persist);
+          } else if (ev.type === 'image') {
+            const m = getMessage(sessionId, messageId);
+            if (m) putMessage({ ...m, attachments: [...(m.attachments ?? []), ev.attachment] });
           } else if (ev.type === 'error') {
             fail(ev.error, text);
             break;

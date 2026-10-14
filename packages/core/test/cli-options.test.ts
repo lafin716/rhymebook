@@ -122,3 +122,42 @@ describe('연결 기본값 영속화', () => {
     expect(back.connections['codex-cli']).toMatchObject({ model: 'gpt-6-sol', effort: 'xhigh' });
   });
 });
+
+describe('생성 이미지 이벤트', () => {
+  it('image 이벤트는 답변 메시지 첨부로 쌓인다', async () => {
+    const att = { id: 'img1', kind: 'image' as const, name: '생성 이미지 1.png', mime: 'image/png', size: 3, data: 'AAAA' };
+    const provider: LLMProvider = {
+      id: 'codex-cli',
+      label: 'codex',
+      available: async () => ({ status: 'ready' }),
+      async *stream() {
+        yield { type: 'delta', text: '완성' };
+        yield { type: 'image', attachment: att };
+        yield { type: 'image', attachment: { ...att, id: 'img2' } };
+        yield { type: 'done' };
+      },
+    };
+    const connections = initialConnections();
+    connections['codex-cli'] = { ...connections['codex-cli'], status: 'ready', enabled: true };
+    const store = createAppStore({
+      registry: new ProviderRegistry().register(provider),
+      initial: {
+        ...createSeed(0),
+        annotations: {},
+        view: emptyView(SEED_IDS.root),
+        settings: { ...DEFAULT_SETTINGS, defaultProviderId: 'codex-cli' },
+        connections,
+      },
+    });
+    store.getState().sendMessage(SEED_IDS.root, '그려 줘');
+    await new Promise<void>((resolve) => {
+      const check = () => (Object.keys(store.getState().streaming).length ? setTimeout(check, 5) : resolve());
+      setTimeout(check, 5);
+    });
+    const last = store.getState().messages[SEED_IDS.root]!.at(-1)!;
+    expect(last.role).toBe('assistant');
+    expect(last.content).toBe('완성');
+    expect(last.status).toBe('done');
+    expect(last.attachments?.map((a) => a.id)).toEqual(['img1', 'img2']);
+  });
+});

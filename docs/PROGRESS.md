@@ -58,6 +58,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-11 AI로 스킬 만들기·고치기: 스킬 편집 칸 위 AI 도우미(요청·빠른 요청 칩·실시간 채움·중지·AI 변경 취소), + 메뉴 [AI로 스킬 만들기…] (ADR-037)
 - [x] IMP-12 스킬 고도화: 부수 파일(references/·scripts/·assets/) 보기·추가·가져오기·편집, 데스크톱 스킬 폴더(`<userData>/skills/<name>/SKILL.md`) 열기·폴더 변경 반영·Claude 형식 폴더 가져오기, AI 작성 시 부수 파일 생성·수정·삭제, 고급 옵션(스킬 전용 provider·모델·노력치, 미설정 시 세션 설정) (ADR-038, docs/plans/imp-12-plan.md)
 - [x] IMP-14 `rhymebook serve` 헤드리스 호스트: Electron 없이 서버만 켜고 웹·모바일이 페어링해 사용 (ADR-040, docs/plans/headless-serve-plan.md)
+- [x] IMP-15 Codex 이미지 생성: 일반 대화에서 image_generation 켜기, 생성 이미지를 답변 첨부로 표시·동기화·저장 (ADR-041)
 
 ## Tasks
 
@@ -130,6 +131,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-14 · IMP-15 Codex 이미지 생성(ADR-041): `pnpm typecheck`·`pnpm lint` PASS. `pnpm test`는 core 296, ui 47, bridge 44(+3 skipped), server 7(+1 skipped), relay 9 PASS. 가짜 codex로 확인한 항목: generated_images 수집, 이벤트 순서 delta→image→done, 폴더 삭제, 제목 요청에서는 꺼짐, 1MB 넘는 PNG의 JPEG 재압축.
 - 2026-10-14 · IMP-14 `rhymebook serve` 헤드리스 호스트(macOS): 새 패키지 `packages/server`(bin `rhymebook`: serve/pair/devices/unpair). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 293·ui 47·bridge 41(+3 skipped)·server 7(+1 skipped 수동 스모크)·relay 9 PASS, `pnpm e2e` 44 passed · 8 skipped. 실제 스모크(빌드 산출물, 실제 claude CLI): 스크립트 클라이언트 페어링 → 새 학습·질문 → "1+1은 2입니다." 스트리밍·저장 → Ctrl+C 정상 종료 → 재시작 후 재연결·데이터 유지. 웹 UI(`pnpm dev`, 390px)에서 "내 PC와 연결하기"에 링크 붙여 넣어 페어링 → 새 학습 질문 → PC CLI 답변 "파란색" 수신, 서버 data.json에 2개 학습 저장. 스모크 중 발견: `--name` 없이 재시작하면 저장된 이름이 컴퓨터 이름으로 덮임 → 수정·회귀 테스트. 첫 실행 강제 종료(SIGKILL)에도 data.json(0600)·예시 스킬 생성 확인. 데스크톱 `package:dir` 재빌드·실행.
 - 2026-10-14 · 개선(질문 삭제, Windows): 대화 목차의 휴지통 버튼·세션 본문 우클릭 "질문 삭제"로 질문+답변 삭제(답변에서 뻗은 가지·서식 함께 삭제, 첫 질문은 삭제 불가, 응답 중 불가). core `deleteTurn`·`turnMessageIds`, sync op `turn.delete`(PC "원격에서 학습 삭제 허용"을 따름). `pnpm typecheck` PASS, lint는 `.claude/worktrees/imp-13` 1건 외 PASS, core 282/284(실패 2 기존 `sync.reset`·자동 제목), ui 47/47, bridge 실패 19는 변경 전과 동일(Windows 환경). Windows `package:dir` 재빌드.
 - 2026-10-14 · 개선(세션 SVG 이미지 출력, Windows): 기존 답변의 SVG/XML/HTML/언어 없는 코드 블록·단독 SVG를 이미지로 렌더하고 원본 코드 펼침 제공. SVG 원문과 가지 offset 유지, 미완성/깨진 SVG는 코드 표시. 단독 SVG 빈 줄·중첩·수식 구분자·앞 코드 예시 회귀 수정(독립 리뷰 완료). `pnpm typecheck` PASS, 변경 파일 eslint·diff check PASS, ui 47/47, SVG E2E desktop/mobile 4/4, 390/1440 스크린샷 확인. 실행 중 기존 앱의 app.asar 잠금으로 기본 `package:dir` EBUSY → 기존 앱을 종료하지 않고 별도 `apps/desktop/release/svg-preview/win-unpacked/rhymebook.exe` 패키징 PASS. 격리 userData에서 실제 패키지 앱 SVG smoke 1/1 PASS·스크린샷 확인. 실행 중인 기존 앱에는 재시작 후 새 빌드를 사용해야 적용됨. 계획: docs/plans/svg-preview-plan.md.

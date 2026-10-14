@@ -87,6 +87,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
       const unsub = transport.subscribe((m) => {
         if (m.type === 'status' || m.reqId !== reqId) return;
         if (m.type === 'chat.delta') push({ type: 'delta', text: m.text });
+        else if (m.type === 'chat.image') push({ type: 'image', attachment: m.attachment });
         else if (m.type === 'chat.done') push({ type: 'done', ...(m.stopReason ? { stopReason: m.stopReason } : {}) });
         else push({ type: 'error', error: m.error });
       });
@@ -114,6 +115,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
               messages: req.messages,
               ...(req.model ? { model: req.model } : {}),
               ...(req.effort ? { effort: req.effort } : {}),
+              ...(!req.purpose || req.purpose === 'chat' ? { imageGen: true } : {}),
             });
           } catch {
             push({ type: 'error', error: providerError('offline', offline) });
@@ -123,7 +125,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
           if (!queue.length) await new Promise<void>((r) => (wake = r));
           const ev = queue.shift()!;
           yield ev;
-          if (ev.type !== 'delta') {
+          if (ev.type !== 'delta' && ev.type !== 'image') {
             ended = true;
             return;
           }

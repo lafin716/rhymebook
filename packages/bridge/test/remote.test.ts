@@ -187,6 +187,8 @@ describe('validateClientMsg', () => {
     expect(validateClientMsg({ ...base, effort: 'ultra' })).toBeNull();
     expect(validateClientMsg({ ...base, providerId: 'codex-cli', effort: 'ultra' })).not.toBeNull();
     expect(validateClientMsg({ ...base, effort: '--x' })).toBeNull();
+    expect(validateClientMsg({ ...base, imageGen: true })).toEqual({ ...base, imageGen: true });
+    expect(validateClientMsg({ ...base, imageGen: 'yes' })).toEqual(base);
     expect(validateClientMsg({ type: 'status.get', reqId: 'a b' })).toBeNull();
     expect(validateClientMsg({ type: 'chat.abort', reqId: 'r1' })).toEqual({ type: 'chat.abort', reqId: 'r1' });
   });
