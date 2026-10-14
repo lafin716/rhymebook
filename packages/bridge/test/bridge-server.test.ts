@@ -220,6 +220,8 @@ describe('bridge server — codex', () => {
     const evs = await collect(client.stream('codex-cli', { ...req, purpose: 'chat' }));
     const echo = JSON.parse(text(evs)) as { args: string[] };
     expect(echo.args).not.toContain('features.image_generation=false');
+    expect(echo.args).not.toContain('features.code_mode_host=false');
+    expect(echo.args).toContain('features.shell_tool=false');
     expect(echo.args).toContain('features.view_image=false');
     expect(evs.map((e) => e.type)).toEqual(['delta', 'image', 'image', 'done']);
     const imgs = evs.flatMap((e) => (e.type === 'image' ? [e.attachment] : []));
@@ -232,6 +234,7 @@ describe('bridge server — codex', () => {
     // 제목·요약 같은 보조 요청은 끈 채로 둔다
     const off = await collect(createBridgeClient(localTransport('image', {}, { CODEX_HOME: home })).stream('codex-cli', { ...req, purpose: 'title' }));
     expect((JSON.parse(text(off)) as { args: string[] }).args).toContain('features.image_generation=false');
+    expect((JSON.parse(text(off)) as { args: string[] }).args).toContain('features.code_mode_host=false');
     expect(off.some((e) => e.type === 'image')).toBe(false);
   });
 

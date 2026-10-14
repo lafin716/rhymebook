@@ -33,13 +33,19 @@ const CODEX_OFF_FEATURES = [
 ];
 
 /**
+ * 이미지 생성에 필요한 기능. codex 0.162는 이미지 생성 도구를 code mode 호스트로 부르므로
+ * code_mode_host가 꺼져 있으면 "code-mode host is disabled"로 실패한다 (셸·exec는 계속 끈다).
+ */
+const IMAGE_GEN_FEATURES = ['image_generation', 'code_mode_host'];
+
+/**
  * 공식 codex CLI 무상태 실행 인자. 읽기 전용 샌드박스, 세션 파일 저장 안 함,
  * 사용자 config.toml/rules 미적용(앱이 모델과 지시를 정한다), 도구 비활성. 프롬프트는 stdin('-').
  * 값에 따옴표를 넣지 않는다 — win32 cmd 경유 시 이스케이프가 깨진다(TOML이 아니면 문자열로 읽힌다).
  */
 export function codexArgs(opts: { model?: string; effort?: string; images?: string[]; imageGen?: boolean }): string[] {
   // 이미지 생성은 일반 대화에서만 켠다 (ADR-041). 결과는 runChat이 generated_images에서 거둔다
-  const off = opts.imageGen ? CODEX_OFF_FEATURES.filter((f) => f !== 'image_generation') : CODEX_OFF_FEATURES;
+  const off = opts.imageGen ? CODEX_OFF_FEATURES.filter((f) => !IMAGE_GEN_FEATURES.includes(f)) : CODEX_OFF_FEATURES;
   return [
     'exec',
     // --image는 값을 여러 개 받으므로 다른 옵션 앞에 둬 마지막 '-'(stdin)를 먹지 않게 한다
