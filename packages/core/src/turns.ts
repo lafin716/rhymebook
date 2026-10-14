@@ -45,3 +45,19 @@ export function buildTurns(messages: readonly Message[]): Turn[] {
   }
   return turns;
 }
+
+/**
+ * 질문 하나를 지울 때 함께 지울 메시지 id: 그 질문 + 다음 질문 전까지의 답변.
+ * 세션의 첫 질문은 지울 수 없다(제목·가지 맥락의 기준) → null. 질문이 없어도 null
+ */
+export function turnMessageIds(messages: readonly Message[], questionId: ID): ID[] | null {
+  const start = messages.findIndex((m) => m.id === questionId);
+  if (start < 0 || messages[start]!.role !== 'user') return null;
+  if (messages.findIndex((m) => m.role === 'user') === start) return null;
+  const ids = [questionId];
+  for (let i = start + 1; i < messages.length && messages[i]!.role !== 'user'; i++) ids.push(messages[i]!.id);
+  return ids;
+}
+
+/** 이 질문을 지울 수 있는지 (첫 질문이 아닌 질문) */
+export const canDeleteTurn = (messages: readonly Message[], questionId: ID): boolean => turnMessageIds(messages, questionId) !== null;

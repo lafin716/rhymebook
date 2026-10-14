@@ -4,6 +4,7 @@ import { createAppStore, nextFallback, type AppStore } from '../src/store';
 import { createDemoRegistry } from '../src/providers/demo';
 import { mockControl } from '../src/providers/mock';
 import { ProviderRegistry, providerError } from '../src/provider';
+import { memoryRepository } from '../src/repo';
 
 const idle = (store: AppStore) =>
   new Promise<void>((resolve) => {
@@ -211,6 +212,68 @@ describe('app store', () => {
     const s = store.getState();
     expect(s.sessions[SEED_IDS.dot]).toBeUndefined();
     expect(s.view.popups).toHaveLength(0);
+  });
+
+  describe('deleteTurn', () => {
+    const anchorIn = (store: AppStore, messageId: string, text: string) => {
+      const msg = store.getState().messages[SEED_IDS.root]!.find((m) => m.id === messageId)!;
+      const start = msg.content.indexOf(text);
+      return { messageId, text, startOffset: start, endOffset: start + text.length };
+    };
+
+    it('removes the question and its answer, keeping order for later saves', () => {
+      const saved: [string, number][] = [];
+      const deleted: string[] = [];
+      const store = createAppStore({
+        registry: createDemoRegistry(() => store.getState().connections),
+        initial: { ...createSeed(0), view: emptyView(SEED_IDS.root) },
+        repo: {
+          ...memoryRepository(),
+          saveMessage: (m, i) => saved.push([m.id, i]),
+          deleteMessage: (id) => deleted.push(id),
+        },
+      });
+      const before = store.getState().messages[SEED_IDS.root]!.map((m) => m.id);
+      expect(store.getState().deleteTurn(SEED_IDS.root, before[2]!)).toBe(true);
+      const after = store.getState().messages[SEED_IDS.root]!.map((m) => m.id);
+      expect(after).toEqual([before[0], before[1], ...before.slice(4)]);
+      expect(deleted).toEqual([before[2], before[3]]);
+      // 뒤쪽 메시지는 새 위치로 다시 저장
+      expect(saved).toEqual(after.slice(2).map((id, i) => [id, i + 2]));
+    });
+
+    it('refuses the first question', () => {
+      const store = makeStore();
+      const first = store.getState().messages[SEED_IDS.root]![0]!.id;
+      expect(store.getState().deleteTurn(SEED_IDS.root, first)).toBe(false);
+      expect(store.getState().messages[SEED_IDS.root]![0]!.id).toBe(first);
+      // 첫 질문의 답변에 달린 가지도 그대로
+      expect(store.getState().sessions[SEED_IDS.qkv]).toBeTruthy();
+    });
+
+    it('deletes branches and annotations anchored on the removed answer', async () => {
+      const store = makeStore();
+      const [, , q2, a2] = store.getState().messages[SEED_IDS.root]!;
+      const text = a2!.content.slice(0, 4);
+      const branch = store.getState().createBranch(SEED_IDS.root, anchorIn(store, a2!.id, text), 'what') as string;
+      await idle(store);
+      const anno = store.getState().addAnnotation(SEED_IDS.root, anchorIn(store, a2!.id, text), { highlight: 'yellow' });
+      expect(store.getState().deleteTurn(SEED_IDS.root, q2!.id)).toBe(true);
+      const s = store.getState();
+      expect(s.sessions[branch]).toBeUndefined();
+      expect(s.annotations[anno]).toBeUndefined();
+      expect(s.sessions[SEED_IDS.qkv]).toBeTruthy();
+    });
+
+    it('refuses while the session is streaming', async () => {
+      const store = makeStore();
+      mockControl.firstTokenDelay = 50;
+      store.getState().sendMessage(SEED_IDS.root, '새 질문');
+      const q2 = store.getState().messages[SEED_IDS.root]![2]!.id;
+      expect(store.getState().deleteTurn(SEED_IDS.root, q2)).toBe(false);
+      await idle(store);
+      expect(store.getState().deleteTurn(SEED_IDS.root, q2)).toBe(true);
+    });
   });
 });
 

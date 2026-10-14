@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '../src/model';
 import { createSeed, SEED_IDS } from '../src/seed';
-import { buildTurns, plainPreview } from '../src/turns';
+import { buildTurns, canDeleteTurn, plainPreview, turnMessageIds } from '../src/turns';
 
 const m = (id: string, role: Message['role'], content: string, extra: Partial<Message> = {}): Message => ({
   id,
@@ -43,5 +43,33 @@ describe('plainPreview', () => {
     const out = plainPreview('가'.repeat(200), 10);
     expect(out).toHaveLength(10);
     expect(out.endsWith('…')).toBe(true);
+  });
+});
+
+describe('turnMessageIds', () => {
+  const list = [
+    m('a0', 'assistant', '안내'),
+    m('q1', 'user', '첫 질문'),
+    m('a1', 'assistant', '답1'),
+    m('q2', 'user', '둘째'),
+    m('a2', 'assistant', '답2'),
+    m('a2b', 'assistant', '덧붙임'),
+    m('q3', 'user', '셋째'),
+  ];
+
+  it('returns the question and its answers up to the next question', () => {
+    expect(turnMessageIds(list, 'q2')).toEqual(['q2', 'a2', 'a2b']);
+    expect(turnMessageIds(list, 'q3')).toEqual(['q3']);
+  });
+
+  it('never allows deleting the first question', () => {
+    expect(turnMessageIds(list, 'q1')).toBeNull();
+    expect(canDeleteTurn(list, 'q1')).toBe(false);
+    expect(canDeleteTurn(list, 'q2')).toBe(true);
+  });
+
+  it('rejects answers and unknown ids', () => {
+    expect(turnMessageIds(list, 'a2')).toBeNull();
+    expect(turnMessageIds(list, 'nope')).toBeNull();
   });
 });

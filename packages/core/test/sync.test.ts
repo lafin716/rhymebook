@@ -307,6 +307,23 @@ describe('sync host ↔ client', () => {
     expect(store.getState().view.activeSessionId).toBe(SEED_IDS.root);
   });
 
+  it('remote question delete follows the PC delete setting and never deletes the first question', async () => {
+    const { store, client } = await connectClient();
+    store.getState().openSession(SEED_IDS.root);
+    await until(() => !!client.state.getState().loaded[SEED_IDS.root]);
+    const [q1, , q2] = store.getState().messages[SEED_IDS.root]!;
+    expect(store.getState().deleteTurn(SEED_IDS.root, q1!.id)).toBe(false);
+
+    expect(store.getState().deleteTurn(SEED_IDS.root, q2!.id)).toBe(true);
+    await until(() => client.state.getState().lastFailure?.code === 'forbidden');
+    expect(hostStore.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(true);
+
+    allowDelete = true;
+    store.getState().deleteTurn(SEED_IDS.root, q2!.id);
+    await until(() => !store.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id));
+    expect(hostStore.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(false);
+  });
+
   it('host validates ops: bad anchor, id conflict, unknown session, not-ready, rate limit', async () => {
     const out: SyncServerMsg[] = [];
     const raw = createSyncHost({ store: hostStore, hostName: () => 'pc', send: (_p, m) => out.push(m), throttleMs: 0 });

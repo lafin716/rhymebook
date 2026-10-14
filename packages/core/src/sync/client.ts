@@ -8,6 +8,7 @@ import { branchQuestion } from '../context';
 import { newId } from '../id';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId } from '../cli-options';
+import { canDeleteTurn } from '../turns';
 import { normalizeLayout } from '../splitLayout';
 
 export type SyncStatus = 'unpaired' | 'connecting' | 'online' | 'offline' | 'unsupported';
@@ -445,6 +446,12 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
 
     deleteSession(sessionId) {
       act({ kind: 'delete', sessionId });
+    },
+
+    deleteTurn(sessionId, questionId) {
+      const s = get();
+      if (s.streaming[sessionId] || !canDeleteTurn(s.messages[sessionId] ?? [], questionId)) return false;
+      return act({ kind: 'turn.delete', sessionId, questionId });
     },
 
     renameSession(sessionId, title) {

@@ -1,6 +1,6 @@
 # Project Progress
 
-Last Updated: 2026-10-13
+Last Updated: 2026-10-14
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
@@ -125,6 +125,8 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-14 · 개선(질문 삭제, Windows): 대화 목차의 휴지통 버튼·세션 본문 우클릭 "질문 삭제"로 질문+답변 삭제(답변에서 뻗은 가지·서식 함께 삭제, 첫 질문은 삭제 불가, 응답 중 불가). core `deleteTurn`·`turnMessageIds`, sync op `turn.delete`(PC "원격에서 학습 삭제 허용"을 따름). `pnpm typecheck` PASS, lint는 `.claude/worktrees/imp-13` 1건 외 PASS, core 282/284(실패 2 기존 `sync.reset`·자동 제목), ui 47/47, bridge 실패 19는 변경 전과 동일(Windows 환경). Windows `package:dir` 재빌드.
+- 2026-10-14 · 개선(세션 SVG 이미지 출력, Windows): 기존 답변의 SVG/XML/HTML/언어 없는 코드 블록·단독 SVG를 이미지로 렌더하고 원본 코드 펼침 제공. SVG 원문과 가지 offset 유지, 미완성/깨진 SVG는 코드 표시. 단독 SVG 빈 줄·중첩·수식 구분자·앞 코드 예시 회귀 수정(독립 리뷰 완료). `pnpm typecheck` PASS, 변경 파일 eslint·diff check PASS, ui 47/47, SVG E2E desktop/mobile 4/4, 390/1440 스크린샷 확인. 실행 중 기존 앱의 app.asar 잠금으로 기본 `package:dir` EBUSY → 기존 앱을 종료하지 않고 별도 `apps/desktop/release/svg-preview/win-unpacked/rhymebook.exe` 패키징 PASS. 격리 userData에서 실제 패키지 앱 SVG smoke 1/1 PASS·스크린샷 확인. 실행 중인 기존 앱에는 재시작 후 새 빌드를 사용해야 적용됨. 계획: docs/plans/svg-preview-plan.md.
 - 2026-10-14 · 개선(IMP-12 스킬 파일·폴더·전용 provider/모델/노력치, Windows): `pnpm typecheck` PASS, eslint(packages·apps·e2e) PASS — 루트 `pnpm lint`는 다른 세션 워크트리 `.claude/worktrees/imp-13`의 미사용 변수 1건으로 실패. core 274/276(+skill-files·skill-assist 신규, 실패 2는 기존 `sync.reset`·자동 제목)·ui 36/36, e2e `skill-assist` 4/4(desktop·mobile, `CI=1`로 단독 서버 — 다른 세션 e2e 서버 재사용 시 실패했음). 독립 리뷰 지적(긴 파일 AI 덮어쓰기, 앱이 모르는 파일·frontmatter 삭제, 이름 변경 시 바이너리 삭제, 편집 중 폴더 변경 덮어쓰기, 지운 스킬 부활, 이름 정규화 반복, 미닫힘 파일 태그, 원격 칩) 반영. Windows `package:dir` → 격리 userData Playwright `_electron` 스모크 PASS: 시작 시 폴더 생성, 저장 → SKILL.md 옵션·파일 기록, 폴더 수정·추가 파일·Claude 형식 폴더 가져오기, 가져온 스킬 저장 시 `allowed-tools` 유지, 삭제 후 되살아나지 않음.
 - 2026-10-14 · 개선(원격 AI 스킬 도우미·메뉴 막대, Windows): 웹·모바일 스킬 AI 도우미는 기기 기본 provider 대신 `remote-bridge`(PC 원격 설정 = `applyHostPolicy`)로 작성, PC 미연결이면 안내. 데스크톱 창 메뉴 막대 제거(Windows/Linux `setApplicationMenu(null)`, macOS는 앱·편집·창 역할 메뉴만). `pnpm typecheck`·`pnpm lint` PASS, ui 36/36. Windows `package:dir` 실행 — 창 메뉴 핸들 0 확인.
 - 2026-10-14 · 개선(원격 수동 재연결·빈 화면 문구, Windows): 웹·모바일 sync client `autoReconnect: false`(끊기면 offline 유지, [다시 연결]로만), 학습이 있는데 선택이 없을 때 "이어서 볼 학습을 골라 주세요"+[학습 목록 열기]. `pnpm typecheck`·`pnpm lint` PASS, core sync +1 테스트 PASS(실패 `sync.reset`·store auto title은 변경 전과 동일 계열).

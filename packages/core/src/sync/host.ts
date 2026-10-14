@@ -1,5 +1,6 @@
 import type { AppState, AppStore } from '../store';
 import { isCliId } from '../cli-options';
+import { canDeleteTurn } from '../turns';
 import type { ID, Message, ProviderId } from '../model';
 import {
   SYNC_LIMITS,
@@ -344,6 +345,11 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       case 'delete':
         if (!has(op.sessionId)) return 'not-found';
         return allowDelete(peerId) ? null : 'forbidden';
+      case 'turn.delete':
+        if (!has(op.sessionId)) return 'not-found';
+        if (!canDeleteTurn(state.messages[op.sessionId] ?? [], op.questionId)) return 'invalid';
+        if (state.streaming[op.sessionId]) return 'busy';
+        return allowDelete(peerId) ? null : 'forbidden';
       case 'summary.attach':
         if (op.text && op.text.length > SYNC_LIMITS.text) return 'invalid';
         return has(op.sessionId) ? null : 'not-found';
@@ -419,6 +425,9 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         }
         case 'delete':
           s.deleteSession(op.sessionId);
+          return null;
+        case 'turn.delete':
+          if (!s.deleteTurn(op.sessionId, op.questionId)) return 'failed';
           return null;
         case 'summary.request':
           void s.requestSummary(op.sessionId);

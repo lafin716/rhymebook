@@ -1,5 +1,5 @@
 import { buildTurns, type ID, type Session, type Turn } from '@branch/core';
-import { ChevronDown, ChevronUp, GitBranch, ListOrdered, LocateFixed, Sparkles, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, GitBranch, ListOrdered, LocateFixed, Sparkles, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useApp } from '../app/store';
 import { useBreakpoint } from '../app/useBreakpoint';
@@ -7,6 +7,7 @@ import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
 import { isMac } from '../lib/platform';
 import { openBranch } from './open';
+import { removeTurn } from './turnDelete';
 
 export interface ChatNavProps {
   sessionId: ID;
@@ -39,6 +40,7 @@ function topOf(root: HTMLElement, el: HTMLElement) {
 export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }: ChatNavProps) {
   const messages = useApp((s) => s.messages[sessionId]);
   const sessions = useApp((s) => s.sessions);
+  const busy = useApp((s) => !!s.streaming[sessionId]);
   const turns = useMemo(() => buildTurns(messages ?? []), [messages]);
   const mobile = useBreakpoint() === 'mobile';
   const [nav, setNav] = useState<NavState>({ active: -1, prev: -1, overflow: false });
@@ -298,6 +300,9 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
                         jump(t.index);
                         if (mobile) setPanel(null);
                       }}
+                      // 첫 질문은 삭제 불가 (세션 제목·가지 맥락의 기준)
+                      onDelete={t.index > 0 ? () => void removeTurn(sessionId, t.questionId) : undefined}
+                      deleteDisabled={busy}
                     />
                   </li>
                 ))}
@@ -347,16 +352,51 @@ function answerLine(t: Turn): string {
   return t.answerPreview || '(빈 답변)';
 }
 
-function TurnItem({ turn, active, branches, onClick }: { turn: Turn; active: boolean; branches: number; onClick: () => void }) {
+function TurnItem({
+  turn,
+  active,
+  branches,
+  onClick,
+  onDelete,
+  deleteDisabled,
+}: {
+  turn: Turn;
+  active: boolean;
+  branches: number;
+  onClick: () => void;
+  /** 없으면 삭제 버튼을 숨긴다 (첫 질문) */
+  onDelete?: (() => void) | undefined;
+  deleteDisabled?: boolean;
+}) {
+  return (
+    <div className={cn('group/t flex items-stretch rounded-lg transition-colors', active ? 'bg-accent-soft' : 'hover:bg-surface-2')}>
+      <TurnButton turn={turn} active={active} branches={branches} onClick={onClick} />
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleteDisabled}
+          aria-label={`Q${turn.index + 1} 질문 삭제`}
+          title={deleteDisabled ? '답변이 끝난 뒤 삭제할 수 있어요' : '질문 삭제'}
+          className={cn(
+            'my-1.5 mr-1 inline-flex w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-danger-soft hover:text-danger disabled:pointer-events-none disabled:opacity-40',
+            'opacity-100 @md:opacity-0 @md:group-hover/t:opacity-100 @md:focus-visible:opacity-100',
+          )}
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function TurnButton({ turn, active, branches, onClick }: { turn: Turn; active: boolean; branches: number; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-current={active ? 'true' : undefined}
-      className={cn(
-        'flex w-full gap-2.5 rounded-lg px-2 py-2 text-left transition-colors',
-        active ? 'bg-accent-soft' : 'hover:bg-surface-2',
-      )}
+      className="flex min-w-0 flex-1 gap-2.5 px-2 py-2 text-left"
     >
       <span
         className={cn(

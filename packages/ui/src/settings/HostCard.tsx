@@ -134,7 +134,7 @@ export function HostCard() {
           <div className="flex items-center gap-2">
             <span className="min-w-0 flex-1">
               원격에서 학습 삭제 허용
-              <span className="block text-muted">끄면 휴대폰·웹에서 세션·가지를 지울 수 없어요.</span>
+              <span className="block text-muted">끄면 휴대폰·웹에서 세션·가지·질문을 지울 수 없어요.</span>
             </span>
             <Toggle
               label="원격에서 학습 삭제 허용"

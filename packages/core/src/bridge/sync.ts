@@ -33,6 +33,8 @@ export type SyncOp =
    */
   | { kind: 'session.agent'; sessionId: ID; providerId?: CliId | null; model?: string | null; effort?: string | null }
   | { kind: 'delete'; sessionId: ID }
+  /** 질문 하나와 답변 삭제 (첫 질문 제외). 세션 삭제와 같은 PC 허용 설정을 따른다 */
+  | { kind: 'turn.delete'; sessionId: ID; questionId: ID }
   | { kind: 'summary.request'; sessionId: ID }
   | { kind: 'summary.discard'; sessionId: ID }
   | { kind: 'summary.attach'; sessionId: ID; text?: string }
@@ -179,6 +181,9 @@ function validateOp(op: unknown): boolean {
   }
   if (kind === 'delete') {
     return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId);
+  }
+  if (kind === 'turn.delete') {
+    return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId) && typeof o.questionId === 'string' && SYNC_ID_RE.test(o.questionId);
   }
   if (kind === 'summary.request') {
     return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId);

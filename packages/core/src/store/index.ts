@@ -52,6 +52,7 @@ import { memoryRepository, type Repository } from '../repo';
 import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
 import { chatTarget } from '../skills';
 import { descendantIds, type SessionMap } from '../tree';
+import { turnMessageIds } from '../turns';
 
 export const NEW_SESSION_TITLE = '새 학습';
 
@@ -103,6 +104,11 @@ export interface AppState extends AppData {
   // 세션
   newRootSession(id?: ID, opts?: { focus?: boolean }): ID | false;
   deleteSession(id: ID): void;
+  /**
+   * 질문 하나와 그 답변을 지운다. 그 답변에서 뻗은 가지·서식도 함께 지운다.
+   * 첫 질문이거나 이 세션이 응답 생성 중이면 false
+   */
+  deleteTurn(sessionId: ID, questionId: ID): boolean;
   renameSession(id: ID, title: string): void;
   setSessionProvider(id: ID, providerId: ProviderId | undefined): void;
   /** 이 채팅의 모델·노력치 덮어쓰기. 값을 비우면(undefined) 연결 기본값을 따른다 */
@@ -494,6 +500,30 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
             sheetSessionIds: v.sheetSessionIds.filter((x) => !gone.has(x)),
           };
         });
+      },
+
+      deleteTurn(sessionId, questionId) {
+        if (get().streaming[sessionId]) return false;
+        const list = get().messages[sessionId] ?? [];
+        const ids = turnMessageIds(list, questionId);
+        if (!ids) return false;
+        const gone = new Set(ids);
+        // 지울 답변에 앵커를 둔 가지(와 하위 가지)
+        for (const b of Object.values(get().sessions)) {
+          if (b.parentId === sessionId && b.anchor && gone.has(b.anchor.messageId)) get().deleteSession(b.id);
+        }
+        const annos = Object.values(get().annotations)
+          .filter((a) => gone.has(a.anchor.messageId))
+          .map((a) => a.id);
+        if (annos.length) get().deleteAnnotations(annos);
+        const from = list.findIndex((m) => m.id === questionId);
+        const next = list.filter((m) => !gone.has(m.id));
+        set((s) => ({ messages: { ...s.messages, [sessionId]: next } }));
+        for (const id of ids) repo.deleteMessage(id);
+        // 복원 순서(seq)가 어긋나지 않게 뒤쪽 메시지 위치를 다시 저장
+        for (let i = from; i < next.length; i++) repo.saveMessage(next[i]!, i);
+        touch(sessionId);
+        return true;
       },
 
       renameSession(id, title) {
