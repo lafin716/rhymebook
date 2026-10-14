@@ -1,11 +1,10 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, type WebContents } from 'electron';
 import path from 'node:path';
-import { createBridgeServer, type BridgeConnection } from '@branch/bridge';
+import { createBridgeServer, createSkillsDir, type BridgeConnection } from '@branch/bridge';
 import { isHostPolicy, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { createSecretVault } from './secrets';
-import { createSkillsDir } from './skillsDir';
 
 /**
  * rhymebook 데스크톱 main 프로세스.

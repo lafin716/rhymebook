@@ -1,0 +1,30 @@
+{
+  "name": "@branch/server",
+  "version": "0.7.0",
+  "private": true,
+  "description": "rhymebook 헤드리스 호스트 — `rhymebook serve`로 서버만 켜고 웹·모바일이 연결해 쓴다",
+  "type": "module",
+  "bin": {
+    "rhymebook": "dist/rhymebook.cjs"
+  },
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/rhymebook.cjs --banner:js=\"#!/usr/bin/env node\"",
+    "start": "node dist/rhymebook.cjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@branch/bridge": "workspace:*",
+    "@branch/core": "workspace:*",
+    "qrcode-terminal": "^0.12.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.3"
+  }
+}

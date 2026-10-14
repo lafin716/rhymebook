@@ -23,6 +23,7 @@ pnpm install
 | `packages/core` | 도메인 모델·앵커·맥락 구성·트리, Zustand 스토어, Provider 인터페이스 (플랫폼 무관) |
 | `packages/ui` | Vite + React + Tailwind SPA (모든 플랫폼 공유, 웹 빌드 산출물) |
 | `packages/bridge` | 공식 CLI 실행 + WebSocket 서버 (데스크톱 내장 / 헤드리스) |
+| `packages/server` | `rhymebook serve` — 데스크톱 앱 없이 도는 헤드리스 호스트 (학습 데이터 + 웹·모바일 원격) |
 | `packages/relay` | 아웃바운드 WebSocket 중계 (페이로드 E2E 암호화) |
 | `apps/desktop` | Electron (main 프로세스에 bridge 내장) |
 | `apps/mobile` | Capacitor (iOS/Android) |
@@ -93,9 +94,36 @@ pnpm --filter @branch/mobile ios             # Xcode로 열기
 
 원본은 `assets/icon/glyph.svg` 입니다. 바꾼 뒤 `node scripts/gen-icons.mjs` 를 실행하면 데스크톱(`apps/desktop/build/icon.png`), iOS·Android 앱 아이콘, 웹 favicon을 다시 만듭니다(Playwright Chromium 사용).
 
+## 헤드리스 호스트 `rhymebook serve` (데스크톱 앱 없이 모바일·웹에서 사용)
+
+서버(PC)에서 데스크톱 앱 대신 실행하면, 모바일·웹 앱이 페어링해서 데스크톱 원격 연결과 똑같이 씁니다. 학습 목록·질문·가지·요약·서식이 동기화되고, 답변은 이 PC의 claude/codex CLI(또는 API 키)로 만들어집니다.
+
+```bash
+pnpm rhymebook -- serve --pair          # 빌드 후 실행. :7777, QR·링크·1회용 코드(5분) 표시
+pnpm rhymebook -- serve                 # 이미 페어링한 기기만 접속
+pnpm rhymebook -- devices               # 페어링된 기기 목록
+pnpm rhymebook -- unpair <id|all>       # 해제 (실행 중인 serve는 다시 시작해야 끊김)
+# 빌드 산출물 하나로도 실행 가능: node packages/server/dist/rhymebook.cjs serve --pair
+```
+
+| 옵션 | 내용 |
+|---|---|
+| `--port` / `--host` | 기본 `7777`(`RHYMEBOOK_PORT`) / `0.0.0.0` |
+| `--name` | 앱에 보일 이름 (처음 실행 때 컴퓨터 이름으로 정해져 저장) |
+| `--dir` | 데이터 폴더 (기본 `$RHYMEBOOK_HOME` → `~/.config/rhymebook`, Windows `%APPDATA%\rhymebook`) |
+| `--agent auto\|claude-cli\|codex-cli` | 새 학습 에이전트 (auto: 준비된 claude → codex → API 키 순) |
+| `--no-delete` | 원격 기기의 학습·질문 삭제 막기 |
+| `--relay <url>` / `--relay-only` | NAT 뒤에서 relay로 접속 받기 (아래 Relay 참고) |
+| `-v` | 자세한 로그 |
+
+- 앱: 처음 화면 "내 PC와 연결하기"에 링크를 붙여 넣거나 QR 스캔 → 터미널의 bridge 지문과 같은지 확인.
+- 데이터 폴더: `data.json`(학습, 0600), `skills/<이름>/SKILL.md`(원격 기기에 보일 스킬, 처음엔 예시 스킬), `bridge/`(페어링 정보).
+- API 키는 `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` 환경변수로 줍니다(메모리에만 보관, 파일·로그에 남지 않음). CLI는 사용자 본인이 로그인한 공식 CLI를 실행할 뿐 인증 파일을 읽지 않습니다.
+- 데스크톱 앱과 데이터를 공유하지 않습니다(별개 호스트). Ctrl+C로 끄면 진행 중 답변을 멈추고 저장한 뒤 종료합니다.
+
 ## 헤드리스 Bridge (원격 CLI 사용)
 
-CLI가 로그인된 PC에서 bridge만 띄우고, 데스크톱 앱의 "다른 PC에 연결"로 그 PC의 CLI를 씁니다. 웹·모바일의 원격 학습(PC 스토어 동기화)은 데스크톱 앱이 필요하며 헤드리스 bridge는 지원하지 않습니다.
+CLI가 로그인된 PC에서 bridge만 띄우고, 데스크톱 앱의 "다른 PC에 연결"로 그 PC의 CLI를 씁니다. 웹·모바일에서 PC에 저장되는 학습을 쓰려면 데스크톱 앱 또는 아래 `rhymebook serve`가 필요합니다(헤드리스 bridge는 CLI 실행만 제공).
 
 ```bash
 pnpm bridge -- --pair                 # :7777, QR·링크·1회용 코드(5분) 표시

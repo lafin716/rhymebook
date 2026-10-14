@@ -261,3 +261,14 @@
 - AI 도우미: `<file path="…">…</file>`·`<delete path="…"/>` 태그를 더했다. 필요할 때만 references/·scripts/·assets/에 만들고 지시에서 경로로 가리키게 한다. 고칠 때 기존 파일(파일당 6,000자까지)을 요청에 싣고, 출력하지 않은 파일은 유지(`mergeSkillFiles`).
 - 실행 설정: `chatTarget` — 마지막 사용자 메시지의 스킬에 옵션이 있고 그 provider가 등록돼 있으면 그 턴만 스킬 설정(비운 모델·노력치는 그 provider 연결 기본값), 아니면 세션 설정. 제목·요약은 세션 설정. 실패 후 대체 provider로 다시 시도하면 스킬 설정을 무시한다. 원격 피어가 보낸 스킬 옵션은 PC CLI(claude·codex)일 때만 따르고(ADR-031과 같은 범위), 같은 PC 세션 창은 모두 따른다. 웹·모바일의 고급 옵션은 PC 에이전트만 고른다.
 - 호환: 새 클라이언트가 파일·옵션이 있는 스킬을 이전 버전 PC로 보내면 PC 검증(키 엄격)에서 거절된다 — PC를 먼저 업데이트한다.
+
+### ADR-040 · 2026-10-14 · `rhymebook serve` 헤드리스 호스트 (ADR-026 "헤드리스 bridge는 sync 미지원"·ADR-028 "렌더러 없는 호스트" 기각 일부 대체)
+- 배경: 사용자 요청 — `rhymebook serve` 한 줄로 서버를 켜고 모바일 앱이 연결해 쓰게. 지금은 데스크톱 앱(트레이)만 호스트가 될 수 있다.
+- 결정: 새 패키지 `packages/server`(bin `rhymebook`)가 Node 프로세스 안에서 core 스토어·sync host와 bridge 원격 서버를 조립한다. 렌더러 코드를 옮기지 않고 core에 이미 있는 순수 조각(`createAppStore`·`createRuntimeRegistry`·`createSyncHost`)과 bridge(`createBridgeServer`·`createRemoteServer({sync})`)만 쓴다. CLI provider는 같은 프로세스의 BridgeServer에 붙인 `createBridgeProviders`.
+- 저장: 데스크톱 IndexedDB 대신 `<dir>/data.json`(core `StoredData`, 디바운스 원자적 쓰기, 0600). 데스크톱 앱과 데이터는 공유하지 않는다(별개 호스트). 페어링 정보는 `<dir>/bridge`. 기본 `<dir>` = `RHYMEBOOK_HOME` | XDG/APPDATA `rhymebook`.
+- 스킬: `<dir>/skills/<name>/SKILL.md` 폴더를 읽기만 해 원격 `sync.skills`로 준다(데스크톱 `skillsDir`를 `@branch/bridge`로 옮겨 공유). 폴더가 없으면 core 기본 예시 스킬.
+- 에이전트: `--agent auto|claude-cli|codex-cli`. auto면 준비된 claude-cli → codex-cli → (환경변수 키가 있으면) anthropic-api → openai-api. API 키는 `ANTHROPIC_API_KEY`·`OPENAI_API_KEY` 환경변수를 메모리에만 둔다.
+- 삭제: 원격 삭제 기본 허용(데스크톱 기본과 같음), `--no-delete`로 끈다.
+- 대안: Electron을 화면 없이 띄우기 — 무겁고 서버(GUI 없는 리눅스)에서 못 씀. 렌더러 번들을 jsdom으로 돌리기 — IndexedDB·DOM 의존이 커서 기각.
+- 이름: 처음 실행 때 컴퓨터 이름으로 정해 `bridge/identity.json`에 저장하고 `--name`을 줄 때만 바꾼다(스모크에서 재시작마다 덮이던 문제 수정).
+- 첫 실행은 data.json을 즉시 저장해 곧바로 종료돼도 설정이 남는다.

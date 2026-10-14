@@ -57,6 +57,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-10 사이드바 우클릭 가지 삭제·새 창으로 열기(데스크톱 세션 창, 중복 허용)·수식($$·$·\[\]·\(\) KaTeX)·분할창 [자리 이동] 메뉴·경계선 ⋯ [자리 바꾸기·방향 전환] (ADR-036, docs/plans/imp-10-plan.md)
 - [x] IMP-11 AI로 스킬 만들기·고치기: 스킬 편집 칸 위 AI 도우미(요청·빠른 요청 칩·실시간 채움·중지·AI 변경 취소), + 메뉴 [AI로 스킬 만들기…] (ADR-037)
 - [x] IMP-12 스킬 고도화: 부수 파일(references/·scripts/·assets/) 보기·추가·가져오기·편집, 데스크톱 스킬 폴더(`<userData>/skills/<name>/SKILL.md`) 열기·폴더 변경 반영·Claude 형식 폴더 가져오기, AI 작성 시 부수 파일 생성·수정·삭제, 고급 옵션(스킬 전용 provider·모델·노력치, 미설정 시 세션 설정) (ADR-038, docs/plans/imp-12-plan.md)
+- [x] IMP-14 `rhymebook serve` 헤드리스 호스트: Electron 없이 서버만 켜고 웹·모바일이 페어링해 사용 (ADR-040, docs/plans/headless-serve-plan.md)
 
 ## Tasks
 
@@ -112,9 +113,13 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP12-T2 | IMP-12 | desktop: 스킬 폴더 IPC `skillsDir.ts`(경로 검증·이름 변경 이동·지운 파일만 삭제·직렬 큐) | agent-desktop | MEDIUM | inherit | default | DONE | 100% | T1 계약 | PASS: 임시 폴더 왕복·경로 거부·이동·frontmatter 유지 스크립트 |
 | IMP12-T3 | IMP-12 | ui: 스킬 파일 편집·폴더 열기·고급 옵션, 폴더 거울·포커스 동기화·묘비, 칩 표시 | lead | HIGH | inherit | default | DONE | 100% | T1·T2 | PASS: e2e skill-assist 4/4 |
 | IMP12-T4 | IMP-12 | 독립 리뷰·수정·패키지 앱 스모크·문서 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: 리뷰 지적 8건 반영, 아래 Latest Integration Result |
+| IMP14-T1 | IMP-14 | skillsDir를 `@branch/bridge`로 이동, server fileRepo + 테스트 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: fileRepo 3 테스트, 데스크톱 typecheck·package:dir |
+| IMP14-T2 | IMP-14 | server engine(헤드리스 조립)·CLI·빌드·통합 테스트(가짜 CLI·실제 ws 페어링) | lead | HIGH | inherit | default | DONE | 100% | T1 | PASS: serve 통합 4 테스트(페어링→질문→답변→재시작 유지·삭제 막기·API 키 비저장), `dist/rhymebook.cjs` |
+| IMP14-T3 | IMP-14 | 독립 리뷰·반영 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: HIGH 0, MEDIUM 2·LOW 1 반영(첫 실행 즉시 저장, 스킬 경로 확인·실패 로그) |
+| IMP14-T4 | IMP-14 | 빌드 산출물 실제 스모크(serve + 원격 웹 페어링·질문)·README·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T3 | PASS: 아래 Latest Integration Result |
 
 ## Active Work
-- 없음 (IMP-12 완료. 트레이 백그라운드 수동 확인과 사람 조치 — docs/BLOCKERS.md)
+- 없음 (IMP-14 완료)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
 
@@ -125,6 +130,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-14 · IMP-14 `rhymebook serve` 헤드리스 호스트(macOS): 새 패키지 `packages/server`(bin `rhymebook`: serve/pair/devices/unpair). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 293·ui 47·bridge 41(+3 skipped)·server 7(+1 skipped 수동 스모크)·relay 9 PASS, `pnpm e2e` 44 passed · 8 skipped. 실제 스모크(빌드 산출물, 실제 claude CLI): 스크립트 클라이언트 페어링 → 새 학습·질문 → "1+1은 2입니다." 스트리밍·저장 → Ctrl+C 정상 종료 → 재시작 후 재연결·데이터 유지. 웹 UI(`pnpm dev`, 390px)에서 "내 PC와 연결하기"에 링크 붙여 넣어 페어링 → 새 학습 질문 → PC CLI 답변 "파란색" 수신, 서버 data.json에 2개 학습 저장. 스모크 중 발견: `--name` 없이 재시작하면 저장된 이름이 컴퓨터 이름으로 덮임 → 수정·회귀 테스트. 첫 실행 강제 종료(SIGKILL)에도 data.json(0600)·예시 스킬 생성 확인. 데스크톱 `package:dir` 재빌드·실행.
 - 2026-10-14 · 개선(질문 삭제, Windows): 대화 목차의 휴지통 버튼·세션 본문 우클릭 "질문 삭제"로 질문+답변 삭제(답변에서 뻗은 가지·서식 함께 삭제, 첫 질문은 삭제 불가, 응답 중 불가). core `deleteTurn`·`turnMessageIds`, sync op `turn.delete`(PC "원격에서 학습 삭제 허용"을 따름). `pnpm typecheck` PASS, lint는 `.claude/worktrees/imp-13` 1건 외 PASS, core 282/284(실패 2 기존 `sync.reset`·자동 제목), ui 47/47, bridge 실패 19는 변경 전과 동일(Windows 환경). Windows `package:dir` 재빌드.
 - 2026-10-14 · 개선(세션 SVG 이미지 출력, Windows): 기존 답변의 SVG/XML/HTML/언어 없는 코드 블록·단독 SVG를 이미지로 렌더하고 원본 코드 펼침 제공. SVG 원문과 가지 offset 유지, 미완성/깨진 SVG는 코드 표시. 단독 SVG 빈 줄·중첩·수식 구분자·앞 코드 예시 회귀 수정(독립 리뷰 완료). `pnpm typecheck` PASS, 변경 파일 eslint·diff check PASS, ui 47/47, SVG E2E desktop/mobile 4/4, 390/1440 스크린샷 확인. 실행 중 기존 앱의 app.asar 잠금으로 기본 `package:dir` EBUSY → 기존 앱을 종료하지 않고 별도 `apps/desktop/release/svg-preview/win-unpacked/rhymebook.exe` 패키징 PASS. 격리 userData에서 실제 패키지 앱 SVG smoke 1/1 PASS·스크린샷 확인. 실행 중인 기존 앱에는 재시작 후 새 빌드를 사용해야 적용됨. 계획: docs/plans/svg-preview-plan.md.
 - 2026-10-14 · 개선(IMP-12 스킬 파일·폴더·전용 provider/모델/노력치, Windows): `pnpm typecheck` PASS, eslint(packages·apps·e2e) PASS — 루트 `pnpm lint`는 다른 세션 워크트리 `.claude/worktrees/imp-13`의 미사용 변수 1건으로 실패. core 274/276(+skill-files·skill-assist 신규, 실패 2는 기존 `sync.reset`·자동 제목)·ui 36/36, e2e `skill-assist` 4/4(desktop·mobile, `CI=1`로 단독 서버 — 다른 세션 e2e 서버 재사용 시 실패했음). 독립 리뷰 지적(긴 파일 AI 덮어쓰기, 앱이 모르는 파일·frontmatter 삭제, 이름 변경 시 바이너리 삭제, 편집 중 폴더 변경 덮어쓰기, 지운 스킬 부활, 이름 정규화 반복, 미닫힘 파일 태그, 원격 칩) 반영. Windows `package:dir` → 격리 userData Playwright `_electron` 스모크 PASS: 시작 시 폴더 생성, 저장 → SKILL.md 옵션·파일 기록, 폴더 수정·추가 파일·Claude 형식 폴더 가져오기, 가져온 스킬 저장 시 `allowed-tools` 유지, 삭제 후 되살아나지 않음.
@@ -149,6 +155,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
   13개 데모 시나리오를 375px/1440px로 스크린샷 검증(콘솔 에러 0). 커밋 `stage-2: 모바일/웹 UI 프로토타입`.
 
 ## Known Issues
+- `rhymebook serve`: 데스크톱 앱과 데이터를 공유하지 않음(별개 호스트). `unpair`는 실행 중인 serve를 다시 시작해야 연결이 끊김. 원격 기기는 PC 스킬을 읽기만 하며 스킬은 `<데이터 폴더>/skills/`를 직접 편집. 터미널 주소 목록의 한글 라벨 정렬이 약간 어긋남(표시만).
 - relay 실행: `pnpm relay` (기본 :8787) + `pnpm bridge -- --pair --relay ws://<relay>:8787 [--relay-only]`. 공개 배포는 TLS 프록시 뒤 wss(B-09).
 - 모바일 실행: `pnpm --filter @branch/mobile build:android` / `build:ios-sim` (Android Studio·Xcode 필요, iOS는 Xcode › Settings › Components에서 iOS 플랫폼 설치). 앱 내 [QR 스캔](카메라 권한) 또는 OS 카메라 → `branch://pair` 딥링크로 페어링. Android minSdk 26.
 - 모바일 상단 바에서 긴 세션 제목은 말줄임 처리됨(의도된 동작).
