@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -5,14 +6,17 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   createAppStore,
+  createBridgeClient,
   createDemoRegistry,
   createRemoteBridgeLink,
   createSyncClient,
   emptyView,
+  encodeWav,
   pairWithBridge,
   syncLinkOf,
   type AppStore,
   type RemotePairing,
+  type SttModelInfo,
   type SyncClient,
   type WebSocketFactory,
 } from '@branch/core';
@@ -56,7 +60,7 @@ async function pair(h: HeadlessHost, url: string): Promise<RemotePairing> {
 }
 
 /** 웹·모바일 앱과 같은 구성: 원격 모드 스토어 + 동기화 클라이언트 */
-async function connect(pairing: RemotePairing): Promise<{ store: AppStore; client: SyncClient }> {
+async function connect(pairing: RemotePairing): Promise<{ store: AppStore; client: SyncClient; link: ReturnType<typeof createRemoteBridgeLink> }> {
   const store: AppStore = createAppStore({
     registry: createDemoRegistry(() => store.getState().connections),
     initial: { view: emptyView(null) },
@@ -67,7 +71,7 @@ async function connect(pairing: RemotePairing): Promise<{ store: AppStore; clien
   clients.push(client);
   client.start();
   await until(() => client.state.getState().status === 'online');
-  return { store, client };
+  return { store, client, link };
 }
 
 const answerOf = (store: AppStore, sessionId: string) =>
@@ -133,6 +137,48 @@ describe('rhymebook serve (헤드리스 호스트)', () => {
     store.getState().deleteSession(sid);
     await until(() => client.state.getState().lastFailure?.code === 'forbidden');
     expect(s.host.store.getState().sessions[sid]).toBeTruthy();
+  });
+
+  it('음성 입력: 원격 기기가 PC 설정을 보고 바꾸고(켜기·모델 받기) 전사한다 (ADR-047)', { timeout: 15000 }, async () => {
+    const BODY = 'tiny-model';
+    const MODEL: SttModelInfo = {
+      id: 'small-q5_1',
+      label: 't',
+      note: '',
+      file: 'ggml-test.bin',
+      size: BODY.length,
+      sha256: createHash('sha256').update(BODY).digest('hex'),
+    };
+    const fakeFetch = (async () => new Response(BODY, { status: 200 })) as typeof fetch;
+    const s = await start({ stt: { binCandidates: [path.join(fixtures, 'fake-whisper.mjs')], fetch: fakeFetch, models: [MODEL] } });
+    const { link } = await connect(await pair(s.host, s.url));
+    const phone = createBridgeClient(link);
+
+    const first = await phone.sttState();
+    expect(first).toMatchObject({ enabled: false, ready: false, engine: true, installed: [] });
+    await phone.sttManage('enable');
+    await phone.sttManage('select', 'small-q5_1');
+    await phone.sttManage('download', 'small-q5_1');
+    let st = await phone.sttState();
+    for (let i = 0; i < 100 && !st.ready; i++) {
+      await new Promise((r) => setTimeout(r, 20));
+      st = await phone.sttState();
+    }
+    expect(st).toMatchObject({ enabled: true, ready: true, model: 'small-q5_1', installed: ['small-q5_1'] });
+    // PC(서버) 데이터 폴더에 저장된다
+    expect(JSON.parse(await readFile(path.join(dir, 'stt', 'settings.json'), 'utf8'))).toMatchObject({ enabled: true, model: 'small-q5_1' });
+    expect(await phone.sttStatus()).toEqual({ enabled: true, ready: true });
+    const wav = encodeWav(new Float32Array(1600), 16_000);
+    expect(await phone.transcribe(Buffer.from(wav).toString('base64'))).toBe(`모델 ${BODY} 길이 ${wav.length} 언어 ko`);
+  });
+
+  it('stt: false면 원격에 지원 안 함으로 답한다', async () => {
+    const s = await start({ stt: false });
+    expect(s.host.stt).toBeNull();
+    const { link } = await connect(await pair(s.host, s.url));
+    const phone = createBridgeClient(link);
+    expect(await phone.sttStatus()).toMatchObject({ enabled: false, ready: false });
+    await expect(phone.sttState()).rejects.toThrow('음성 입력을 지원하지 않습니다');
   });
 
   it('API 키는 저장 파일에 남지 않는다', async () => {

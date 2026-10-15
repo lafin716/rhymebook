@@ -123,10 +123,12 @@ rhymebook.cmd --pair           # Windows (탐색기에서 더블클릭하면 ser
 | `--agent auto\|claude-cli\|codex-cli` | 새 학습 에이전트 (auto: 준비된 claude → codex → API 키 순) |
 | `--no-delete` | 원격 기기의 학습·질문 삭제 막기 |
 | `--relay <url>` / `--relay-only` | NAT 뒤에서 relay로 접속 받기 (아래 Relay 참고) |
+| `--whisper-cli <경로>` | 음성 입력에 쓸 whisper-cli (기본: `BRANCH_WHISPER_CLI` → PATH·Homebrew) |
 | `-v` | 자세한 로그 |
 
 - 앱: 처음 화면 "내 PC와 연결하기"에 링크를 붙여 넣거나 QR 스캔 → 터미널의 bridge 지문과 같은지 확인.
-- 데이터 폴더: `data.json`(학습, 0600), `skills/<이름>/SKILL.md`(원격 기기에 보일 스킬, 처음엔 예시 스킬), `bridge/`(페어링 정보).
+- 데이터 폴더: `data.json`(학습, 0600), `skills/<이름>/SKILL.md`(원격 기기에 보일 스킬, 처음엔 예시 스킬), `bridge/`(페어링 정보), `stt/`(음성 설정·모델).
+- 음성 입력(ADR-047): 서버 PC에 whisper-cli를 설치(macOS `brew install whisper-cpp`, 그 밖은 whisper.cpp 빌드 후 `--whisper-cli`)하면, 페어링한 모바일·웹 앱의 설정 › 음성 입력에서 켜고 모델(190MB·574MB)을 받아 쓸 수 있습니다. 전사는 서버 PC에서만 하고, 시작 화면에 현재 상태가 한 줄로 나옵니다.
 - API 키는 `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` 환경변수로 줍니다(메모리에만 보관, 파일·로그에 남지 않음). CLI는 사용자 본인이 로그인한 공식 CLI를 실행할 뿐 인증 파일을 읽지 않습니다.
 - 데스크톱 앱과 데이터를 공유하지 않습니다(별개 호스트). Ctrl+C로 끄면 진행 중 답변을 멈추고 저장한 뒤 종료합니다.
 

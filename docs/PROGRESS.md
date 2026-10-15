@@ -61,6 +61,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-15 Codex 이미지 생성: 일반 대화에서 image_generation 켜기, 생성 이미지를 답변 첨부로 표시·동기화·저장 (ADR-041)
 - [x] IMP-16 음성으로 질문하기: PC 로컬 whisper.cpp 전사(설정 › 음성에서 켜기·모델 받기), 입력창 마이크, 웹·모바일은 PC 설정을 따름 (ADR-045, docs/plans/voice-input-plan.md)
 - [x] IMP-16b 웹·모바일에서 PC 음성 설정 관리: 켜기·모델 선택·받기(진행률·취소)·지우기 (ADR-046)
+- [x] IMP-16c 헤드리스 `rhymebook serve`도 음성 입력(whisper-cli), 원격 기기에서 설정 관리 (ADR-047)
 
 ## Tasks
 
@@ -126,9 +127,10 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP16-T4 | IMP-16 | ui: 설정 음성 탭·원격 상태, Composer 마이크·녹음·무음 차단, 모바일 권한(iOS·Android) | lead | MEDIUM | inherit | default | DONE | 100% | T1,T3 | PASS: e2e 원격 음성 상태 2/2, 패키지 앱 스크린샷 |
 | IMP16-T5 | IMP-16 | 독립 리뷰·반영·검증·패키지 앱 스모크·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T4 | PASS: 아래 Latest Integration Result |
 | IMP16-T6 | IMP-16 | 원격 음성 설정 관리(`stt.state.get`·`stt.manage`, 원격 설정 화면, 받기 취소 스트림 오류 수정) | lead | MEDIUM | inherit | default | DONE | 100% | T5 | PASS: 아래 Latest Integration Result |
+| IMP16-T7 | IMP-16 | 헤드리스 server STT 엔진 연결(`<dir>/stt`, `--whisper-cli`, 시작 상태 줄, 종료 시 받기 취소), 미지원 bridge 안내 문구 | lead | MEDIUM | inherit | default | DONE | 100% | T6 | PASS: 아래 Latest Integration Result |
 
 ## Active Work
-- 없음 (IMP-16 완료)
+- 없음 (IMP-16 완료, 16c 포함)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
 
@@ -139,6 +141,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-15 · IMP-16c 헤드리스 server 음성 입력(ADR-047): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 326·ui 47·bridge 59(+3 skipped)·relay 9·server 9(+1 skipped; 원격 기기가 서버 음성 설정 켜기·모델 선택·받기 → 전사, `stt: false`면 미지원 응답) PASS. 실제 스모크(빌드 산출물 `dist/rhymebook.cjs serve --pair`, 임시 `--dir`): 시작 화면에 "음성 입력: 꺼짐 · 모델 기본 (정확) (받지 않음) · whisper-cli 없음 — brew install whisper-cpp …" 표시 → 웹(390px)을 주소+코드로 페어링 → 설정 › 음성 입력에서 켜기·가벼운 모델 선택이 서버 `stt/settings.json`에 반영, [받기] 진행률 32% → [취소] 후 `models/` 비어 있음 → 끄기 반영. 이 Mac에는 whisper-cli가 없어 서버 실제 전사는 가짜 whisper 통합 테스트로 확인.
 - 2026-10-15 · IMP-16b 원격 음성 설정 관리(ADR-046): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 326·ui 47·bridge 59(+3 skipped, 5회 반복 안정)·relay 9·server 7(+1 skipped) PASS, `pnpm e2e` 48 passed · 8 skipped. 실제 스모크: `package:dir` 앱(격리 userData)을 호스트로, 웹(390px)을 주소+코드로 페어링 → 설정에 음성 관리 화면 → 토글·가벼운 모델 선택이 PC에 반영, [받기] 후 진행률 35%(PC `download`와 일치)·다른 모델 [받기] 비활성 → [취소] 후 PC `download: null`.
 - 2026-10-15 · IMP-16 음성으로 질문하기(ADR-045, macOS): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 325·ui 47·bridge 55(+3 skipped)·relay 9·server 7(+1 skipped) PASS, `pnpm e2e` 48 passed · 8 skipped. 독립 리뷰 지적 반영: 녹음 준비 실패 시 마이크 해제, WAV 헤더 길이(RIFF·data) 확인, 전사 대기 4건 제한, whisper-cli에 필요한 환경 변수만 전달(+회귀 테스트 3). 실제 스모크(`package:dir` 앱 번들 whisper-cli v1.9.5 Metal, 가벼운 모델): 엔진 직접 전사 2.4s "안녕하세요, 이젠 탐색트리의 시간 복잡도를 설명해 주세요."; 패키지 앱에서 설정 › 음성(켜짐·받음) → 입력창 마이크 → 실제 한국어 음성(getUserMedia 주입) 5초 녹음 → 798ms 후 입력창에 전사문. 무음 녹음은 보내지 않음(가짜 장치 무음 → whisper '고맙습니다' 환각을 막으려 무음 차단 추가). 남은 것: B-11(타 플랫폼 번들·서명), B-12(실기기 마이크).
 - 2026-10-14 · IMP-15 Codex 이미지 생성(ADR-041): `pnpm typecheck`·`pnpm lint` PASS. `pnpm test`는 core 296, ui 47, bridge 44(+3 skipped), server 7(+1 skipped), relay 9 PASS. 가짜 codex로 확인한 항목: generated_images 수집, 이벤트 순서 delta→image→done, 폴더 삭제, 제목 요청에서는 꺼짐, 1MB 넘는 PNG의 JPEG 재압축.

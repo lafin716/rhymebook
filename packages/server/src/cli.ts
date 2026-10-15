@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { createRelayConnector, openBridgeStore } from '@branch/bridge';
-import { keyFingerprint, type HostAgent } from '@branch/core';
+import { keyFingerprint, sttModel, type HostAgent } from '@branch/core';
 import qrcode from 'qrcode-terminal';
 import { createHeadlessHost, defaultHome } from './engine';
 
@@ -13,17 +13,21 @@ import { createHeadlessHost, defaultHome } from './engine';
 const USAGE = `사용법:
   rhymebook serve [--pair] [--port 7777] [--host 0.0.0.0] [--name 이름] [--dir 경로]
                   [--agent auto|claude-cli|codex-cli] [--no-delete]
-                  [--relay wss://relay.example.com] [--relay-only] [-v]
+                  [--relay wss://relay.example.com] [--relay-only]
+                  [--whisper-cli 경로] [-v]
     --dir         데이터 폴더 (기본 $RHYMEBOOK_HOME 또는 ~/.config/rhymebook)
     --agent       새 학습에 쓸 PC 에이전트 (기본 auto: claude → codex → API 키 순)
     --no-delete   원격 기기에서 학습·질문 삭제를 막기
     --relay       NAT 뒤에서도 접속되도록 relay에 아웃바운드로 등록 (E2E 암호화 유지)
     --relay-only  직접 포트를 열지 않고 relay로만 접속 받기
+    --whisper-cli 음성 입력에 쓸 whisper-cli 경로 (기본: $BRANCH_WHISPER_CLI → PATH)
   rhymebook pair            (serve --pair 와 같음)
   rhymebook devices         페어링된 기기 목록
   rhymebook unpair <id|all> 기기 페어링 해제
 
-API 키는 환경변수 ANTHROPIC_API_KEY / OPENAI_API_KEY 로 줄 수 있습니다 (메모리에만 보관).`;
+API 키는 환경변수 ANTHROPIC_API_KEY / OPENAI_API_KEY 로 줄 수 있습니다 (메모리에만 보관).
+음성 입력은 whisper-cli(brew install whisper-cpp 등)가 있으면 쓸 수 있고,
+켜기·모델 받기는 페어링한 앱의 설정 > 음성 입력에서 합니다.`;
 
 const AGENTS: HostAgent[] = ['auto', 'claude-cli', 'codex-cli'];
 
@@ -46,6 +50,7 @@ async function main() {
       'no-delete': { type: 'boolean', default: false },
       relay: { type: 'string', default: process.env.BRANCH_RELAY_URL },
       'relay-only': { type: 'boolean', default: false },
+      'whisper-cli': { type: 'string' },
       verbose: { type: 'boolean', short: 'v', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -94,6 +99,7 @@ async function main() {
     port,
     ...(agent ? { agent } : {}),
     allowDelete: !values['no-delete'],
+    ...(values['whisper-cli'] ? { stt: { binCandidates: [path.resolve(values['whisper-cli'])] } } : {}),
     apiKeys: { 'anthropic-api': process.env.ANTHROPIC_API_KEY, 'openai-api': process.env.OPENAI_API_KEY },
     log,
     onRemoteAction: (op) => log(`원격 조작: ${op.kind}`),
@@ -131,6 +137,13 @@ async function main() {
   const root = host.rootProvider();
   console.log(root ? `새 학습 에이전트: ${root}` : '주의: 사용할 수 있는 에이전트가 없습니다. claude/codex CLI에 로그인하거나 API 키 환경변수를 주세요.');
   if (values['no-delete']) console.log('원격 삭제: 막음');
+  if (host.stt) {
+    const v = await host.stt.state();
+    const model = sttModel(v.model)?.label ?? v.model;
+    const parts = [v.enabled ? '켜짐' : '꺼짐', `모델 ${model}${v.installed.includes(v.model) ? '' : ' (받지 않음)'}`];
+    if (!v.engine) parts.push('whisper-cli 없음 — brew install whisper-cpp 또는 --whisper-cli 경로');
+    console.log(`음성 입력: ${parts.join(' · ')}${v.ready ? '' : '  (앱의 설정 > 음성 입력에서 켜고 모델을 받을 수 있어요)'}`);
+  }
 
   if (values.pair || cmd === 'pair') {
     const session = remote.startPairing();

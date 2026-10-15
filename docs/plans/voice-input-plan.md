@@ -34,5 +34,6 @@
 | V8 | 독립 리뷰 → 수정 → 문서(ADR-045, PROGRESS, BLOCKERS) → 커밋 | V7 | - | DONE |
 | V9 | 원격 관리 프로토콜(`stt.state.get`·`stt.manage`) + 원격 검증 + 테스트 | V8 | MEDIUM | DONE |
 | V10 | 원격 설정 화면 음성 관리(폴링·예전 PC 대체) + 실제 페어링 스모크 + 문서(ADR-046) | V9 | MEDIUM | DONE |
+| V11 | 헤드리스 `rhymebook serve` STT 엔진 연결·`--whisper-cli`·시작 상태 + 통합 테스트 + 서버 스모크 + 문서(ADR-047) | V10 | MEDIUM | DONE |
 
 모델: 현재 세션 모델(Claude Opus 5.5)을 상속, 리뷰는 별도 에이전트.

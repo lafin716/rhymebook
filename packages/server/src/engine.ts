@@ -5,11 +5,14 @@ import {
   createBridgeServer,
   createRemoteServer,
   createSkillsDir,
+  createSttEngine,
   openBridgeStore,
   type BridgeServer,
   type BridgeServerOptions,
   type BridgeStore,
   type RemoteServer,
+  type SttEngine,
+  type SttEngineOptions,
 } from '@branch/bridge';
 import {
   createAppStore,
@@ -44,7 +47,7 @@ import { createFileRepository } from './fileRepo';
  * core 스토어(학습 데이터) + core sync host(웹·모바일 거울) + bridge 원격 서버(페어링·E2E 암호화) + 같은 프로세스의 CLI 실행.
  */
 export interface HeadlessHostOptions {
-  /** 데이터 폴더: data.json, skills/, bridge/ */
+  /** 데이터 폴더: data.json, skills/, bridge/, stt/ */
   dir: string;
   /** 앱에 보일 이름 (주면 저장된 이름을 바꾼다. 처음 기본값: 컴퓨터 이름) */
   name?: string;
@@ -58,6 +61,8 @@ export interface HeadlessHostOptions {
   apiKeys?: Partial<Record<'anthropic-api' | 'openai-api', string>>;
   /** CLI 실행 환경 (테스트에서 가짜 CLI) */
   cliEnv?: BridgeServerOptions['cliEnv'];
+  /** 음성 입력 엔진 설정 (ADR-047). false면 음성 입력을 지원하지 않는다. 기본: <dir>/stt */
+  stt?: Partial<SttEngineOptions> | false;
   /** 연결 상태 다시 확인 주기 */
   refreshMs?: number;
   /** 저장 간격 */
@@ -73,6 +78,8 @@ export interface HeadlessHost {
   bridge: BridgeServer;
   remote: RemoteServer;
   syncHost: SyncHost;
+  /** 음성 전사 엔진 (끈 경우 null). 설정은 앱(원격 기기 포함)의 설정 화면에서 바꾼다 */
+  stt: SttEngine | null;
   /** 새 학습에 쓰일 provider (없으면 설정 기본값) */
   rootProvider(): ProviderId | undefined;
   /** 원격 서버를 연다 (relay 전용이면 부르지 않는다) */
@@ -99,7 +106,9 @@ export async function createHeadlessHost(opts: HeadlessHostOptions): Promise<Hea
   for (const [id, key] of Object.entries(opts.apiKeys ?? {})) if (key) await secrets.set(secretName.apiKey(id), key);
 
   // CLI: 같은 프로세스의 BridgeServer를 core bridge client로 감싼다 (데스크톱 IPC 대신 직접 호출)
-  const bridge = createBridgeServer({ log, ...(opts.cliEnv ? { cliEnv: opts.cliEnv } : {}) });
+  // 음성 입력 (ADR-047): 데스크톱과 같은 whisper-cli 엔진. 켜기·모델 받기는 원격 기기 설정 화면에서 (ADR-046)
+  const stt = opts.stt === false ? null : createSttEngine({ dir: path.join(opts.dir, 'stt'), log, ...opts.stt });
+  const bridge = createBridgeServer({ log, ...(stt ? { stt } : {}), ...(opts.cliEnv ? { cliEnv: opts.cliEnv } : {}) });
   const listeners = new Set<(msg: BridgeServerMsg) => void>();
   const conn = bridge.connect((msg) => queueMicrotask(() => listeners.forEach((l) => l(msg))));
   const bridgeClient = createBridgeClient({
@@ -248,6 +257,7 @@ export async function createHeadlessHost(opts: HeadlessHostOptions): Promise<Hea
     bridge,
     remote: server,
     syncHost,
+    stt,
     rootProvider,
     listen: () => server.listen(),
     async close() {
@@ -259,6 +269,8 @@ export async function createHeadlessHost(opts: HeadlessHostOptions): Promise<Hea
       for (const id of live) appStore.getState().stopStream(id);
       if (live.length) await new Promise((r) => setTimeout(r, 200));
       bridge.shutdown();
+      // 받던 모델은 멈추고 임시 파일을 지운다
+      if (stt) await stt.cancelDownload().catch(() => {});
       syncHost.dispose();
       conn.close();
       await server.close();
