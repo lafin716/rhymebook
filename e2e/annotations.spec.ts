@@ -146,6 +146,56 @@ test('드래그 메뉴의 복사: 선택한 글을 클립보드에 담고 메뉴
   await expect(menu.getByRole('button', { name: '복사', exact: true })).toBeVisible({ timeout: 3000 });
 });
 
+test('드래그 메뉴의 듣기: OpenAI가 실패하면 기기 음성으로 대신 읽는다 (ADR-050)', async ({ page }) => {
+  // 기기 음성은 가짜로 바꿔 무엇을 어떤 언어로 읽었는지 기록한다
+  await page.addInitScript(() => {
+    const w = window as unknown as { __spoken: { text: string; lang: string }[] };
+    w.__spoken = [];
+    const fake = {
+      speak(u: SpeechSynthesisUtterance) {
+        if (u.text) w.__spoken.push({ text: u.text, lang: u.lang });
+        setTimeout(() => (u.onend as (() => void) | null)?.(), 20);
+      },
+      cancel() {},
+      getVoices: () => [],
+      addEventListener() {},
+    };
+    Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true });
+    if (!localStorage.getItem('branch.tts')) localStorage.setItem('branch.tts', JSON.stringify({ engine: 'openai', openaiVoice: 'coral' }));
+  });
+  let requests = 0;
+  await page.route('**/v1/audio/speech', (route) => {
+    requests++;
+    return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: { message: 'You exceeded your current quota' } }) });
+  });
+  const spoken = () => page.evaluate(() => (window as unknown as { __spoken: { text: string; lang: string }[] }).__spoken);
+  await start(page, '듣기 테스트');
+
+  // 1) OpenAI 키 없음 → 요청 없이 기기 음성
+  let menu = await select(page, '가중합');
+  await menu.getByRole('button', { name: '듣기', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '기기 음성으로 읽어요' })).toBeVisible();
+  await expect.poll(spoken).toEqual([{ text: '가중합', lang: 'ko-KR' }]);
+  expect(requests).toBe(0);
+  await page.keyboard.press('Escape');
+
+  // 2) 설정 › 음성에서 키를 넣으면 OpenAI로 요청, 한도 초과(429)면 기기 음성
+  await page.getByRole('button', { name: '설정', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: '설정' });
+  await dialog.getByRole('tab', { name: '음성' }).click();
+  await expect(dialog.getByLabel('OpenAI 음성')).toHaveValue('coral');
+  await dialog.getByLabel('OpenAI API 키').fill('sk-e2e-tts');
+  await dialog.getByRole('button', { name: '저장' }).click();
+  await expect(dialog.getByText(/저장됨/)).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  menu = await select(page, '스케일링');
+  await menu.getByRole('button', { name: '듣기', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '사용 한도' })).toBeVisible();
+  await expect.poll(spoken).toContainEqual({ text: '스케일링', lang: 'ko-KR' });
+  expect(requests).toBe(1);
+});
+
 test('우클릭 모드: 드래그만으로는 메뉴가 뜨지 않고 우클릭하면 뜬다', async ({ page }, info) => {
   test.skip(info.project.name === 'mobile', '모바일은 항상 자동');
   await page.addInitScript(() => localStorage.setItem('branch.selectionTrigger', 'contextmenu'));

@@ -9,6 +9,7 @@ import { usePcOnline } from '../components/PcStatus';
 import { cn } from '../lib/cn';
 import { remoteSttActions, useRemoteSttState, useSttState, useSttStatus, type SttActions } from '../voice/sttStore';
 import { Section, Toggle } from './controls';
+import { SpeechSettings } from './SpeechSettings';
 
 /**
  * 음성 입력 설정 (ADR-045, ADR-046).
@@ -25,11 +26,10 @@ function run(p: Promise<SttState>) {
 
 export function VoiceSettings() {
   const state = useSttState();
-  if (!stt) return null;
-  if (!state) return <p className="text-[13px] text-muted">불러오는 중…</p>;
   return (
     <div className="space-y-5">
-      <VoiceManager state={state} actions={stt} remote={false} />
+      {stt && (state ? <VoiceManager state={state} actions={stt} remote={false} /> : <p className="text-[13px] text-muted">불러오는 중…</p>)}
+      <SpeechSettings />
     </div>
   );
 }

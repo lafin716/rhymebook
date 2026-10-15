@@ -368,3 +368,16 @@
     - Android: `AppWebView`(CapacitorWebView 하위 클래스)가 `startActionMode`를 감싸 메뉴를 `clear()`한다. 액션 모드 자체는 시작시켜 선택 핸들·선택이 유지된다. `capacitor_bridge_layout_main.xml`로 교체.
   - 입력창 예외: JS 가드(`apps/mobile/src/textMenu.ts`)가 포커스된 입력·편집 영역이 있을 때만 로컬 플러그인 `TextMenu.setSuppressed(false)`로 시스템 메뉴(붙여넣기 등)를 돌려준다.
 - 대안: CSS `-webkit-touch-callout: none`·`user-select` — iOS 일부 메뉴만 막고 Android 액션 모드는 못 막으며 선택 자체를 막아 기각. Android `startActionMode`에서 null 반환 — 선택이 바로 풀려 기각. `contextmenu` 이벤트 차단 — 네이티브 선택 메뉴에는 효과 없음.
+
+### ADR-050 · 2026-10-15 · 발음 듣기 — 기기 음성 기본, OpenAI 음성 하나, 실패 시 기기 음성으로 대체
+- 배경: 사용자 요청 — 영어·베트남어 학습용 발음 듣기. 비교 프로토타입(브랜치 `prototype/tts-compare`: 기기/브라우저·macOS say·Piper·클라우드)을 들어 본 결과 "기기 OS가 가장 낫다". 기본은 기기 음성, 선택으로 OpenAI API만 연동하고 활성 음성은 하나, OpenAI가 실패(토큰·한도 부족 등)하면 자동으로 기기 음성으로 읽는다.
+- 결정:
+  - 선택 메뉴(데스크톱 팝업·모바일 하단 바)에 [듣기]/[멈춤] 추가(모바일 5칸, 데스크톱 메뉴 폭 500px). 선택한 글(없으면 앵커 텍스트)을 읽는다. 한 번에 하나, 새로 읽으면 이전 것은 멈춘다.
+  - core `tts.ts`(순수): 글 정리(NFC — 베트남어 조합형 성조 → 완성형, 마크다운 기호·링크 주소 제거, 4000자 제한), 언어 감지(한글 > 라틴이면 ko, 라틴 단어 중 베트남어 글자 단어가 20% 이상이면 vi, 아니면 en), 기기 음성 고르기(정확한 지역 > 같은 언어, 내장 > 기본), OpenAI 합성, 대체 안내 문구.
+  - 기기 음성: `speechSynthesis` + `lang`(vi-VN·en-US·ko-KR) + 맞는 음성. 기기에 그 언어 음성이 없으면 언어별 한 번 "기기 설정에서 음성을 추가하면…" 안내(그래도 OS에 맡겨 읽음).
+  - OpenAI: `POST /v1/audio/speech`, `gpt-4o-mini-tts`, mp3, 설정에서 고른 음성 하나(기본 marin), 언어별 지시(베트남어는 하노이 북부 표준 억양). 키는 기존 보안 저장소의 `apikey:openai-api`(연결 탭의 OpenAI 키와 같음)를 쓰고, 원격 전용 기기는 설정 › 음성에서 직접 넣는다. 오류 분류는 기존 `httpError`/`thrownError` — 키 없음·401(auth), 429(rate-limit: 크레딧·한도), 연결 실패(offline), 5xx(network) → 원인 토스트 + 같은 글을 기기 음성으로 대신 읽기. 중지(aborted)는 대체하지 않는다. 오류 메시지에 키를 넣지 않는다.
+  - 같은 음성·글은 다시 합성하지 않는다(blob URL 30개 캐시, 토큰 절약).
+  - iOS 자동 재생 제한: 누른 순간 무음 WAV와 빈 utterance로 audio·음성을 깨워 두어, 비동기 합성 후 재생·대체 재생이 막히지 않게 한다.
+  - 설정은 기기별(localStorage `branch.tts`, 동기화 안 함) — 키와 기기 음성이 기기마다 다르다. 설정 › 음성 탭은 음성 입력이 없는 플랫폼에서도 항상 보인다(「읽어 주기」 섹션, 미리 듣기 버튼).
+  - 한계: Android WebView에는 `speechSynthesis`가 없어 Android 앱은 "이 기기에서는 음성으로 읽어 줄 수 없어요"만 안내한다(후속: Capacitor TTS 플러그인으로 기기 음성 연결).
+- 대안: 클라우드(Azure 등)를 기본으로 — 비교에서 기기 음성이 낫고 무료·오프라인이라 기각. 여러 OpenAI 음성 혼용(언어별) — 요청대로 하나만. 실패 시 오류만 표시 — 학습 흐름이 끊겨 기각. Piper 등 로컬 신경망 번들 — 용량이 크고 베트남어 품질이 기기 음성보다 낮아 보류.

@@ -15,7 +15,6 @@ import { HostCard } from './HostCard';
 import { RemoteSettings } from './RemoteSettings';
 import { SelectionTriggerField } from './SelectionTriggerField';
 import { VoiceSettings } from './VoiceSettings';
-import { desktop } from '../app/runtime';
 import { providerKind, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 
 type Tab = 'connections' | 'backup' | 'voice' | 'general';
@@ -65,7 +64,7 @@ export function SettingsModal() {
           [
             ['connections', '연결'],
             ['backup', '백업'],
-            ...(desktop?.stt ? ([['voice', '음성']] as const) : []),
+            ['voice', '음성'],
             ['general', '일반'],
           ] as const
         ).map(([t, label]) => (

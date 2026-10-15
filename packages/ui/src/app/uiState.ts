@@ -1,10 +1,11 @@
-import { isMarkColor, type MarkColor } from '@branch/core';
+import { isMarkColor, parseTtsPrefs, type MarkColor, type TtsPrefs } from '@branch/core';
 import { create } from 'zustand';
 
 const SIDEBAR_KEY = 'branch.sidebarCollapsed';
 const TRIGGER_KEY = 'branch.selectionTrigger';
 const QUOTE_KEY = 'branch.quoteCollapsed';
 const FAVORITES_KEY = 'branch.favoriteColors';
+const TTS_KEY = 'branch.tts';
 
 /** 텍스트를 드래그했을 때 가지·서식 메뉴를 띄우는 방식 (PC·웹. 모바일은 항상 자동) */
 export type SelectionTrigger = 'auto' | 'contextmenu';
@@ -28,6 +29,9 @@ interface UiState {
   /** 서식 색 즐겨찾기 (기기별) */
   favoriteColors: MarkColor[];
   toggleFavoriteColor(c: MarkColor): void;
+  /** 읽어 주기 엔진·OpenAI 음성 (기기별. API 키가 기기마다 다르므로 동기화하지 않는다, ADR-050) */
+  tts: TtsPrefs;
+  setTts(patch: Partial<TtsPrefs>): void;
   /** 딥링크로 받은 페어링 링크. 설정 › 원격 Bridge 폼이 가져가면 비운다 */
   pairLink: string | null;
   /** 사이드바에서 끌고 있는 세션 (분할 놓기 영역 표시용) */
@@ -48,6 +52,14 @@ function save(key: string, value: string) {
     localStorage.setItem(key, value);
   } catch {
     /* 저장소 접근 불가 */
+  }
+}
+
+function loadTts(): TtsPrefs {
+  try {
+    return parseTtsPrefs(JSON.parse(load(TTS_KEY) ?? 'null'));
+  } catch {
+    return parseTtsPrefs(null);
   }
 }
 
@@ -86,6 +98,12 @@ export const useUi = create<UiState>((set, get) => ({
     const favoriteColors = cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c].slice(-MAX_FAVORITE_COLORS);
     set({ favoriteColors });
     save(FAVORITES_KEY, JSON.stringify(favoriteColors));
+  },
+  tts: loadTts(),
+  setTts: (patch) => {
+    const tts = { ...get().tts, ...patch };
+    set({ tts });
+    save(TTS_KEY, JSON.stringify(tts));
   },
   pairLink: null,
   dragSessionId: null,

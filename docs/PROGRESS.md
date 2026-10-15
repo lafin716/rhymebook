@@ -64,6 +64,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-16c 헤드리스 `rhymebook serve`도 음성 입력(whisper-cli), 원격 기기에서 설정 관리 (ADR-047)
 - [x] IMP-17 퀴즈: 기본 스킬 `/quiz`(OX·객관식·주관식), 답변 속 ```quiz 블록을 대화창 카드로 한 문제씩 풀이·정오·정답·해설·점수 (ADR-048)
 - [x] IMP-18 선택 메뉴 [복사] 버튼, 모바일 앱은 본문 선택 시 시스템 텍스트 메뉴 숨김(입력창은 유지) (ADR-049)
+- [x] IMP-19 발음 듣기: 선택 메뉴 [듣기], 기기 음성 기본, OpenAI 음성 하나 선택·실패(키·한도·연결) 시 기기 음성으로 대체, 설정 › 음성 「읽어 주기」 (ADR-050)
 
 ## Tasks
 
@@ -135,9 +136,12 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP17-T3 | IMP-17 | 독립 리뷰·반영·검증·패키지 앱·문서 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: 아래 Latest Integration Result |
 | IMP18-T1 | IMP-18 | ui: SelectionMenu [복사](clipboard·execCommand 대체·"복사됨"), 모바일 4칸·데스크톱 440px, e2e | lead | LOW | inherit | default | DONE | 100% | - | PASS: e2e 복사 2/2(desktop·mobile) |
 | IMP18-T2 | IMP-18 | mobile: iOS `TextMenu.swift`(AppWebView·AppViewController·플러그인), Android `AppWebView`·`TextMenuPlugin`·레이아웃, JS 가드(입력창 예외) | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: Android 에뮬레이터 실측, iOS 빌드·실행(길게 누르기 실측은 수동) |
+| IMP19-T1 | IMP-19 | core: `tts.ts`(글 정리·언어 감지·기기 음성 고르기·OpenAI 합성·대체 안내) + 테스트 | lead | LOW | inherit | default | DONE | 100% | - | PASS: core tts 15 |
+| IMP19-T2 | IMP-19 | ui: `voice/speak.ts`(기기/OpenAI·대체·캐시·iOS 깨우기), SelectionMenu [듣기]/[멈춤](모바일 5칸·데스크톱 500px), 설정 `SpeechSettings`(엔진·음성·키·미리 듣기), uiState `branch.tts`, e2e | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: e2e 듣기 2/2(desktop·mobile) |
 
 ## Active Work
-- 없음 (IMP-18 완료)
+- 없음 (IMP-19 완료)
+- 후속: Android 앱 발음 듣기(WebView에 speechSynthesis 없음 → Capacitor TTS 플러그인 연결, ADR-050)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
 
@@ -148,6 +152,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-15 · IMP-19 발음 듣기(ADR-050): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 347(+15)·ui 47·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 54 passed·8 skipped — 새 듣기 테스트 desktop·mobile: OpenAI 키 없음 → 요청 0건·안내 토스트·기기 음성(ko-KR), 설정 › 음성에서 키 저장 → 429 → "사용 한도" 안내·기기 음성 대체·요청 1건. 스크린샷: 모바일 메뉴 5칸·설정 화면(데스크톱·모바일) 확인. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-15 · IMP-18 복사 버튼·모바일 시스템 메뉴 숨김(ADR-049): `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 52 passed·8 skipped(새 복사 테스트 desktop·mobile: 클립보드에 선택 글, "복사됨" 후 메뉴 유지). Android 에뮬레이터(dev 서버 연결 앱): 본문 길게 눌러 선택 → 시스템 메뉴 없음·선택 유지·우리 메뉴 4칸, [복사] 후 키보드 클립보드 제안에 선택 글 → 입력창에서는 붙여넣기 메뉴 정상 → 입력 후 본문 선택 시 다시 숨김. `/quiz` 카드가 모바일 앱에서도 렌더·풀이(정답·해설). iOS 시뮬레이터(iPhone 15 Pro): 빌드·설치·실행·화면 로드 PASS, 길게 누르기 메뉴 실측은 자동화 권한(손쉬운 사용) 없어 미확인 → 실기기 수동 확인(B-08).
 - 2026-10-15 · IMP-17 퀴즈(ADR-048): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 332·ui 47·bridge 59(+3)·relay 9·server 9(+1) PASS(전체 실행 1회에서 core `sync.reset` 타이밍 실패 → 단독 3회·전체 재실행 PASS, 변경과 무관), `pnpm e2e` 50 passed·8 skipped(패키지 전용) — 새 quiz.spec: OX 정답 → 객관식 오답(정답 2번·해설·수식) → 주관식 인정 답 → 2/3 점수 → 새로고침 유지 → 카드 뒤 문장으로 가지(앵커 정확) → 다시 풀기. 독립 리뷰: 차단 0, 모바일 터치 영역 1건 반영. 스크린샷 검증 중 발견·수정: 정답 "2. 보기"가 마크다운 목록이 되던 문제, `.md ol` 번호가 보기에 겹치던 문제, 고른 보기 강조가 약하던 문제.
 - 2026-10-15 · IMP-16c 헤드리스 server 음성 입력(ADR-047): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 326·ui 47·bridge 59(+3 skipped)·relay 9·server 9(+1 skipped; 원격 기기가 서버 음성 설정 켜기·모델 선택·받기 → 전사, `stt: false`면 미지원 응답) PASS. 실제 스모크(빌드 산출물 `dist/rhymebook.cjs serve --pair`, 임시 `--dir`): 시작 화면에 "음성 입력: 꺼짐 · 모델 기본 (정확) (받지 않음) · whisper-cli 없음 — brew install whisper-cpp …" 표시 → 웹(390px)을 주소+코드로 페어링 → 설정 › 음성 입력에서 켜기·가벼운 모델 선택이 서버 `stt/settings.json`에 반영, [받기] 진행률 32% → [취소] 후 `models/` 비어 있음 → 끄기 반영. 이 Mac에는 whisper-cli가 없어 서버 실제 전사는 가짜 whisper 통합 테스트로 확인.

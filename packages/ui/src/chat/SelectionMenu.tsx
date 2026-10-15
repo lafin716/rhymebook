@@ -19,9 +19,11 @@ import {
   Italic,
   MessageSquarePlus,
   Send,
+  Square,
   StickyNote,
   Type,
   Underline,
+  Volume2,
   X,
   ZoomIn,
 } from 'lucide-react';
@@ -40,6 +42,7 @@ import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { cn } from '../lib/cn';
+import { speak, stopSpeaking, useSpeech } from '../voice/speak';
 import { ColorPalette, COLOR_KIND_LABELS, colorLabel, swatchCss, type ColorKind } from './ColorPalette';
 import { openBranch } from './open';
 import { MENU_GAP, placeMenu, readSelection, type PendingBranch } from './selection';
@@ -63,6 +66,7 @@ export function SelectionMenu() {
   const [palette, setPalette] = useState<ColorKind | null>(null);
   const [copied, setCopied] = useState(false);
   const annotations = useApp((s) => s.annotations);
+  const speaking = useSpeech((s) => s.status !== 'idle');
   const dragging = useRef(false);
   const touchingMenu = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -188,6 +192,12 @@ export function SelectionMenu() {
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  /** 선택한 글을 읽어 준다 (ADR-050). 읽는 중이면 멈춘다. 메뉴는 그대로 둔다 */
+  const listen = () => {
+    if (speaking) stopSpeaking();
+    else speak(window.getSelection()?.toString() || pending.anchor.text);
   };
 
   const { messageId, startOffset, endOffset } = pending.anchor;
@@ -402,6 +412,13 @@ export function SelectionMenu() {
       >
         {copied ? '복사됨' : '복사'}
       </MenuButton>
+      <MenuButton
+        size={size}
+        icon={speaking ? <Square size={size === 'lg' ? 17 : 14} /> : <Volume2 size={size === 'lg' ? 18 : 15} />}
+        onClick={listen}
+      >
+        {speaking ? '멈춤' : '듣기'}
+      </MenuButton>
     </>
   );
 
@@ -444,7 +461,7 @@ export function SelectionMenu() {
             paletteView
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-2">{actionButtons('lg')}</div>
+              <div className="grid grid-cols-5 gap-1.5">{actionButtons('lg')}</div>
               <div className="mt-2 border-t border-line pt-2">{toolbar}</div>
             </>
           )}
@@ -454,7 +471,7 @@ export function SelectionMenu() {
     );
   }
 
-  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 440;
+  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 500;
   const pos = placeMenu(pending.rect, { w: width, h: size?.h ?? (custom ? 46 : memo !== null ? 128 : 84) });
   return createPortal(
     <div

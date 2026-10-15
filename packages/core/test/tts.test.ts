@@ -1,0 +1,133 @@
+import { describe, expect, it } from 'vitest';
+import {
+  detectSpeechLang,
+  normalizeSpeechText,
+  parseTtsPrefs,
+  pickDeviceVoice,
+  synthesizeOpenAISpeech,
+  ttsFallbackNotice,
+  type ProviderError,
+} from '../src';
+
+describe('detectSpeechLang', () => {
+  it('베트남어 글자가 든 문장은 vi', () => {
+    expect(detectSpeechLang('Xin chào, tôi là sinh viên.')).toBe('vi');
+    expect(detectSpeechLang('Cảm ơn')).toBe('vi');
+    expect(detectSpeechLang('đi')).toBe('vi');
+  });
+  it('조합형(NFD) 베트남어도 vi', () => {
+    expect(detectSpeechLang('Cảm ơn bạn'.normalize('NFD'))).toBe('vi');
+  });
+  it('영어는 en, 성조 없는 베트남어 단어만 있으면 en으로 본다', () => {
+    expect(detectSpeechLang('The quick brown fox')).toBe('en');
+    expect(detectSpeechLang('pho')).toBe('en');
+    expect(detectSpeechLang('café latte with milk and sugar, please')).toBe('en');
+  });
+  it('한글이 더 많으면 ko, 영어 단어가 섞인 설명은 글자 수로', () => {
+    expect(detectSpeechLang('안녕하세요')).toBe('ko');
+    expect(detectSpeechLang('apple은 사과라는 뜻이에요')).toBe('ko');
+    expect(detectSpeechLang('pronunciation 발음')).toBe('en');
+  });
+  it('글자가 없으면 en', () => {
+    expect(detectSpeechLang('123 !?')).toBe('en');
+  });
+});
+
+describe('normalizeSpeechText', () => {
+  it('NFC로 합치고 마크다운 기호·링크 주소·공백을 정리한다', () => {
+    const nfd = 'Cảm ơn'.normalize('NFD');
+    expect(normalizeSpeechText(nfd)).toBe('Cảm ơn');
+    expect(normalizeSpeechText(nfd).length).toBe('Cảm ơn'.length);
+    expect(normalizeSpeechText('**bold** `code`\n\n# Title [link](https://x.y)')).toBe('bold code Title link');
+  });
+  it('길이를 자른다', () => {
+    expect(normalizeSpeechText('a'.repeat(10), 4)).toBe('aaaa');
+  });
+});
+
+describe('parseTtsPrefs', () => {
+  it('기본값은 기기 음성', () => {
+    expect(parseTtsPrefs(null)).toEqual({ engine: 'device', openaiVoice: 'marin' });
+    expect(parseTtsPrefs({ engine: 'x', openaiVoice: 'nope' })).toEqual({ engine: 'device', openaiVoice: 'marin' });
+  });
+  it('알려진 값은 그대로', () => {
+    expect(parseTtsPrefs({ engine: 'openai', openaiVoice: 'coral' })).toEqual({ engine: 'openai', openaiVoice: 'coral' });
+  });
+});
+
+describe('pickDeviceVoice', () => {
+  const voices = [
+    { name: 'Samantha', lang: 'en-US', localService: true, default: true },
+    { name: 'Google Tiếng Việt', lang: 'vi-VN', localService: false },
+    { name: 'Linh', lang: 'vi-VN', localService: true },
+    { name: 'Daniel', lang: 'en-GB', localService: true },
+    { name: 'Yuna', lang: 'ko_KR', localService: true },
+  ];
+  it('정확한 지역 + 내장 음성을 우선한다', () => {
+    expect(pickDeviceVoice(voices, 'vi')?.name).toBe('Linh');
+    expect(pickDeviceVoice(voices, 'en')?.name).toBe('Samantha');
+    expect(pickDeviceVoice(voices, 'ko')?.name).toBe('Yuna');
+  });
+  it('같은 언어 다른 지역도 쓰고, 없으면 null', () => {
+    expect(pickDeviceVoice([voices[3]!], 'en')?.name).toBe('Daniel');
+    expect(pickDeviceVoice([voices[0]!], 'vi')).toBeNull();
+  });
+});
+
+describe('synthesizeOpenAISpeech', () => {
+  it('음성 하나·언어 지시로 요청하고 바이트를 돌려준다', async () => {
+    let url = '';
+    let init: RequestInit | undefined;
+    const buf = await synthesizeOpenAISpeech({
+      apiKey: ' sk-test ',
+      text: 'Xin chào',
+      voice: 'coral',
+      lang: 'vi',
+      baseUrl: 'http://mock/',
+      fetch: async (u, i) => {
+        url = u;
+        init = i;
+        return new Response(new Uint8Array([1, 2, 3]));
+      },
+    });
+    expect(new Uint8Array(buf)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(url).toBe('http://mock/v1/audio/speech');
+    expect((init?.headers as Record<string, string>).authorization).toBe('Bearer sk-test');
+    const body = JSON.parse(init?.body as string) as Record<string, string>;
+    expect(body).toMatchObject({ model: 'gpt-4o-mini-tts', voice: 'coral', input: 'Xin chào', response_format: 'mp3' });
+    expect(body.instructions).toMatch(/Hanoi/);
+  });
+
+  it('키가 없으면 auth, 한도 초과(429)는 rate-limit, 연결 실패는 offline', async () => {
+    const fail = (p: Promise<unknown>) => p.then(() => null, (e: ProviderError) => e.code);
+    const base = { text: 'hi', voice: 'marin' as const, lang: 'en' as const };
+    expect(await fail(synthesizeOpenAISpeech({ ...base, apiKey: '', fetch: async () => new Response('') }))).toBe('auth');
+    const quota = async () => new Response(JSON.stringify({ error: { message: 'You exceeded your current quota' } }), { status: 429 });
+    expect(await fail(synthesizeOpenAISpeech({ ...base, apiKey: 'sk-x', fetch: quota }))).toBe('rate-limit');
+    expect(await fail(synthesizeOpenAISpeech({ ...base, apiKey: 'sk-x', fetch: async () => new Response('{}', { status: 401 }) }))).toBe('auth');
+    const offline = async () => {
+      throw new TypeError('Failed to fetch');
+    };
+    expect(await fail(synthesizeOpenAISpeech({ ...base, apiKey: 'sk-x', fetch: offline }))).toBe('offline');
+  });
+
+  it('오류 메시지에 키가 들어가지 않는다', async () => {
+    const err = await synthesizeOpenAISpeech({
+      apiKey: 'sk-secret-123456',
+      text: 'hi',
+      voice: 'marin',
+      lang: 'en',
+      fetch: async () => new Response(JSON.stringify({ error: { message: 'bad' } }), { status: 400 }),
+    }).catch((e: ProviderError) => e);
+    expect(JSON.stringify(err)).not.toContain('sk-secret');
+  });
+});
+
+describe('ttsFallbackNotice', () => {
+  it('원인별 안내, 중지는 대체하지 않는다', () => {
+    expect(ttsFallbackNotice('rate-limit')).toMatch(/한도.*기기 음성/);
+    expect(ttsFallbackNotice('auth')).toMatch(/키/);
+    expect(ttsFallbackNotice(undefined)).toMatch(/기기 음성/);
+    expect(ttsFallbackNotice('aborted')).toBeNull();
+  });
+});

@@ -13,6 +13,7 @@ import { saveTextFile } from '../lib/download';
 import { Field, Section, Segmented } from './controls';
 import { PairForm } from './connectionCards';
 import { SelectionTriggerField } from './SelectionTriggerField';
+import { SpeechSettings } from './SpeechSettings';
 import { RemoteVoiceSettings } from './VoiceSettings';
 
 /**
@@ -29,6 +30,8 @@ export function RemoteSettings() {
       </Section>
 
       <RemoteVoiceSettings />
+
+      <SpeechSettings />
 
       <Section title="화면">
         <Field label="테마">
