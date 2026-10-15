@@ -7,7 +7,7 @@
 - 데스크톱 설정 › 음성: 사용 토글, 모델(기본/가벼운) 선택, [모델 받기](진행률·취소·검증), 삭제.
 - 켜져 있고 모델·엔진이 준비되면 입력창에 마이크 버튼이 보인다(데스크톱·웹·모바일 공통). 끄면 사라진다.
 - 녹음 → 16kHz mono WAV → bridge `stt.transcribe` → 결과가 입력창에 들어가 수정 후 보낸다.
-- 원격 기기는 `stt.status.get`/`stt.transcribe`만 할 수 있다(관리 불가).
+- 원격 기기도 `stt.state.get`/`stt.manage`로 PC 음성 설정을 보고 바꾼다(ADR-046, 처음에는 관리 불가였음).
 
 ## 범위 밖
 - Windows/Linux whisper-cli 번들(BLOCKERS), 헤드리스 server의 STT(‘지원 안 함’ 응답), 실시간 스트리밍 전사.
@@ -32,5 +32,7 @@
 | V6 | 모바일 권한(iOS/Android) | - | LOW | DONE |
 | V7 | 검증(typecheck/lint/test/e2e) + 앱 빌드 + 실제 모델 받기·전사 | 전부 | - | DONE |
 | V8 | 독립 리뷰 → 수정 → 문서(ADR-045, PROGRESS, BLOCKERS) → 커밋 | V7 | - | DONE |
+| V9 | 원격 관리 프로토콜(`stt.state.get`·`stt.manage`) + 원격 검증 + 테스트 | V8 | MEDIUM | DONE |
+| V10 | 원격 설정 화면 음성 관리(폴링·예전 PC 대체) + 실제 페어링 스모크 + 문서(ADR-046) | V9 | MEDIUM | DONE |
 
 모델: 현재 세션 모델(Claude Opus 5.5)을 상속, 리뷰는 별도 에이전트.

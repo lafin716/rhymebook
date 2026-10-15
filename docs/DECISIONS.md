@@ -326,3 +326,13 @@
   - 권한: macOS `NSMicrophoneUsageDescription`(+ Electron 미디어 권한 허용), iOS 같은 키, Android `RECORD_AUDIO`·`MODIFY_AUDIO_SETTINGS`(Capacitor WebChromeClient가 런타임 권한 요청).
 - UX(UX-SPEC은 그대로, 여기 기록): 데스크톱 설정에 [음성] 탭(사용 토글·상태, 모델 목록: 선택·받기/진행률·취소/지우기). 웹·모바일 설정의 원격 화면에 "음성 입력 — PC 설정을 따릅니다" 상태. 입력창의 마이크 버튼(녹음 중 경과 초·끝내기, 변환 중 표시).
 - 대안: Web Speech API — 브라우저·OS마다 다르고 Chrome은 Google 서버로 음성을 보내며 Electron에서 동작하지 않아 기각. OpenAI Whisper API — 유료·키 필요라 기본값으로 기각(추후 API 키 provider로 추가 가능). 휴대폰에서 직접 whisper 실행 — 모델 용량·성능 부담이 커서 기각. whisper.cpp 서버 모드 상주 — 메모리를 계속 잡아서 기각(녹음마다 실행, Metal에서 1초 내외).
+
+### ADR-046 · 2026-10-15 · 웹·모바일에서 PC 음성 설정 관리 (ADR-045 변경)
+- 배경: 사용자 요청 — "모바일앱에서도 PC의 음성 설정을 할 수 있게". ADR-045는 켜기·모델·받기·지우기를 데스크톱 IPC로만 허용했다.
+- 결정: 페어링된 기기도 PC 음성 설정을 보고 바꿀 수 있다. 페어링 자체가 PC의 CLI 실행을 맡기는 신뢰 관계이고, 바꿀 수 있는 것은 켜기·모델 선택·카탈로그 모델 받기·지우기뿐이다(임의 URL·경로 없음).
+  - 프로토콜: `stt.state.get` → `stt.state{state: SttState}`, `stt.manage{op: enable|disable|select|download|cancel|remove, model?}` → `stt.state` 또는 `stt.error`. 원격 호스트 검증은 op 목록과 `isSttModelId`를 확인하고, 모델이 필요 없는 op에서는 model을 버린다. 엔진이 없는 bridge(헤드리스 server)는 `STT_UNSUPPORTED`.
+  - `download`는 시작만 하고 바로 상태를 돌려준다(수백 MB라 요청을 붙잡지 않음). 진행률·실패는 `state.download`·`state.error`로 본다. 다른 모델을 받는 중이면 거절, 이미 받았거나 받는 중이면 그대로 돌려준다.
+  - UI: 웹·모바일 설정의 원격 화면이 데스크톱과 같은 음성 관리 화면(`VoiceManager`)을 쓴다. PC와 연결된 동안만 상태를 물으며, 받는 중에는 1초, 아니면 10초마다 갱신한다. 원격 문구로 "여기서 바꾼 설정은 PC와 연결된 모든 기기에 함께 적용"·"받는 동안 화면을 닫아도 PC가 계속 받음"을 알린다. 연결 전이거나 새 메시지를 모르는 예전 PC(오류·시간 초과)면 읽기 전용 상태("PC 설정을 따릅니다")로 돌아간다.
+  - 데스크톱은 그대로 IPC로 관리한다(내장 bridge 허용 목록에 새 메시지를 넣지 않음).
+  - 함께 고침: 모델 받기 취소 시 대기 중인 파일 쓰기가 `ERR_STREAM_DESTROYED`를 처리되지 않은 오류로 던질 수 있었다(main 프로세스 종료 위험). 쓰기 스트림에 error 처리를 붙이고 drain 대기에서 리스너를 정리한다.
+- 대안: 원격에서 받기를 끝날 때까지 기다리기 — 수 분짜리 요청이 연결 끊김·시간 초과에 약해 기각. sync 채널로 상태 푸시 — 음성 설정은 학습 데이터가 아니고 폴링으로 충분해 기각.

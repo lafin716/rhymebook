@@ -1,4 +1,4 @@
-import type { SttState, SttStatus } from '@branch/core';
+import type { SttManageOp, SttModelId, SttState, SttStatus } from '@branch/core';
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { desktop, sttClient } from '../app/runtime';
@@ -7,14 +7,17 @@ import { usePcOnline } from '../components/PcStatus';
 /**
  * 음성 입력 상태 (ADR-045). 켜짐·모델은 PC 설정이 정하고, 웹·모바일은 페어링된 PC에 물어 따른다.
  * 데스크톱은 IPC 변경 알림으로, 원격은 연결·화면 복귀 때마다 다시 묻는다.
+ * 원격 설정 화면은 PC 설정을 바꿀 수도 있다 (ADR-046).
  */
 interface SttStore {
   status: SttStatus | null;
-  /** 데스크톱 설정 화면용 전체 상태 */
+  /** 설정 화면용 전체 상태 */
   state: SttState | null;
+  /** 원격: 전체 상태를 못 받았을 때(이전 버전 PC 등) 이유 */
+  stateError: string | null;
 }
 
-export const useSttStore = create<SttStore>(() => ({ status: null, state: null }));
+export const useSttStore = create<SttStore>(() => ({ status: null, state: null, stateError: null }));
 
 const sttApi = desktop?.stt;
 const OFF: SttStatus = { enabled: false, ready: false };
@@ -83,4 +86,66 @@ export function useSttState(): SttState | null {
     void refreshStt();
   }, []);
   return state;
+}
+
+let stateInflight: Promise<void> | null = null;
+
+/** 원격 설정 화면: PC의 전체 상태를 다시 받는다 (느린 연결에서 요청이 쌓이지 않게 하나씩) */
+function refreshRemoteState(): Promise<void> {
+  stateInflight ??= (async () => {
+    try {
+      const state = await sttClient.client.sttState();
+      useSttStore.setState({ state, status: pick(state), stateError: null });
+    } catch (e) {
+      useSttStore.setState({ stateError: e instanceof Error ? e.message : '음성 설정을 불러오지 못했습니다.' });
+    } finally {
+      stateInflight = null;
+    }
+  })();
+  return stateInflight;
+}
+
+/** 원격에서 PC 음성 설정을 바꾼다. 바뀐 상태를 바로 반영한다 */
+async function manageRemote(op: SttManageOp, model?: SttModelId): Promise<SttState> {
+  const state = await sttClient.client.sttManage(op, model);
+  useSttStore.setState({ state, status: pick(state), stateError: null });
+  return state;
+}
+
+/** 설정 화면의 동작 (데스크톱 IPC와 원격 bridge가 같은 모양) */
+export interface SttActions {
+  setEnabled(enabled: boolean): Promise<SttState>;
+  setModel(model: SttModelId): Promise<SttState>;
+  download(model: SttModelId): Promise<SttState>;
+  cancelDownload(): Promise<SttState>;
+  remove(model: SttModelId): Promise<SttState>;
+}
+
+export const remoteSttActions: SttActions = {
+  setEnabled: (v) => manageRemote(v ? 'enable' : 'disable'),
+  setModel: (m) => manageRemote('select', m),
+  download: (m) => manageRemote('download', m),
+  cancelDownload: () => manageRemote('cancel'),
+  remove: (m) => manageRemote('remove', m),
+};
+
+/** 받는 중이면 진행률을 자주, 아니면 PC에서 바뀐 것을 가끔 확인한다 */
+const POLL_DOWNLOADING_MS = 1_000;
+const POLL_IDLE_MS = 10_000;
+
+/** 원격 설정 화면: PC의 전체 상태. 연결돼 있을 때만 묻는다 */
+export function useRemoteSttState(online: boolean): { state: SttState | null; error: string | null } {
+  const state = useSttStore((s) => s.state);
+  const error = useSttStore((s) => s.stateError);
+  const downloading = !!state?.download;
+  useEffect(() => {
+    if (!online) return;
+    void refreshRemoteState();
+    const timer = window.setInterval(
+      () => document.visibilityState === 'visible' && void refreshRemoteState(),
+      downloading ? POLL_DOWNLOADING_MS : POLL_IDLE_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, [online, downloading]);
+  return { state: online ? state : null, error };
 }

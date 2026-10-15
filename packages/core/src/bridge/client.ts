@@ -1,8 +1,8 @@
 import { newId } from '../id';
 import type { ProviderId } from '../model';
 import { PROVIDER_LABELS, providerError, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
-import type { SttStatus } from '../stt';
-import type { BridgeClientMsg, BridgeServerMsg, BridgeStatus, CliProviderId } from './protocol';
+import type { SttModelId, SttState, SttStatus } from '../stt';
+import type { BridgeClientMsg, BridgeServerMsg, BridgeStatus, CliProviderId, SttManageOp } from './protocol';
 import { CLI_PROVIDER_IDS } from './protocol';
 
 /** 메시지 전송로. Electron IPC, WebSocket 모두 이 모양으로 감싼다 */
@@ -32,6 +32,10 @@ export interface BridgeClient {
   stream(providerId: CliProviderId, req: StreamRequest): AsyncIterable<StreamEvent>;
   /** PC의 음성 입력 상태 (ADR-045) */
   sttStatus(): Promise<SttStatus>;
+  /** PC의 음성 설정 전체 상태 (원격 설정 화면, ADR-046) */
+  sttState(): Promise<SttState>;
+  /** PC의 음성 설정을 바꾸고 바뀐 상태를 돌려준다. download는 시작만 하고 바로 돌아온다 */
+  sttManage(op: SttManageOp, model?: SttModelId): Promise<SttState>;
   /** 녹음(16kHz mono WAV base64)을 PC에서 전사한다. 실패하면 사용자에게 보여줄 문구로 throw */
   transcribe(audio: string, signal?: AbortSignal): Promise<string>;
 }
@@ -67,6 +71,8 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
       }
     });
   }
+
+  const pickState = (m: BridgeServerMsg) => (m.type === 'stt.state' ? { ok: m.state } : m.type === 'stt.error' ? { err: m.error } : null);
 
   /** reqId 하나에 응답 하나인 요청 (stt.*) */
   function request<T>(
@@ -111,6 +117,24 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         (m) => (m.type === 'stt.status' ? { ok: m.stt } : m.type === 'stt.error' ? { err: m.error } : null),
         opts.sttStatusTimeoutMs ?? 10_000,
         '음성 입력 상태를 확인하지 못했습니다.',
+      );
+    },
+
+    sttState() {
+      return request<SttState>(
+        { type: 'stt.state.get', reqId: newId('sg') },
+        pickState,
+        opts.sttStatusTimeoutMs ?? 10_000,
+        '음성 설정을 불러오지 못했습니다.',
+      );
+    },
+
+    sttManage(op, model) {
+      return request<SttState>(
+        { type: 'stt.manage', reqId: newId('sm'), op, ...(model ? { model } : {}) },
+        pickState,
+        opts.sttStatusTimeoutMs ?? 10_000,
+        '음성 설정을 바꾸지 못했습니다.',
       );
     },
 

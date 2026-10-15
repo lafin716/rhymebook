@@ -174,6 +174,11 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
     const res = await doFetch(sttModelUrl(m), { signal: d.ac.signal });
     if (!res.ok || !res.body) throw new Error(`모델 서버 응답 오류 (${res.status})`);
     const out = createWriteStream(part, { mode: 0o600 });
+    // 취소로 destroy한 뒤 끝나는 쓰기의 오류가 처리되지 않은 예외로 번지지 않게 받아 둔다
+    let writeError: Error | null = null;
+    out.on('error', (e) => {
+      writeError ??= e;
+    });
     const hash = createHash('sha256');
     let lastEmit = 0;
     try {
@@ -181,10 +186,18 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (writeError) throw writeError;
         d.received += value.byteLength;
         if (d.received > m.size) throw new Error('모델 크기가 예상과 다릅니다.');
         hash.update(value);
-        if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
+        if (!out.write(value)) {
+          await new Promise<void>((resolve, reject) => {
+            const onDrain = () => (out.off('error', onError), resolve());
+            const onError = (e: Error) => (out.off('drain', onDrain), reject(e));
+            out.once('drain', onDrain);
+            out.once('error', onError);
+          });
+        }
         if (Date.now() - lastEmit > 300) {
           lastEmit = Date.now();
           emit();

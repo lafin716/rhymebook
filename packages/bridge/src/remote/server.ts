@@ -16,7 +16,11 @@ import {
   verifyTranscript,
   validateSyncClientMsg,
   isSttAudio,
+  isSttModelId,
   isSyncClientType,
+  STT_MANAGE_MODEL_OPS,
+  STT_MANAGE_OPS,
+  type SttManageOp,
   SYNC_LIMITS,
   type AuthReason,
   type AuthRequest,
@@ -113,6 +117,13 @@ export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
   if (m.type === 'chat.abort') return { type: 'chat.abort', reqId };
   if (m.type === 'stt.status.get') return { type: 'stt.status.get', reqId };
   if (m.type === 'stt.transcribe') return isSttAudio(m.audio) ? { type: 'stt.transcribe', reqId, audio: m.audio } : null;
+  if (m.type === 'stt.state.get') return { type: 'stt.state.get', reqId };
+  if (m.type === 'stt.manage') {
+    const op = m.op as SttManageOp;
+    if (!STT_MANAGE_OPS.includes(op)) return null;
+    if (!STT_MANAGE_MODEL_OPS.includes(op)) return { type: 'stt.manage', reqId, op };
+    return isSttModelId(m.model) ? { type: 'stt.manage', reqId, op, model: m.model } : null;
+  }
   if (m.type !== 'chat.start') return null;
   if (m.providerId !== 'claude-cli' && m.providerId !== 'codex-cli') return null;
   if (typeof m.system !== 'string' || !Array.isArray(m.messages)) return null;

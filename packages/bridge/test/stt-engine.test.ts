@@ -184,4 +184,54 @@ describe('bridge server stt', () => {
     expect(validateClientMsg({ type: 'stt.transcribe', reqId: 'a', audio: 'not base64!' })).toBeNull();
     expect(validateClientMsg({ type: 'stt.transcribe', reqId: 'a' })).toBeNull();
   });
+
+  it('lets a paired device manage the PC settings over the protocol (ADR-046)', async () => {
+    const { stt } = engine(fakeFetch(BODY, { hang: true }));
+    const c = link(stt);
+    expect((await c.sttManage('enable')).enabled).toBe(true);
+    expect((await c.sttManage('select', 'small-q5_1')).model).toBe('small-q5_1');
+    // 받기는 시작만 하고 바로 돌아온다
+    const started = await c.sttManage('download', 'small-q5_1');
+    expect(started.download?.model).toBe('small-q5_1');
+    expect((await c.sttState()).detail).toBe('음성 모델을 받는 중입니다.');
+    await expect(c.sttManage('remove', 'small-q5_1')).rejects.toThrow('받는 중인 모델');
+    const cancelled = await c.sttManage('cancel');
+    expect(cancelled.download).toBeNull();
+    expect(cancelled.error).toBeUndefined();
+    expect((await c.sttManage('disable')).enabled).toBe(false);
+  });
+
+  it('reports remote download completion and removal through state', async () => {
+    const { stt } = engine();
+    const c = link(stt);
+    await c.sttManage('select', 'small-q5_1');
+    await c.sttManage('enable');
+    await c.sttManage('download', 'small-q5_1');
+    await expect.poll(async () => (await c.sttState()).ready).toBe(true);
+    // 이미 받은 모델은 다시 받지 않는다
+    expect((await c.sttManage('download', 'small-q5_1')).download).toBeNull();
+    const removed = await c.sttManage('remove', 'small-q5_1');
+    expect(removed.installed).toEqual([]);
+    expect(removed.detail).toBe('음성 모델을 받아야 합니다.');
+  });
+
+  it('answers management unsupported without an engine', async () => {
+    const c = link();
+    await expect(c.sttState()).rejects.toThrow('지원하지 않습니다');
+    await expect(c.sttManage('enable')).rejects.toThrow('지원하지 않습니다');
+  });
+
+  it('remote validation accepts known management ops with valid models only', () => {
+    expect(validateClientMsg({ type: 'stt.state.get', reqId: 'a' })).toEqual({ type: 'stt.state.get', reqId: 'a' });
+    expect(validateClientMsg({ type: 'stt.manage', reqId: 'a', op: 'enable', model: 'x' })).toEqual({ type: 'stt.manage', reqId: 'a', op: 'enable' });
+    expect(validateClientMsg({ type: 'stt.manage', reqId: 'a', op: 'download', model: 'small-q5_1' })).toEqual({
+      type: 'stt.manage',
+      reqId: 'a',
+      op: 'download',
+      model: 'small-q5_1',
+    });
+    expect(validateClientMsg({ type: 'stt.manage', reqId: 'a', op: 'download', model: '../../etc' })).toBeNull();
+    expect(validateClientMsg({ type: 'stt.manage', reqId: 'a', op: 'remove' })).toBeNull();
+    expect(validateClientMsg({ type: 'stt.manage', reqId: 'a', op: 'format' })).toBeNull();
+  });
 });

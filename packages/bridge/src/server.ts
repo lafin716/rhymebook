@@ -15,6 +15,8 @@ import {
   type BridgeStatus,
   type ChatStartMsg,
   type StreamEvent,
+  type SttManageMsg,
+  type SttState,
 } from '@branch/core';
 import { claudeArgs, claudeJsonInput, createClaudeParser } from './claude';
 import { codexArgs, createCodexParser } from './codex';
@@ -60,6 +62,39 @@ const IMAGE_GEN_NOTE =
   '이미지가 필요하면 이미지 생성 도구로 만드세요. 만든 이미지는 앱이 답변 아래에 자동으로 붙이므로 파일 경로나 저장 위치는 말하지 마세요. SVG·ASCII 그림으로 대신하지 마세요.';
 
 const STT_UNSUPPORTED = '이 Bridge는 음성 입력을 지원하지 않습니다.';
+
+/**
+ * 원격 기기의 음성 설정 요청 (ADR-046). 페어링된 기기는 PC 설정 화면과 같은 일을 할 수 있다.
+ * 받기는 수 분 걸리므로 시작만 하고 바로 상태를 돌려준다(진행률·실패는 stt.state.get의 download·error로 본다).
+ */
+async function manageStt(stt: SttEngine, msg: { type: 'stt.state.get' } | SttManageMsg): Promise<SttState> {
+  if (msg.type === 'stt.state.get') return stt.state();
+  const need = () => {
+    if (!msg.model) throw new Error('모델을 골라 주세요.');
+    return msg.model;
+  };
+  switch (msg.op) {
+    case 'enable':
+      return stt.setEnabled(true);
+    case 'disable':
+      return stt.setEnabled(false);
+    case 'select':
+      return stt.setModel(need());
+    case 'cancel':
+      return stt.cancelDownload();
+    case 'remove':
+      return stt.remove(need());
+    case 'download': {
+      const model = need();
+      const now = await stt.state();
+      if (now.download && now.download.model !== model) throw new Error('다른 모델을 받는 중입니다.');
+      if (now.installed.includes(model) || now.download) return now;
+      // 끝날 때까지 기다리지 않는다. 실패는 엔진이 state.error에 남긴다
+      stt.download(model).catch(() => {});
+      return stt.state();
+    }
+  }
+}
 
 const FALLBACK_SYSTEM = '당신은 학습을 돕는 친절한 튜터입니다. 한국어로 짧고 명확하게 답하세요.';
 
@@ -269,6 +304,18 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
             }
             opts.stt.status().then(
               (stt) => safeSend({ type: 'stt.status', reqId, stt }),
+              (e: unknown) => safeSend({ type: 'stt.error', reqId, error: e instanceof Error ? e.message : String(e) }),
+            );
+            return;
+          }
+          if (msg.type === 'stt.state.get' || msg.type === 'stt.manage') {
+            const reqId = msg.reqId;
+            if (!opts.stt) {
+              safeSend({ type: 'stt.error', reqId, error: STT_UNSUPPORTED });
+              return;
+            }
+            manageStt(opts.stt, msg).then(
+              (state) => safeSend({ type: 'stt.state', reqId, state }),
               (e: unknown) => safeSend({ type: 'stt.error', reqId, error: e instanceof Error ? e.message : String(e) }),
             );
             return;

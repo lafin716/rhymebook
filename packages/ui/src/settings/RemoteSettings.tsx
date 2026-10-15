@@ -13,7 +13,7 @@ import { saveTextFile } from '../lib/download';
 import { Field, Section, Segmented } from './controls';
 import { PairForm } from './connectionCards';
 import { SelectionTriggerField } from './SelectionTriggerField';
-import { RemoteVoiceStatus } from './VoiceSettings';
+import { RemoteVoiceSettings } from './VoiceSettings';
 
 /**
  * 원격 전용 설정 (웹·모바일, ADR-026).
@@ -28,7 +28,7 @@ export function RemoteSettings() {
         <PcCard />
       </Section>
 
-      <RemoteVoiceStatus />
+      <RemoteVoiceSettings />
 
       <Section title="화면">
         <Field label="테마">

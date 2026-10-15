@@ -109,6 +109,23 @@ describe('bridge client stt', () => {
     expect(await c.transcribe('UklGRg==')).toBe('len:8');
   });
 
+  it('reads and manages the PC settings (ADR-046)', async () => {
+    const sent: unknown[] = [];
+    const state = { enabled: true, ready: false, model: 'small-q5_1', installed: [], engine: true, download: null } as const;
+    const { t } = transport((m, reply) => {
+      sent.push(m);
+      if (m.type === 'stt.state.get') reply({ type: 'stt.state', reqId: m.reqId, state: { ...state, installed: [] } });
+      if (m.type === 'stt.manage' && m.op === 'remove') reply({ type: 'stt.error', reqId: m.reqId, error: '받는 중인 모델은 지울 수 없습니다.' });
+      else if (m.type === 'stt.manage') reply({ type: 'stt.state', reqId: m.reqId, state: { ...state, installed: [], enabled: m.op !== 'disable' } });
+    });
+    const c = createBridgeClient(t);
+    expect((await c.sttState()).model).toBe('small-q5_1');
+    expect((await c.sttManage('disable')).enabled).toBe(false);
+    await expect(c.sttManage('remove', 'small-q5_1')).rejects.toThrow('받는 중인 모델');
+    expect(sent).toContainEqual(expect.objectContaining({ type: 'stt.manage', op: 'remove', model: 'small-q5_1' }));
+    expect(sent).toContainEqual(expect.not.objectContaining({ model: expect.anything() }));
+  });
+
   it('rejects with the bridge error, unsupported servers, abort and disconnect', async () => {
     const { t, close } = transport((m, reply) => {
       if (m.type === 'stt.transcribe' && m.audio === 'QQ==') reply({ type: 'stt.error', reqId: m.reqId, error: '모델이 없습니다.' });

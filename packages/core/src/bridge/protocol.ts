@@ -1,6 +1,6 @@
 import type { Attachment, ProviderId } from '../model';
 import type { Availability, ChatTurn, ProviderError } from '../provider';
-import type { SttStatus } from '../stt';
+import type { SttModelId, SttState, SttStatus } from '../stt';
 
 /**
  * Bridge 프로토콜 (JSON 메시지). Electron IPC(내장)와 WebSocket(헤드리스/원격)이 같은 메시지를 쓴다.
@@ -37,7 +37,24 @@ export type BridgeClientMsg =
   /** 음성 입력 상태 (PC 설정을 원격 기기도 따른다, ADR-045) */
   | { type: 'stt.status.get'; reqId: string }
   /** 녹음 전사. audio = 16kHz mono PCM16 WAV의 base64 */
-  | { type: 'stt.transcribe'; reqId: string; audio: string };
+  | { type: 'stt.transcribe'; reqId: string; audio: string }
+  /** PC 음성 설정 전체 상태 (원격 설정 화면, ADR-046) */
+  | { type: 'stt.state.get'; reqId: string }
+  /** PC 음성 설정 바꾸기 (원격 설정 화면, ADR-046). 응답은 바뀐 뒤의 stt.state */
+  | SttManageMsg;
+
+/** 켜기·끄기·모델 고르기·받기(시작만, 진행은 stt.state.get으로)·받기 취소·지우기 */
+export type SttManageOp = 'enable' | 'disable' | 'select' | 'download' | 'cancel' | 'remove';
+export const STT_MANAGE_OPS: readonly SttManageOp[] = ['enable', 'disable', 'select', 'download', 'cancel', 'remove'];
+/** model이 필요한 동작 */
+export const STT_MANAGE_MODEL_OPS: readonly SttManageOp[] = ['select', 'download', 'remove'];
+
+export interface SttManageMsg {
+  type: 'stt.manage';
+  reqId: string;
+  op: SttManageOp;
+  model?: SttModelId;
+}
 
 export type BridgeServerMsg =
   | { type: 'status'; reqId: string; providers: BridgeStatus }
@@ -46,6 +63,7 @@ export type BridgeServerMsg =
   | { type: 'chat.done'; reqId: string; stopReason?: string }
   | { type: 'chat.error'; reqId: string; error: ProviderError }
   | { type: 'stt.status'; reqId: string; stt: SttStatus }
+  | { type: 'stt.state'; reqId: string; state: SttState }
   | { type: 'stt.result'; reqId: string; text: string }
   | { type: 'stt.error'; reqId: string; error: string };
 

@@ -60,6 +60,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-14 `rhymebook serve` 헤드리스 호스트: Electron 없이 서버만 켜고 웹·모바일이 페어링해 사용 (ADR-040, docs/plans/headless-serve-plan.md)
 - [x] IMP-15 Codex 이미지 생성: 일반 대화에서 image_generation 켜기, 생성 이미지를 답변 첨부로 표시·동기화·저장 (ADR-041)
 - [x] IMP-16 음성으로 질문하기: PC 로컬 whisper.cpp 전사(설정 › 음성에서 켜기·모델 받기), 입력창 마이크, 웹·모바일은 PC 설정을 따름 (ADR-045, docs/plans/voice-input-plan.md)
+- [x] IMP-16b 웹·모바일에서 PC 음성 설정 관리: 켜기·모델 선택·받기(진행률·취소)·지우기 (ADR-046)
 
 ## Tasks
 
@@ -124,6 +125,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP16-T3 | IMP-16 | desktop: whisper-cli 정적 Metal 빌드 스크립트·extraResources, IPC/preload/main/host, 마이크 권한 | lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: 패키지 앱에 `Resources/whisper/whisper-cli` 포함, 번들 바이너리로 실제 전사 |
 | IMP16-T4 | IMP-16 | ui: 설정 음성 탭·원격 상태, Composer 마이크·녹음·무음 차단, 모바일 권한(iOS·Android) | lead | MEDIUM | inherit | default | DONE | 100% | T1,T3 | PASS: e2e 원격 음성 상태 2/2, 패키지 앱 스크린샷 |
 | IMP16-T5 | IMP-16 | 독립 리뷰·반영·검증·패키지 앱 스모크·문서 | lead | MEDIUM | inherit | default | DONE | 100% | T4 | PASS: 아래 Latest Integration Result |
+| IMP16-T6 | IMP-16 | 원격 음성 설정 관리(`stt.state.get`·`stt.manage`, 원격 설정 화면, 받기 취소 스트림 오류 수정) | lead | MEDIUM | inherit | default | DONE | 100% | T5 | PASS: 아래 Latest Integration Result |
 
 ## Active Work
 - 없음 (IMP-16 완료)
@@ -137,6 +139,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-15 · IMP-16b 원격 음성 설정 관리(ADR-046): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 326·ui 47·bridge 59(+3 skipped, 5회 반복 안정)·relay 9·server 7(+1 skipped) PASS, `pnpm e2e` 48 passed · 8 skipped. 실제 스모크: `package:dir` 앱(격리 userData)을 호스트로, 웹(390px)을 주소+코드로 페어링 → 설정에 음성 관리 화면 → 토글·가벼운 모델 선택이 PC에 반영, [받기] 후 진행률 35%(PC `download`와 일치)·다른 모델 [받기] 비활성 → [취소] 후 PC `download: null`.
 - 2026-10-15 · IMP-16 음성으로 질문하기(ADR-045, macOS): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 325·ui 47·bridge 55(+3 skipped)·relay 9·server 7(+1 skipped) PASS, `pnpm e2e` 48 passed · 8 skipped. 독립 리뷰 지적 반영: 녹음 준비 실패 시 마이크 해제, WAV 헤더 길이(RIFF·data) 확인, 전사 대기 4건 제한, whisper-cli에 필요한 환경 변수만 전달(+회귀 테스트 3). 실제 스모크(`package:dir` 앱 번들 whisper-cli v1.9.5 Metal, 가벼운 모델): 엔진 직접 전사 2.4s "안녕하세요, 이젠 탐색트리의 시간 복잡도를 설명해 주세요."; 패키지 앱에서 설정 › 음성(켜짐·받음) → 입력창 마이크 → 실제 한국어 음성(getUserMedia 주입) 5초 녹음 → 798ms 후 입력창에 전사문. 무음 녹음은 보내지 않음(가짜 장치 무음 → whisper '고맙습니다' 환각을 막으려 무음 차단 추가). 남은 것: B-11(타 플랫폼 번들·서명), B-12(실기기 마이크).
 - 2026-10-14 · IMP-15 Codex 이미지 생성(ADR-041): `pnpm typecheck`·`pnpm lint` PASS. `pnpm test`는 core 296, ui 47, bridge 44(+3 skipped), server 7(+1 skipped), relay 9 PASS. 가짜 codex로 확인한 항목: generated_images 수집, 이벤트 순서 delta→image→done, 폴더 삭제, 제목 요청에서는 꺼짐, 1MB 넘는 PNG의 JPEG 재압축.
 - 2026-10-14 · IMP-14 `rhymebook serve` 헤드리스 호스트(macOS): 새 패키지 `packages/server`(bin `rhymebook`: serve/pair/devices/unpair). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 293·ui 47·bridge 41(+3 skipped)·server 7(+1 skipped 수동 스모크)·relay 9 PASS, `pnpm e2e` 44 passed · 8 skipped. 실제 스모크(빌드 산출물, 실제 claude CLI): 스크립트 클라이언트 페어링 → 새 학습·질문 → "1+1은 2입니다." 스트리밍·저장 → Ctrl+C 정상 종료 → 재시작 후 재연결·데이터 유지. 웹 UI(`pnpm dev`, 390px)에서 "내 PC와 연결하기"에 링크 붙여 넣어 페어링 → 새 학습 질문 → PC CLI 답변 "파란색" 수신, 서버 data.json에 2개 학습 저장. 스모크 중 발견: `--name` 없이 재시작하면 저장된 이름이 컴퓨터 이름으로 덮임 → 수정·회귀 테스트. 첫 실행 강제 종료(SIGKILL)에도 data.json(0600)·예시 스킬 생성 확인. 데스크톱 `package:dir` 재빌드·실행.
