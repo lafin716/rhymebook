@@ -28,6 +28,7 @@ export * from './backup';
 export * from './notes';
 export * from './study';
 export * from './book';
+export * from './stt';
 export * from './bridge';
 export * from './platform';
 export * from './sync';

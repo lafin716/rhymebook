@@ -1,6 +1,7 @@
 import { newId } from '../id';
 import type { ProviderId } from '../model';
 import { PROVIDER_LABELS, providerError, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
+import type { SttStatus } from '../stt';
 import type { BridgeClientMsg, BridgeServerMsg, BridgeStatus, CliProviderId } from './protocol';
 import { CLI_PROVIDER_IDS } from './protocol';
 
@@ -20,11 +21,19 @@ export interface BridgeClientOptions {
   statusCacheMs?: number;
   /** 연결이 없을 때 보여줄 문구 */
   offlineMessage?: string;
+  /** stt.status 대기 시간 */
+  sttStatusTimeoutMs?: number;
+  /** 전사 대기 시간 (첫 실행은 모델 로딩으로 느리다) */
+  transcribeTimeoutMs?: number;
 }
 
 export interface BridgeClient {
   status(refresh?: boolean): Promise<BridgeStatus>;
   stream(providerId: CliProviderId, req: StreamRequest): AsyncIterable<StreamEvent>;
+  /** PC의 음성 입력 상태 (ADR-045) */
+  sttStatus(): Promise<SttStatus>;
+  /** 녹음(16kHz mono WAV base64)을 PC에서 전사한다. 실패하면 사용자에게 보여줄 문구로 throw */
+  transcribe(audio: string, signal?: AbortSignal): Promise<string>;
 }
 
 const ABORTED = '사용자가 중지했습니다.';
@@ -59,7 +68,62 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
     });
   }
 
+  /** reqId 하나에 응답 하나인 요청 (stt.*) */
+  function request<T>(
+    msg: BridgeClientMsg,
+    pick: (m: BridgeServerMsg) => { ok: T } | { err: string } | null,
+    timeoutMs: number,
+    timeoutMessage: string,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) return reject(new Error(ABORTED));
+      const done = (fn: () => void) => {
+        clearTimeout(timer);
+        unsub();
+        offDisconnect?.();
+        signal?.removeEventListener('abort', onAbort);
+        fn();
+      };
+      const onAbort = () => done(() => reject(new Error(ABORTED)));
+      const timer = setTimeout(() => done(() => reject(new Error(timeoutMessage))), timeoutMs);
+      const unsub = transport.subscribe((m) => {
+        if (m.reqId !== msg.reqId) return;
+        const r = pick(m);
+        if (!r) return;
+        if ('ok' in r) done(() => resolve(r.ok));
+        else done(() => reject(new Error(r.err)));
+      });
+      const offDisconnect = transport.onDisconnect?.(() => done(() => reject(new Error(offline))));
+      signal?.addEventListener('abort', onAbort, { once: true });
+      try {
+        transport.send(msg);
+      } catch {
+        done(() => reject(new Error(offline)));
+      }
+    });
+  }
+
   return {
+    sttStatus() {
+      return request<SttStatus>(
+        { type: 'stt.status.get', reqId: newId('ss') },
+        (m) => (m.type === 'stt.status' ? { ok: m.stt } : m.type === 'stt.error' ? { err: m.error } : null),
+        opts.sttStatusTimeoutMs ?? 10_000,
+        '음성 입력 상태를 확인하지 못했습니다.',
+      );
+    },
+
+    transcribe(audio, signal) {
+      return request<string>(
+        { type: 'stt.transcribe', reqId: newId('tr'), audio },
+        (m) => (m.type === 'stt.result' ? { ok: m.text } : m.type === 'stt.error' ? { err: m.error } : null),
+        opts.transcribeTimeoutMs ?? 180_000,
+        '음성 변환 시간이 초과되었습니다.',
+        signal,
+      );
+    },
+
     status(refresh = false) {
       if (!refresh && cached && Date.now() - cached.at < statusCacheMs) return Promise.resolve(cached.value);
       if (inflight) return inflight;
@@ -85,11 +149,11 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         wake = null;
       };
       const unsub = transport.subscribe((m) => {
-        if (m.type === 'status' || m.reqId !== reqId) return;
+        if (m.reqId !== reqId) return;
         if (m.type === 'chat.delta') push({ type: 'delta', text: m.text });
         else if (m.type === 'chat.image') push({ type: 'image', attachment: m.attachment });
         else if (m.type === 'chat.done') push({ type: 'done', ...(m.stopReason ? { stopReason: m.stopReason } : {}) });
-        else push({ type: 'error', error: m.error });
+        else if (m.type === 'chat.error') push({ type: 'error', error: m.error });
       });
       const offDisconnect = transport.onDisconnect?.(() => push({ type: 'error', error: providerError('offline', offline) }));
       const onAbort = () => {

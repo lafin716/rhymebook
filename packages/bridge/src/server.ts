@@ -5,6 +5,7 @@ import {
   binaryNote,
   cliPrompt,
   isAttachment,
+  isSttAudio,
   isValidEffort,
   isValidModelName,
   providerError,
@@ -22,6 +23,7 @@ import { detectAll } from './detect';
 import { resolveCliEnv, type CliEnv } from './env';
 import type { CliParser } from './parser';
 import { runCli } from './run';
+import type { SttEngine } from './stt/engine';
 
 export interface BridgeServerOptions {
   /** CLI 실행 환경 (기본: 로그인 셸 PATH 해석) */
@@ -34,6 +36,8 @@ export interface BridgeServerOptions {
   statusCacheMs?: number;
   /** 진단 로그. 프롬프트·응답·비밀 값은 넘기지 않는다 */
   log?: (msg: string) => void;
+  /** 음성 전사 엔진 (ADR-045). 없으면 stt.* 요청에 '지원 안 함'으로 답한다 */
+  stt?: SttEngine;
 }
 
 export interface BridgeConnection {
@@ -54,6 +58,8 @@ const IMAGE_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'j
 /** 이미지 생성을 켤 때 덧붙이는 지시. 결과는 앱이 답변에 붙이므로 경로·저장 위치를 말할 필요가 없다 */
 const IMAGE_GEN_NOTE =
   '이미지가 필요하면 이미지 생성 도구로 만드세요. 만든 이미지는 앱이 답변 아래에 자동으로 붙이므로 파일 경로나 저장 위치는 말하지 마세요. SVG·ASCII 그림으로 대신하지 마세요.';
+
+const STT_UNSUPPORTED = '이 Bridge는 음성 입력을 지원하지 않습니다.';
 
 const FALLBACK_SYSTEM = '당신은 학습을 돕는 친절한 튜터입니다. 한국어로 짧고 명확하게 답하세요.';
 
@@ -253,6 +259,44 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
           }
           if (msg.type === 'chat.abort') {
             running.get(msg.reqId)?.abort();
+            return;
+          }
+          if (msg.type === 'stt.status.get') {
+            const reqId = msg.reqId;
+            if (!opts.stt) {
+              safeSend({ type: 'stt.status', reqId, stt: { enabled: false, ready: false, detail: STT_UNSUPPORTED } });
+              return;
+            }
+            opts.stt.status().then(
+              (stt) => safeSend({ type: 'stt.status', reqId, stt }),
+              (e: unknown) => safeSend({ type: 'stt.error', reqId, error: e instanceof Error ? e.message : String(e) }),
+            );
+            return;
+          }
+          if (msg.type === 'stt.transcribe') {
+            const reqId = msg.reqId;
+            if (!opts.stt) {
+              safeSend({ type: 'stt.error', reqId, error: STT_UNSUPPORTED });
+              return;
+            }
+            if (running.has(reqId)) return;
+            if (!isSttAudio(msg.audio)) {
+              safeSend({ type: 'stt.error', reqId, error: '녹음 형식이 올바르지 않습니다.' });
+              return;
+            }
+            const ac = new AbortController();
+            running.set(reqId, ac);
+            all.add(ac);
+            opts.stt
+              .transcribe(new Uint8Array(Buffer.from(msg.audio, 'base64')), ac.signal)
+              .then(
+                (text) => safeSend({ type: 'stt.result', reqId, text }),
+                (e: unknown) => safeSend({ type: 'stt.error', reqId, error: e instanceof Error ? e.message : String(e) }),
+              )
+              .finally(() => {
+                running.delete(reqId);
+                all.delete(ac);
+              });
             return;
           }
           if (msg.type === 'chat.start') {

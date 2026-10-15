@@ -13,6 +13,7 @@ import { saveTextFile } from '../lib/download';
 import { Field, Section, Segmented } from './controls';
 import { PairForm } from './connectionCards';
 import { SelectionTriggerField } from './SelectionTriggerField';
+import { RemoteVoiceStatus } from './VoiceSettings';
 
 /**
  * 원격 전용 설정 (웹·모바일, ADR-026).
@@ -26,6 +27,8 @@ export function RemoteSettings() {
       <Section title="연결된 PC" hint="이 기기는 PC의 학습 내용을 보여 주고, 질문은 PC로 보내요. 답변은 PC의 CLI가 만들어요.">
         <PcCard />
       </Section>
+
+      <RemoteVoiceStatus />
 
       <Section title="화면">
         <Field label="테마">

@@ -14,9 +14,11 @@ import { ApiCard, BridgeCard, CliCard, PolicyNote } from './connectionCards';
 import { HostCard } from './HostCard';
 import { RemoteSettings } from './RemoteSettings';
 import { SelectionTriggerField } from './SelectionTriggerField';
+import { VoiceSettings } from './VoiceSettings';
+import { desktop } from '../app/runtime';
 import { providerKind, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 
-type Tab = 'connections' | 'backup' | 'general';
+type Tab = 'connections' | 'backup' | 'voice' | 'general';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
 
@@ -63,6 +65,7 @@ export function SettingsModal() {
           [
             ['connections', '연결'],
             ['backup', '백업'],
+            ...(desktop?.stt ? ([['voice', '음성']] as const) : []),
             ['general', '일반'],
           ] as const
         ).map(([t, label]) => (
@@ -82,7 +85,7 @@ export function SettingsModal() {
         ))}
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-5">
-        {tab === 'connections' ? <ConnectionsTab /> : tab === 'backup' ? <BackupTab /> : <GeneralTab />}
+        {tab === 'connections' ? <ConnectionsTab /> : tab === 'backup' ? <BackupTab /> : tab === 'voice' ? <VoiceSettings /> : <GeneralTab />}
       </div>
     </Modal>
   );

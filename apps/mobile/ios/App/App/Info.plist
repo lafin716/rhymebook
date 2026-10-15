@@ -42,6 +42,8 @@
 		<key>NSAllowsArbitraryLoadsInWebContent</key>
 		<true/>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>음성으로 질문할 때 목소리를 녹음해 내 PC에서 글자로 바꿉니다.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>같은 네트워크(LAN·Tailscale)에 있는 내 컴퓨터의 Branch Bridge에 연결하는 데 사용합니다.</string>
 	<key>LSRequiresIPhoneOS</key>

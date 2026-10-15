@@ -8,3 +8,5 @@ coverage
 test-results
 .claude/scheduled_tasks.lock
 release
+.vitest
+apps/desktop/vendor

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState, SkillFolder, SyncClientMsg, SyncServerMsg } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
 import { CH } from './ipc';
 
 /** DesktopApi.sync with onPeerGone extension (ADR-026) */
@@ -98,6 +98,20 @@ const api: DesktopApiExt = {
   // 책 PDF (ADR-044)
   pdf: {
     fromHtml: (html) => ipcRenderer.invoke(CH.pdfFromHtml, html) as Promise<Uint8Array>,
+  },
+  // 음성 입력 관리 (ADR-045). 전사 자체는 bridge 메시지로 한다
+  stt: {
+    getState: () => ipcRenderer.invoke(CH.sttState) as Promise<SttState>,
+    setEnabled: (enabled: boolean) => ipcRenderer.invoke(CH.sttSetEnabled, enabled) as Promise<SttState>,
+    setModel: (model: SttModelId) => ipcRenderer.invoke(CH.sttSetModel, model) as Promise<SttState>,
+    download: (model: SttModelId) => ipcRenderer.invoke(CH.sttDownload, model) as Promise<SttState>,
+    cancelDownload: () => ipcRenderer.invoke(CH.sttCancel) as Promise<SttState>,
+    remove: (model: SttModelId) => ipcRenderer.invoke(CH.sttRemove, model) as Promise<SttState>,
+    onChange(listener: (state: SttState) => void) {
+      const h = (_e: IpcRendererEvent, state: SttState) => listener(state);
+      ipcRenderer.on(CH.sttChanged, h);
+      return () => ipcRenderer.removeListener(CH.sttChanged, h);
+    },
   },
 };
 

@@ -1,5 +1,6 @@
 import type { Attachment, ProviderId } from '../model';
 import type { Availability, ChatTurn, ProviderError } from '../provider';
+import type { SttStatus } from '../stt';
 
 /**
  * Bridge 프로토콜 (JSON 메시지). Electron IPC(내장)와 WebSocket(헤드리스/원격)이 같은 메시지를 쓴다.
@@ -32,14 +33,21 @@ export interface ChatStartMsg {
 export type BridgeClientMsg =
   | { type: 'status.get'; reqId: string; refresh?: boolean }
   | ChatStartMsg
-  | { type: 'chat.abort'; reqId: string };
+  | { type: 'chat.abort'; reqId: string }
+  /** 음성 입력 상태 (PC 설정을 원격 기기도 따른다, ADR-045) */
+  | { type: 'stt.status.get'; reqId: string }
+  /** 녹음 전사. audio = 16kHz mono PCM16 WAV의 base64 */
+  | { type: 'stt.transcribe'; reqId: string; audio: string };
 
 export type BridgeServerMsg =
   | { type: 'status'; reqId: string; providers: BridgeStatus }
   | { type: 'chat.delta'; reqId: string; text: string }
   | { type: 'chat.image'; reqId: string; attachment: Attachment }
   | { type: 'chat.done'; reqId: string; stopReason?: string }
-  | { type: 'chat.error'; reqId: string; error: ProviderError };
+  | { type: 'chat.error'; reqId: string; error: ProviderError }
+  | { type: 'stt.status'; reqId: string; stt: SttStatus }
+  | { type: 'stt.result'; reqId: string; text: string }
+  | { type: 'stt.error'; reqId: string; error: string };
 
 export function isCliProviderId(id: string): id is CliProviderId {
   return (CLI_PROVIDER_IDS as string[]).includes(id);

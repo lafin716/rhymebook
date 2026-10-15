@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, type WebContents } from 'electron';
 import path from 'node:path';
-import { createBridgeServer, createSkillsDir, type BridgeConnection } from '@branch/bridge';
-import { isHostPolicy, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
+import { createBridgeServer, createSkillsDir, createSttEngine, type BridgeConnection } from '@branch/bridge';
+import { isHostPolicy, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { htmlToPdf } from './pdf';
@@ -18,11 +18,23 @@ const RENDERER = path.join(__dirname, 'renderer', 'index.html');
 
 if (process.env.BRANCH_USER_DATA) app.setPath('userData', process.env.BRANCH_USER_DATA);
 
-const bridge = createBridgeServer({
-  log: (m) => {
-    if (process.env.BRANCH_BRIDGE_LOG) console.log(`[bridge] ${m}`);
-  },
+const bridgeLog = (m: string) => {
+  if (process.env.BRANCH_BRIDGE_LOG) console.log(`[bridge] ${m}`);
+};
+
+/** 로컬 음성 전사 (ADR-045). 앱 번들의 whisper-cli → 개발용 vendor → PATH 순. 원격 호스트와 공유한다 */
+const WHISPER_PLATFORM = process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux';
+const WHISPER_BIN = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
+const stt = createSttEngine({
+  dir: path.join(app.getPath('userData'), 'stt'),
+  binCandidates: [
+    path.join(process.resourcesPath, 'whisper', WHISPER_BIN),
+    path.join(__dirname, '..', 'vendor', 'whisper', `${WHISPER_PLATFORM}-${process.arch}`, WHISPER_BIN),
+  ],
+  log: bridgeLog,
 });
+
+const bridge = createBridgeServer({ log: bridgeLog, stt });
 
 /** 원격 페어링 호스트 (whenReady에서 만든다) */
 let host: HostService | null = null;
@@ -75,7 +87,9 @@ function connectionFor(wc: WebContents): BridgeConnection {
 function isClientMsg(v: unknown): v is BridgeClientMsg {
   if (typeof v !== 'object' || v === null) return false;
   const m = v as { type?: unknown; reqId?: unknown };
-  return typeof m.reqId === 'string' && (m.type === 'status.get' || m.type === 'chat.start' || m.type === 'chat.abort');
+  if (typeof m.reqId !== 'string') return false;
+  if (m.type === 'stt.transcribe') return isSttAudio((v as { audio?: unknown }).audio);
+  return m.type === 'status.get' || m.type === 'chat.start' || m.type === 'chat.abort' || m.type === 'stt.status.get';
 }
 
 function isAppUrl(url: string): boolean {
@@ -279,6 +293,21 @@ void app.whenReady().then(() => {
   // 책 PDF (ADR-044). 숨은 창에서 인쇄한다
   ipcMain.handle(CH.pdfFromHtml, (_e, html: unknown) => htmlToPdf(html));
 
+  // 음성 입력 관리 (ADR-045). 바뀌면 모든 창에 알린다(원격 기기는 stt.status.get으로 따라온다)
+  const modelArg = (v: unknown) => {
+    if (!isSttModelId(v)) throw new Error('알 수 없는 모델입니다.');
+    return v;
+  };
+  ipcMain.handle(CH.sttState, () => stt.state());
+  ipcMain.handle(CH.sttSetEnabled, (_e, on: unknown) => stt.setEnabled(on === true));
+  ipcMain.handle(CH.sttSetModel, (_e, id: unknown) => stt.setModel(modelArg(id)));
+  ipcMain.handle(CH.sttDownload, (_e, id: unknown) => stt.download(modelArg(id)));
+  ipcMain.handle(CH.sttCancel, () => stt.cancelDownload());
+  ipcMain.handle(CH.sttRemove, (_e, id: unknown) => stt.remove(modelArg(id)));
+  stt.onChange((state) => {
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(CH.sttChanged, state);
+  });
+
   // 동기화 IPC 핸들러
   ipcMain.on(CH.hostSyncReady, (_e, ready: unknown) => {
     syncReady = ready === true;
@@ -383,6 +412,7 @@ void app.whenReady().then(() => {
     log: (m) => {
       if (process.env.BRANCH_BRIDGE_LOG) console.log(`[host] ${m}`);
     },
+    stt,
     sync: {
       receive(peerId: string, _deviceId: string, msg: SyncClientMsg) {
         // Route sync message to the engine window

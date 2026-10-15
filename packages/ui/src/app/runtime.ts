@@ -6,6 +6,7 @@ import {
   memorySecretStore,
   REMOTE_PAIRING_SECRET,
   type RemotePairing,
+  type BridgeClient,
   type BridgeTransport,
   type DesktopApi,
   type MobileApi,
@@ -93,18 +94,23 @@ export async function saveRemotePairing(p: RemotePairing | null): Promise<void> 
  * - 웹/모바일: 원격 Bridge만. CLI는 '사용 불가'이며 PC의 CLI는 원격 Bridge 하나로만 쓴다
  *   (에이전트·모델·노력치는 PC 설정이 정한다)
  */
+const remoteClient = createBridgeClient(remoteLink, { offlineMessage: '원격 Bridge와 연결이 끊어졌습니다.' });
+const localClient = desktop
+  ? createBridgeClient(ipcTransport(desktop), { offlineMessage: '내장 bridge에 연결할 수 없습니다. 앱을 재시작하세요.' })
+  : null;
+
 export const platformProviders: Partial<Record<ProviderId, LLMProvider>> = {
-  ...createRemoteBridgeProviders({
-    link: remoteLink,
-    client: createBridgeClient(remoteLink, { offlineMessage: '원격 Bridge와 연결이 끊어졌습니다.' }),
-    getPairing: loadRemotePairing,
-  }),
-  ...(desktop
-    ? createBridgeProviders(
-        createBridgeClient(ipcTransport(desktop), { offlineMessage: '내장 bridge에 연결할 수 없습니다. 앱을 재시작하세요.' }),
-      )
-    : {}),
+  ...createRemoteBridgeProviders({ link: remoteLink, client: remoteClient, getPairing: loadRemotePairing }),
+  ...(localClient ? createBridgeProviders(localClient) : {}),
 };
+
+/**
+ * 음성 전사를 맡길 bridge (ADR-045). 데스크톱(세션 창 포함)은 내장 bridge, 웹·모바일은 페어링된 PC.
+ * 켜짐·모델은 PC 설정을 따른다.
+ */
+export const sttClient: { client: BridgeClient; remote: boolean } = localClient
+  ? { client: localClient, remote: false }
+  : { client: remoteClient, remote: true };
 
 const hasScenarioHash = () => /scenario=[\w-]+/.test(window.location.hash);
 

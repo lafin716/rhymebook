@@ -27,4 +27,11 @@ export const CH = {
   skillsOpen: 'skills:open',
   skillsReadAll: 'skills:read-all',
   pdfFromHtml: 'pdf:from-html',
+  sttState: 'stt:state',
+  sttSetEnabled: 'stt:set-enabled',
+  sttSetModel: 'stt:set-model',
+  sttDownload: 'stt:download',
+  sttCancel: 'stt:cancel',
+  sttRemove: 'stt:remove',
+  sttChanged: 'stt:changed',
 } as const;

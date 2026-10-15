@@ -15,6 +15,7 @@ import {
   safeEqual,
   verifyTranscript,
   validateSyncClientMsg,
+  isSttAudio,
   isSyncClientType,
   SYNC_LIMITS,
   type AuthReason,
@@ -110,6 +111,8 @@ export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
   if (typeof reqId !== 'string' || !/^[\w-]{1,64}$/.test(reqId)) return null;
   if (m.type === 'status.get') return { type: 'status.get', reqId, ...(m.refresh === true ? { refresh: true } : {}) };
   if (m.type === 'chat.abort') return { type: 'chat.abort', reqId };
+  if (m.type === 'stt.status.get') return { type: 'stt.status.get', reqId };
+  if (m.type === 'stt.transcribe') return isSttAudio(m.audio) ? { type: 'stt.transcribe', reqId, audio: m.audio } : null;
   if (m.type !== 'chat.start') return null;
   if (m.providerId !== 'claude-cli' && m.providerId !== 'codex-cli') return null;
   if (typeof m.system !== 'string' || !Array.isArray(m.messages)) return null;

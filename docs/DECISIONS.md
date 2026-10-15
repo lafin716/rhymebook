@@ -312,3 +312,17 @@
 - UX(UX-SPEC은 그대로, 여기 기록): `/book` 세션 헤더에 [책 PDF] 버튼(모바일은 아이콘만). 답변 생성 중에는 비활성.
 - 스킬 프롬프트: `/book` 프롬프트에 제목·장 머리 형식을 고정했다. 이미 시드된 사용자 스킬은 덮어쓰지 않으므로(ADR-043), 파서는 예전 형식도 받아들인다(`## 1장 제목`·`## 제1장: 제목`, H1이 없으면 "책 제목:" 줄 → 세션 제목, 장 사이 알 수 없는 `##`는 직전 장에 붙임).
 - 대안: pdf-lib/jsPDF로 직접 조판 — 한국어 글꼴 내장·줄바꿈·수식이 어려워 기각. Paged.js — 스크립트가 필요하고 Chromium 기본 인쇄로 margin box·이름 있는 쪽이 이미 되므로 기각. `break-before: right`(장을 오른쪽 쪽에서 시작) — Chromium 미지원이라 쓰지 않는다.
+
+### ADR-045 · 2026-10-15 · 음성으로 질문하기 — PC 로컬 whisper.cpp 전사, 웹·모바일은 PC 설정을 따름
+- 배경: 채팅 입력을 말로 하고 싶다. 무료 전사 도구가 필요하다. 구독 CLI(claude·codex)는 오디오 입력·전사 기능이 없고, 토큰을 꺼내 다른 API를 부르는 것은 정책(구독은 공식 CLI 실행으로만)에 어긋난다.
+- 결정: **whisper.cpp `whisper-cli`를 PC에서 로컬로 실행**한다(무료·오프라인, 녹음이 PC 밖으로 나가지 않음). 녹음마다 `-m 모델 -f wav -l ko -nt -np -t N`으로 한 번 실행하고, 전사는 한 번에 하나만 한다(GPU·메모리).
+  - 모델 카탈로그(core `STT_MODELS`, Hugging Face `ggerganov/whisper.cpp` 공식 ggml): 기본 `large-v3-turbo-q5_0`(약 574MB, 정확), 가벼운 `small-q5_1`(약 190MB, 저사양). 받기는 `<userData>/stt/models/*.part` → 크기·sha256 확인 → rename. 진행률·취소·지우기 지원. 설정은 `<userData>/stt/settings.json`(`enabled`, `model`), 기본은 꺼짐.
+  - 엔진 위치: 앱 번들 `Contents/Resources/whisper/whisper-cli`(electron-builder `extraResources`, `apps/desktop/scripts/build-whisper.mjs`로 v1.9.5 정적 Metal 빌드, `vendor/`는 gitignore) → `BRANCH_WHISPER_CLI` → PATH·`/opt/homebrew/bin`(`brew install whisper-cpp`). 없으면 설정에 설치 안내.
+  - 프로토콜(bridge): `stt.status.get` → `stt.status{enabled,ready,detail}`, `stt.transcribe{audio: base64 WAV}` → `stt.result{text}`/`stt.error`. 원격 기기는 이 둘만 할 수 있고 켜기·모델·받기·지우기는 데스크톱 IPC(`DesktopApi.stt`)만. 내장 bridge와 원격 호스트 bridge가 같은 엔진을 공유한다. 헤드리스 server는 STT 미지원(응답 없음 → 마이크 숨김).
+  - 오디오: 클라이언트가 녹음 → mono → 16kHz 리샘플 → PCM16 WAV. 최대 60초(≈1.9MB, base64 한도로 검사), bridge가 WAV 헤더(16kHz·mono·PCM16)를 다시 확인한다. 전사 제한 시간 120초.
+  - 무음 차단: whisper는 무음에서 "고맙습니다"·"시청해 주셔서 감사합니다" 같은 문구를 지어낸다. 보내기 전에 30ms 구간 RMS가 하나도 문턱(0.003, 약 -50dBFS)을 넘지 않으면 보내지 않고 "들린 소리가 없어요"를 보여 준다. 결과에서도 소리 표기(`[음악]`·`(박수)`)와 흔한 환각 문구를 지운다.
+  - 웹·모바일은 PC를 따른다: 마운트·화면 복귀·30초마다 `stt.status`를 물어 `ready`일 때만 입력창에 마이크 버튼을 보인다. 예전 PC(메시지 모름)는 응답이 없어 시간 초과 → 마이크 숨김. 데스크톱은 IPC `stt:changed`로 즉시 반영.
+  - 결과는 바로 보내지 않고 입력창 끝에 붙여 사용자가 고친 뒤 보낸다.
+  - 권한: macOS `NSMicrophoneUsageDescription`(+ Electron 미디어 권한 허용), iOS 같은 키, Android `RECORD_AUDIO`·`MODIFY_AUDIO_SETTINGS`(Capacitor WebChromeClient가 런타임 권한 요청).
+- UX(UX-SPEC은 그대로, 여기 기록): 데스크톱 설정에 [음성] 탭(사용 토글·상태, 모델 목록: 선택·받기/진행률·취소/지우기). 웹·모바일 설정의 원격 화면에 "음성 입력 — PC 설정을 따릅니다" 상태. 입력창의 마이크 버튼(녹음 중 경과 초·끝내기, 변환 중 표시).
+- 대안: Web Speech API — 브라우저·OS마다 다르고 Chrome은 Google 서버로 음성을 보내며 Electron에서 동작하지 않아 기각. OpenAI Whisper API — 유료·키 필요라 기본값으로 기각(추후 API 키 provider로 추가 가능). 휴대폰에서 직접 whisper 실행 — 모델 용량·성능 부담이 커서 기각. whisper.cpp 서버 모드 상주 — 메모리를 계속 잡아서 기각(녹음마다 실행, Metal에서 1초 내외).

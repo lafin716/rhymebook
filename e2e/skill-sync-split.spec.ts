@@ -49,3 +49,15 @@ test('데스크톱(로컬): 스킬 관리에 PC 동기화 버튼이 없다', asy
   await expect(skills.getByRole('button', { name: '새 스킬' })).toBeVisible();
   await expect(skills.getByRole('button', { name: '동기화' })).toHaveCount(0);
 });
+
+test('웹(원격): 설정에 음성 입력은 PC 설정을 따른다고 보이고, PC와 연결 전에는 마이크 버튼이 없다', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await page.getByRole('dialog', { name: 'PC와 연결하기' }).getByRole('button', { name: '나중에 하기' }).click();
+  await expect(page.getByRole('button', { name: '음성으로 입력' })).toHaveCount(0);
+  await page.getByRole('button', { name: '설정', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: '설정' });
+  await expect(dialog.getByText('PC 설정을 따릅니다', { exact: false })).toBeVisible();
+  await expect(dialog.getByRole('tab', { name: '음성' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

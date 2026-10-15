@@ -10,6 +10,7 @@ import {
   type PairingSession,
   type RelayConnector,
   type RemoteServer,
+  type SttEngine,
 } from '@branch/bridge';
 import { keyFingerprint, type HostPolicy, type HostState, type SyncClientMsg, type SyncServerMsg } from '@branch/core';
 import QRCode from 'qrcode';
@@ -50,6 +51,8 @@ export function createHostService(opts: {
   dir: string;
   emit: (state: HostState) => void;
   log?: (msg: string) => void;
+  /** 음성 전사 엔진 (ADR-045). 내장 bridge와 같은 것을 쓴다 */
+  stt?: SttEngine;
   sync?: {
     receive(peerId: string, deviceId: string, msg: SyncClientMsg): void;
     peerGone?(peerId: string): void;
@@ -119,7 +122,7 @@ export function createHostService(opts: {
     let last: unknown;
     for (const p of candidates) {
       const srv = createRemoteServer({
-        bridge: createBridgeServer({ log }),
+        bridge: createBridgeServer({ log, ...(opts.stt ? { stt: opts.stt } : {}) }),
         store: s,
         port: p,
         log,

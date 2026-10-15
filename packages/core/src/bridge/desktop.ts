@@ -1,5 +1,6 @@
 import type { HostPolicy } from '../platform';
 import type { SkillFolder } from '../skillFolder';
+import type { SttModelId, SttState } from '../stt';
 import type { BridgeClientMsg, BridgeServerMsg } from './protocol';
 import type { SyncClientMsg, SyncServerMsg } from './sync';
 
@@ -25,6 +26,20 @@ export interface DesktopApi {
   skills?: DesktopSkillsApi;
   /** 책 PDF (ADR-044). 없으면 웹 인쇄 대화상자로 대신한다 */
   pdf?: DesktopPdfApi;
+  /** 음성 입력 관리 (ADR-045). 전사 자체는 bridge의 stt.transcribe로 한다. 없으면 설정 탭을 숨긴다 */
+  stt?: DesktopSttApi;
+}
+
+/** PC의 로컬 whisper.cpp 설정·모델 관리. 원격 기기는 이 설정을 따르기만 한다 */
+export interface DesktopSttApi {
+  getState(): Promise<SttState>;
+  setEnabled(enabled: boolean): Promise<SttState>;
+  setModel(model: SttModelId): Promise<SttState>;
+  /** 모델을 받는다(진행률은 onChange). 끝나거나 실패하면 상태를 돌려준다 */
+  download(model: SttModelId): Promise<SttState>;
+  cancelDownload(): Promise<SttState>;
+  remove(model: SttModelId): Promise<SttState>;
+  onChange(listener: (state: SttState) => void): () => void;
 }
 
 /**

@@ -21,6 +21,7 @@ import { Button } from '../components/Button';
 import { PcOfflineBanner, usePcOnline } from '../components/PcStatus';
 import { caps, remoteMode } from '../app/capabilities';
 import { cn } from '../lib/cn';
+import { MicButton } from '../voice/MicButton';
 import { isUsable, providerLabel, STATUS_LABEL } from '../lib/connection';
 import { openSkillsWithAI, useSkills } from '../skills/skillsStore';
 import { fileToAttachment, pastedTextAttachment } from './attach';
@@ -86,6 +87,12 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   };
 
   const canSend = !!(text.trim() || attachments.length || skill) && !(remoteMode && !pcOnline);
+
+  /** 음성 전사 결과를 입력창 끝에 붙인다 (ADR-045) */
+  const appendSpoken = (spoken: string) => {
+    setText((t) => (t.trim() ? `${t.replace(/\s+$/, '')} ${spoken}` : spoken));
+    ref.current?.focus();
+  };
 
   const send = () => {
     if (!canSend || streaming) return;
@@ -256,6 +263,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
               aria-label="메시지 입력"
               className="max-h-[180px] min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-6 outline-none placeholder:text-muted"
             />
+            <MicButton disabled={remoteMode && !pcOnline} onText={appendSpoken} />
             {streaming ? (
               <button
                 type="button"

@@ -11,8 +11,9 @@
     "dev": "node dev.mjs",
     "start": "electron .",
     "typecheck": "tsc -p tsconfig.json",
-    "package": "pnpm build && electron-builder --publish never",
-    "package:dir": "pnpm build && electron-builder --dir --publish never"
+    "package": "pnpm build && pnpm whisper && electron-builder --publish never",
+    "package:dir": "pnpm build && pnpm whisper && electron-builder --dir --publish never",
+    "whisper": "node scripts/build-whisper.mjs"
   },
   "devDependencies": {
     "@branch/bridge": "workspace:*",
@@ -44,7 +45,10 @@
         "dmg",
         "zip"
       ],
-      "category": "public.app-category.education"
+      "category": "public.app-category.education",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "음성으로 질문하려면 마이크가 필요합니다. 녹음은 이 PC에서만 글자로 바꿉니다."
+      }
     },
     "win": {
       "target": [
@@ -67,7 +71,16 @@
     "deb": {
       "packageName": "rhymebook",
       "artifactName": "rhymebook_${version}_${arch}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "vendor/whisper/${os}-${arch}",
+        "to": "whisper",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
   "author": "rhymebook",
   "homepage": "https://github.com/lafin716/rhymebook"
