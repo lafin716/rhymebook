@@ -150,6 +150,11 @@ export interface DeviceVoiceLike {
  * 맞는 음성이 없으면 null (그래도 lang만 지정해 OS에 맡긴다).
  */
 export function pickDeviceVoice<V extends DeviceVoiceLike>(voices: readonly V[], lang: SpeechLang): V | null {
+  return rankDeviceVoices(voices, lang)[0] ?? null;
+}
+
+/** 언어에 맞는 음성을 나은 순서로. 앞의 음성이 실패하면(음성 데이터 손상 등) 다음 것으로 읽는다 (ADR-051) */
+export function rankDeviceVoices<V extends DeviceVoiceLike>(voices: readonly V[], lang: SpeechLang): V[] {
   const tag = SPEECH_LANG_TAG[lang].toLowerCase();
   const norm = (l: string) => l.replace('_', '-').toLowerCase();
   const score = (v: V) => {
@@ -158,14 +163,9 @@ export function pickDeviceVoice<V extends DeviceVoiceLike>(voices: readonly V[],
     if (!base) return 0;
     return base + (v.localService ? 2 : 0) + (v.default ? 1 : 0);
   };
-  let best: V | null = null;
-  let bestScore = 0;
-  for (const v of voices) {
-    const s = score(v);
-    if (s > bestScore) {
-      best = v;
-      bestScore = s;
-    }
-  }
-  return best;
+  return voices
+    .map((v, i) => ({ v, i, s: score(v) }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s || a.i - b.i)
+    .map((x) => x.v);
 }

@@ -379,5 +379,15 @@
   - 같은 음성·글은 다시 합성하지 않는다(blob URL 30개 캐시, 토큰 절약).
   - iOS 자동 재생 제한: 누른 순간 무음 WAV와 빈 utterance로 audio·음성을 깨워 두어, 비동기 합성 후 재생·대체 재생이 막히지 않게 한다.
   - 설정은 기기별(localStorage `branch.tts`, 동기화 안 함) — 키와 기기 음성이 기기마다 다르다. 설정 › 음성 탭은 음성 입력이 없는 플랫폼에서도 항상 보인다(「읽어 주기」 섹션, 미리 듣기 버튼).
-  - 한계: Android WebView에는 `speechSynthesis`가 없어 Android 앱은 "이 기기에서는 음성으로 읽어 줄 수 없어요"만 안내한다(후속: Capacitor TTS 플러그인으로 기기 음성 연결).
+  - 한계: Android WebView에는 `speechSynthesis`가 없어 Android 앱은 "이 기기에서는 음성으로 읽어 줄 수 없어요"만 안내한다(후속: Capacitor TTS 플러그인으로 기기 음성 연결). → ADR-051에서 해소.
 - 대안: 클라우드(Azure 등)를 기본으로 — 비교에서 기기 음성이 낫고 무료·오프라인이라 기각. 여러 OpenAI 음성 혼용(언어별) — 요청대로 하나만. 실패 시 오류만 표시 — 학습 흐름이 끊겨 기각. Piper 등 로컬 신경망 번들 — 용량이 크고 베트남어 품질이 기기 음성보다 낮아 보류.
+
+### ADR-051 · 2026-10-15 · 모바일 앱 발음 듣기 — 네이티브 기기 음성
+- 배경: 사용자 요청 "모바일앱도 읽을수있게". Android WebView에는 `speechSynthesis`가 없어 앱에서 [듣기]가 안 됐다(ADR-050 한계). iOS WKWebView는 있지만 무음 스위치에 막히고 음성 고르기가 제한적이다.
+- 결정:
+  - `@capacitor-community/text-to-speech`(iOS AVSpeechSynthesizer, Android TextToSpeech)를 mobile 앱에만 넣고, `MobileApi.speech`(voices·speak·stop)로 주입한다(ADR-019 방식, ui는 Capacitor에 의존하지 않음). 모바일 앱은 두 플랫폼 모두 이 경로를 쓰고, 웹·데스크톱은 `speechSynthesis` 그대로.
+  - 음성은 core `rankDeviceVoices`(정확한 지역 > 같은 언어, 내장 > 기본)로 순위를 매겨 최대 3개를 차례로 시도한다. 두 번째는 종류(내장/온라인)가 다른 음성 — 내장 음성들은 같은 음성 데이터를 나눠 써서 하나가 깨지면 다 깨진다(에뮬레이터 en-US 내장 음성 데이터 손상으로 실측, 온라인 음성으로 대체 재생 확인).
+  - 그 언어가 기기에 없으면(플러그인 "not supported") "기기 설정의 음성(텍스트 음성 변환)에서 ○○를 추가해 주세요" 안내. 그 밖의 실패는 "기기 음성으로 읽지 못했어요".
+  - 이전 발화는 네이티브가 새 speak에서 스스로 끊으므로(Android QUEUE_FLUSH, iOS 플러그인이 stop 후 재생) 시작 때 stop을 따로 부르지 않는다(경합 방지). [멈춤]·OpenAI로 읽을 때만 stop.
+  - iOS: `AVAudioSession` `.playback` + `.spokenAudio` + `.mixWithOthers`(AppDelegate) — 무음 스위치가 켜져 있어도 읽고, 다른 앱 음악은 끊지 않는다.
+- 대안: 앱 안에 웹 TTS 폴리필 — Android WebView에 엔진 접근 수단이 없어 불가. 직접 플러그인 작성 — 커뮤니티 플러그인이 Capacitor 8·SPM을 지원해 불필요. 내장 음성만 시도 — 데이터 손상 기기에서 계속 실패해 기각.

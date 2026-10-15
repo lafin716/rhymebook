@@ -4,6 +4,7 @@ import {
   normalizeSpeechText,
   parseTtsPrefs,
   pickDeviceVoice,
+  rankDeviceVoices,
   synthesizeOpenAISpeech,
   ttsFallbackNotice,
   type ProviderError,
@@ -71,6 +72,10 @@ describe('pickDeviceVoice', () => {
   it('같은 언어 다른 지역도 쓰고, 없으면 null', () => {
     expect(pickDeviceVoice([voices[3]!], 'en')?.name).toBe('Daniel');
     expect(pickDeviceVoice([voices[0]!], 'vi')).toBeNull();
+  });
+  it('후보 순서: 내장 > 원격 > 다른 지역, 다른 언어는 빠진다', () => {
+    expect(rankDeviceVoices(voices, 'vi').map((v) => v.name)).toEqual(['Linh', 'Google Tiếng Việt']);
+    expect(rankDeviceVoices(voices, 'en').map((v) => v.name)).toEqual(['Samantha', 'Daniel']);
   });
 });
 

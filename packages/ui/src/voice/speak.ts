@@ -2,22 +2,25 @@ import {
   detectSpeechLang,
   normalizeSpeechText,
   pickDeviceVoice,
+  rankDeviceVoices,
   secretName,
   SPEECH_LANG_TAG,
   synthesizeOpenAISpeech,
   ttsFallbackNotice,
+  type MobileSpeech,
   type OpenAIVoice,
   type ProviderError,
   type SpeechLang,
 } from '@branch/core';
 import { create } from 'zustand';
-import { baseUrls, secrets } from '../app/runtime';
+import { baseUrls, mobile, secrets } from '../app/runtime';
 import { pushNotice } from '../app/sync';
 import { useUi } from '../app/uiState';
 
 /**
  * 발음 듣기 (ADR-050).
- * - 기본: 기기 OS 음성(speechSynthesis). 언어(vi/en/ko)를 글에서 골라 맞는 음성으로 읽는다.
+ * - 기본: 기기 OS 음성. 언어(vi/en/ko)를 글에서 골라 맞는 음성으로 읽는다.
+ *   웹·데스크톱은 speechSynthesis, 모바일 앱은 네이티브 TTS(Android WebView에는 speechSynthesis가 없음, ADR-051).
  * - OpenAI: 활성 음성 하나로 합성해 재생. 키 없음·한도 부족·네트워크 오류면 기기 음성으로 대신 읽고 알린다.
  * 한 번에 하나만 읽는다. 새로 읽으면 이전 것은 멈춘다.
  */
@@ -32,9 +35,11 @@ const LANG_NAME: Record<SpeechLang, string> = { vi: '베트남어', en: '영어'
 /** iOS 자동 재생 제한: 누른 순간 무음을 한 번 재생해 이 audio 요소를 풀어 둔다 */
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
 
-const synth: SpeechSynthesis | undefined = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+const native: MobileSpeech | undefined = mobile?.speech;
+const synth: SpeechSynthesis | undefined = !native && typeof window !== 'undefined' ? window.speechSynthesis : undefined;
 // 크로미움은 목록을 늦게 채우므로 미리 한 번 불러 둔다
 synth?.getVoices();
+void native?.voices();
 
 let player: HTMLAudioElement | null = null;
 let seq = 0;
@@ -54,6 +59,12 @@ function remember(key: string, url: string) {
 }
 
 export function stopSpeaking() {
+  if (native && useSpeech.getState().status !== 'idle') void native.stop().catch(() => {});
+  halt();
+}
+
+/** 진행 중인 것을 무효로 하고 멈춘다. 네이티브는 새로 읽을 때 앞의 것을 스스로 끊으므로 여기서 멈추지 않는다 */
+function halt() {
   seq++;
   ctrl?.abort();
   ctrl = null;
@@ -67,13 +78,14 @@ export function stopSpeaking() {
 
 /** 글을 읽는다. 클릭 핸들러 안에서 바로 불러야 모바일 자동 재생 제한에 걸리지 않는다 */
 export function speak(raw: string) {
-  stopSpeaking();
+  halt();
   const text = normalizeSpeechText(raw);
   if (!text) return;
   const lang = detectSpeechLang(text);
   const id = seq;
   const { tts } = useUi.getState();
   if (tts.engine === 'openai') {
+    void native?.stop().catch(() => {});
     unlock();
     void speakOpenAI(text, lang, tts.openaiVoice, id);
   } else {
@@ -135,6 +147,7 @@ function fallback(code: ProviderError['code'] | undefined, text: string, lang: S
 }
 
 function speakDevice(text: string, lang: SpeechLang, id: number) {
+  if (native) return void speakNative(native, text, lang, id);
   if (!synth) {
     pushNotice('이 기기에서는 음성으로 읽어 줄 수 없어요.');
     return setStatus('idle');
@@ -157,4 +170,31 @@ function speakDevice(text: string, lang: SpeechLang, id: number) {
   u.onerror = done;
   setStatus('loading');
   synth.speak(u);
+}
+
+/** 고른 음성이 실패하면(음성 데이터 손상 등) 같은 언어의 다음 음성으로 몇 번 더 읽어 본다 */
+async function speakNative(n: MobileSpeech, text: string, lang: SpeechLang, id: number) {
+  setStatus('loading');
+  const voices = await n.voices();
+  if (id !== seq) return;
+  // 내장 음성들은 같은 음성 데이터를 나눠 쓰므로 하나가 깨지면 다 깨진다. 두 번째는 종류(내장/온라인)가 다른 것으로
+  const ranked = rankDeviceVoices(voices, lang);
+  const other = ranked.find((v) => !!v.localService !== !!ranked[0]?.localService);
+  const tries: (number | undefined)[] = [...new Set([ranked[0], other, ...ranked])]
+    .filter((v) => v !== undefined)
+    .slice(0, 3)
+    .map((v) => voices.indexOf(v));
+  if (!tries.length) tries.push(undefined);
+  setStatus('playing');
+  for (const voice of tries) {
+    try {
+      const ok = await n.speak(text, SPEECH_LANG_TAG[lang], voice);
+      if (!ok && id === seq) pushNotice(`이 기기에 ${LANG_NAME[lang]} 음성이 없어 읽지 못했어요. 기기 설정의 음성(텍스트 음성 변환)에서 ${LANG_NAME[lang]}를 추가해 주세요.`);
+      break;
+    } catch {
+      if (id !== seq) return;
+      if (voice === tries.at(-1)) pushNotice('기기 음성으로 읽지 못했어요.');
+    }
+  }
+  if (id === seq) setStatus('idle');
 }

@@ -4,7 +4,8 @@ import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capac
 import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import type { MobileApi } from '@branch/core';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
+import type { MobileApi, MobileSpeech } from '@branch/core';
 
 /**
  * Capacitor 네이티브 기능을 ui가 아는 MobileApi 형태로 감싼다 (ADR-019).
@@ -78,6 +79,34 @@ export function createMobileApi(): MobileApi | null {
       const { uri } = await Filesystem.writeFile({ path: name, data: base64, directory: Directory.Cache });
       await shareFile(name, uri);
     },
+    speech: createSpeech(),
+  };
+}
+
+/** 기기 OS 음성 (iOS AVSpeechSynthesizer, Android TextToSpeech) — ADR-051 */
+function createSpeech(): MobileSpeech {
+  let voices: ReturnType<MobileSpeech['voices']> | null = null;
+  return {
+    voices() {
+      voices ??= TextToSpeech.getSupportedVoices().then(
+        (r) => r.voices,
+        () => {
+          voices = null; // Android 엔진 초기화 전이면 다음에 다시 묻는다
+          return [];
+        },
+      );
+      return voices;
+    },
+    async speak(text, lang, voice) {
+      try {
+        await TextToSpeech.speak({ text, lang, voice: voice ?? -1, rate: 1, pitch: 1, volume: 1, category: 'playback' });
+        return true;
+      } catch (e) {
+        if (/not supported/i.test(e instanceof Error ? e.message : String(e))) return false;
+        throw e;
+      }
+    },
+    stop: () => TextToSpeech.stop(),
   };
 }
 

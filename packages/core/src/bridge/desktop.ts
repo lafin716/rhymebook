@@ -1,6 +1,7 @@
 import type { HostPolicy } from '../platform';
 import type { SkillFolder } from '../skillFolder';
 import type { SttModelId, SttState } from '../stt';
+import type { DeviceVoiceLike } from '../tts';
 import type { BridgeClientMsg, BridgeServerMsg } from './protocol';
 import type { SyncClientMsg, SyncServerMsg } from './sync';
 
@@ -151,4 +152,14 @@ export interface MobileApi {
   saveFile?(name: string, text: string, mime: string): Promise<void>;
   /** 바이너리(base64) 파일을 공유 시트로 넘긴다 — 생성 이미지 저장 */
   saveBase64File?(name: string, base64: string): Promise<void>;
+  /** 기기 OS 음성(Android WebView에는 speechSynthesis가 없음, ADR-051) */
+  speech?: MobileSpeech;
+}
+
+export interface MobileSpeech {
+  /** 기기 음성 목록. 순서가 speak의 voice 번호다 */
+  voices(): Promise<DeviceVoiceLike[]>;
+  /** 다 읽으면 true, 그 언어 음성이 기기에 없으면 false. 그 밖의 실패는 reject */
+  speak(text: string, lang: string, voice?: number): Promise<boolean>;
+  stop(): Promise<void>;
 }
