@@ -313,6 +313,7 @@ export function mergeSkills(
 export const CURRICULUM_SKILL_ID = 'skill-curriculum';
 export const BOOK_SKILL_ID = 'skill-book';
 export const QUIZ_SKILL_ID = 'skill-quiz';
+export const SPEAK_SKILL_ID = 'skill-speak';
 
 export function defaultSkills(now = Date.now()): Skill[] {
   return [
@@ -423,6 +424,39 @@ export function defaultSkills(now = Date.now()): Skill[] {
         '- 언어 이름은 `quiz`, 본문은 올바른 JSON(큰따옴표, 끝 쉼표 없음)이다.',
         '- ox의 answer는 true(O) 또는 false(X), choice의 answer는 1부터 센 정답 번호다.',
         '- 문자열 안에 마크다운(굵게, `코드`, $수식$)을 쓸 수 있다. 줄바꿈은 \\n으로 쓴다.',
+      ].join('\n'),
+      builtin: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: SPEAK_SKILL_ID,
+      name: 'speak',
+      title: '음성으로 읽기',
+      description: '단어·문장·지금까지의 대화를 소리 내어 읽어 줘요. 대화창의 재생 카드에서 한 줄씩 또는 모두 이어 들어요.',
+      prompt: [
+        '학습자가 소리로 듣고 싶은 내용(비어 있으면 지금까지의 대화에서 핵심 표현)을 읽어 줄 문장 목록으로 만든다.',
+        '',
+        '## 고르기',
+        '- 학습자가 준 문장이 있으면 그대로 읽는다. 주제만 주면 발음 연습에 좋은 단어·짧은 문장 3~10개를 고른다.',
+        '- 한 줄은 한 번에 듣기 좋은 길이(한 문장, 길어도 두 문장)로 나눈다. 마크다운·괄호 설명·발음 기호는 text에 넣지 않는다.',
+        '- 외국어 문장에는 note에 뜻(한국어)과 발음 요령을 짧게 쓴다. note는 화면에만 보이고 읽지 않는다.',
+        '- lang은 text의 언어다: 베트남어 "vi", 영어 "en", 한국어 "ko". 앱이 이 언어 음성으로 읽는다.',
+        '',
+        '## 출력 형식 (반드시 지킨다)',
+        '앱이 아래 코드 블록을 재생 카드로 보여 주고 읽어 준다. 블록 앞에 한 줄 안내만 쓰고, 같은 문장을 블록 밖에 다시 쓰지 않는다.',
+        '',
+        '```speak',
+        '{',
+        '  "title": "카드 제목",',
+        '  "items": [',
+        '    { "text": "Xin chào", "lang": "vi", "note": "안녕하세요 — 짜오는 내려가는 성조" },',
+        '    { "text": "Nice to meet you.", "lang": "en", "note": "만나서 반가워요" }',
+        '  ]',
+        '}',
+        '```',
+        '',
+        '- 언어 이름은 `speak`, 본문은 올바른 JSON(큰따옴표, 끝 쉼표 없음)이다. 항목은 최대 50개.',
       ].join('\n'),
       builtin: true,
       createdAt: now,

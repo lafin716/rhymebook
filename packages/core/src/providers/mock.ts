@@ -141,6 +141,20 @@ const MOCK_QUIZ = `지금까지 다룬 어텐션을 퀴즈로 점검해 볼게�
 }
 \`\`\``;
 
+/** /speak 스킬 데모 응답 (IMP-21) */
+const MOCK_SPEAK = `카드의 버튼을 눌러 한 줄씩 또는 모두 이어 들어 보세요.
+
+\`\`\`speak
+{
+  "title": "베트남어 인사",
+  "items": [
+    { "text": "Xin chào", "lang": "vi", "note": "안녕하세요" },
+    { "text": "Cảm ơn bạn", "lang": "vi", "note": "고마워요" },
+    { "text": "Nice to meet you.", "lang": "en", "note": "만나서 반가워요" }
+  ]
+}
+\`\`\``;
+
 function lastUser(req: StreamRequest): string {
   for (let i = req.messages.length - 1; i >= 0; i--) {
     const m = req.messages[i]!;
@@ -185,6 +199,7 @@ export function mockAnswer(req: StreamRequest): string {
     return `${gist} 즉, 앞선 설명의 맥락에서 "${target}"을(를) 이렇게 이해하면 된다.`;
   }
   if (/^## 스킬: .+ \(\/quiz\)$/m.test(req.system)) return MOCK_QUIZ;
+  if (/^## 스킬: .+ \(\/speak\)$/m.test(req.system)) return MOCK_SPEAK;
   const focus = focusOf(req);
   const probe = `${user} ${focus ?? ''}`;
   const hit = CANNED.find((c) => c.keys.test(user)) ?? CANNED.find((c) => c.keys.test(probe));

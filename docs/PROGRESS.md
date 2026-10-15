@@ -66,6 +66,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-18 선택 메뉴 [복사] 버튼, 모바일 앱은 본문 선택 시 시스템 텍스트 메뉴 숨김(입력창은 유지) (ADR-049)
 - [x] IMP-19 발음 듣기: 선택 메뉴 [듣기], 기기 음성 기본, OpenAI 음성 하나 선택·실패(키·한도·연결) 시 기기 음성으로 대체, 설정 › 음성 「읽어 주기」 (ADR-050)
 - [x] IMP-20 모바일 앱 발음 듣기: iOS·Android 앱은 네이티브 기기 음성(TTS 플러그인), 음성 실패 시 같은 언어 다른 음성으로, 언어 미설치 안내, iOS 무음 스위치 무시 (ADR-051)
+- [x] IMP-21 음성으로 읽기: 기본 스킬 `/speak`, 답변 속 ```speak 블록을 읽기 카드로(줄마다 듣기·모두 듣기), 요청에 맞는 스킬 자동 사용(입력창 자동 칩·빼기·설정에서 끄기) (ADR-052, docs/plans/speak-skill-plan.md)
 
 ## Tasks
 
@@ -140,9 +141,12 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP19-T1 | IMP-19 | core: `tts.ts`(글 정리·언어 감지·기기 음성 고르기·OpenAI 합성·대체 안내) + 테스트 | lead | LOW | inherit | default | DONE | 100% | - | PASS: core tts 15 |
 | IMP19-T2 | IMP-19 | ui: `voice/speak.ts`(기기/OpenAI·대체·캐시·iOS 깨우기), SelectionMenu [듣기]/[멈춤](모바일 5칸·데스크톱 500px), 설정 `SpeechSettings`(엔진·음성·키·미리 듣기), uiState `branch.tts`, e2e | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: e2e 듣기 2/2(desktop·mobile) |
 | IMP20-T1 | IMP-20 | core `MobileSpeech`·`rankDeviceVoices`, mobile `@capacitor-community/text-to-speech`·`platform.ts` speech, ui `speakNative`(음성 순차 시도·안내), iOS AVAudioSession playback | lead | MEDIUM | inherit | default | DONE | 100% | IMP-19 | PASS: Android 에뮬레이터 실측(vi·ko 내장, en 내장 손상 → 온라인 대체, 멈춤), iOS 빌드 |
+| IMP21-T1 | IMP-21 | core: `speak-block.ts`(블록 해석), `skill-match.ts`(요청 → 스킬), 기본 스킬 `/speak`·seed, mock 응답 + 테스트 | lead | MEDIUM | inherit | default | DONE | 100% | IMP-19 | PASS: core 358(+10) |
+| IMP21-T2 | IMP-21 | ui: `speak.ts` 큐(`speakAll`·재생 key), `SpeakCard.tsx`, Markdown `pre` 분기, Composer 자동 칩·빼기, 설정 `AutoSkillField`(PC·원격), e2e speak.spec | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: e2e speak 4/4(desktop·mobile) |
+| IMP21-T3 | IMP-21 | 독립 리뷰·반영·검증·패키지 앱·문서 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: 아래 Latest Integration Result |
 
 ## Active Work
-- 없음 (IMP-20 완료)
+- 없음 (IMP-21 완료)
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
@@ -154,6 +158,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-16 · IMP-21 음성으로 읽기 스킬·읽기 카드·자동 스킬(ADR-052): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 358(+10)·ui 47·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 58 passed·8 skipped — 새 speak.spec desktop·mobile: "발음 들려줘" 입력 → 자동 칩 → 보내기 → 스킬 배지·읽기 카드(3줄, 원본 JSON 숨김) → 줄 듣기(vi-VN) → 모두 듣기(vi·vi·en 순서) → 칩 빼고 보내면 스킬 없음 → 설정에서 끄면 칩 없음. 전체 실행 1회에서 annotations 메모 테스트(mobile) 타이밍 실패 → 단독 8회 PASS(변경 전 코드도 동일)·전체 재실행 PASS. 수정: Markdown이 speak.ts를 가져오며 ui 단위 테스트(node)에서 `window` 참조 실패 → runtime `hasScenarioHash` 가드. 독립 리뷰: 차단 0 → "이야기 들려줘" 오탐 제외 반영. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-15 · IMP-20 모바일 앱 발음 듣기(ADR-051): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 348(+1)·ui 47·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 54 passed·8 skipped. Android 에뮬레이터(API 36) 실측: WebView `speechSynthesis` 없음 확인, 네이티브 음성 472개, 설정 › 음성 [베트남어 들어 보기] 내장 vi-VN 재생·[영어 들어 보기] 내장 en-US 데이터 손상(-4) → 온라인 en-US 대체 재생, [멈춤] 동작, ko-KR 재생. iOS 시뮬레이터 빌드 성공(플러그인 SPM 포함).
 - 2026-10-15 · IMP-19 발음 듣기(ADR-050): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 347(+15)·ui 47·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 54 passed·8 skipped — 새 듣기 테스트 desktop·mobile: OpenAI 키 없음 → 요청 0건·안내 토스트·기기 음성(ko-KR), 설정 › 음성에서 키 저장 → 429 → "사용 한도" 안내·기기 음성 대체·요청 1건. 스크린샷: 모바일 메뉴 5칸·설정 화면(데스크톱·모바일) 확인. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-15 · IMP-18 복사 버튼·모바일 시스템 메뉴 숨김(ADR-049): `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 52 passed·8 skipped(새 복사 테스트 desktop·mobile: 클립보드에 선택 글, "복사됨" 후 메뉴 유지). Android 에뮬레이터(dev 서버 연결 앱): 본문 길게 눌러 선택 → 시스템 메뉴 없음·선택 유지·우리 메뉴 4칸, [복사] 후 키보드 클립보드 제안에 선택 글 → 입력창에서는 붙여넣기 메뉴 정상 → 입력 후 본문 선택 시 다시 숨김. `/quiz` 카드가 모바일 앱에서도 렌더·풀이(정답·해설). iOS 시뮬레이터(iPhone 15 Pro): 빌드·설치·실행·화면 로드 PASS, 길게 누르기 메뉴 실측은 자동화 권한(손쉬운 사용) 없어 미확인 → 실기기 수동 확인(B-08).

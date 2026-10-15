@@ -23,12 +23,21 @@ import { useUi } from '../app/uiState';
  *   웹·데스크톱은 speechSynthesis, 모바일 앱은 네이티브 TTS(Android WebView에는 speechSynthesis가 없음, ADR-051).
  * - OpenAI: 활성 음성 하나로 합성해 재생. 키 없음·한도 부족·네트워크 오류면 기기 음성으로 대신 읽고 알린다.
  * 한 번에 하나만 읽는다. 새로 읽으면 이전 것은 멈춘다.
+ * 읽기 카드의 [모두 듣기]는 여러 줄을 차례로 읽는다 (IMP-21). 한 줄이 끝나면 다음 줄, 멈추거나 새로 읽으면 남은 줄은 버린다.
  */
 
 export type SpeechStatus = 'idle' | 'loading' | 'playing';
 
-export const useSpeech = create<{ status: SpeechStatus }>(() => ({ status: 'idle' }));
-const setStatus = (status: SpeechStatus) => useSpeech.setState({ status });
+/** key: 지금 읽는 줄을 부른 쪽이 붙인 이름 (읽기 카드가 어느 줄을 읽는지 표시) */
+export const useSpeech = create<{ status: SpeechStatus; key: string | null }>(() => ({ status: 'idle', key: null }));
+const setStatus = (status: SpeechStatus) => useSpeech.setState(status === 'idle' ? { status, key: null } : { status });
+
+/** 읽을 한 줄. lang이 없으면 글에서 고른다 */
+export interface SpeechLine {
+  text: string;
+  lang?: SpeechLang;
+  key?: string;
+}
 
 const LANG_NAME: Record<SpeechLang, string> = { vi: '베트남어', en: '영어', ko: '한국어' };
 
@@ -44,6 +53,8 @@ void native?.voices();
 let player: HTMLAudioElement | null = null;
 let seq = 0;
 let ctrl: AbortController | null = null;
+/** [모두 듣기]에서 아직 읽지 않은 줄 */
+let queue: SpeechLine[] = [];
 const warnedLang = new Set<SpeechLang>();
 
 /** 같은 글·음성은 다시 합성하지 않는다 (토큰 절약). 최근 것만 둔다 */
@@ -59,6 +70,7 @@ function remember(key: string, url: string) {
 }
 
 export function stopSpeaking() {
+  queue = [];
   if (native && useSpeech.getState().status !== 'idle') void native.stop().catch(() => {});
   halt();
 }
@@ -77,12 +89,33 @@ function halt() {
 }
 
 /** 글을 읽는다. 클릭 핸들러 안에서 바로 불러야 모바일 자동 재생 제한에 걸리지 않는다 */
-export function speak(raw: string) {
+export function speak(raw: string, opts: Omit<SpeechLine, 'text'> = {}) {
+  queue = [];
+  play({ ...opts, text: raw });
+}
+
+/** 여러 줄을 차례로 읽는다 */
+export function speakAll(lines: readonly SpeechLine[]) {
+  queue = lines.slice(1);
+  if (lines[0]) play(lines[0]);
+  else stopSpeaking();
+}
+
+/** 한 줄이 끝나면(실패 포함) 다음 줄로. 멈췄거나 다른 것을 읽기 시작했으면(id가 낡음) 아무것도 하지 않는다 */
+function finished(id: number) {
+  if (id !== seq) return;
+  const next = queue.shift();
+  if (next) play(next);
+  else setStatus('idle');
+}
+
+function play(line: SpeechLine) {
   halt();
-  const text = normalizeSpeechText(raw);
-  if (!text) return;
-  const lang = detectSpeechLang(text);
+  if (line.key) useSpeech.setState({ key: line.key });
+  const text = normalizeSpeechText(line.text);
   const id = seq;
+  if (!text) return finished(id);
+  const lang = line.lang ?? detectSpeechLang(text);
   const { tts } = useUi.getState();
   if (tts.engine === 'openai') {
     void native?.stop().catch(() => {});
@@ -128,9 +161,7 @@ async function speakOpenAI(text: string, lang: SpeechLang, voice: OpenAIVoice, i
   }
   const p = (player ??= new Audio());
   p.src = url;
-  p.onended = () => {
-    if (id === seq) setStatus('idle');
-  };
+  p.onended = () => finished(id);
   try {
     await p.play();
     if (id === seq) setStatus('playing');
@@ -141,7 +172,7 @@ async function speakOpenAI(text: string, lang: SpeechLang, voice: OpenAIVoice, i
 
 function fallback(code: ProviderError['code'] | undefined, text: string, lang: SpeechLang, id: number) {
   const notice = ttsFallbackNotice(code);
-  if (!notice) return setStatus('idle');
+  if (!notice) return finished(id);
   pushNotice(notice);
   speakDevice(text, lang, id);
 }
@@ -160,9 +191,7 @@ function speakDevice(text: string, lang: SpeechLang, id: number) {
     warnedLang.add(lang);
     pushNotice(`이 기기에 ${LANG_NAME[lang]} 음성이 없어요. 기기 설정에서 음성을 추가하면 발음이 정확해져요.`);
   }
-  const done = () => {
-    if (id === seq) setStatus('idle');
-  };
+  const done = () => finished(id);
   u.onstart = () => {
     if (id === seq) setStatus('playing');
   };
@@ -196,5 +225,5 @@ async function speakNative(n: MobileSpeech, text: string, lang: SpeechLang, id: 
       if (voice === tries.at(-1)) pushNotice('기기 음성으로 읽지 못했어요.');
     }
   }
-  if (id === seq) setStatus('idle');
+  finished(id);
 }

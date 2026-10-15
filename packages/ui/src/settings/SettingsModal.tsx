@@ -10,6 +10,7 @@ import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
 import { Field, Section, Segmented } from './controls';
 import { BackupTab } from './BackupTab';
+import { AutoSkillField } from './AutoSkillField';
 import { ApiCard, BridgeCard, CliCard, PolicyNote } from './connectionCards';
 import { HostCard } from './HostCard';
 import { RemoteSettings } from './RemoteSettings';
@@ -194,6 +195,8 @@ function GeneralTab() {
       </Field>
 
       <SelectionTriggerField />
+
+      <AutoSkillField />
 
       <Field label={`맥락 상속: 부모 대화 최근 ${settings.contextWindow}개`} hint="가지 질문에 함께 보낼 부모 세션의 최근 메시지 수입니다.">
         <input

@@ -17,13 +17,16 @@ function textOf(node: ElementContent): string {
   return node.type === 'element' ? node.children.map(textOf).join('') : '';
 }
 
-/** ```quiz 코드 블록이면 그 본문 */
-export function quizSource(node: Element | undefined): string | null {
+/** 언어 이름이 lang인 코드 블록이면 그 본문 */
+export function codeSource(node: Element | undefined, lang: string): string | null {
   const code = node?.children.find((c): c is Element => c.type === 'element' && c.tagName === 'code');
   const cls = code?.properties.className;
-  const isQuiz = Array.isArray(cls) && cls.includes(`language-${QUIZ_LANG}`);
-  return code && isQuiz ? textOf(code) : null;
+  const match = Array.isArray(cls) && cls.includes(`language-${lang}`);
+  return code && match ? textOf(code) : null;
 }
+
+/** ```quiz 코드 블록이면 그 본문 */
+export const quizSource = (node: Element | undefined) => codeSource(node, QUIZ_LANG);
 
 /* ── 풀이 상태: 다시 그려져도(가상 스크롤·탭 이동) 이어서 풀도록 기억한다 ── */
 

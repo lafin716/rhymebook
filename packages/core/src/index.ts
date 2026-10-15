@@ -29,6 +29,8 @@ export * from './notes';
 export * from './study';
 export * from './book';
 export * from './quiz';
+export * from './skill-match';
+export * from './speak-block';
 export * from './stt';
 export * from './bridge';
 export * from './platform';

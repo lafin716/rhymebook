@@ -112,7 +112,7 @@ export const sttClient: { client: BridgeClient; remote: boolean } = localClient
   ? { client: localClient, remote: false }
   : { client: remoteClient, remote: true };
 
-const hasScenarioHash = () => /scenario=[\w-]+/.test(window.location.hash);
+const hasScenarioHash = () => typeof window !== 'undefined' && /scenario=[\w-]+/.test(window.location.hash);
 
 interface RuntimeState {
   demo: boolean;

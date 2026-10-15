@@ -13,6 +13,7 @@ import { saveTextFile } from '../lib/download';
 import { Field, Section, Segmented } from './controls';
 import { PairForm } from './connectionCards';
 import { SelectionTriggerField } from './SelectionTriggerField';
+import { AutoSkillField } from './AutoSkillField';
 import { SpeechSettings } from './SpeechSettings';
 import { RemoteVoiceSettings } from './VoiceSettings';
 
@@ -56,6 +57,7 @@ export function RemoteSettings() {
           />
         </Field>
         <SelectionTriggerField />
+        <AutoSkillField />
       </Section>
 
       <OldDataCard />

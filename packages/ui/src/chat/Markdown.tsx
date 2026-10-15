@@ -9,6 +9,7 @@ import remarkMath from 'remark-math';
 import { rehypeAnchors, rehypeMathSource, type AnchorMark } from './anchorPlugin';
 import { rehypeSvgPreview, svgRanges } from './svgPlugin';
 import { QuizBlock, QuizContext, quizSource } from './QuizCard';
+import { SpeakBlock, speakSource } from './SpeakCard';
 import { SvgPreview } from './SvgPreview';
 
 export interface MarkdownProps {
@@ -17,15 +18,17 @@ export interface MarkdownProps {
   anchors?: AnchorMark[];
   annotations?: Annotation[];
   onMap?: (map: SegmentMap, located: Record<ID, boolean>) => void;
-  /** 답변 생성 중 (퀴즈 블록은 다 받은 뒤 카드로) */
+  /** 답변 생성 중 (퀴즈·읽기 블록은 다 받은 뒤 카드로) */
   streaming?: boolean;
 }
 
 const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkMath];
-/** ```quiz 블록은 퀴즈 카드, 나머지 코드 블록은 SVG 미리보기/일반 코드 */
+/** ```quiz 블록은 퀴즈 카드, ```speak 블록은 읽기 카드, 나머지 코드 블록은 SVG 미리보기/일반 코드 */
 function Pre(props: ComponentProps<'pre'> & ExtraProps) {
   const quiz = quizSource(props.node);
-  return quiz === null ? <SvgPreview {...props} /> : <QuizBlock {...props} source={quiz} />;
+  if (quiz !== null) return <QuizBlock {...props} source={quiz} />;
+  const said = speakSource(props.node);
+  return said === null ? <SvgPreview {...props} /> : <SpeakBlock {...props} source={said} />;
 }
 
 const components: Options['components'] = { pre: Pre };

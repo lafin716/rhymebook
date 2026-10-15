@@ -3,6 +3,7 @@ import {
   filterSkills,
   isCliId,
   isLongPaste,
+  matchSkill,
   nextFallback,
   parseSlash,
   PROVIDER_LABELS,
@@ -16,6 +17,7 @@ import {
 import { ArrowUp, ImagePlus, Paperclip, Plus, Settings2, Sparkles, Square, WandSparkles, WifiOff, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { actions, useApp } from '../app/store';
+import { useUi } from '../app/uiState';
 import { pushNotice } from '../app/sync';
 import { Button } from '../components/Button';
 import { PcOfflineBanner, usePcOnline } from '../components/PcStatus';
@@ -37,6 +39,8 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const [menu, setMenu] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashClosed, setSlashClosed] = useState(false);
+  // 자동 스킬 칩을 뺀 스킬 id (입력창을 비우면 다시 고른다)
+  const [dismissed, setDismissed] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -49,6 +53,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const conn = useApp((s) => s.connections[eff]);
   const fallback = useApp((s) => (isUsable(s.connections[eff]) ? null : nextFallback(s, eff)));
   const skills = useSkills((s) => s.skills);
+  const autoSkill = useUi((s) => s.autoSkill);
   const pcOnline = usePcOnline();
   const usable = isUsable(conn);
 
@@ -64,6 +69,10 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const slashItems = query === null || slashClosed ? [] : filterSkills(skills, query).slice(0, 8);
   const slashOpen = slashItems.length > 0;
   useEffect(() => setSlashIndex(0), [query]);
+
+  // 슬래시 명령 없이 쓴 요청이 어떤 스킬의 용도와 맞으면 그 스킬을 자동으로 쓴다 (IMP-21)
+  const matched = !skill && autoSkill && query === null && !parseSlash(text.trim()) ? matchSkill(text, skills) : null;
+  const auto = matched && matched.id !== dismissed ? matched : null;
 
   const addAttachment = (a: Attachment | string) => {
     if (typeof a === 'string') {
@@ -99,6 +108,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
     let body = text.trim();
     let use = skill;
     // `/명령 나머지`로 보내면 그 스킬을 적용한다 (모르는 명령은 그대로 보낸다)
+    if (!use && auto) use = skillRef(auto);
     if (!use) {
       const cmd = parseSlash(body);
       const hit = cmd ? skills.find((s) => s.name === cmd.name) : undefined;
@@ -117,6 +127,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
     setAttachments([]);
     setSkill(null);
     setSlashClosed(false);
+    setDismissed(null);
   };
 
   return (
@@ -180,7 +191,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
           }}
           className="rounded-2xl border border-line bg-surface p-1.5 shadow-pop focus-within:border-line-strong"
         >
-          {(attachments.length > 0 || skill) && (
+          {(attachments.length > 0 || skill || auto) && (
             <div className="flex flex-col gap-1.5 px-1.5 pt-1.5 pb-1">
               {skill && (
                 <span data-skill-chip={skill.name} className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-accent/40 bg-accent-soft pr-1 pl-2.5 text-[12.5px] text-accent">
@@ -194,6 +205,21 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
                     </span>
                   )}
                   <button type="button" aria-label="스킬 빼기" onClick={() => setSkill(null)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+              {auto && (
+                <span
+                  data-auto-skill={auto.name}
+                  title="요청에 맞는 스킬을 자동으로 써요. 빼면 일반 질문으로 보내요."
+                  className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-dashed border-accent/50 bg-accent-soft/50 pr-1 pl-2.5 text-[12.5px] text-accent"
+                >
+                  <WandSparkles size={13} />
+                  <span className="shrink-0 opacity-75">자동</span>
+                  <span className="truncate font-medium">{auto.title}</span>
+                  <code className="text-[11.5px] opacity-75">/{auto.name}</code>
+                  <button type="button" aria-label="자동 스킬 빼기" onClick={() => setDismissed(auto.id)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
                     <X size={12} />
                   </button>
                 </span>
@@ -217,6 +243,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
               onChange={(e) => {
                 setText(e.target.value);
                 setSlashClosed(false);
+                if (!e.target.value.trim()) setDismissed(null);
               }}
               onPaste={(e) => {
                 const files = Array.from(e.clipboardData.files);

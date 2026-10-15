@@ -6,6 +6,7 @@ const TRIGGER_KEY = 'branch.selectionTrigger';
 const QUOTE_KEY = 'branch.quoteCollapsed';
 const FAVORITES_KEY = 'branch.favoriteColors';
 const TTS_KEY = 'branch.tts';
+const AUTO_SKILL_KEY = 'branch.autoSkill';
 
 /** 텍스트를 드래그했을 때 가지·서식 메뉴를 띄우는 방식 (PC·웹. 모바일은 항상 자동) */
 export type SelectionTrigger = 'auto' | 'contextmenu';
@@ -32,6 +33,9 @@ interface UiState {
   /** 읽어 주기 엔진·OpenAI 음성 (기기별. API 키가 기기마다 다르므로 동기화하지 않는다, ADR-050) */
   tts: TtsPrefs;
   setTts(patch: Partial<TtsPrefs>): void;
+  /** 요청에 맞는 스킬 자동 사용 (기기별, 기본 켬, IMP-21) */
+  autoSkill: boolean;
+  setAutoSkill(v: boolean): void;
   /** 딥링크로 받은 페어링 링크. 설정 › 원격 Bridge 폼이 가져가면 비운다 */
   pairLink: string | null;
   /** 사이드바에서 끌고 있는 세션 (분할 놓기 영역 표시용) */
@@ -104,6 +108,11 @@ export const useUi = create<UiState>((set, get) => ({
     const tts = { ...get().tts, ...patch };
     set({ tts });
     save(TTS_KEY, JSON.stringify(tts));
+  },
+  autoSkill: load(AUTO_SKILL_KEY) !== '0',
+  setAutoSkill: (autoSkill) => {
+    set({ autoSkill });
+    save(AUTO_SKILL_KEY, autoSkill ? '1' : '0');
   },
   pairLink: null,
   dragSessionId: null,
