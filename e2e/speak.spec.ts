@@ -120,3 +120,38 @@ test('설정에서 자동 스킬을 끄면 칩이 뜨지 않는다', async ({ pa
   await expect(input).toHaveValue('퀴즈 내줘');
   await expect(page.locator('[data-auto-skill]')).toHaveCount(0);
 });
+
+test('OpenAI 읽기: 언어 탭에서 베트남어 남부 억양, 공통 모델 바꾸기', async ({ page }) => {
+  await setup(page);
+  const bodies: Record<string, unknown>[] = [];
+  await page.route('**/v1/audio/speech', async (route) => {
+    bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+    await route.fulfill({ status: 500, headers: CORS, body: '{}' });
+  });
+  await page.getByRole('button', { name: '설정', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: '설정' });
+  await dialog.getByRole('tab', { name: '음성' }).click();
+  await dialog.getByRole('radio', { name: 'OpenAI' }).click();
+  await dialog.getByLabel('OpenAI API 키').fill('sk-e2e-tts');
+  await dialog.getByRole('button', { name: '저장' }).click();
+
+  await expect(dialog.getByRole('tab', { name: '베트남어' })).toHaveAttribute('aria-selected', 'true');
+  await dialog.getByRole('radio', { name: '남부 (호찌민)' }).click();
+  await dialog.getByRole('button', { name: '베트남어 들어 보기' }).click();
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0]).toMatchObject({ model: 'gpt-4o-mini-tts', voice: 'marin' });
+  expect(bodies[0]?.instructions).toMatch(/Saigon/);
+
+  await dialog.getByRole('tab', { name: '영어' }).click();
+  await dialog.getByRole('radio', { name: '영국' }).click();
+  await dialog.getByLabel('OpenAI 음성 모델').selectOption('tts-1');
+  await expect(dialog.getByLabel('OpenAI 음성', { exact: true })).toHaveValue('alloy');
+  await expect(dialog.getByText('억양 지시를 받지 않아요. 억양을 바꾸려면')).toBeVisible();
+  await dialog.getByRole('button', { name: '영어 들어 보기' }).click();
+  await expect.poll(() => bodies.length).toBe(2);
+  expect(bodies[1]).toMatchObject({ model: 'tts-1', voice: 'alloy' });
+  expect(bodies[1]).not.toHaveProperty('instructions');
+
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('branch.tts') ?? '{}') as Record<string, string>);
+  expect(saved).toMatchObject({ engine: 'openai', openaiModel: 'tts-1', openaiVoice: 'alloy', viAccent: 'south', enAccent: 'uk' });
+});

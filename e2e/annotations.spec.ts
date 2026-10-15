@@ -183,7 +183,7 @@ test('드래그 메뉴의 듣기: OpenAI가 실패하면 기기 음성으로 대
   await page.getByRole('button', { name: '설정', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: '설정' });
   await dialog.getByRole('tab', { name: '음성' }).click();
-  await expect(dialog.getByLabel('OpenAI 음성')).toHaveValue('coral');
+  await expect(dialog.getByLabel('OpenAI 음성', { exact: true })).toHaveValue('coral');
   await dialog.getByLabel('OpenAI API 키').fill('sk-e2e-tts');
   await dialog.getByRole('button', { name: '저장' }).click();
   await expect(dialog.getByText(/저장됨/)).toBeVisible();

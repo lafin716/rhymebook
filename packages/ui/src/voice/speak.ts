@@ -8,7 +8,7 @@ import {
   synthesizeOpenAISpeech,
   ttsFallbackNotice,
   type MobileSpeech,
-  type OpenAIVoice,
+  type TtsPrefs,
   type ProviderError,
   type SpeechLang,
 } from '@branch/core';
@@ -120,7 +120,7 @@ function play(line: SpeechLine) {
   if (tts.engine === 'openai') {
     void native?.stop().catch(() => {});
     unlock();
-    void speakOpenAI(text, lang, tts.openaiVoice, id);
+    void speakOpenAI(text, lang, tts, id);
   } else {
     speakDevice(text, lang, id);
   }
@@ -134,9 +134,10 @@ function unlock() {
   synth?.speak(new SpeechSynthesisUtterance(''));
 }
 
-async function speakOpenAI(text: string, lang: SpeechLang, voice: OpenAIVoice, id: number) {
+async function speakOpenAI(text: string, lang: SpeechLang, tts: TtsPrefs, id: number) {
   setStatus('loading');
-  const key = `${voice}|${text}`;
+  const accent = lang === 'vi' ? tts.viAccent : lang === 'en' ? tts.enAccent : '';
+  const key = `${tts.openaiModel}|${tts.openaiVoice}|${lang}|${accent}|${text}`;
   let url = cache.get(key);
   if (!url) {
     const apiKey = await secrets.get(secretName.apiKey('openai-api'));
@@ -146,7 +147,9 @@ async function speakOpenAI(text: string, lang: SpeechLang, voice: OpenAIVoice, i
       const bytes = await synthesizeOpenAISpeech({
         apiKey: apiKey ?? '',
         text,
-        voice,
+        voice: tts.openaiVoice,
+        model: tts.openaiModel,
+        accent: tts,
         lang,
         baseUrl: baseUrls['openai-api'],
         signal: ctrl.signal,

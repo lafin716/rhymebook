@@ -3,6 +3,9 @@ import {
   detectSpeechLang,
   normalizeSpeechText,
   parseTtsPrefs,
+  fitVoiceToModel,
+  openaiVoicesFor,
+  speechInstructions,
   pickDeviceVoice,
   rankDeviceVoices,
   synthesizeOpenAISpeech,
@@ -47,12 +50,30 @@ describe('normalizeSpeechText', () => {
 });
 
 describe('parseTtsPrefs', () => {
-  it('기본값은 기기 음성', () => {
-    expect(parseTtsPrefs(null)).toEqual({ engine: 'device', openaiVoice: 'marin' });
-    expect(parseTtsPrefs({ engine: 'x', openaiVoice: 'nope' })).toEqual({ engine: 'device', openaiVoice: 'marin' });
+  const defaults = { engine: 'device', openaiModel: 'gpt-4o-mini-tts', openaiVoice: 'marin', viAccent: 'north', enAccent: 'us' };
+  it('기본값은 기기 음성·북부·미국', () => {
+    expect(parseTtsPrefs(null)).toEqual(defaults);
+    expect(parseTtsPrefs({ engine: 'x', openaiVoice: 'nope', openaiModel: 'x', viAccent: 'x' })).toEqual(defaults);
+    // 이전 저장값(모델·억양 없음)도 그대로 읽힌다
+    expect(parseTtsPrefs({ engine: 'openai', openaiVoice: 'coral' })).toEqual({ ...defaults, engine: 'openai', openaiVoice: 'coral' });
   });
   it('알려진 값은 그대로', () => {
-    expect(parseTtsPrefs({ engine: 'openai', openaiVoice: 'coral' })).toEqual({ engine: 'openai', openaiVoice: 'coral' });
+    const v = { engine: 'openai', openaiModel: 'tts-1-hd', openaiVoice: 'nova', viAccent: 'south', enAccent: 'uk' };
+    expect(parseTtsPrefs(v)).toEqual(v);
+  });
+  it('모델이 지원하지 않는 음성은 그 모델 음성으로 바꾼다', () => {
+    expect(parseTtsPrefs({ openaiModel: 'tts-1', openaiVoice: 'marin' }).openaiVoice).toBe('alloy');
+    expect(openaiVoicesFor('tts-1')).not.toContain('marin');
+    expect(fitVoiceToModel('tts-1', 'coral')).toBe('coral');
+  });
+});
+
+describe('speechInstructions', () => {
+  it('베트남어는 북부/남부, 영어는 미국/영국 억양', () => {
+    expect(speechInstructions('vi')).toMatch(/Hanoi/);
+    expect(speechInstructions('vi', { viAccent: 'south', enAccent: 'us' })).toMatch(/Saigon/);
+    expect(speechInstructions('en', { viAccent: 'north', enAccent: 'uk' })).toMatch(/British/);
+    expect(speechInstructions('en')).toMatch(/American/);
   });
 });
 
@@ -101,6 +122,20 @@ describe('synthesizeOpenAISpeech', () => {
     const body = JSON.parse(init?.body as string) as Record<string, string>;
     expect(body).toMatchObject({ model: 'gpt-4o-mini-tts', voice: 'coral', input: 'Xin chào', response_format: 'mp3' });
     expect(body.instructions).toMatch(/Hanoi/);
+  });
+
+  it('모델·억양을 바꾸고, tts-1 계열에는 지시를 보내지 않는다', async () => {
+    const bodies: Record<string, string>[] = [];
+    const fetch = async (_u: string, i?: RequestInit) => {
+      bodies.push(JSON.parse(i?.body as string) as Record<string, string>);
+      return new Response(new Uint8Array([1]));
+    };
+    const base = { apiKey: 'sk-x', text: 'Xin chào', lang: 'vi' as const, fetch };
+    await synthesizeOpenAISpeech({ ...base, voice: 'marin', accent: { viAccent: 'south', enAccent: 'us' } });
+    await synthesizeOpenAISpeech({ ...base, voice: 'marin', model: 'tts-1' });
+    expect(bodies[0]?.instructions).toMatch(/Saigon/);
+    expect(bodies[1]).toMatchObject({ model: 'tts-1', voice: 'alloy' });
+    expect(bodies[1]).not.toHaveProperty('instructions');
   });
 
   it('키가 없으면 auth, 한도 초과(429)는 rate-limit, 연결 실패는 offline', async () => {
