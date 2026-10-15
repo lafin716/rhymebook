@@ -120,6 +120,7 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
               anchors={streaming ? undefined : anchors}
               annotations={streaming ? undefined : annotations}
               onMap={onMap}
+              streaming={streaming}
             />
           </div>
           {!streaming && <RegionGutter target={ref} />}

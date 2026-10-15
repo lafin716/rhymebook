@@ -312,6 +312,7 @@ export function mergeSkills(
 /** 기본 제공 예시 스킬 id (처음 실행 시 한 번 넣는다. 지우면 다시 넣지 않는다) */
 export const CURRICULUM_SKILL_ID = 'skill-curriculum';
 export const BOOK_SKILL_ID = 'skill-book';
+export const QUIZ_SKILL_ID = 'skill-quiz';
 
 export function defaultSkills(now = Date.now()): Skill[] {
   return [
@@ -385,6 +386,43 @@ export function defaultSkills(now = Date.now()): Skill[] {
         '- 순수 마크다운 (한국어). 학습자가 [책 PDF로 저장]으로 실제 책처럼 엮는다',
         '- 제목 단계를 지킨다: `#` 책 제목(한 번), `##` 머리말·N장·맺음말·용어 찾아보기, `###` 절. 본문 안에서 `#`·`##`를 따로 쓰지 않는다',
         '- 이어 쓸 때도 `## N장. 제목`으로 시작하고, 인사말·안내 문장은 쓰지 않는다',
+      ].join('\n'),
+      builtin: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: QUIZ_SKILL_ID,
+      name: 'quiz',
+      title: '퀴즈 풀기',
+      description: '주제나 지금까지의 대화로 OX·객관식·주관식 퀴즈를 내요. 대화창에서 카드로 한 문제씩 풀고 정답과 해설을 바로 확인해요.',
+      prompt: [
+        '학습자가 준 주제(비어 있으면 지금까지의 대화에서 다룬 내용)로 이해도를 점검하는 퀴즈를 낸다.',
+        '',
+        '## 출제',
+        '- 학습자가 개수·유형·난이도를 정하면 따른다. 정하지 않으면 5문제, 유형을 섞는다 (OX 1~2, 객관식 2~3, 주관식 1~2).',
+        '- 단순 암기보다 개념 이해·적용을 묻는다. 쉬운 문제에서 어려운 문제 순으로 낸다.',
+        '- 객관식 보기는 4개, 오답 보기도 그럴듯하게. "모두 맞다/틀리다" 보기는 피한다.',
+        '- 주관식은 한 단어나 짧은 구로 답할 수 있게 묻고, 같은 뜻의 다른 표기(영문·약어·띄어쓰기)를 accept에 넣는다.',
+        '- 해설은 왜 정답인지와 흔한 오해를 1~3문장으로 쓴다. 원문 대화에 없는 사실을 지어내지 않는다.',
+        '',
+        '## 출력 형식 (반드시 지킨다)',
+        '앱이 아래 코드 블록을 퀴즈 카드로 보여 주고 채점한다. 블록 앞에 한 줄 안내만 쓰고, 정답·해설을 블록 밖에 따로 쓰지 않는다.',
+        '',
+        '```quiz',
+        '{',
+        '  "title": "퀴즈 제목",',
+        '  "questions": [',
+        '    { "type": "ox", "question": "문장", "answer": true, "explanation": "해설" },',
+        '    { "type": "choice", "question": "질문", "choices": ["보기1", "보기2", "보기3", "보기4"], "answer": 2, "explanation": "해설" },',
+        '    { "type": "short", "question": "질문", "answer": "대표 정답", "accept": ["다른 표기"], "explanation": "해설" }',
+        '  ]',
+        '}',
+        '```',
+        '',
+        '- 언어 이름은 `quiz`, 본문은 올바른 JSON(큰따옴표, 끝 쉼표 없음)이다.',
+        '- ox의 answer는 true(O) 또는 false(X), choice의 answer는 1부터 센 정답 번호다.',
+        '- 문자열 안에 마크다운(굵게, `코드`, $수식$)을 쓸 수 있다. 줄바꿈은 \\n으로 쓴다.',
       ].join('\n'),
       builtin: true,
       createdAt: now,

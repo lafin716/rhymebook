@@ -197,7 +197,7 @@ describe('sync host ↔ client', () => {
 
   it('pullSkills: the client receives the PC skill list, paged by size', async () => {
     const { client } = await connectClient();
-    expect((await client.pullSkills()).map((s) => s.name)).toEqual(['curriculum', 'book']);
+    expect((await client.pullSkills()).map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz']);
     // 1MB 페이지 예산을 넘는 목록은 여러 페이지로 나눠 받아도 모두 모인다
     const big = (i: number): Skill => ({
       id: `k${i}`,
@@ -223,7 +223,7 @@ describe('sync host ↔ client', () => {
     const pending = client.pullSkills();
     // 이전 요청의 남은 페이지가 늦게 도착해도 지금 요청의 결과가 되지 않는다
     for (const l of peer.state.listeners) l({ type: 'sync.skills', reqId: 'stale', skills: [], first: false, done: true });
-    expect((await pending).map((s) => s.name)).toEqual(['curriculum', 'book']);
+    expect((await pending).map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz']);
   });
 
   it('pullSkills fails when offline', async () => {

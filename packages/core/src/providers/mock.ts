@@ -127,6 +127,20 @@ Attention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V
   },
 ];
 
+/** /quiz 스킬 데모 응답 (IMP-17) */
+const MOCK_QUIZ = `지금까지 다룬 어텐션을 퀴즈로 점검해 볼게요.
+
+\`\`\`quiz
+{
+  "title": "어텐션 점검 퀴즈",
+  "questions": [
+    { "type": "ox", "question": "어텐션 점수는 Query와 Key의 내적으로 구한다.", "answer": true, "explanation": "Query와 각 Key의 **내적**이 관련도 점수가 되고, 소프트맥스로 가중치가 됩니다." },
+    { "type": "choice", "question": "점수를 $\\\\sqrt{d_k}$로 나누는 이유로 가장 알맞은 것은?", "choices": ["계산을 빠르게 하려고", "내적 값이 커져 소프트맥스가 한쪽으로 쏠리는 것을 막으려고", "Value 벡터의 크기를 맞추려고", "Key를 정규화하려고"], "answer": 2, "explanation": "차원이 크면 내적 값의 분산이 커져 소프트맥스 기울기가 거의 0이 됩니다. 나눠서 값의 규모를 맞춥니다." },
+    { "type": "short", "question": "어텐션 가중치로 가중합하는 벡터의 이름은?", "answer": "Value", "accept": ["V", "값", "밸류"], "explanation": "가중치는 **Value** 벡터에 곱해져 새 표현을 만듭니다." }
+  ]
+}
+\`\`\``;
+
 function lastUser(req: StreamRequest): string {
   for (let i = req.messages.length - 1; i >= 0; i--) {
     const m = req.messages[i]!;
@@ -170,6 +184,7 @@ export function mockAnswer(req: StreamRequest): string {
     const gist = hit ? hit.answer.split('\n')[0]!.replace(/[*`]/g, '') : `${target}의 핵심 의미와 쓰임`;
     return `${gist} 즉, 앞선 설명의 맥락에서 "${target}"을(를) 이렇게 이해하면 된다.`;
   }
+  if (/^## 스킬: .+ \(\/quiz\)$/m.test(req.system)) return MOCK_QUIZ;
   const focus = focusOf(req);
   const probe = `${user} ${focus ?? ''}`;
   const hit = CANNED.find((c) => c.keys.test(user)) ?? CANNED.find((c) => c.keys.test(probe));

@@ -1,13 +1,14 @@
 import type { ID, SegmentMap, Annotation } from '@branch/core';
 import 'katex/dist/katex.min.css';
-import { memo, useMemo } from 'react';
-import ReactMarkdown, { type Options } from 'react-markdown';
+import { memo, useMemo, type ComponentProps } from 'react';
+import ReactMarkdown, { type ExtraProps, type Options } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { rehypeAnchors, rehypeMathSource, type AnchorMark } from './anchorPlugin';
 import { rehypeSvgPreview, svgRanges } from './svgPlugin';
+import { QuizBlock, QuizContext, quizSource } from './QuizCard';
 import { SvgPreview } from './SvgPreview';
 
 export interface MarkdownProps {
@@ -16,10 +17,18 @@ export interface MarkdownProps {
   anchors?: AnchorMark[];
   annotations?: Annotation[];
   onMap?: (map: SegmentMap, located: Record<ID, boolean>) => void;
+  /** 답변 생성 중 (퀴즈 블록은 다 받은 뒤 카드로) */
+  streaming?: boolean;
 }
 
 const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkMath];
-const components: Options['components'] = { pre: SvgPreview };
+/** ```quiz 블록은 퀴즈 카드, 나머지 코드 블록은 SVG 미리보기/일반 코드 */
+function Pre(props: ComponentProps<'pre'> & ExtraProps) {
+  const quiz = quizSource(props.node);
+  return quiz === null ? <SvgPreview {...props} /> : <QuizBlock {...props} source={quiz} />;
+}
+
+const components: Options['components'] = { pre: Pre };
 
 /** 코드(펜스 블록·인라인 코드) 영역 마스크. 수식 구분자 변환에서 제외한다 */
 function codeMask(src: string): Uint8Array {
@@ -110,6 +119,7 @@ export const Markdown = memo(function Markdown({
   anchors,
   annotations,
   onMap,
+  streaming,
 }: MarkdownProps) {
   const anchorKey = anchors?.map((a) => `${a.sessionId}:${a.startOffset}:${a.hasSummary ? 1 : 0}`).join('|') ?? '';
   const annotKey = annotations?.map((a) => `${a.id}:${a.anchor.startOffset}:${a.updatedAt}`).join('|') ?? '';
@@ -136,9 +146,12 @@ export const Markdown = memo(function Markdown({
     [key, messageId, onMap],
   );
   const source = useMemo(() => normalizeMathDelimiters(content), [content]);
+  const quiz = useMemo(() => ({ messageId, streaming }), [messageId, streaming]);
   return (
-    <ReactMarkdown components={components} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
-      {source}
-    </ReactMarkdown>
+    <QuizContext.Provider value={quiz}>
+      <ReactMarkdown components={components} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
+        {source}
+      </ReactMarkdown>
+    </QuizContext.Provider>
   );
 });
