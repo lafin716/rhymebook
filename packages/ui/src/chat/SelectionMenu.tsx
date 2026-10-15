@@ -9,7 +9,9 @@ import {
 } from '@branch/core';
 import {
   Bold,
+  Check,
   ChevronDown,
+  Copy,
   CornerDownRight,
   Eraser,
   Highlighter,
@@ -59,6 +61,7 @@ export function SelectionMenu() {
   const [question, setQuestion] = useState('');
   const [memo, setMemo] = useState<string | null>(null);
   const [palette, setPalette] = useState<ColorKind | null>(null);
+  const [copied, setCopied] = useState(false);
   const annotations = useApp((s) => s.annotations);
   const dragging = useRef(false);
   const touchingMenu = useRef(false);
@@ -74,6 +77,7 @@ export function SelectionMenu() {
     setQuestion('');
     setMemo(null);
     setPalette(null);
+    setCopied(false);
   }, []);
 
   useEffect(() => {
@@ -171,6 +175,19 @@ export function SelectionMenu() {
     window.getSelection()?.removeAllRanges();
     dismiss();
     if (id) openBranch(id);
+  };
+
+  /** 선택한 글을 복사한다. 메뉴는 그대로 두어 이어서 가지를 칠 수 있다 */
+  const copy = async () => {
+    const text = window.getSelection()?.toString() || pending.anchor.text;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // 클립보드 API가 막힌 환경: 아직 살아 있는 선택을 복사한다
+      if (!document.execCommand('copy')) return;
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
   };
 
   const { messageId, startOffset, endOffset } = pending.anchor;
@@ -378,6 +395,13 @@ export function SelectionMenu() {
       <MenuButton size={size} icon={<MessageSquarePlus size={size === 'lg' ? 18 : 15} />} onClick={() => setCustom(true)}>
         직접 질문
       </MenuButton>
+      <MenuButton
+        size={size}
+        icon={copied ? <Check size={size === 'lg' ? 18 : 15} /> : <Copy size={size === 'lg' ? 18 : 15} />}
+        onClick={() => void copy()}
+      >
+        {copied ? '복사됨' : '복사'}
+      </MenuButton>
     </>
   );
 
@@ -420,7 +444,7 @@ export function SelectionMenu() {
             paletteView
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2">{actionButtons('lg')}</div>
+              <div className="grid grid-cols-4 gap-2">{actionButtons('lg')}</div>
               <div className="mt-2 border-t border-line pt-2">{toolbar}</div>
             </>
           )}
@@ -430,7 +454,7 @@ export function SelectionMenu() {
     );
   }
 
-  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 400;
+  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 440;
   const pos = placeMenu(pending.rect, { w: width, h: size?.h ?? (custom ? 46 : memo !== null ? 128 : 84) });
   return createPortal(
     <div

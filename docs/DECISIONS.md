@@ -358,3 +358,13 @@
   - 풀이 기억: 메시지 id + 블록 위치 키로 메모리 + localStorage(`rb.quiz.*`). 기기 간 동기화는 하지 않는다(학습 데이터가 아니라 화면 상태).
   - 책 PDF는 자체 마크다운 렌더러를 써서 퀴즈 블록이 코드로 남는다(카드 상호작용은 인쇄물에 의미 없음).
 - 대안: 퀴즈를 별도 메시지 타입·DB 테이블로 — 저장·동기화·provider 모두 바꿔야 해 기각. 모델과 턴마다 문답(답을 보내고 채점받기) — 느리고 토큰을 쓰며 즉시 정답을 보여 줄 수 없어 기각(나중에 "틀린 문제 다시 묻기"로 확장 가능).
+
+### ADR-049 · 2026-10-15 · 선택 메뉴 복사 버튼과 모바일 앱 시스템 텍스트 메뉴 숨김
+- 배경: 사용자 요청 — 모바일 앱에서 본문을 드래그하면 OS 기본 메뉴(복사·전체 선택·공유 등)가 우리 선택 메뉴 위에 겹쳐 뜬다. 숨기고, 대신 우리 메뉴에 [복사]를 넣고 싶다.
+- 결정:
+  - 선택 메뉴(데스크톱 팝업·모바일 하단 바)에 [복사] 추가: `navigator.clipboard.writeText`, 실패 시 `execCommand('copy')`. 누르면 1.5초간 "복사됨"을 보이고 메뉴·선택은 그대로 둔다(이어서 가지를 만들 수 있게). 모바일 버튼 격자 4칸, 데스크톱 메뉴 폭 440px. UX-SPEC의 선택 메뉴 항목에 [복사]가 더해진 것으로 본다.
+  - 모바일 앱(Capacitor)만 네이티브에서 시스템 텍스트 메뉴를 숨긴다. 웹·데스크톱은 그대로.
+    - iOS: `AppWebView`(WKWebView 하위 클래스)가 `canPerformAction`을 거절하고 `buildMenu`에서 메뉴를 비운다. `AppViewController`(CAPBridgeViewController)가 이 웹뷰를 쓰고 로컬 플러그인을 등록한다.
+    - Android: `AppWebView`(CapacitorWebView 하위 클래스)가 `startActionMode`를 감싸 메뉴를 `clear()`한다. 액션 모드 자체는 시작시켜 선택 핸들·선택이 유지된다. `capacitor_bridge_layout_main.xml`로 교체.
+  - 입력창 예외: JS 가드(`apps/mobile/src/textMenu.ts`)가 포커스된 입력·편집 영역이 있을 때만 로컬 플러그인 `TextMenu.setSuppressed(false)`로 시스템 메뉴(붙여넣기 등)를 돌려준다.
+- 대안: CSS `-webkit-touch-callout: none`·`user-select` — iOS 일부 메뉴만 막고 Android 액션 모드는 못 막으며 선택 자체를 막아 기각. Android `startActionMode`에서 null 반환 — 선택이 바로 풀려 기각. `contextmenu` 이벤트 차단 — 네이티브 선택 메뉴에는 효과 없음.

@@ -136,6 +136,16 @@ test('드래그 메뉴는 선택 영역을 가리지 않는다', async ({ page }
   expect(overlapX && overlapY).toBe(false);
 });
 
+test('드래그 메뉴의 복사: 선택한 글을 클립보드에 담고 메뉴는 남는다', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await start(page, '복사 테스트');
+  const menu = await select(page, '가중합');
+  await menu.getByRole('button', { name: '복사', exact: true }).click();
+  await expect(menu.getByRole('button', { name: '복사됨' })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('가중합');
+  await expect(menu.getByRole('button', { name: '복사', exact: true })).toBeVisible({ timeout: 3000 });
+});
+
 test('우클릭 모드: 드래그만으로는 메뉴가 뜨지 않고 우클릭하면 뜬다', async ({ page }, info) => {
   test.skip(info.project.name === 'mobile', '모바일은 항상 자동');
   await page.addInitScript(() => localStorage.setItem('branch.selectionTrigger', 'contextmenu'));
