@@ -7,9 +7,9 @@
 - 설계 문서: [`docs/`](docs) (비전 · PRD · 아키텍처 · Provider · UX · 로드맵 · 진행 현황 · ADR · 블로커)
 - 지원: 웹 · 데스크톱(macOS/Windows/Linux, Electron) · 모바일(iOS/Android, Capacitor)
 
-## Preview beta · 0.20.0-beta.1
+## Preview beta · 0.20.0-beta.2
 
-이 브랜치는 **octobooks Preview** 리브랜딩 베타입니다. 안정판 `main`과 독립된 `preview/octobooks` 워크트리에서 개발합니다. [베타 릴리즈](https://github.com/lafin716/rhymebook/releases/tag/v0.20.0-beta.1)는 정식 Latest 릴리즈에 포함되지 않습니다.
+이 브랜치는 **octobooks Preview** 리브랜딩 베타입니다. 안정판 `main`과 독립된 `preview/octobooks` 워크트리에서 개발합니다. [베타 릴리즈](https://github.com/lafin716/rhymebook/releases/tag/v0.20.0-beta.2)는 정식 Latest 릴리즈에 포함되지 않습니다.
 
 - 새 문어 아이콘·바다 테마·가지치기 학습 컨셉. 설정 → **테마**에서 오션·라군·코랄·어비스·펄 선택, 시스템/라이트/다크 별도 설정. 웹·모바일은 설정의 **나의 바다**에서 선택합니다.
 - 색상은 기기별로 저장되며 PC 페어링 데이터에 영향을 주지 않습니다.

@@ -50,3 +50,7 @@ Use this worktree/branch; never merge into main without a new request. `pnpm dev
 ## Follow-up: minimal header (2026-10-16)
 
 Removed sidebar wordmark/slogans/description, keeping the accessible octopus mark; removed duplicate top-toolbar brand mark/root title/PREVIEW badge. Desktop1440 and mobile390 screenshot checks passed, no page overflow. UI typecheck/lint/diff-check passed; core-flow E2E9 passed/1 existing mobile conditional skip. Preview app rebuilt. Changes remain on preview/octobooks; published beta.1 tag/assets are unchanged.
+
+## Beta 2 release (2026-10-16)
+
+Includes minimal-header change b4fbafe: icon-only sidebar and functional-only top toolbar. Version0.20.0-beta.2, Android/iOS build22. Existing independently reviewed preview identities and prerelease workflow retained unchanged. Prior header validation: UI typecheck/lint, desktop/mobile screenshot checks, core-flow9pass/1skip, packaged Preview smoke. Final beta2 release CI and distribution checks pending. Untracked icon-candidates directory is preserved and excluded.
