@@ -53,4 +53,17 @@ Removed sidebar wordmark/slogans/description, keeping the accessible octopus mar
 
 ## Beta 2 release (2026-10-16)
 
-Includes minimal-header change b4fbafe: icon-only sidebar and functional-only top toolbar. Version0.20.0-beta.2, Android/iOS build22. Existing independently reviewed preview identities and prerelease workflow retained unchanged. Prior header validation: UI typecheck/lint, desktop/mobile screenshot checks, core-flow9pass/1skip, packaged Preview smoke. Final beta2 release CI and distribution checks pending. Untracked icon-candidates directory is preserved and excluded.
+Includes minimal-header change b4fbafe: icon-only sidebar and functional-only top toolbar. Version0.20.0-beta.2, Android/iOS build22. Existing independently reviewed preview identities and prerelease workflow retained unchanged. Prior header validation: UI typecheck/lint, desktop/mobile screenshot checks, core-flow9pass/1skip, packaged Preview smoke. Final beta2 release CI and distribution checks PASS. Untracked icon-candidates directory is preserved and excluded.
+
+
+### Beta 2 published evidence
+
+- Source `b231cff1f4daff1e590e6b43b03217b7805f9060`, annotated tag `v0.20.0-beta.2` (later docs-only branch commit records results).
+- [Beta 2 release](https://github.com/lafin716/rhymebook/releases/tag/v0.20.0-beta.2): published, draft=false, prerelease=true, latest=false, seven platform assets attached.
+- [Release CI](https://github.com/lafin716/rhymebook/actions/runs/38871695032): all macOS/Windows/Linux/Android build jobs and release publication succeeded.
+- [Validation CI](https://github.com/lafin716/rhymebook/actions/runs/38871706915): typecheck/lint/532 unit-integration tests (4 conditional skips) and 79 E2E (11 conditional/platform skips) passed on exact source, first attempt.
+- Downloaded macOS ZIP from build artifact, confirmed its SHA256 matches published release; launched actual packaged beta2 with temporary userData/sessionData. Version0.20.0-beta.2, icon-only sidebar and no duplicate top title, theme/dark/session reload persistence passed; page errors empty.
+- Downloaded Android APK and confirmed SHA256 against published release. aapt: app.octobooks.preview, version0.20.0-beta.2, build22, label octobooks Preview. Platform IDs/data locations unchanged for updates.
+- Independent bounded release-delta review approved header/version changes with no blockers.
+- Local/remote main still e0a9a6259685cb03c949477be606bbe3ccce0430; original checkout clean. Stable Latest remains v0.19.0. Beta1 assets/tags unchanged. Untracked icon-candidates preserved/excluded.
+- Actual native GUI smoke is macOS; Windows/Linux verified by build CI. iOS device/TestFlight release remains outside existing pipeline. No new unresolved issue.

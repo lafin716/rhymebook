@@ -28,7 +28,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 
 후속 UI 조정(2026-10-16): 좌측 상단 아이콘 외 브랜드 문구 제거, 최상단 바 아이콘·중복 제목·PREVIEW 제거. UI 타입/린트·데스크톱/모바일 스크린샷·핵심 E2E9 통과, Preview 앱 재빌드. 별도 preview 브랜치에서만 적용.
 
-베타2 릴리즈(2026-10-16): IN_PROGRESS — 상단 디자인 후속 수정 b4fbafe를 포함해 v0.20.0-beta.2로 배포. Android/iOS 빌드 번호22. 기존 베타1·main·안정판 Latest 유지. 미추적 icon-candidates 작업물은 배포 커밋에 포함하지 않음.
+베타2 릴리즈(2026-10-16): DONE — 상단 디자인 후속 수정 b4fbafe를 포함해 v0.20.0-beta.2로 배포. Android/iOS 빌드 번호22. 베타2 설치 파일7개 게시, CI532/79 통과, 실제 mac 배포 앱·Android22 검증 완료. 기존 베타1·main·안정판 Latest 유지. 미추적 icon-candidates 작업물은 배포 커밋에 포함하지 않음.
 
 ## 체크리스트
 
