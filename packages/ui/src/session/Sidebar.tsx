@@ -118,15 +118,10 @@ function SidebarBody() {
   const pcOnline = usePcOnline();
   return (
     <>
-      <div className="px-4 pt-5 pb-4">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-accent text-accent-fg [--octo-eye:var(--accent)]"><OctoMark className="size-9" /></span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2"><span className="octo-wordmark text-[23px] leading-none">octobooks</span></div>
-            <p className="mt-1.5 text-[10px] font-medium tracking-[.2em] text-accent">BRANCH OUT. DIVE DEEP.</p>
-          </div>
-        </div>
-        <p className="mt-4 text-[12px] leading-relaxed text-muted">작은 질문에서 뻗어가는, 나만의 배움.</p>
+      <div className="px-4 pt-4 pb-3">
+        <span role="img" aria-label="octobooks" className="grid size-10 place-items-center rounded-2xl bg-accent text-accent-fg [--octo-eye:var(--accent)]">
+          <OctoMark className="size-9" />
+        </span>
       </div>
       <div className="px-3 pb-2">
         <Button

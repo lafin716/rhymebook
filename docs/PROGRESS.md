@@ -26,6 +26,8 @@ Overall: 8/8 tasks DONE (100%); all work isolated in preview/octobooks.
 
 Decisions: no dependency/schema changes; UI-only color palette; independent preview app identities/data; preserve compatibility protocol/storage markers. Main baseline e0a9a6259685cb03c949477be606bbe3ccce0430. Existing GitHub access confirmed via gh with network permission. OMX fixed legacy models unavailable for account (explore/architect/critic); leader performs implementation directly and Compound installed architecture/review roles provide independent review with supported inherited model.
 
+후속 UI 조정(2026-10-16): 좌측 상단 아이콘 외 브랜드 문구 제거, 최상단 바 아이콘·중복 제목·PREVIEW 제거. UI 타입/린트·데스크톱/모바일 스크린샷·핵심 E2E9 통과, Preview 앱 재빌드. 별도 preview 브랜치에서만 적용.
+
 ## 체크리스트
 
 ### 1단계 · 설계 문서

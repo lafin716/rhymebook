@@ -46,3 +46,7 @@ Additional Linux CI on source 9eaf5f8 initially failed an untouched sync.test.ts
 ## Continue / development
 
 Use this worktree/branch; never merge into main without a new request. `pnpm dev --port 5196` opens the preview UI. `pnpm --filter @branch/desktop package:dir` rebuilds the separate octobooks Preview bundle. Palette settings: desktop Settings → 테마; remote Settings → 나의 바다. Existing data transfer uses backup export/import. Test commands and ownership contracts are in TEST_STRATEGY.md and MASTER_PLAN.md.
+
+## Follow-up: minimal header (2026-10-16)
+
+Removed sidebar wordmark/slogans/description, keeping the accessible octopus mark; removed duplicate top-toolbar brand mark/root title/PREVIEW badge. Desktop1440 and mobile390 screenshot checks passed, no page overflow. UI typecheck/lint/diff-check passed; core-flow E2E9 passed/1 existing mobile conditional skip. Preview app rebuilt. Changes remain on preview/octobooks; published beta.1 tag/assets are unchanged.
