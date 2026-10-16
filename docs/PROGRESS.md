@@ -8,10 +8,10 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
-## octobooks preview rebrand — active 2026-10-16
+## octobooks preview rebrand — completed 2026-10-16
 
 Plan: `docs/rebrand/MASTER_PLAN.md`; design: `docs/rebrand/DESIGN.md`; architecture reused from `docs/02-ARCHITECTURE.md`; validation: `docs/rebrand/TEST_STRATEGY.md`.
-Overall: 6/8 tasks DONE (75%); all work isolated in preview/octobooks.
+Overall: 8/8 tasks DONE (100%); all work isolated in preview/octobooks.
 
 | ID | Epic | Task | Owner | Complexity | Model | Reasoning | Status | Progress | Depends On | Validation |
 |---|---|---|---|---|---|---|---|---:|---|---|
@@ -19,10 +19,10 @@ Overall: 6/8 tasks DONE (75%); all work isolated in preview/octobooks.
 | OCT-THEME | Rebrand | Device-local palettes and settings | executor | MEDIUM | gpt-5.5 | medium | DONE | 100% | OCT-ARCH | PASS: UI55 tests; appearance E2E8; five palettes in both modes; storage fallback and multiwindow sync |
 | OCT-BRAND | Rebrand | Identity, shell, illustrations, platform icons | executor | MEDIUM | gpt-5.5 | medium | DONE | 100% | OCT-ARCH | PASS: original SVG/icons/splash; desktop/mobile/tablet screenshots independently reviewed |
 | OCT-RELEASE | Rebrand | Preview identities and beta release pipeline | lead | HIGH | inherited | inherited | DONE | 100% | OCT-ARCH | PASS: independent adversarial review; preview native identities/userData/sessionData and prerelease-only workflow |
-| OCT-INTEGRATE | Rebrand | Tests, builds and real Electron/web UI smoke | lead | HIGH | inherited | inherited | DONE | 100% | OCT-THEME,OCT-BRAND,OCT-RELEASE | PASS: typecheck/lint/build; 532 tests; full E2E77 + appearance8; packaged Electron reload/default path/override smoke no errors |
+| OCT-INTEGRATE | Rebrand | Tests, builds and real Electron/web UI smoke | lead | HIGH | inherited | inherited | DONE | 100% | OCT-THEME,OCT-BRAND,OCT-RELEASE | PASS: local and CI typecheck/lint/build; 532 tests; final E2E79; actual distribution Electron smoke; iOS simulator build; no main changes |
 | OCT-REVIEW | Rebrand | Independent final review | code-reviewer | CRITICAL | gpt-5.5 | high | DONE | 100% | OCT-INTEGRATE | PASS: independent adversarial + visual reviews, no blocking findings; bootstrap fallback fixed and validated |
-| OCT-PUBLISH | Rebrand | GitHub preview prerelease and CI artifacts | lead | HIGH | inherited | inherited | IN_PROGRESS | 0% | OCT-REVIEW | Reviewed preview commit preparing for beta tag and release CI |
-| OCT-DOCS | Rebrand | Evidence/docs sync and isolation proof | lead | LOW | inherited | inherited | TODO | 0% | OCT-PUBLISH | pending |
+| OCT-PUBLISH | Rebrand | GitHub preview prerelease and CI artifacts | lead | HIGH | inherited | inherited | DONE | 100% | OCT-REVIEW | PASS: v0.20.0-beta.1 published, prerelease=true/latest=false; 7 assets; release CI38865307519 successful |
+| OCT-DOCS | Rebrand | Evidence/docs sync and isolation proof | lead | LOW | inherited | inherited | DONE | 100% | OCT-PUBLISH | PASS: README + docs/rebrand/VALIDATION.md updated; local/remote main e0a9a62 unchanged and original checkout clean |
 
 Decisions: no dependency/schema changes; UI-only color palette; independent preview app identities/data; preserve compatibility protocol/storage markers. Main baseline e0a9a6259685cb03c949477be606bbe3ccce0430. Existing GitHub access confirmed via gh with network permission. OMX fixed legacy models unavailable for account (explore/architect/critic); leader performs implementation directly and Compound installed architecture/review roles provide independent review with supported inherited model.
 
