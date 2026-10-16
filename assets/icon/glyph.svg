@@ -1,12 +1,5 @@
-<!-- rhymebook 아이콘 글리프 (100×100 좌표계). scripts/gen-icons.mjs가 배경과 합쳐 렌더한다 -->
-<g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
-  <!-- 줄기(대화) -->
-  <path d="M34 20 V80" stroke-width="7"/>
-  <!-- 가지: 질문이 생긴 자리에서 뻗어 나온다 -->
-  <path d="M34 58 C34 42 44 36 58 36" stroke-width="7"/>
-  <path d="M34 76 C34 68 40 64 50 64" stroke-width="5.5" opacity="0.75"/>
-</g>
-<!-- 앵커(하이라이트) 노드 -->
-<circle cx="66" cy="36" r="10.5" fill="#f6c453"/>
-<circle cx="57" cy="64" r="6.5" fill="#ffffff" opacity="0.75"/>
-<circle cx="34" cy="20" r="6.5" fill="#ffffff"/>
+<!-- Original octobooks vector glyph; eight arms branch from one curious mind. -->
+<path d="M31 47V35a19 19 0 0 1 38 0v12c0 10-38 10-38 0Z" fill="#ffffff"/>
+<g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round"><path d="M33 44C24 44 28 62 16 59M37 48C29 54 36 69 24 68M43 50C38 58 45 75 35 77M46.5 51V79M53.5 51V79M57 50C62 58 55 75 65 77M63 48C71 54 64 69 76 68M67 44C76 44 72 62 84 59"/></g>
+<path d="M40 31v5m20-5v5" stroke="#087e8b" stroke-width="4" stroke-linecap="round"/><path d="M45 42q5 5 10 0" fill="none" stroke="#087e8b" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="16" cy="59" r="3.5" fill="#9fe3dc"/><circle cx="84" cy="59" r="3.5" fill="#f2a38a"/>

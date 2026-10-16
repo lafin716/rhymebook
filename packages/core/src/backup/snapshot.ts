@@ -38,7 +38,7 @@ export interface EncryptedBackup {
 export type BackupErrorCode = 'invalid' | 'newer-version' | 'passphrase-required' | 'wrong-passphrase';
 
 const BACKUP_MESSAGE: Record<BackupErrorCode, string> = {
-  invalid: 'rhymebook 백업 파일이 아니거나 손상되었어요.',
+  invalid: 'octobooks 백업 파일이 아니거나 손상되었어요.',
   'newer-version': '더 새 버전의 앱에서 만든 백업이에요. 앱을 업데이트한 뒤 복원하세요.',
   'passphrase-required': '암호로 잠긴 백업이에요. 암호를 입력하세요.',
   'wrong-passphrase': '암호가 맞지 않아요.',

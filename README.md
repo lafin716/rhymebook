@@ -1,11 +1,24 @@
-# rhymebook — 가지치기 학습 채팅앱
+# octobooks — 나만의 가지치기 학습 바다
 
-답변 속 모르는 단어·문장을 드래그해 **서브세션(가지)** 으로 질문하고, 부모 맥락을 상속받아 설명을 듣고, 이해한 내용을 **요약 카드**로 부모에 되돌리는 학습용 채팅앱입니다.
+문어의 팔처럼, 작은 호기심이 여러 갈래의 배움으로 뻗어나갑니다. 답변 속 모르는 단어·문장을 드래그해 **서브세션(가지)** 으로 질문하고, 부모 맥락을 상속받아 설명을 듣고, 이해한 내용을 **요약 카드**로 부모에 되돌리는 학습용 채팅앱입니다.
 분할 패널 · 플로팅 팝업(모바일은 바텀시트) · 마인드맵으로 세션 트리를 볼 수 있습니다.
 답변의 SVG 코드 블록·단독 SVG는 이미지로 표시되며, **SVG 코드 보기**로 원본을 펼칠 수 있습니다. 기존 세션에도 적용됩니다.
 
 - 설계 문서: [`docs/`](docs) (비전 · PRD · 아키텍처 · Provider · UX · 로드맵 · 진행 현황 · ADR · 블로커)
 - 지원: 웹 · 데스크톱(macOS/Windows/Linux, Electron) · 모바일(iOS/Android, Capacitor)
+
+## Preview beta · 0.20.0-beta.1
+
+이 브랜치는 **octobooks Preview** 리브랜딩 베타입니다. 안정판 `main`과 독립된 `preview/octobooks` 워크트리에서 개발합니다. [베타 릴리즈](https://github.com/lafin716/rhymebook/releases/tag/v0.20.0-beta.1)는 정식 Latest 릴리즈에 포함되지 않습니다.
+
+- 새 문어 아이콘·바다 테마·가지치기 학습 컨셉. 설정 → **테마**에서 오션·라군·코랄·어비스·펄 선택, 시스템/라이트/다크 별도 설정. 웹·모바일은 설정의 **나의 바다**에서 선택합니다.
+- 색상은 기기별로 저장되며 PC 페어링 데이터에 영향을 주지 않습니다.
+- Preview는 별도 앱 ID와 데이터 공간을 사용합니다. 데스크톱 기본 경로는 `<appData>/octobooks-preview`입니다. 기존 기록은 안정판에서 백업 내보내기 후 Preview의 설정 → 백업으로 가져오세요.
+- 기존 `branch://` 페어링 링크 형식을 유지합니다. 두 앱을 함께 설치했을 때 링크가 안정판으로 열리면 Preview의 QR 스캔이나 주소·코드 입력을 사용하세요.
+- `@branch/*`, 백업/학습 JSON 식별자, `RHYMEBOOK_*` 환경변수와 Anki 덱 이름은 호환성을 유지합니다. `pnpm octobooks -- serve`는 기존 `pnpm rhymebook -- serve`의 별칭이며 **헤드리스 서버 데이터 위치는 기존과 같습니다**. Preview 앱은 이 서버를 자동 실행하지 않습니다.
+- 플랫폼 설치 파일은 기존 CI로 생성합니다. 서명 인증서가 없는 플랫폼은 서명 없이 배포하며, iOS는 스토어/기기용 서명 배포를 포함하지 않습니다.
+
+개발·베타 빌드·검증 절차: [docs/rebrand/TEST_STRATEGY.md](docs/rebrand/TEST_STRATEGY.md), [계획](docs/rebrand/MASTER_PLAN.md), [검증 결과](docs/rebrand/VALIDATION.md).
 
 ## 요구 사항
 

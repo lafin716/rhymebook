@@ -6,7 +6,7 @@ import qrcode from 'qrcode-terminal';
 import { createHeadlessHost, defaultHome } from './engine';
 
 /**
- * rhymebook — 헤드리스 호스트 (IMP-14, ADR-040).
+ * octobooks — 헤드리스 호스트 (IMP-14, ADR-040).
  * 데스크톱 앱 없이 이 PC에 학습 데이터를 두고, 모바일·웹 앱이 페어링해 그대로 쓴다.
  * 비밀 값(API 키·기기 키·bridge 비밀키)은 출력하지 않는다. 페어링 토큰·코드는 화면에만 1회 표시.
  */
@@ -91,7 +91,7 @@ async function main() {
   if (relayOnly && !values.relay) throw new Error('--relay-only 에는 --relay 주소가 필요합니다.');
   if (values.relay && !/^wss?:\/\//i.test(values.relay)) throw new Error('relay 주소는 ws:// 또는 wss:// 로 시작해야 합니다.');
 
-  const log = values.verbose ? (m: string) => console.error(`[rhymebook] ${m}`) : () => {};
+  const log = values.verbose ? (m: string) => console.error(`[octobooks] ${m}`) : () => {};
   const host = await createHeadlessHost({
     dir,
     ...(name ? { name } : {}),
@@ -125,7 +125,7 @@ async function main() {
   }
 
   const sessions = Object.keys(host.store.getState().sessions).length;
-  console.log(`rhymebook "${bridgeStore.name}" 실행 중 (${bound === null ? 'relay 전용' : `포트 ${bound}`})`);
+  console.log(`octobooks "${bridgeStore.name}" 실행 중 (${bound === null ? 'relay 전용' : `포트 ${bound}`})`);
   console.log(`데이터: ${dir}  (학습 ${sessions}개)`);
   console.log(`bridge 지문: ${keyFingerprint(bridgeStore.identity.publicKey)}`);
   for (const a of remote.addresses()) console.log(`  ${a.label.padEnd(9)} ${a.url}`);

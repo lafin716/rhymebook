@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">rhymebook</string>
-    <string name="title_activity_main">rhymebook</string>
+    <string name="app_name">octobooks Preview</string>
+    <string name="title_activity_main">octobooks Preview</string>
     <string name="package_name">dev.branchlearn.app</string>
     <string name="custom_url_scheme">dev.branchlearn.app</string>
 </resources>

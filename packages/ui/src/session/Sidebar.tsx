@@ -1,3 +1,4 @@
+import { OctoMark } from '../components/OctoMark';
 import { childrenOf, rootSessions, type ID } from '@branch/core';
 import { ChevronRight, GitBranch, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
@@ -33,7 +34,7 @@ export function Sidebar() {
   if (fixed) {
     if (collapsed) return null;
     return (
-      <aside className="relative flex h-full shrink-0 flex-col border-r border-line bg-surface" style={{ width }}>
+      <aside className="relative flex h-full shrink-0 flex-col border-r border-line bg-surface octo-sidebar" style={{ width }}>
         <SidebarBody />
         <SidebarResizer />
       </aside>
@@ -43,7 +44,7 @@ export function Sidebar() {
   return (
     <div className="fixed inset-0 z-[55]">
       <button type="button" aria-label="목록 닫기" className="animate-fade-in absolute inset-0 bg-black/35" onClick={() => setDrawer(false)} />
-      <aside className="animate-pop-in absolute inset-y-0 left-0 flex w-[84vw] max-w-[320px] flex-col bg-surface pt-[env(safe-area-inset-top)] shadow-float">
+      <aside className="animate-pop-in absolute inset-y-0 left-0 flex w-[84vw] max-w-[320px] flex-col bg-surface octo-sidebar pt-[env(safe-area-inset-top)] shadow-float">
         <SidebarBody />
       </aside>
     </div>
@@ -117,13 +118,15 @@ function SidebarBody() {
   const pcOnline = usePcOnline();
   return (
     <>
-      <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-        <div className="flex flex-1 items-center gap-2 px-1 text-[15px] font-bold tracking-tight">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-accent-fg">
-            <GitBranch size={16} />
-          </span>
-          rhymebook
+      <div className="px-4 pt-5 pb-4">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-accent text-accent-fg [--octo-eye:var(--accent)]"><OctoMark className="size-9" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2"><span className="octo-wordmark text-[23px] leading-none">octobooks</span></div>
+            <p className="mt-1.5 text-[10px] font-medium tracking-[.2em] text-accent">BRANCH OUT. DIVE DEEP.</p>
+          </div>
         </div>
+        <p className="mt-4 text-[12px] leading-relaxed text-muted">작은 질문에서 뻗어가는, 나만의 배움.</p>
       </div>
       <div className="px-3 pb-2">
         <Button
@@ -140,6 +143,7 @@ function SidebarBody() {
           새 학습
         </Button>
       </div>
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 text-[10px] font-semibold tracking-widest text-muted"><span>나의 학습 바다</span><span>{roots.length}개의 시작점</span></div>
       <nav aria-label="학습 세션" className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {roots.length === 0 ? (
           <p className="px-3 py-6 text-center text-[13px] text-muted">{remoteMode && !pcOnline ? 'PC와 연결되면 학습 목록이 보여요' : '세션이 없어요'}</p>
@@ -159,6 +163,7 @@ function SidebarBody() {
         <span className="flex-1">스킬 관리</span>
       </button>
       <ConnectionFooter />
+      <div className="flex items-center justify-between px-4 pb-3 pt-1 text-[10px] text-muted"><span>octobooks</span><span className="rounded-full border border-line px-2 py-0.5 tracking-wider">PREVIEW BETA</span></div>
     </>
   );
 }
@@ -229,7 +234,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
           e.preventDefault();
           setMenu({ x: e.clientX, y: e.clientY });
         }}
-        className={cn('group flex items-center rounded-lg', isActiveRoot ? 'bg-surface-2' : 'hover:bg-surface-2/70')}
+        className={cn('group flex items-center rounded-xl', isActiveRoot ? 'bg-accent-soft' : 'hover:bg-surface-2/70')}
       >
         <button
           type="button"
@@ -285,7 +290,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
 function BranchTree({ parentId, depth, onPick }: { parentId: ID; depth: number; onPick(): void }) {
   const kids = useAppShallow((st) => childrenOf(st.sessions, parentId).map((c) => c.id));
   return (
-    <ul className="ml-3 border-l border-line">
+    <ul className="ml-3 border-l border-accent/20">
       {kids.map((id) => (
         <BranchRow key={id} id={id} depth={depth} onPick={onPick} />
       ))}

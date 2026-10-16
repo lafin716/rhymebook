@@ -94,13 +94,13 @@ jobs:
             export RHYMEBOOK_KEYSTORE="$RUNNER_TEMP/release.jks"
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RHYMEBOOK_KEYSTORE"
             pnpm --filter @branch/mobile build:android:release
-            cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk out/rhymebook-android.apk
-            cp apps/mobile/android/app/build/outputs/bundle/release/app-release.aab out/rhymebook-android.aab
+            cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk out/octobooks-preview-android.apk
+            cp apps/mobile/android/app/build/outputs/bundle/release/app-release.aab out/octobooks-preview-android.aab
             rm -f "$RHYMEBOOK_KEYSTORE"
           else
             echo "Android 서명 secrets 없음 → debug APK"
             pnpm --filter @branch/mobile build:android
-            cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk out/rhymebook-android-debug.apk
+            cp apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk out/octobooks-preview-android-debug.apk
           fi
       - uses: actions/upload-artifact@v4
         with:
@@ -109,7 +109,7 @@ jobs:
 
   release:
     name: GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-beta.')
     needs: [desktop, android]
     runs-on: ubuntu-latest
     permissions:
@@ -121,6 +121,8 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
+          prerelease: true
+          make_latest: false
           generate_release_notes: true
           files: dist/*

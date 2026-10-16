@@ -71,7 +71,7 @@ export function buildStudyNotes(
   const lines: string[] = [
     `# ${oneLine(root.title)}`,
     '',
-    `> rhymebook 이해 노트 · ${ymd(opts.now ?? Date.now())} · 가지 ${cards.length}개 · 요약 ${summarized}개`,
+    `> octobooks 이해 노트 · ${ymd(opts.now ?? Date.now())} · 가지 ${cards.length}개 · 요약 ${summarized}개`,
     '',
   ];
   if (!cards.length) {

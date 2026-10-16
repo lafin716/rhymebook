@@ -2,10 +2,11 @@
   "name": "@branch/server",
   "version": "0.7.0",
   "private": true,
-  "description": "rhymebook 헤드리스 호스트 — `rhymebook serve`로 서버만 켜고 웹·모바일이 연결해 쓴다",
+  "description": "octobooks 헤드리스 호스트 — `rhymebook serve`로 서버만 켜고 웹·모바일이 연결해 쓴다",
   "type": "module",
   "bin": {
-    "rhymebook": "dist/rhymebook.cjs"
+    "rhymebook": "dist/rhymebook.cjs",
+    "octobooks": "dist/rhymebook.cjs"
   },
   "scripts": {
     "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/rhymebook.cjs --banner:js=\"#!/usr/bin/env node\"",

@@ -20,7 +20,7 @@ export function backupToMarkdown(data: BackupData, at: number): string {
     bySession.set(m.sessionId, list);
   }
 
-  const out: string[] = [`# rhymebook 백업`, '', `${new Date(at).toISOString()} 기준. 복원은 앱의 설정 › 백업에서 backup JSON으로 하세요.`, ''];
+  const out: string[] = [`# octobooks 백업`, '', `${new Date(at).toISOString()} 기준. 복원은 앱의 설정 › 백업에서 backup JSON으로 하세요.`, ''];
   const roots = (children.get(null) ?? []).slice().sort((a, b) => b.updatedAt - a.updatedAt);
   const write = (s: Session, depth: number) => {
     const level = Math.min(2 + depth, 6);

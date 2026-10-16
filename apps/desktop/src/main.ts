@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, type WebContents } from 'electron';
 import path from 'node:path';
+import { mkdirSync } from 'node:fs';
 import { createBridgeServer, createSkillsDir, createSttEngine, type BridgeConnection } from '@branch/bridge';
 import { isHostPolicy, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
@@ -8,7 +9,7 @@ import { htmlToPdf } from './pdf';
 import { createSecretVault } from './secrets';
 
 /**
- * rhymebook 데스크톱 main 프로세스.
+ * octobooks 데스크톱 main 프로세스.
  * - bridge를 내장: 렌더러가 IPC로 보낸 요청을 공식 CLI 무상태 실행으로 처리한다.
  * - 비밀 값은 safeStorage로 암호화해 userData에 저장한다.
  * - 원격 페어링 호스트(ADR-025): 켜면 이 PC를 휴대폰·웹이 페어링해 쓰는 bridge로 연다.
@@ -16,7 +17,12 @@ import { createSecretVault } from './secrets';
 const DEV_URL = process.env.BRANCH_DEV_URL;
 const RENDERER = path.join(__dirname, 'renderer', 'index.html');
 
-if (process.env.BRANCH_USER_DATA) app.setPath('userData', process.env.BRANCH_USER_DATA);
+// Both dev and packaged preview builds use their own data, before any services start.
+app.setName('octobooks Preview');
+const previewData = process.env.BRANCH_USER_DATA || path.join(app.getPath('appData'), 'octobooks-preview');
+mkdirSync(previewData, { recursive: true });
+app.setPath('userData', previewData);
+app.setPath('sessionData', previewData);
 
 const bridgeLog = (m: string) => {
   if (process.env.BRANCH_BRIDGE_LOG) console.log(`[bridge] ${m}`);
@@ -113,8 +119,8 @@ function createWindow(sessionId?: string): BrowserWindow {
     height: 860,
     minWidth: 360,
     minHeight: 560,
-    title: 'rhymebook',
-    backgroundColor: '#111113',
+    title: 'octobooks',
+    backgroundColor: '#101f29',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -145,7 +151,7 @@ function createTray(hostState: HostState): Tray | null {
   try {
     const newTray = new Tray(iconPath);
     updateTrayMenu(newTray, hostState);
-    newTray.setToolTip('rhymebook — 원격 연결 실행 중');
+    newTray.setToolTip('octobooks — 원격 연결 실행 중');
 
     // Left-click on Windows/Linux opens the window
     if (process.platform !== 'darwin') {
@@ -189,7 +195,7 @@ let spawnEngineWindow: (() => void) | null = null;
 function updateTrayMenu(trayIcon: Tray, hostState: HostState) {
   const menu = Menu.buildFromTemplate([
     {
-      label: 'rhymebook 열기',
+      label: 'octobooks 열기',
       click: () => {
         showOrCreateWindow();
       },
@@ -242,7 +248,7 @@ function hideWindow(win: BrowserWindow) {
   if (!hasShownBackgroundNotification && Notification.isSupported()) {
     hasShownBackgroundNotification = true;
     const notification = new Notification({
-      title: 'rhymebook이 백그라운드에서 계속 실행 중입니다',
+      title: 'octobooks가 백그라운드에서 계속 실행 중입니다',
       body: '페어링된 기기에서 계속 사용할 수 있어요. 완전히 끄려면 트레이 아이콘에서 [완전 종료]를 누르세요.',
     });
     notification.show();

@@ -158,9 +158,9 @@ export function RemoteVoiceSettings() {
   return <RemoteVoiceStatus hint={!online ? 'PC 설정을 따릅니다. PC와 연결되면 여기서 켜고 모델을 받을 수 있어요.' : error ? remoteErrorHint(error) : undefined} />;
 }
 
-/** 음성 입력이 없는 bridge(이전 rhymebook 서버 등)는 업데이트 안내를 따로 한다 (ADR-047) */
+/** 음성 입력이 없는 bridge(이전 octobooks 서버 등)는 업데이트 안내를 따로 한다 (ADR-047) */
 function remoteErrorHint(error: string): string {
-  if (error.includes('음성 입력을 지원하지 않습니다')) return '이 PC는 아직 음성 입력을 지원하지 않아요. PC 앱이나 rhymebook 서버를 업데이트하면 쓸 수 있어요.';
+  if (error.includes('음성 입력을 지원하지 않습니다')) return '이 PC는 아직 음성 입력을 지원하지 않아요. PC 앱이나 octobooks 서버를 업데이트하면 쓸 수 있어요.';
   return 'PC 설정을 따릅니다. PC 앱을 업데이트하면 여기서도 바꿀 수 있어요.';
 }
 

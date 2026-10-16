@@ -1,3 +1,4 @@
+import { AppearanceSettings } from './AppearanceSettings';
 import { createSnapshot, keyFingerprint, remoteRoute, serializeBackup, backupFileName, type RemotePairing } from '@branch/core';
 import { Download, Info, Laptop, Link2, RefreshCw, Unlink } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -30,22 +31,13 @@ export function RemoteSettings() {
         <PcCard />
       </Section>
 
+      <AppearanceSettings />
+
       <RemoteVoiceSettings />
 
       <SpeechSettings />
 
       <Section title="화면">
-        <Field label="테마">
-          <Segmented
-            value={settings.theme}
-            options={[
-              ['system', '시스템'],
-              ['light', '라이트'],
-              ['dark', '다크'],
-            ]}
-            onChange={(v) => actions().setTheme(v)}
-          />
-        </Field>
         <Field label="가지를 열 위치 (태블릿·데스크톱)" hint="모바일에서는 항상 바텀시트로 열립니다.">
           <Segmented
             value={settings.anchorOpenTarget}
@@ -128,7 +120,7 @@ function PcCard() {
           <>
             {!paired && !form && (
               <ol className="list-decimal space-y-0.5 pl-4">
-                <li>PC에서 rhymebook 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.</li>
+                <li>PC에서 octobooks 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.</li>
                 <li>[휴대폰·웹 연결]을 누르면 QR과 6자리 코드가 나와요.</li>
                 <li>아래에서 QR을 찍거나 링크·주소와 코드를 입력해요.</li>
               </ol>
@@ -138,7 +130,7 @@ function PcCard() {
         ) : (
           <>
             {status === 'offline' && error && <p className="text-warn">PC에 연결하지 못했어요. PC 앱이 켜져 있고 원격 페어링이 열려 있는지 확인하세요.</p>}
-            {status === 'unsupported' && <p className="text-danger">PC의 rhymebook 앱이 원격 학습을 지원하지 않아요. PC 앱을 최신 버전으로 업데이트하세요.</p>}
+            {status === 'unsupported' && <p className="text-danger">PC의 octobooks 앱이 원격 학습을 지원하지 않아요. PC 앱을 최신 버전으로 업데이트하세요.</p>}
             <div className="flex flex-wrap gap-2">
               {status !== 'online' && (
                 <Button size="sm" variant="soft" icon={<RefreshCw size={13} />} disabled={status === 'connecting'} onClick={() => syncClient?.reconnect()}>

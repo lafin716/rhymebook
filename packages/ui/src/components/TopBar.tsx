@@ -1,3 +1,4 @@
+import { OctoMark } from './OctoMark';
 import { Archive, BookOpenCheck, Menu, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun } from 'lucide-react';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
@@ -21,7 +22,7 @@ export function TopBar() {
   const rootTitle = useApp((s) => {
     const a = s.view.activeSessionId;
     const root = a ? s.sessions[s.sessions[a]?.rootId ?? ''] : undefined;
-    return root?.title ?? 'rhymebook';
+    return root?.title ?? 'octobooks';
   });
   const hasRoot = useApp((s) => !!(s.view.activeSessionId && s.sessions[s.view.activeSessionId]));
   const ThemeIcon = THEME_ICON[theme];
@@ -44,7 +45,7 @@ export function TopBar() {
           <Menu size={19} />
         </IconButton>
       )}
-      <div className="min-w-0 flex-1 truncate px-1 text-[15px] font-semibold">{rootTitle}</div>
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-1"><OctoMark className="size-6 shrink-0 text-accent" /><span className="truncate text-[15px] font-semibold">{rootTitle}</span><span className="hidden rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium tracking-wide text-accent sm:inline">PREVIEW</span></div>
 
       <PcStatusChip compact={mobile} />
 
