@@ -1,5 +1,7 @@
 # OctoBooks beta 3 icon and sidebar
 
+Status: complete. Source8ab5be3, release v0.20.0-beta.3; local checks, independent review, iOS simulator build, exact-source CI, seven release assets and downloaded-distribution smoke verified. See VALIDATION.md for evidence and explicit platform limits.
+
 Scoped feature, 2026-10-16. Worktree /private/tmp/octobooks-preview on preview/octobooks; baseline 377ec60. Main remains untouched. User explicitly authorized commit, push and beta release.
 
 ## Outcome and contracts
