@@ -3,8 +3,10 @@ import { ArrowDown, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUp, ArrowUpDown,
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { actions } from '../app/store';
+import { useUi } from '../app/uiState';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
+import { SESSION_DRAG_TYPE } from './DropZone';
 
 /* 분할창 이동·스왑 조작 (IMP-10): 패널 헤더의 이동 메뉴, 경계선 가운데 ⋯ 팝업 */
 
@@ -93,7 +95,10 @@ function neighbors(sessionId: ID): Record<SplitMoveDir, ID | null> {
   };
 }
 
-/** 패널 헤더의 이동 버튼: 왼/오/위/아래 이웃과 자리를 바꾼다 (이웃이 없는 방향은 비활성). 이 패널만 남기고 다른 창 닫기 */
+/**
+ * 패널 헤더의 이동 버튼: 왼/오/위/아래 이웃과 자리를 바꾼다 (이웃이 없는 방향은 비활성). 이 패널만 남기고 다른 창 닫기.
+ * 누른 채 끌면 다른 패널 위 놓기 영역(DropZone)으로 옮긴다: 가장자리 = 그쪽 옆으로, 가운데 = 자리 바꾸기
+ */
 export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
   const btn = useRef<HTMLButtonElement>(null);
   const [near, setNear] = useState<Record<SplitMoveDir, ID | null> | null>(null);
@@ -103,11 +108,21 @@ export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
       <IconButton
         ref={btn}
         size="sm"
-        label="자리 이동"
+        label="자리 이동 (끌어서 옮기기)"
         aria-haspopup="menu"
         aria-expanded={!!near}
         active={!!near}
         onClick={() => setNear((cur) => (cur ? null : neighbors(sessionId)))}
+        draggable
+        onDragStart={(e) => {
+          close();
+          e.dataTransfer.setData(SESSION_DRAG_TYPE, sessionId);
+          e.dataTransfer.effectAllowed = 'move';
+          // 놓기 영역은 다음 프레임에 띄운다 (같은 프레임에 DOM이 바뀌면 끌기가 취소될 수 있다)
+          requestAnimationFrame(() => useUi.getState().setDragSession(sessionId));
+        }}
+        onDragEnd={() => useUi.getState().setDragSession(null)}
+        className="cursor-grab active:cursor-grabbing"
       >
         <Move size={15} />
       </IconButton>

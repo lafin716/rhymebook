@@ -347,3 +347,32 @@ test('두 목록 항목에 걸친 가지 → 배경 없이 왼쪽 영역 막대,
   await expect(page.getByText(/마지막 문장 \[스케일링/).last()).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('드래그 메뉴: 버튼 글자가 한 줄로 다 보이고, [질문에 첨부]는 선택한 글을 입력창에 인용으로 붙인다', async ({ page }) => {
+  const errors = collectErrors(page);
+  await start(page, '첨부 테스트');
+  const main = page.locator(MAIN);
+
+  const menu = await select(page, '가중합');
+  for (const name of ['이게 뭐야?', '질문에 첨부']) {
+    const btn = menu.getByRole('button', { name });
+    const fits = await btn.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top)));
+      const box = el.getBoundingClientRect();
+      const menuBox = el.closest('[data-selection-menu]')!.getBoundingClientRect();
+      return el.scrollWidth <= el.clientWidth + 1 && box.right <= menuBox.right + 1 && (el.textContent!.length < 2 || lines.size <= 2);
+    });
+    expect(fits, name).toBe(true);
+  }
+
+  const input = main.getByLabel('메시지 입력');
+  await input.fill('이전 글');
+  await select(page, '가중합');
+  await menu.getByRole('button', { name: '질문에 첨부' }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(input).toHaveValue('이전 글\n\n> 가중합\n\n');
+  await expect(input).toBeFocused();
+  expect(errors).toEqual([]);
+});

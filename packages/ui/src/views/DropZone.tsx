@@ -27,6 +27,15 @@ const LABEL: Record<DropEdge, string> = {
   center: '이 자리에 열기',
 };
 
+/** 분할 안의 패널을 옮길 때 (패널 헤더 이동 버튼 끌기) */
+const MOVE_LABEL: Record<DropEdge, string> = {
+  left: '왼쪽으로 옮기기',
+  right: '오른쪽으로 옮기기',
+  top: '위로 옮기기',
+  bottom: '아래로 옮기기',
+  center: '자리 바꾸기',
+};
+
 /** 포인터 위치로 놓을 자리를 고른다 (순수 함수, 테스트용 export) */
 export function edgeAt(x: number, y: number, allowSplit: boolean): DropEdge {
   if (!allowSplit) return 'center';
@@ -41,7 +50,7 @@ export function edgeAt(x: number, y: number, allowSplit: boolean): DropEdge {
 }
 
 /**
- * 패널 위 놓기 영역 (ADR-035). 사이드바에서 세션을 끄는 동안만 보인다.
+ * 패널 위 놓기 영역 (ADR-035). 사이드바에서 세션을 끄는 동안이나 분할 패널의 이동 버튼을 끄는 동안만 보인다.
  * 가장자리 → 그쪽으로 나눠 열기, 가운데 → 이 패널을 그 세션으로 바꾸기.
  */
 export function DropZone({ targetId }: { targetId: ID }) {
@@ -49,7 +58,8 @@ export function DropZone({ targetId }: { targetId: ID }) {
   const full = useApp((s) => s.view.mode === 'split' && s.view.splitSessionIds.length >= MAX_SPLIT);
   const inSplit = useApp((s) => (dragId ? s.view.mode === 'split' && s.view.splitSessionIds.includes(dragId) : false));
   const [edge, setEdge] = useState<DropEdge | null>(null);
-  if (!dragId) return null;
+  // 자기 패널 위에는 놓을 곳이 없다
+  if (!dragId || (inSplit && dragId === targetId)) return null;
   const allowSplit = !full || inSplit;
 
   const pick = (e: DragEvent<HTMLDivElement>) => {
@@ -89,7 +99,7 @@ export function DropZone({ targetId }: { targetId: ID }) {
             PREVIEW[edge],
           )}
         >
-          <span className="rounded-lg bg-accent px-2.5 py-1 text-[12.5px] font-medium text-accent-fg shadow-pop">{LABEL[edge]}</span>
+          <span className="rounded-lg bg-accent px-2.5 py-1 text-[12.5px] font-medium text-accent-fg shadow-pop">{(inSplit ? MOVE_LABEL : LABEL)[edge]}</span>
         </div>
       )}
     </div>

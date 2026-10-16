@@ -1,6 +1,6 @@
 # Project Progress
 
-Last Updated: 2026-10-15
+Last Updated: 2026-10-16
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
@@ -73,6 +73,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] FIX-25 모바일 [보관함에 담기]·[+] 하위 세션 "요청을 처리할 수 없어요" — 원인: 옛 serve 번들. 보관함이 로컬·서버 파일에 저장되지 않던 버그 수정, 호스트 기능 목록·'outdated' 안내 (ADR-057)
 - [x] IMP-26 보관함 UI/UX 개편: 태블릿 이상 높이 80%·전체 화면 전환, 트리 끌어서 옮기기·[이동] 폴더 선택 창, 상세 상단 도구 모음, 페이지 [저장](미저장 확인), 블록 손잡이 끌기·좌우 나란히 배치 (ADR-058)
 - [x] IMP-27 보관함 트리 끌기: 놓을 자리 선 표시, 같은 폴더 안 순서 바꾸기(`order`·`placeVaultNode`) (ADR-059)
+- [x] IMP-28 사이드바 경계 끌어 너비 조절(기기별 저장), 분할창 이동 버튼 끌어 옮기기, 드래그 메뉴 글자 잘림 수정, [질문에 첨부] (ADR-060)
 
 ## Tasks
 
@@ -161,7 +162,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP27-T1 | IMP-27 | core `order`·`placeVaultNode`·`vaultChildren` 정렬·검증 + 테스트, ui 트리 놓을 자리(앞/뒤/안으로) 선 표시, e2e vault 순서 바꾸기 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 399, e2e vault desktop·mobile |
 
 ## Active Work
-- 없음 (IMP-27 완료)
+- 없음 (IMP-28 완료)
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
@@ -173,6 +174,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-16 · IMP-28 사이드바 너비·분할창 이동 끌기·드래그 메뉴·질문에 첨부(ADR-060): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 399·ui 51(+2) PASS, `pnpm e2e` 69 passed·11 skipped(새: 드래그 메뉴 글자 한 줄·[질문에 첨부] 인용, 이동 버튼 끌어 자리 바꾸기, 사이드바 끌기·저장·더블클릭 초기화). 패키지 데스크톱 앱 재빌드·재실행.
 - 2026-10-16 · IMP-27 보관함 트리 놓을 자리 선·순서 바꾸기(ADR-059): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 399(+7)·ui 49·bridge 59·relay 9·server 10 PASS, e2e vault desktop·mobile PASS(폴더 줄 위쪽 가장자리로 끌면 선 표시 → 놓으면 페이지가 폴더 앞으로). 스크린샷 확인. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-16 · IMP-26 보관함 UI/UX 개편(ADR-058): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 392(+8)·ui 49·bridge 59·relay 9·server 10 PASS, `pnpm e2e` 65 passed·9 skipped(vault desktop·mobile: 높이 80%·전체 화면, 블록 손잡이 끌어 나란히, 미저장 확인, 트리 끌기 → 폴더·맨 위, [이동] 폴더 선택, [저장]). 스크린샷 mobile·tablet(820)·desktop 확인. 독립 리뷰: 끌기 중 블록 목록 최신값 사용 반영, "편집 중 지우기 미저장 확인 누락"은 편집 중 도구 모음이 [저장]/[취소]로 바뀌어 해당 없음, 놓은 뒤 click 삼키기 리스너는 once·다음 틱 제거로 무해. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-16 · IMP-22~24 하위 세션 각주·보관함·모바일 내비 핸들(ADR-054~056): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 384(+23)·ui 49(+2)·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 65 passed·9 skipped — 새 subsession·vault(desktop·mobile)·nav-handle(mobile). composer-split 선택자를 가지 행 구조 변경에 맞춤. 독립 리뷰 반영: 빈 글 블록은 보기로 바꿀 때 치움, `moveVaultNode` 정리(나머지 지적은 의도된 동작 확인). 패키지 데스크톱 앱 재빌드·실행.

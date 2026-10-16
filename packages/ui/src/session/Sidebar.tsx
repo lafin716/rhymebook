@@ -1,10 +1,10 @@
 import { childrenOf, rootSessions, type ID } from '@branch/core';
 import { ChevronRight, GitBranch, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
 import { useSync } from '../app/sync';
-import { useUi } from '../app/uiState';
+import { SIDEBAR_WIDTH, useUi } from '../app/uiState';
 import { isMobileNow, useBreakpoint } from '../app/useBreakpoint';
 import { SESSION_DRAG_TYPE } from '../views/DropZone';
 import { Button, IconButton } from '../components/Button';
@@ -23,6 +23,7 @@ export function Sidebar() {
   const open = useUi((s) => s.drawerOpen);
   const setDrawer = useUi((s) => s.setDrawer);
   const collapsed = useUi((s) => s.sidebarCollapsed);
+  const width = useUi((s) => s.sidebarWidth);
   const fixed = bp === 'desktop';
 
   useEffect(() => {
@@ -32,8 +33,9 @@ export function Sidebar() {
   if (fixed) {
     if (collapsed) return null;
     return (
-      <aside className="flex h-full w-[272px] shrink-0 flex-col border-r border-line bg-surface">
+      <aside className="relative flex h-full shrink-0 flex-col border-r border-line bg-surface" style={{ width }}>
         <SidebarBody />
+        <SidebarResizer />
       </aside>
     );
   }
@@ -44,6 +46,67 @@ export function Sidebar() {
       <aside className="animate-pop-in absolute inset-y-0 left-0 flex w-[84vw] max-w-[320px] flex-col bg-surface pt-[env(safe-area-inset-top)] shadow-float">
         <SidebarBody />
       </aside>
+    </div>
+  );
+}
+
+/** 사이드바 오른쪽 경계선: 끌어서 너비 조절, 두 번 눌러 기본 너비, 키보드 ←→ */
+function SidebarResizer() {
+  const width = useUi((s) => s.sidebarWidth);
+  const [active, setActive] = useState(false);
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = useUi.getState().sidebarWidth;
+    setActive(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const onMove = (ev: PointerEvent) => useUi.getState().setSidebarWidth(startW + ev.clientX - startX, false);
+    const onUp = (ev: PointerEvent) => {
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setActive(false);
+      useUi.getState().setSidebarWidth(startW + ev.clientX - startX);
+    };
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="사이드바 너비 조절"
+      aria-valuemin={SIDEBAR_WIDTH.min}
+      aria-valuemax={SIDEBAR_WIDTH.max}
+      aria-valuenow={width}
+      tabIndex={0}
+      title="끌어서 너비 조절 · 두 번 눌러 기본 너비"
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => useUi.getState().setSidebarWidth(SIDEBAR_WIDTH.default)}
+      onKeyDown={(e) => {
+        const step = e.shiftKey ? 48 : 16;
+        if (e.key === 'ArrowLeft') useUi.getState().setSidebarWidth(width - step);
+        else if (e.key === 'ArrowRight') useUi.getState().setSidebarWidth(width + step);
+        else return;
+        e.preventDefault();
+      }}
+      className="group absolute inset-y-0 -right-1.5 z-20 w-3 cursor-col-resize outline-none"
+    >
+      <span
+        className={cn(
+          'absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 transition-colors group-hover:bg-accent group-focus-visible:bg-accent',
+          active && 'bg-accent',
+        )}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { NAV_DOCK_KEY, parseNavDock, type NavDock } from '../chat/navDock';
 
 const SIDEBAR_KEY = 'branch.sidebarCollapsed';
+const SIDEBAR_WIDTH_KEY = 'branch.sidebarWidth';
 const TRIGGER_KEY = 'branch.selectionTrigger';
 const QUOTE_KEY = 'branch.quoteCollapsed';
 const FAVORITES_KEY = 'branch.favoriteColors';
@@ -16,6 +17,10 @@ export type SelectionTrigger = 'auto' | 'contextmenu';
 /** 즐겨찾기 색은 최대 이만큼 */
 export const MAX_FAVORITE_COLORS = 12;
 
+/** 데스크톱 고정 사이드바 너비 (경계선 끌기로 조절) */
+export const SIDEBAR_WIDTH = { min: 200, max: 520, default: 272 } as const;
+export const clampSidebarWidth = (w: number) => Math.round(Math.max(SIDEBAR_WIDTH.min, Math.min(SIDEBAR_WIDTH.max, w)));
+
 /** 화면 전용 일시 상태 (도메인 스토어에 넣지 않는 것) */
 interface UiState {
   drawerOpen: boolean;
@@ -23,6 +28,9 @@ interface UiState {
   /** 데스크톱 고정 사이드바 접힘 (기기별, localStorage) */
   sidebarCollapsed: boolean;
   toggleSidebar(): void;
+  /** 데스크톱 고정 사이드바 너비 (기기별). persist=false면 끄는 중이라 저장하지 않는다 */
+  sidebarWidth: number;
+  setSidebarWidth(w: number, persist?: boolean): void;
   /** 드래그 메뉴 표시 방식 (기기별) */
   selectionTrigger: SelectionTrigger;
   setSelectionTrigger(v: SelectionTrigger): void;
@@ -141,6 +149,12 @@ export const useUi = create<UiState>((set, get) => ({
     const vaultFull = !get().vaultFull;
     set({ vaultFull });
     save(VAULT_FULL_KEY, vaultFull ? '1' : '0');
+  },
+  sidebarWidth: clampSidebarWidth(Number(load(SIDEBAR_WIDTH_KEY)) || SIDEBAR_WIDTH.default),
+  setSidebarWidth: (w, persist = true) => {
+    const sidebarWidth = clampSidebarWidth(w);
+    set({ sidebarWidth });
+    if (persist) save(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
   },
   pairLink: null,
   dragSessionId: null,

@@ -22,6 +22,7 @@ import {
   Send,
   Square,
   StickyNote,
+  TextQuote,
   Type,
   Underline,
   Volume2,
@@ -42,10 +43,12 @@ import { caps } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
+import { pushNotice } from '../app/sync';
 import { cn } from '../lib/cn';
 import { saveToVault } from '../vault/save';
 import { speak, stopSpeaking, useSpeech } from '../voice/speak';
 import { ColorPalette, COLOR_KIND_LABELS, colorLabel, swatchCss, type ColorKind } from './ColorPalette';
+import { hasComposer, quoteToComposer } from './composerBridge';
 import { openBranch } from './open';
 import { MENU_GAP, placeMenu, readSelection, type PendingBranch } from './selection';
 
@@ -196,7 +199,17 @@ export function SelectionMenu() {
     window.setTimeout(() => setCopied(false), 1500);
   };
 
-  /** 선택한 글을 읽어 준다 (ADR-050). 읽는 중이면 멈춘다. 메뉴는 그대로 둔다 */
+  /** 선택한 글을 이 세션 입력창에 인용으로 붙인다. 이어서 질문을 쓰면 함께 보낸다 */
+  const attach = () => {
+    const text = window.getSelection()?.toString() || pending.anchor.text;
+    if (!quoteToComposer(pending.sessionId, text)) {
+      pushNotice('이 세션의 입력창이 열려 있지 않아요.');
+      return;
+    }
+    window.getSelection()?.removeAllRanges();
+    dismiss();
+  };
+
   /** 선택한 글을 보관함에 담는다 (ADR-055) */
   const keep = () => {
     saveToVault({ type: 'text', text: window.getSelection()?.toString() || pending.anchor.text }, pending.anchor.messageId);
@@ -204,6 +217,7 @@ export function SelectionMenu() {
     dismiss();
   };
 
+  /** 선택한 글을 읽어 준다 (ADR-050). 읽는 중이면 멈춘다. 메뉴는 그대로 둔다 */
   const listen = () => {
     if (speaking) stopSpeaking();
     else speak(window.getSelection()?.toString() || pending.anchor.text);
@@ -414,6 +428,11 @@ export function SelectionMenu() {
       <MenuButton size={size} icon={<MessageSquarePlus size={size === 'lg' ? 18 : 15} />} onClick={() => setCustom(true)}>
         직접 질문
       </MenuButton>
+      {hasComposer(pending.sessionId) && (
+        <MenuButton size={size} icon={<TextQuote size={size === 'lg' ? 18 : 15} />} onClick={attach}>
+          질문에 첨부
+        </MenuButton>
+      )}
       <MenuButton
         size={size}
         icon={copied ? <Check size={size === 'lg' ? 18 : 15} /> : <Copy size={size === 'lg' ? 18 : 15} />}
@@ -473,7 +492,7 @@ export function SelectionMenu() {
             paletteView
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-1.5">{actionButtons('lg')}</div>
+              <div className="grid grid-cols-4 gap-1.5">{actionButtons('lg')}</div>
               <div className="mt-2 border-t border-line pt-2">{toolbar}</div>
             </>
           )}
@@ -483,8 +502,9 @@ export function SelectionMenu() {
     );
   }
 
-  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 570;
-  const pos = placeMenu(pending.rect, { w: width, h: size?.h ?? (custom ? 46 : memo !== null ? 128 : 84) });
+  // 기본 메뉴는 버튼 글자가 잘리지 않게 내용 너비에 맞춘다 (잰 너비로 배치)
+  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : undefined;
+  const pos = placeMenu(pending.rect, { w: width ?? size?.w ?? 660, h: size?.h ?? (custom ? 46 : memo !== null ? 128 : 84) });
   return createPortal(
     <div
       ref={menuRef}
@@ -493,7 +513,10 @@ export function SelectionMenu() {
       aria-label="가지·서식"
       data-placement={pos.placement}
       style={{ top: pos.top, left: pos.left, width }}
-      className={cn('animate-pop-in fixed z-[70] rounded-xl border border-line bg-elev p-1 shadow-float')}
+      className={cn(
+        'animate-pop-in fixed z-[70] max-w-[calc(100vw-16px)] rounded-xl border border-line bg-elev p-1 shadow-float',
+        width === undefined && 'w-max',
+      )}
     >
       {memo !== null ? (
         <div className="p-1">{memoForm}</div>
@@ -503,7 +526,7 @@ export function SelectionMenu() {
         paletteView
       ) : (
         <>
-          <div className="flex items-center gap-0.5">{actionButtons('sm')}</div>
+          <div className="flex flex-wrap items-center gap-0.5">{actionButtons('sm')}</div>
           <div className="mt-1 border-t border-line px-0.5 pt-1">{toolbar}</div>
         </>
       )}
@@ -530,8 +553,8 @@ function MenuButton({
       className={cn(
         'inline-flex items-center justify-center font-medium text-fg transition-colors hover:bg-surface-2',
         size === 'sm'
-          ? 'h-9 flex-1 gap-1.5 rounded-lg px-2 text-[13px]'
-          : 'h-14 flex-col gap-1 rounded-xl border border-line bg-surface text-[13px] active:bg-surface-2',
+          ? 'h-9 flex-1 gap-1.5 rounded-lg px-2.5 text-[13px] whitespace-nowrap'
+          : 'h-14 min-w-0 flex-col gap-1 rounded-xl border border-line bg-surface text-[13px] whitespace-nowrap active:bg-surface-2',
       )}
     >
       <span className="text-accent">{icon}</span>

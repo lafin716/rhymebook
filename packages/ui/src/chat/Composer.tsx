@@ -28,6 +28,7 @@ import { isUsable, providerLabel, STATUS_LABEL } from '../lib/connection';
 import { openSkillsWithAI, useSkills } from '../skills/skillsStore';
 import { fileToAttachment, pastedTextAttachment } from './attach';
 import { AttachmentList } from './Attachments';
+import { registerComposer } from './composerBridge';
 import { ModelChips } from './ModelChips';
 
 const FILE_ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,application/pdf,text/*,.md,.csv,.json,.ts,.tsx,.js,.jsx,.py,.java,.go,.rs,.c,.cpp,.h,.cs,.rb,.php,.swift,.kt,.sql,.yaml,.yml,.toml,.xml,.html,.css,.sh,.log';
@@ -96,6 +97,22 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   };
 
   const canSend = !!(text.trim() || attachments.length || skill) && !(remoteMode && !pcOnline);
+
+  // 드래그 메뉴 [질문에 첨부]: 선택한 글을 인용으로 입력창 끝에 붙이고 커서를 그 아래에 둔다
+  useEffect(
+    () =>
+      registerComposer(sessionId, (quote) => {
+        setText((t) => (t.trim() ? `${t.replace(/\s+$/, '')}\n\n${quote}\n\n` : `${quote}\n\n`));
+        requestAnimationFrame(() => {
+          const el = ref.current;
+          if (!el) return;
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+          el.scrollTop = el.scrollHeight;
+        });
+      }),
+    [sessionId],
+  );
 
   /** 음성 전사 결과를 입력창 끝에 붙인다 (ADR-045) */
   const appendSpoken = (spoken: string) => {
