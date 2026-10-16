@@ -9,11 +9,18 @@ import {
   isVaultNode,
   isVaultPage,
   moveVaultNode,
+  movePageBlock,
+  normalizePageBlocks,
+  pageRows,
+  placePageBlock,
+  removePageBlock,
   renameVaultNode,
+  setPageBlockBeside,
   vaultChildren,
   vaultDescendants,
   wouldCreateCycle,
 } from '../src/vault';
+import type { VaultPageBlock } from '../src/model';
 import { gatedRepository, memoryRepository } from '../src/repo';
 
 describe('vault', () => {
@@ -156,5 +163,59 @@ describe('gatedRepository — 보관함', () => {
     enabled = false;
     repo.saveVaultNode(createVaultFolder('g', null, '폴더', 1));
     expect(calls).toEqual(['save', 'delete']);
+  });
+});
+
+describe('보관함 페이지 레이아웃 (ADR-058)', () => {
+  const b = (id: string, beside?: boolean): VaultPageBlock => (beside ? { id, text: id, beside: true } : { id, text: id });
+  const shape = (blocks: VaultPageBlock[]) => pageRows(blocks).map((row) => row.map((x) => x.id).join('')).join('|');
+
+  it('beside 블록을 앞 줄에 묶고, 첫 블록·넘친 블록은 새 줄로 정리한다', () => {
+    expect(shape([b('a', true), b('b', true), b('c'), b('d', true), b('e', true), b('f', true)])).toBe('ab|cde|f');
+    const norm = normalizePageBlocks([b('a', true), b('b')]);
+    expect(norm[0]!.beside).toBeUndefined();
+    expect('beside' in norm[0]!).toBe(false);
+  });
+
+  it('왼쪽·오른쪽에 놓으면 나란히, 위·아래에 놓으면 대상 줄 위아래 새 줄', () => {
+    const blocks = [b('a'), b('b', true), b('c'), b('d')];
+    expect(shape(placePageBlock(blocks, 'd', 'c', 'right'))).toBe('ab|cd');
+    expect(shape(placePageBlock(blocks, 'd', 'c', 'left'))).toBe('ab|dc');
+    expect(shape(placePageBlock(blocks, 'd', 'b', 'before'))).toBe('d|ab|c');
+    expect(shape(placePageBlock(blocks, 'a', 'c', 'after'))).toBe('b|c|a|d');
+    expect(shape(placePageBlock(blocks, 'd', 'a', 'left'))).toBe('dab|c');
+    // 가득 찬 줄에는 더 붙일 수 없다
+    const full = placePageBlock(blocks, 'd', 'a', 'right');
+    expect(placePageBlock(full, 'c', 'b', 'right')).toBe(full);
+    expect(placePageBlock(blocks, 'x', 'a', 'right')).toBe(blocks);
+  });
+
+  it('줄 첫 블록을 빼면 같은 줄 다음 블록이 줄을 이어받는다', () => {
+    const blocks = [b('a'), b('b', true), b('c', true), b('d')];
+    expect(shape(removePageBlock(blocks, 'a'))).toBe('bc|d');
+    expect(removePageBlock(blocks, 'a')[0]!.beside).toBeUndefined();
+  });
+
+  it('나란히 붙이기·풀기', () => {
+    const blocks = [b('a'), b('b'), b('c')];
+    const joined = setPageBlockBeside(blocks, 'b', true);
+    expect(shape(joined)).toBe('ab|c');
+    expect(shape(setPageBlockBeside(joined, 'a', false))).toBe('b|a|c');
+    expect(shape(setPageBlockBeside(joined, 'b', false))).toBe('a|b|c');
+    expect(setPageBlockBeside(blocks, 'a', true)).toBe(blocks);
+  });
+
+  it('위/아래 이동은 줄 모양을 유지하고 내용만 바꾼다', () => {
+    const blocks = [b('a'), b('b', true), b('c')];
+    expect(shape(movePageBlock(blocks, 'c', 'up'))).toBe('ac|b');
+    expect(shape(movePageBlock(blocks, 'b', 'up'))).toBe('ba|c');
+    expect(movePageBlock(blocks, 'a', 'up')).toBe(blocks);
+  });
+
+  it('검증: beside는 true만 허용', () => {
+    const page = { ...createVaultPage('p', null, '페이지', 1), blocks: [b('a'), { id: 'i', itemId: 'x', beside: true as const }] };
+    expect(isVaultNode(page)).toBe(true);
+    expect(isVaultNode({ ...page, blocks: [{ id: 'a', text: 'a', beside: false }] })).toBe(false);
+    expect(isVaultNode({ ...page, blocks: [{ id: 'a', text: 'a', side: true }] })).toBe(false);
   });
 });

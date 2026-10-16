@@ -281,10 +281,10 @@ export type VaultItemContent =
   | { type: 'image'; attachment: Attachment }
   | { type: 'audio'; text: string; lang: VaultAudioLang };
 
-/** 보관함 페이지 블록 */
+/** 보관함 페이지 블록. beside면 앞 블록과 같은 줄에 나란히 놓인다 (ADR-058) */
 export type VaultPageBlock =
-  | { id: ID; itemId: ID }
-  | { id: ID; text: string };
+  | { id: ID; itemId: ID; beside?: true }
+  | { id: ID; text: string; beside?: true };
 
 /** 보관함 노드: 폴더, 항목, 또는 페이지 */
 export interface VaultFolder {

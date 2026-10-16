@@ -8,6 +8,7 @@ const QUOTE_KEY = 'branch.quoteCollapsed';
 const FAVORITES_KEY = 'branch.favoriteColors';
 const TTS_KEY = 'branch.tts';
 const AUTO_SKILL_KEY = 'branch.autoSkill';
+const VAULT_FULL_KEY = 'branch.vaultFull';
 
 /** 텍스트를 드래그했을 때 가지·서식 메뉴를 띄우는 방식 (PC·웹. 모바일은 항상 자동) */
 export type SelectionTrigger = 'auto' | 'contextmenu';
@@ -40,6 +41,9 @@ interface UiState {
   /** 모바일 세션 내비게이션 핸들 위치·숨김 (기기별, ADR-056) */
   navDock: NavDock;
   setNavDock(patch: Partial<NavDock>): void;
+  /** 태블릿·데스크톱에서 보관함을 전체 화면으로 (기기별, ADR-058) */
+  vaultFull: boolean;
+  toggleVaultFull(): void;
   /** 딥링크로 받은 페어링 링크. 설정 › 원격 Bridge 폼이 가져가면 비운다 */
   pairLink: string | null;
   /** 사이드바에서 끌고 있는 세션 (분할 놓기 영역 표시용) */
@@ -131,6 +135,12 @@ export const useUi = create<UiState>((set, get) => ({
     const navDock = { ...get().navDock, ...patch };
     set({ navDock });
     save(NAV_DOCK_KEY, JSON.stringify(navDock));
+  },
+  vaultFull: load(VAULT_FULL_KEY) === '1',
+  toggleVaultFull: () => {
+    const vaultFull = !get().vaultFull;
+    set({ vaultFull });
+    save(VAULT_FULL_KEY, vaultFull ? '1' : '0');
   },
   pairLink: null,
   dragSessionId: null,

@@ -1,6 +1,17 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
-/** 보관함: 답변 보관 → 폴더 만들고 옮기기 → 페이지로 조각 엮기 → 지우기 (ADR-055) */
+/** 마우스로 a를 눌러 b의 (fx, fy) 비율 위치까지 끌어 놓는다 */
+async function dragTo(page: Page, a: Locator, b: Locator, fx = 0.5, fy = 0.5) {
+  const ra = (await a.boundingBox())!;
+  const rb = (await b.boundingBox())!;
+  await page.mouse.move(ra.x + ra.width / 2, ra.y + ra.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(ra.x + ra.width / 2 + 10, ra.y + ra.height / 2 + 10, { steps: 3 });
+  await page.mouse.move(rb.x + rb.width * fx, rb.y + rb.height * fy, { steps: 8 });
+  await page.mouse.up();
+}
+
+/** 보관함: 답변 담기 → 페이지(저장 버튼·끌어 나란히) → 폴더 이동(팝업·끌기) → 지우기 (ADR-055, ADR-058) */
 test('보관함: 답변 담기 · 폴더 트리 · 페이지 구성', async ({ page }, info) => {
   const mobile = info.project.name === 'mobile';
   await page.goto('/#scenario=home');
@@ -19,8 +30,16 @@ test('보관함: 답변 담기 · 폴더 트리 · 페이지 구성', async ({ p
   const vault = page.getByRole('dialog', { name: '보관함' });
   await expect(vault.locator('[data-vault-node][data-kind="item"]')).toHaveCount(1);
   const itemName = (await vault.locator('[data-vault-node][data-kind="item"]').innerText()).trim();
+  if (!mobile) {
+    // 태블릿 이상: 화면 높이의 80% 창, [전체 화면으로 보기]
+    const box = (await vault.boundingBox())!;
+    expect(box.height).toBeGreaterThan(900 * 0.75);
+    await vault.getByRole('button', { name: '전체 화면으로 보기' }).click();
+    await expect.poll(async () => (await vault.boundingBox())!.height).toBe(900);
+    await vault.getByRole('button', { name: '창으로 보기' }).click();
+  }
 
-  // 맨 위에 새 페이지 → 조각과 글을 넣는다
+  // 맨 위에 새 페이지 → 조각과 글을 넣고 [저장]
   await vault.getByRole('button', { name: '새 페이지' }).click();
   const name = vault.locator('[data-vault-name]');
   await name.fill('복습 페이지');
@@ -30,14 +49,30 @@ test('보관함: 답변 담기 · 폴더 트리 · 페이지 구성', async ({ p
   await vault.locator('[data-vault-picker]').getByRole('button', { name: itemName, exact: true }).click();
   await editor.getByRole('button', { name: '글 넣기' }).click();
   await editor.getByLabel('글').fill('## 오늘의 정리\n핵심만 다시 보기');
-  await editor.getByLabel('글').blur();
   await expect(editor.locator('[data-vault-block]')).toHaveCount(2);
   // 글을 위로 올린다
   await editor.locator('[data-vault-block]').nth(1).getByRole('button', { name: '위로' }).click();
   await expect(editor.locator('[data-vault-block]').first().getByLabel('글')).toBeVisible();
-
-  await editor.getByRole('button', { name: '보기' }).click();
+  if (!mobile) {
+    // 손잡이로 글을 조각 오른쪽 끝에 끌어 놓으면 한 줄에 나란히
+    const blocks = editor.locator('[data-vault-block]');
+    await dragTo(page, blocks.first().locator('[data-vault-handle]'), blocks.nth(1), 0.92, 0.5);
+    await expect(editor.locator('[data-vault-row]')).toHaveCount(1);
+    await expect(blocks.nth(1).getByLabel('글')).toBeVisible();
+  }
+  if (!mobile) {
+    // 저장하지 않고 다른 항목으로 가려 하면 버릴지 묻는다
+    await vault.locator('[data-vault-node][data-kind="item"]').getByRole('button', { name: itemName, exact: true }).click();
+    const ask = page.getByRole('alertdialog');
+    await expect(ask).toContainText('저장하지 않은 변경을 버릴까요?');
+    await ask.getByRole('button', { name: '취소' }).click();
+    await expect(editor.locator('[data-vault-block]')).toHaveCount(2);
+  }
+  await vault.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(page.getByText('저장했어요.')).toBeVisible();
   await expect(editor.getByRole('heading', { name: '오늘의 정리' })).toBeVisible();
+  await expect(editor.locator('[data-vault-row]')).toHaveCount(mobile ? 2 : 1);
+  await expect(vault.locator('[data-vault-title]')).toHaveText('복습 페이지');
   if (mobile) await vault.getByRole('button', { name: '보관함 목록으로' }).click();
 
   // 새 폴더 → 이름 바꾸기
@@ -45,14 +80,27 @@ test('보관함: 답변 담기 · 폴더 트리 · 페이지 구성', async ({ p
   await expect(name).toHaveValue('새 폴더');
   await name.fill('단어장');
   await name.press('Enter');
+  await expect(vault.locator('[data-vault-title]')).toHaveText('단어장');
   if (mobile) await vault.getByRole('button', { name: '보관함 목록으로' }).click();
   await expect(vault.locator('[data-vault-node][data-kind="folder"]')).toContainText('단어장');
 
-  // 조각을 폴더로 옮긴다
+  // 조각을 [이동] 팝업으로 폴더에 옮긴다
   await vault.locator('[data-vault-node][data-kind="item"]').getByRole('button', { name: itemName, exact: true }).click();
-  await vault.getByLabel('옮길 폴더').selectOption({ label: '단어장' });
+  await vault.locator('[data-vault-toolbar]').getByRole('button', { name: '이동' }).click();
+  await page.locator('[data-vault-folder-picker]').getByRole('button', { name: '단어장' }).click();
+  await expect(page.getByText("'단어장' 폴더로 옮겼어요.")).toBeVisible();
   if (mobile) await vault.getByRole('button', { name: '보관함 목록으로' }).click();
   await expect(vault.getByRole('treeitem', { name: /단어장/ }).getByRole('group')).toContainText(itemName);
+
+  if (!mobile) {
+    // 트리에서 페이지를 끌어 폴더에 넣고, 빈 곳에 놓아 다시 맨 위로
+    const pageRow = vault.locator('[data-vault-node][data-kind="page"]');
+    await dragTo(page, pageRow, vault.locator('[data-vault-node][data-kind="folder"]'));
+    await expect(vault.getByRole('treeitem', { name: /단어장/ }).getByRole('group')).toContainText('복습 페이지');
+    await dragTo(page, pageRow, vault.locator('[data-vault-tree] [role="tree"]'), 0.5, 0.95);
+    await expect(page.getByText('보관함 맨 위로 옮겼어요.')).toBeVisible();
+    await expect(vault.getByRole('treeitem', { name: /단어장/ }).getByRole('group')).not.toContainText('복습 페이지');
+  }
 
   // 페이지 보기 화면
   await vault.locator('[data-vault-node][data-kind="page"]').getByRole('button').click();
@@ -61,7 +109,7 @@ test('보관함: 답변 담기 · 폴더 트리 · 페이지 구성', async ({ p
   // 폴더를 지우면 안의 조각도 지워지고, 페이지는 '지워진 조각'으로 남는다
   if (mobile) await vault.getByRole('button', { name: '보관함 목록으로' }).click();
   await vault.locator('[data-vault-node][data-kind="folder"]').getByRole('button', { name: '단어장', exact: true }).click();
-  await vault.getByRole('button', { name: '지우기' }).click();
+  await vault.locator('[data-vault-toolbar]').getByRole('button', { name: '지우기' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: '지우기' }).click();
   await expect(vault.locator('[data-vault-node][data-kind="folder"]')).toHaveCount(0);
   await vault.locator('[data-vault-node][data-kind="page"]').getByRole('button').click();

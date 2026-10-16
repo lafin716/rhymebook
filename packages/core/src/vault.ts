@@ -77,9 +77,9 @@ function isValidSource(v: unknown): v is { sessionId: ID; messageId: ID } {
 function isValidPageBlock(v: unknown): v is VaultPageBlock {
   if (!v || typeof v !== 'object') return false;
   const block = v as Record<string, unknown>;
-  if (!isId(block.id)) return false;
-  if ('itemId' in block) return onlyKeys(block, ['id', 'itemId']) && isId(block.itemId);
-  return onlyKeys(block, ['id', 'text']) && typeof block.text === 'string' && block.text.length <= VAULT_LIMITS.text;
+  if (!isId(block.id) || !(block.beside === undefined || block.beside === true)) return false;
+  if ('itemId' in block) return onlyKeys(block, ['id', 'itemId', 'beside']) && isId(block.itemId);
+  return onlyKeys(block, ['id', 'text', 'beside']) && typeof block.text === 'string' && block.text.length <= VAULT_LIMITS.text;
 }
 
 /** 폴더인지 확인 */
@@ -234,27 +234,111 @@ export function addVaultPageBlock(
   };
 }
 
+/** 페이지 한 줄에 나란히 놓을 수 있는 블록 수 */
+export const PAGE_ROW_MAX = 3;
+
+/** 블록의 '나란히' 표시를 바꾼 사본 */
+function withBeside(block: VaultPageBlock, beside: boolean): VaultPageBlock {
+  const { beside: _, ...rest } = block;
+  return beside ? { ...rest, beside: true } : rest;
+}
+
+/** 블록을 줄 단위로 묶는다. 첫 블록은 늘 새 줄이고, 한 줄이 가득 차면 다음 블록은 새 줄로 넘긴다 */
+export function pageRows(blocks: VaultPageBlock[]): VaultPageBlock[][] {
+  const rows: VaultPageBlock[][] = [];
+  for (const b of blocks) {
+    const row = rows[rows.length - 1];
+    if (b.beside && row && row.length < PAGE_ROW_MAX) row.push(b);
+    else rows.push([b]);
+  }
+  return rows;
+}
+
+/** 줄 구조를 pageRows와 같게 정리한다 (첫 블록·넘친 블록의 beside 제거) */
+export function normalizePageBlocks(blocks: VaultPageBlock[]): VaultPageBlock[] {
+  return pageRows(blocks).flatMap((row) => row.map((b, i) => (Boolean(b.beside) === i > 0 ? b : withBeside(b, i > 0))));
+}
+
+/** 블록 목록 → 줄마다 블록 id 위치 */
+function rowOf(blocks: VaultPageBlock[], id: ID): VaultPageBlock[] | undefined {
+  return pageRows(blocks).find((row) => row.some((b) => b.id === id));
+}
+
+/** 블록 하나를 뺀다. 줄 첫 블록이 빠지면 같은 줄 다음 블록이 줄을 이어받는다 */
+export function removePageBlock(blocks: VaultPageBlock[], id: ID): VaultPageBlock[] {
+  return normalizePageBlocks(blocks.filter((b) => b.id !== id));
+}
+
+/**
+ * 블록을 다른 블록 기준으로 옮긴다 (드래그 놓기).
+ * before/after: 대상 줄의 위·아래에 새 줄로, left/right: 대상과 같은 줄 왼쪽·오른쪽에 나란히.
+ * 같은 줄이 이미 가득 찼거나 대상이 없으면 그대로 돌려준다
+ */
+export function placePageBlock(
+  blocks: VaultPageBlock[],
+  id: ID,
+  targetId: ID,
+  where: 'before' | 'after' | 'left' | 'right',
+): VaultPageBlock[] {
+  const moving = blocks.find((b) => b.id === id);
+  if (!moving || id === targetId || !blocks.some((b) => b.id === targetId)) return blocks;
+  const rest = removePageBlock(blocks, id);
+  const row = rowOf(rest, targetId)!;
+  const ti = rest.findIndex((b) => b.id === targetId);
+  const out = [...rest];
+  if (where === 'left' || where === 'right') {
+    if (row.length >= PAGE_ROW_MAX) return blocks;
+    if (where === 'left') {
+      out.splice(ti, 1, withBeside(moving, Boolean(rest[ti]!.beside)), withBeside(rest[ti]!, true));
+    } else {
+      out.splice(ti + 1, 0, withBeside(moving, true));
+    }
+  } else {
+    const first = rest.findIndex((b) => b.id === row[0]!.id);
+    out.splice(where === 'before' ? first : first + row.length, 0, withBeside(moving, false));
+  }
+  return normalizePageBlocks(out);
+}
+
+/** 블록을 앞 블록 줄에 붙이거나(true) 자기 줄로 떼어낸다(false). 뗀 블록은 원래 줄 바로 아래 줄이 된다 */
+export function setPageBlockBeside(blocks: VaultPageBlock[], id: ID, beside: boolean): VaultPageBlock[] {
+  const idx = blocks.findIndex((b) => b.id === id);
+  if (idx < 0) return blocks;
+  if (beside) {
+    if (idx === 0 || blocks[idx]!.beside) return blocks;
+    const prev = rowOf(blocks, blocks[idx - 1]!.id)!;
+    if (prev.length >= PAGE_ROW_MAX) return blocks;
+    const out = [...blocks];
+    out[idx] = withBeside(blocks[idx]!, true);
+    return normalizePageBlocks(out);
+  }
+  const row = rowOf(blocks, id)!;
+  if (row.length < 2) return blocks;
+  return placePageBlock(blocks, id, row.find((b) => b.id !== id)!.id, 'after');
+}
+
+/** 읽는 순서로 한 칸 앞/뒤 블록과 자리를 바꾼다. 줄 모양(나란히 자리)은 그대로 두고 내용만 바뀐다 */
+export function movePageBlock(blocks: VaultPageBlock[], id: ID, direction: 'up' | 'down'): VaultPageBlock[] {
+  const idx = blocks.findIndex((b) => b.id === id);
+  const to = direction === 'up' ? idx - 1 : idx + 1;
+  if (idx < 0 || to < 0 || to >= blocks.length) return blocks;
+  const out = [...blocks];
+  out[idx] = withBeside(blocks[to]!, Boolean(blocks[idx]!.beside));
+  out[to] = withBeside(blocks[idx]!, Boolean(blocks[to]!.beside));
+  return out;
+}
+
 /** 페이지 블록 제거 */
 export function removeVaultPageBlock(page: VaultPage, blockId: ID, now: number): VaultPage {
   return {
     ...page,
-    blocks: page.blocks.filter((b) => b.id !== blockId),
+    blocks: removePageBlock(page.blocks, blockId),
     updatedAt: now,
   };
 }
 
-/** 페이지 블록 위치 변경 */
+/** 페이지 블록 위치 변경 (줄 모양은 유지) */
 export function moveVaultPageBlock(page: VaultPage, blockId: ID, direction: 'up' | 'down', now: number): VaultPage {
-  const idx = page.blocks.findIndex((b) => b.id === blockId);
-  if (idx < 0) return page;
-
-  const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-  if (newIdx < 0 || newIdx >= page.blocks.length) return page;
-
-  const blocks = [...page.blocks];
-  const temp = blocks[idx]!;
-  const next = blocks[newIdx]!;
-  blocks[idx] = next;
-  blocks[newIdx] = temp;
-  return { ...page, blocks, updatedAt: now };
+  const blocks = movePageBlock(page.blocks, blockId, direction);
+  return blocks === page.blocks ? page : { ...page, blocks, updatedAt: now };
 }
