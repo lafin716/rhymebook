@@ -7,11 +7,11 @@
 - 설계 문서: [`docs/`](docs) (비전 · PRD · 아키텍처 · Provider · UX · 로드맵 · 진행 현황 · ADR · 블로커)
 - 지원: 웹 · 데스크톱(macOS/Windows/Linux, Electron) · 모바일(iOS/Android, Capacitor)
 
-## Preview beta · 0.20.0-beta.2
+## Preview beta · 0.20.0-beta.3
 
-이 브랜치는 **octobooks Preview** 리브랜딩 베타입니다. 안정판 `main`과 독립된 `preview/octobooks` 워크트리에서 개발합니다. [베타 릴리즈](https://github.com/lafin716/rhymebook/releases/tag/v0.20.0-beta.2)는 정식 Latest 릴리즈에 포함되지 않습니다.
+이 브랜치는 **octobooks Preview** 리브랜딩 베타입니다. 안정판 `main`과 독립된 `preview/octobooks` 워크트리에서 개발합니다. [베타 릴리즈](https://github.com/lafin716/rhymebook/releases/tag/v0.20.0-beta.3)는 정식 Latest 릴리즈에 포함되지 않습니다.
 
-- 새 문어 아이콘·바다 테마·가지치기 학습 컨셉. 설정 → **테마**에서 오션·라군·코랄·어비스·펄 선택, 시스템/라이트/다크 별도 설정. 웹·모바일은 설정의 **나의 바다**에서 선택합니다.
+- 학사모와 연필을 든 새 문어 아이콘, 작은 아이콘 옆 **OctoBooks** 문구, 더 선명한 파란 오션과 가독성을 높인 다섯 테마. 설정 → **테마**에서 오션·라군·코랄·어비스·펄 선택, 시스템/라이트/다크 별도 설정. 웹·모바일은 설정의 **나의 바다**에서 선택합니다.
 - 색상은 기기별로 저장되며 PC 페어링 데이터에 영향을 주지 않습니다.
 - Preview는 별도 앱 ID와 데이터 공간을 사용합니다. 데스크톱 기본 경로는 `<appData>/octobooks-preview`입니다. 기존 기록은 안정판에서 백업 내보내기 후 Preview의 설정 → 백업으로 가져오세요.
 - 기존 `branch://` 페어링 링크 형식을 유지합니다. 두 앱을 함께 설치했을 때 링크가 안정판으로 열리면 Preview의 QR 스캔이나 주소·코드 입력을 사용하세요.

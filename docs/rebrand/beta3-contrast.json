@@ -1,0 +1,112 @@
+[
+  {
+    "mode": "light",
+    "palette": "ocean",
+    "minimums": {
+      "fg": 11.15,
+      "fg-2": 6.98,
+      "muted": 5.0,
+      "accent": 4.95,
+      "button": 6.15
+    }
+  },
+  {
+    "mode": "light",
+    "palette": "lagoon",
+    "minimums": {
+      "fg": 9.6,
+      "fg-2": 6.79,
+      "muted": 5.01,
+      "accent": 5.87,
+      "button": 7.24
+    }
+  },
+  {
+    "mode": "light",
+    "palette": "coral",
+    "minimums": {
+      "fg": 10.34,
+      "fg-2": 7.18,
+      "muted": 5.11,
+      "accent": 5.48,
+      "button": 7.1
+    }
+  },
+  {
+    "mode": "light",
+    "palette": "abyss",
+    "minimums": {
+      "fg": 11.71,
+      "fg-2": 7.67,
+      "muted": 5.03,
+      "accent": 5.92,
+      "button": 7.75
+    }
+  },
+  {
+    "mode": "light",
+    "palette": "pearl",
+    "minimums": {
+      "fg": 10.6,
+      "fg-2": 7.12,
+      "muted": 4.94,
+      "accent": 5.66,
+      "button": 7.41
+    }
+  },
+  {
+    "mode": "dark",
+    "palette": "ocean",
+    "minimums": {
+      "fg": 10.45,
+      "fg-2": 8.0,
+      "muted": 5.65,
+      "accent": 5.29,
+      "button": 7.83
+    }
+  },
+  {
+    "mode": "dark",
+    "palette": "lagoon",
+    "minimums": {
+      "fg": 11.19,
+      "fg-2": 8.95,
+      "muted": 6.59,
+      "accent": 7.16,
+      "button": 10.05
+    }
+  },
+  {
+    "mode": "dark",
+    "palette": "coral",
+    "minimums": {
+      "fg": 11.39,
+      "fg-2": 8.83,
+      "muted": 6.03,
+      "accent": 6.55,
+      "button": 8.73
+    }
+  },
+  {
+    "mode": "dark",
+    "palette": "abyss",
+    "minimums": {
+      "fg": 11.83,
+      "fg-2": 9.26,
+      "muted": 6.53,
+      "accent": 6.35,
+      "button": 8.11
+    }
+  },
+  {
+    "mode": "dark",
+    "palette": "pearl",
+    "minimums": {
+      "fg": 10.94,
+      "fg-2": 8.61,
+      "muted": 5.91,
+      "accent": 6.91,
+      "button": 9.81
+    }
+  }
+]

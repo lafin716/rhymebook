@@ -118,10 +118,9 @@ function SidebarBody() {
   const pcOnline = usePcOnline();
   return (
     <>
-      <div className="px-4 pt-4 pb-3">
-        <span role="img" aria-label="octobooks" className="grid size-10 place-items-center rounded-2xl bg-accent text-accent-fg [--octo-eye:var(--accent)]">
-          <OctoMark className="size-9" />
-        </span>
+      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+        <OctoMark className="size-8 shrink-0" />
+        <span className="text-[17px] font-semibold tracking-tight text-fg">OctoBooks</span>
       </div>
       <div className="px-3 pb-2">
         <Button

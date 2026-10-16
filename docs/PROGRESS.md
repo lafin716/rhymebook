@@ -8,6 +8,14 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## OctoBooks beta 3 — in progress (2026-10-16)
+
+- DONE: approved graduation-cap/pencil icon applied across platform assets; smaller sidebar icon + OctoBooks wordmark.
+- DONE: stronger light/dark palette contrast and bluer Ocean; independent review passed.
+- DONE: typecheck/lint, 532 unit/integration tests, 79 E2E, final mobile6, macOS package and isolated packaged smoke.
+- DONE: iOS simulator build with preview identity/build23.
+- IN_PROGRESS: commit/tag, exact-source CI and beta3 release verification. Plan: docs/rebrand/BETA3_PLAN.md; evidence: docs/rebrand/VALIDATION.md.
+
 ## octobooks preview rebrand — completed 2026-10-16
 
 Plan: `docs/rebrand/MASTER_PLAN.md`; design: `docs/rebrand/DESIGN.md`; architecture reused from `docs/02-ARCHITECTURE.md`; validation: `docs/rebrand/TEST_STRATEGY.md`.

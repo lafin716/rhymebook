@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 
 export const PALETTES = [
-  { id: 'ocean', name: '오션', description: '깊고 맑은 푸른 바다', colors: ['#087e8b', '#173c4b', '#d8eef1', '#f2a38a'] },
-  { id: 'lagoon', name: '라군', description: '햇살이 스미는 민트빛 물결', colors: ['#16735b', '#224e43', '#ddf3e8', '#dfc78c'] },
-  { id: 'coral', name: '코랄', description: '따뜻한 산호초의 분홍빛', colors: ['#ac475c', '#5c3444', '#f8e4e7', '#e6b58b'] },
-  { id: 'abyss', name: '어비스', description: '고요한 심해의 보랏빛', colors: ['#6653b3', '#353259', '#eae5fa', '#9bbde3'] },
-  { id: 'pearl', name: '펄', description: '조개껍질처럼 차분한 모래빛', colors: ['#776147', '#494337', '#eee8dd', '#a7c6c5'] },
+  { id: 'ocean', name: '오션', description: '선명한 파란빛의 깊은 바다', colors: ['#1761b5', '#142d4e', '#dde9f7', '#4a8cda'] },
+  { id: 'lagoon', name: '라군', description: '햇살이 스미는 민트빛 물결', colors: ['#116348', '#183e32', '#e6f1e9', '#5d9170'] },
+  { id: 'coral', name: '코랄', description: '따뜻한 산호초의 분홍빛', colors: ['#9d304b', '#472433', '#f4e5e5', '#c86c84'] },
+  { id: 'abyss', name: '어비스', description: '고요한 심해의 보랏빛', colors: ['#5940a6', '#28203f', '#e9e4f5', '#9073c5'] },
+  { id: 'pearl', name: '펄', description: '조개껍질처럼 차분한 모래빛', colors: ['#695137', '#342b21', '#ece7dc', '#a78a61'] },
 ] as const;
 
 export type PaletteId = (typeof PALETTES)[number]['id'];

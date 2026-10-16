@@ -1,18 +1,9 @@
-import type { SVGProps } from 'react';
+import type { ImgHTMLAttributes } from 'react';
+import octobooksIcon from '../assets/octobooks-icon.png';
 
-/** Original octobooks glyph: one curious mind, eight paths to explore. */
-export function OctoMark(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 100 100" fill="none" aria-hidden="true" {...props}>
-      <path d="M31 47V35a19 19 0 0 1 38 0v12c0 10-38 10-38 0Z" fill="currentColor" />
-      <g stroke="currentColor" strokeWidth="5.5" strokeLinecap="round">
-        <path d="M33 44C24 44 28 62 16 59M37 48C29 54 36 69 24 68M43 50C38 58 45 75 35 77M46.5 51V79M53.5 51V79M57 50C62 58 55 75 65 77M63 48C71 54 64 69 76 68M67 44C76 44 72 62 84 59" />
-      </g>
-      <path d="M40 31v5m20-5v5" stroke="var(--octo-eye, var(--bg))" strokeWidth="4" strokeLinecap="round" />
-      <path d="M45 42q5 5 10 0" stroke="var(--octo-eye, var(--bg))" strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx="16" cy="59" r="3.5" fill="currentColor" /><circle cx="84" cy="59" r="3.5" fill="currentColor" />
-    </svg>
-  );
+/** Approved cap-and-pencil icon, shared by the sidebar and learning screens. */
+export function OctoMark(props: ImgHTMLAttributes<HTMLImageElement>) {
+  return <img src={octobooksIcon} alt="" aria-hidden="true" {...props} />;
 }
 
 /** A small learning map, built from the same glyph and branch motif as the app. */

@@ -1,6 +1,6 @@
 {
   "name": "@branch/desktop",
-  "version": "0.20.0-beta.2",
+  "version": "0.20.0-beta.3",
   "private": true,
   "description": "octobooks Preview 데스크톱 (Electron + 내장 bridge)",
   "main": "dist/main.cjs",
