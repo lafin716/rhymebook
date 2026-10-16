@@ -1,10 +1,11 @@
-import type { Annotation, Message, Session, Settings, ViewState } from '../model';
+import type { Annotation, Message, Session, Settings, VaultNode, ViewState } from '../model';
+import { isVaultNode } from '../vault';
 import type { StoredData } from '../persist';
 import { decryptText, encryptText, type EncryptedPayload } from './crypto';
 
 /**
  * 백업 스냅샷 (ADR-010). 버전이 있는 JSON 한 덩어리.
- * - 담는 것: 세션 트리·메시지(앵커·요약 포함)·어노테이션(IMP-07)·보기 상태·일반 설정
+ * - 담는 것: 세션 트리·메시지(앵커·요약 포함)·어노테이션(IMP-07)·보관함(IMP-23)·보기 상태·일반 설정
  * - 담지 않는 것: API 키·페어링 키·로그인 토큰·연결 상태(기기마다 다름)
  */
 export const BACKUP_APP = 'branch-learn';
@@ -14,6 +15,7 @@ export interface BackupData {
   sessions: Session[];
   messages: Message[];
   annotations?: Annotation[];
+  vault?: VaultNode[];
   view?: ViewState;
   settings?: Partial<Settings>;
 }
@@ -62,6 +64,7 @@ export function createSnapshot(data: StoredData, now = Date.now()): BackupSnapsh
       // 생성 중인 응답도 지금까지의 내용으로 담는다 (복원 시 '중지됨'으로 바뀜)
       messages: data.messages,
       ...(data.annotations && data.annotations.length ? { annotations: data.annotations } : {}),
+      ...(data.vault && data.vault.length ? { vault: data.vault } : {}),
       ...(data.view ? { view: data.view } : {}),
       ...(data.settings ? { settings: data.settings } : {}),
     },
@@ -113,6 +116,7 @@ export async function openBackup(text: string, passphrase?: string): Promise<Bac
   if (!data.sessions.every(isSession) || !data.messages.every(isMessage)) throw new BackupError('invalid');
   // 어노테이션은 선택적; 있으면 검증하고, 유효하지 않으면 건너뛴다
   const annotations = Array.isArray(data.annotations) ? data.annotations.filter(isAnnotation) : [];
+  const vault = Array.isArray(data.vault) ? data.vault.filter(isVaultNode) : [];
   return {
     app: BACKUP_APP,
     schemaVersion: raw.schemaVersion as number,
@@ -121,6 +125,7 @@ export async function openBackup(text: string, passphrase?: string): Promise<Bac
       sessions: data.sessions,
       messages: data.messages,
       ...(annotations.length ? { annotations } : {}),
+      ...(vault.length ? { vault } : {}),
       ...(data.view && typeof data.view === 'object' ? { view: data.view } : {}),
       ...(data.settings && typeof data.settings === 'object' ? { settings: data.settings } : {}),
     },
@@ -187,6 +192,7 @@ export function applyBackup(local: StoredData, backup: BackupData, mode: Restore
       sessions: backup.sessions,
       messages: backup.messages,
       ...(backup.annotations && backup.annotations.length ? { annotations: backup.annotations } : {}),
+      ...(backup.vault && backup.vault.length ? { vault: backup.vault } : {}),
       ...(backup.view ? { view: backup.view } : {}),
       settings: { ...local.settings, ...backup.settings },
       ...(local.connections ? { connections: local.connections } : {}),
@@ -210,11 +216,18 @@ export function applyBackup(local: StoredData, backup: BackupData, mode: Restore
     ...local.annotations?.filter((a) => !fromBackup.has(a.sessionId)) || [],
     ...backup.annotations?.filter((a) => fromBackup.has(a.sessionId)) || [],
   ];
+  // 보관함: 노드 id 기준으로 더 최근에 바뀐 쪽
+  const vault = new Map((local.vault ?? []).map((n) => [n.id, n]));
+  for (const n of backup.vault ?? []) {
+    const cur = vault.get(n.id);
+    if (!cur || n.updatedAt > cur.updatedAt) vault.set(n.id, n);
+  }
   return {
     ...local,
     sessions: [...sessions.values()],
     messages,
     ...(annotations.length ? { annotations } : {}),
+    ...(vault.size ? { vault: [...vault.values()] } : {}),
   };
 }
 

@@ -167,7 +167,7 @@ export interface ViewState {
   sheetSessionIds: ID[];
 }
 
-export type Overlay = 'none' | 'search' | 'settings' | 'notes' | 'skills';
+export type Overlay = 'none' | 'search' | 'settings' | 'notes' | 'skills' | 'vault';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
@@ -267,5 +267,57 @@ export type AnnotationPatch = {
 } & { note?: string | null };
 
 export const MAX_NOTE_LENGTH = 4000;
+
+/**
+ * 보관함 (IMP-23): 텍스트, 이미지, 음성, 페이지를 저장하고 조직화한다.
+ */
+
+/** 보관함 음성 항목의 언어 */
+export type VaultAudioLang = 'vi' | 'en' | 'ko';
+
+/** 보관함 항목 콘텐츠 */
+export type VaultItemContent =
+  | { type: 'text'; text: string }
+  | { type: 'image'; attachment: Attachment }
+  | { type: 'audio'; text: string; lang: VaultAudioLang };
+
+/** 보관함 페이지 블록 */
+export type VaultPageBlock =
+  | { id: ID; itemId: ID }
+  | { id: ID; text: string };
+
+/** 보관함 노드: 폴더, 항목, 또는 페이지 */
+export interface VaultFolder {
+  id: ID;
+  kind: 'folder';
+  parentId: ID | null;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface VaultItem {
+  id: ID;
+  kind: 'item';
+  parentId: ID | null;
+  name: string;
+  item: VaultItemContent;
+  /** 원본 출처 (선택사항) */
+  source?: { sessionId: ID; messageId: ID };
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface VaultPage {
+  id: ID;
+  kind: 'page';
+  parentId: ID | null;
+  name: string;
+  blocks: VaultPageBlock[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type VaultNode = VaultFolder | VaultItem | VaultPage;
 
 export const MAX_SPLIT = 4;

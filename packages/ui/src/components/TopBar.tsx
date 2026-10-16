@@ -1,4 +1,4 @@
-import { BookOpenCheck, Menu, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun } from 'lucide-react';
+import { Archive, BookOpenCheck, Menu, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun } from 'lucide-react';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
@@ -79,6 +79,9 @@ export function TopBar() {
           <Kbd>{modKeyLabel}K</Kbd>
         </button>
       )}
+      <IconButton label="보관함" title="보관함" onClick={() => actions().setOverlay('vault')}>
+        <Archive size={18} />
+      </IconButton>
       <IconButton label="이해 노트" title="이해 노트" onClick={() => actions().setOverlay('notes')}>
         <BookOpenCheck size={18} />
       </IconButton>

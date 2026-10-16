@@ -60,6 +60,7 @@ describe('세션별 모델·노력치', () => {
       initial: {
         ...createSeed(0),
         annotations: {},
+        vault: {},
         view: emptyView(SEED_IDS.root),
         settings: { ...DEFAULT_SETTINGS, defaultProviderId: 'claude-cli' },
         connections,
@@ -118,7 +119,7 @@ describe('연결 기본값 영속화', () => {
       model: 'gpt-6-sol',
       effort: 'xhigh',
     });
-    const back = restoreData(toStoredData({ ...createSeed(0), annotations: {}, view: emptyView(), settings: DEFAULT_SETTINGS, connections }));
+    const back = restoreData(toStoredData({ ...createSeed(0), annotations: {}, vault: {}, view: emptyView(), settings: DEFAULT_SETTINGS, connections }));
     expect(back.connections['codex-cli']).toMatchObject({ model: 'gpt-6-sol', effort: 'xhigh' });
   });
 });
@@ -144,6 +145,7 @@ describe('생성 이미지 이벤트', () => {
       initial: {
         ...createSeed(0),
         annotations: {},
+        vault: {},
         view: emptyView(SEED_IDS.root),
         settings: { ...DEFAULT_SETTINGS, defaultProviderId: 'codex-cli' },
         connections,

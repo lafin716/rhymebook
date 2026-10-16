@@ -1,5 +1,5 @@
 import { nextFallback, PROVIDER_LABELS, annotationsForMessage, type Message, type SegmentMap, type Session } from '@branch/core';
-import { AlertTriangle, RefreshCw, RotateCcw, Shuffle, Sparkles, Square } from 'lucide-react';
+import { AlertTriangle, Archive, RefreshCw, RotateCcw, Shuffle, Sparkles, Square } from 'lucide-react';
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
@@ -12,6 +12,7 @@ import { setSegmentMap } from './segmentRegistry';
 import { BranchChips, SummaryCard } from './SummaryCard';
 import { AnnotationPopover } from './AnnotationPopover';
 import { RegionGutter } from './RegionGutter';
+import { saveToVault } from '../vault/save';
 
 export interface MessageItemProps {
   message: Message;
@@ -127,7 +128,7 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
         </div>
       )}
 
-      {images.length > 0 && <AttachmentList items={images} large />}
+      {images.length > 0 && <AttachmentList items={images} large messageId={message.id} />}
 
       {noteOpen && allAnnotations[noteOpen.id] && (
         <AnnotationPopover
@@ -157,6 +158,20 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
         </div>
       )}
       <BranchChips branches={branches} unlocated={unlocated} />
+      {!streaming && message.content.trim() && (
+        <div className="-mt-1 flex opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+          <Button
+            size="sm"
+            variant="ghost"
+            data-vault-save
+            icon={<Archive size={14} />}
+            className="text-muted"
+            onClick={() => saveToVault({ type: 'text', text: message.content }, message.id)}
+          >
+            보관
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { Annotation, ConnectionState, ID, Message, Session, Settings, ViewState } from './model';
+import type { Annotation, ConnectionState, ID, Message, Session, Settings, ViewState, VaultNode } from './model';
 
 /**
  * 영속화 경계. 스토어는 변경 후 해당 메서드를 호출하기만 하며 결과를 기다리지 않는다.
@@ -16,6 +16,8 @@ export interface Repository {
   saveConnections(c: ConnectionState[]): void;
   saveAnnotation(a: Annotation): void;
   deleteAnnotations(ids: ID[]): void;
+  saveVaultNode?(n: VaultNode): void;
+  deleteVaultNodes?(ids: ID[]): void;
 }
 
 export const memoryRepository = (): Repository => ({

@@ -1,10 +1,11 @@
 import { parseSpeakBlock, SPEAK_LANG, type SpeakScript } from '@branch/core';
 import type { Element } from 'hast';
-import { AudioLines, Play, Square, Volume2 } from 'lucide-react';
+import { Archive, AudioLines, Play, Square, Volume2 } from 'lucide-react';
 import { useContext, type ComponentProps } from 'react';
 import type { ExtraProps } from 'react-markdown';
 import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
+import { saveToVault } from '../vault/save';
 import { speak, speakAll, stopSpeaking, useSpeech } from '../voice/speak';
 import { codeSource, QuizContext } from './QuizCard';
 
@@ -35,7 +36,7 @@ export function SpeakBlock({ node, source, children, ...props }: ComponentProps<
         className="my-3 overflow-hidden rounded-2xl border border-accent/25 bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04),0_6px_20px_rgb(0_0_0/0.05)]"
       >
         {script ? (
-          <SpeakList script={script} blockKey={key} />
+          <SpeakList script={script} blockKey={key} messageId={messageId} />
         ) : (
           <div className="flex items-center gap-2 px-4 py-3.5 text-[14px] text-muted">
             <AudioLines size={16} className="text-accent" />
@@ -48,17 +49,30 @@ export function SpeakBlock({ node, source, children, ...props }: ComponentProps<
   );
 }
 
-function SpeakList({ script, blockKey }: { script: SpeakScript; blockKey: string }) {
+function SpeakList({ script, blockKey, messageId }: { script: SpeakScript; blockKey: string; messageId?: string }) {
   const status = useSpeech((s) => s.status);
   const current = useSpeech((s) => s.key);
   const rowKey = (i: number) => `${blockKey}#${i}`;
   const mine = status !== 'idle' && !!current?.startsWith(`${blockKey}#`);
   const lines = script.items.map((it, i) => ({ text: it.text, lang: it.lang, key: rowKey(i) }));
+  /** 보관함에 담기 (ADR-055): 한 언어면 카드 하나로, 섞여 있으면 줄마다 담는다 */
+  const keep = () => {
+    const langs = new Set(script.items.map((it) => it.lang));
+    const first = script.items[0];
+    if (langs.size === 1 && first) {
+      saveToVault({ type: 'audio', text: script.items.map((it) => it.text).join('\n'), lang: first.lang }, messageId, script.title);
+    } else {
+      for (const it of script.items) saveToVault({ type: 'audio', text: it.text, lang: it.lang }, messageId);
+    }
+  };
   return (
     <>
       <header className="flex items-center gap-2 border-b border-line bg-accent-soft/60 px-4 py-2.5">
         <AudioLines size={16} className="shrink-0 text-accent" />
         <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{script.title || '소리 내어 읽기'}</span>
+        <Button size="sm" variant="ghost" icon={<Archive size={14} />} aria-label="읽기 카드 보관" title="보관함에 담기" onClick={keep}>
+          <span className="max-sm:hidden">보관</span>
+        </Button>
         <Button
           size="sm"
           variant={mine ? 'secondary' : 'soft'}

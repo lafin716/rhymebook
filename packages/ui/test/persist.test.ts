@@ -144,7 +144,7 @@ describe('Dexie persistence', () => {
   it('replaceAll swaps the whole dataset', async () => {
     const repo = await seededRepo();
     await boot(repo);
-    const other = { ...createSeed(0), annotations: {}, view: emptyView(SEED_IDS.scale) };
+    const other = { ...createSeed(0), annotations: {}, vault: {}, view: emptyView(SEED_IDS.scale) };
     const data = restoreData(toStoredData({ ...other, settings: (await hydrate(repo)).data.settings, connections: (await hydrate(repo)).data.connections }));
     delete data.sessions[SEED_IDS.cos];
     await repo.replaceAll(toStoredData(data));

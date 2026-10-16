@@ -30,6 +30,7 @@ import type {
   ThemePref,
   ViewMode,
   ViewState,
+  VaultNode,
 } from '../model';
 import {
   flipGroupDir,
@@ -52,8 +53,9 @@ import { memoryRepository, type Repository } from '../repo';
 import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
 import { chatTarget } from '../skills';
 import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
-import { descendantIds, type SessionMap } from '../tree';
+import { descendantIds, subSessionTitle, type SessionMap } from '../tree';
 import { turnMessageIds } from '../turns';
+import { vaultDescendants } from '../vault';
 
 export const NEW_SESSION_TITLE = '새 학습';
 
@@ -85,6 +87,7 @@ export interface AppData {
   sessions: SessionMap;
   messages: MessageMap;
   annotations: Record<ID, Annotation>;
+  vault: Record<ID, VaultNode>;
   view: ViewState;
   settings: Settings;
   connections: Record<ProviderId, ConnectionState>;
@@ -129,6 +132,8 @@ export interface AppState extends AppData {
 
   // 가지
   createBranch(parentSessionId: ID, anchor: Anchor, kind: BranchKind, customQuestion?: string, ids?: { sessionId?: ID; messageId?: ID }): ID | false;
+  /** 앵커 없이 직접 질문으로 만드는 하위 세션(각주, IMP-22) */
+  createSubSession(parentSessionId: ID, question: string, ids?: { sessionId?: ID; messageId?: ID }): ID | false;
 
   // 어노테이션
   addAnnotation(sessionId: ID, anchor: Anchor, init: AnnotationStyle & { note?: string }, id?: ID): ID;
@@ -136,6 +141,10 @@ export interface AppState extends AppData {
   deleteAnnotations(ids: ID[]): void;
   /** upsert: 기존 id가 있으면 createdAt을 유지 */
   putAnnotation(annotation: Annotation): void;
+
+  // 보관함
+  putVaultNode(node: VaultNode): void;
+  deleteVaultNodes(ids: ID[]): void;
 
   // 요약
   requestSummary(sessionId: ID): Promise<void>;
@@ -423,6 +432,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       sessions: initial.sessions ?? {},
       messages: initial.messages ?? {},
       annotations: initial.annotations ?? {},
+      vault: initial.vault ?? {},
       view: initial.view ?? emptyView(),
       settings: initial.settings ?? DEFAULT_SETTINGS,
       connections: initial.connections ?? defaultConnections(),
@@ -438,6 +448,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           sessions: data.sessions ?? s.sessions,
           messages: data.messages ?? s.messages,
           annotations: data.annotations ?? s.annotations,
+          vault: data.vault ?? s.vault,
           view: data.view ?? s.view,
           settings: data.settings ?? s.settings,
           connections: data.connections ?? s.connections,
@@ -689,6 +700,33 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         return msgId ? sessionId : false;
       },
 
+      createSubSession(parentSessionId, question, ids?: { sessionId?: ID; messageId?: ID }) {
+        const parent = get().sessions[parentSessionId];
+        const q = question.trim();
+        if (!parent || !q) return false;
+        const sessionId = ids?.sessionId ?? newId('s');
+        const taken = (id: ID) => !!get().sessions[id] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === id));
+        if (ids?.sessionId && taken(ids.sessionId)) return false;
+        if (ids?.messageId && taken(ids.messageId)) return false;
+
+        const now = Date.now();
+        const s: Session = {
+          id: sessionId,
+          parentId: parent.id,
+          rootId: parent.rootId,
+          title: subSessionTitle(q),
+          ...(parent.providerId ? { providerId: parent.providerId } : {}),
+          ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((st) => ({ sessions: { ...st.sessions, [sessionId]: s }, messages: { ...st.messages, [sessionId]: [] } }));
+        repo.saveSession(s);
+        touch(parent.id);
+        const msgId = get().sendMessage(sessionId, q, ids?.messageId);
+        return msgId ? sessionId : false;
+      },
+
       async requestSummary(sessionId) {
         const s = get().sessions[sessionId];
         if (!s?.parentId) return;
@@ -802,6 +840,33 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         const toSave = existing ? { ...annotation, createdAt: existing.createdAt } : annotation;
         set((s) => ({ annotations: { ...s.annotations, [annotation.id]: toSave } }));
         repo.saveAnnotation(toSave);
+      },
+
+      putVaultNode(node) {
+        // upsert: 기존 node가 있으면 createdAt을 유지, 없으면 그대로
+        const existing = get().vault[node.id];
+        const toSave = existing ? { ...node, createdAt: existing.createdAt } : node;
+        set((s) => ({ vault: { ...s.vault, [node.id]: toSave } }));
+        repo.saveVaultNode?.(toSave);
+      },
+
+      deleteVaultNodes(ids) {
+        // 폴더를 지우면 그 안의 모든 노드도 함께 지운다
+        const vault0 = get().vault;
+        const all = new Set<ID>();
+        for (const id of ids) {
+          if (!(id in vault0)) continue;
+          all.add(id);
+          for (const d of vaultDescendants(vault0, id)) all.add(d);
+        }
+        const toDelete = [...all];
+        if (!toDelete.length) return;
+        set((s) => {
+          const vault = { ...s.vault };
+          for (const id of toDelete) delete vault[id];
+          return { vault };
+        });
+        repo.deleteVaultNodes?.(toDelete);
       },
 
       openSession(id, target = 'main') {

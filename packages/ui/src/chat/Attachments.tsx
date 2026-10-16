@@ -1,15 +1,17 @@
-import { formatBytes, textPreview, type Attachment } from '@branch/core';
-import { ClipboardPaste, Download, FileText, X } from 'lucide-react';
+import { formatBytes, textPreview, type Attachment, type ID } from '@branch/core';
+import { Archive, ClipboardPaste, Download, FileText, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
 import { saveBase64File } from '../lib/download';
+import { saveToVault } from '../vault/save';
 import { dataUrl } from './attach';
 
 /**
  * 첨부 미리보기 (IMP-09). 입력창 위(지울 수 있음)와 보낸 질문 위(읽기 전용)에서 같이 쓴다.
  * 사진은 썸네일, PDF·파일은 이름·크기 칩, 붙여넣은 긴 텍스트는 첫 줄 미리보기. 누르면 크게 본다.
  * large: 답변에 붙은 생성 이미지 (ADR-041) — 본문 폭에 맞춰 크게 보여 준다.
+ * messageId: 답변 이미지면 크게 볼 때 [보관함에 담기]를 보인다 (ADR-055).
  */
 export function AttachmentList({
   items,
@@ -17,12 +19,14 @@ export function AttachmentList({
   align = 'start',
   large,
   className,
+  messageId,
 }: {
   items: readonly Attachment[];
   onRemove?: (id: string) => void;
   align?: 'start' | 'end';
   large?: boolean;
   className?: string;
+  messageId?: ID;
 }) {
   const [viewing, setViewing] = useState<Attachment | null>(null);
   if (!items.length) return null;
@@ -85,12 +89,12 @@ export function AttachmentList({
           </li>
         ))}
       </ul>
-      {viewing && <AttachmentViewer attachment={viewing} onClose={() => setViewing(null)} />}
+      {viewing && <AttachmentViewer attachment={viewing} messageId={messageId} onClose={() => setViewing(null)} />}
     </>
   );
 }
 
-function AttachmentViewer({ attachment: a, onClose }: { attachment: Attachment; onClose(): void }) {
+function AttachmentViewer({ attachment: a, messageId, onClose }: { attachment: Attachment; messageId?: ID; onClose(): void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -110,6 +114,17 @@ function AttachmentViewer({ attachment: a, onClose }: { attachment: Attachment; 
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="absolute top-[max(1rem,env(safe-area-inset-top))] right-4 flex gap-2">
+        {a.kind === 'image' && messageId && (
+          <button
+            type="button"
+            aria-label="보관함에 담기"
+            title="보관함에 담기"
+            onClick={() => saveToVault({ type: 'image', attachment: a }, messageId)}
+            className="grid size-9 place-items-center rounded-full bg-black/50 text-white"
+          >
+            <Archive size={18} />
+          </button>
+        )}
         {a.kind === 'image' && (
           <button
             type="button"

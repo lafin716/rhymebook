@@ -36,3 +36,4 @@ export * from './bridge';
 export * from './platform';
 export * from './sync';
 export * from './tts';
+export * from './vault';

@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { SelectionMenu } from '../chat/SelectionMenu';
 import { ConfirmHost } from '../components/ConfirmDialog';
+import { SubSessionDialog } from '../session/SubSessionDialog';
 import { Toasts } from '../components/Toasts';
 import { TopBar } from '../components/TopBar';
 import { NotesModal } from '../notes/NotesModal';
+import { VaultOverlay } from '../vault/VaultOverlay';
 import { Onboarding } from '../onboarding/Onboarding';
 import { SearchPalette } from '../search/SearchPalette';
 import { Sidebar } from '../session/Sidebar';
@@ -57,7 +59,9 @@ export function App() {
       <SearchPalette />
       <SettingsModal />
       <NotesModal />
+      <VaultOverlay />
       <SkillsPage />
+      <SubSessionDialog />
       <ConfirmHost />
       <Toasts />
       <Onboarding />

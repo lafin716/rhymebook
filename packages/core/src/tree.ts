@@ -47,6 +47,17 @@ export function branchesOfMessage(sessions: SessionMap, messageId: ID): Session[
     .sort((a, b) => (a.anchor!.startOffset - b.anchor!.startOffset) || a.createdAt - b.createdAt);
 }
 
+/** 직접 만든 하위 세션 제목: 질문 첫 줄 앞 24자 */
+export function subSessionTitle(question: string): string {
+  const line = question.trim().split('\n')[0]!.replace(/\s+/g, ' ');
+  return line.length > 24 ? `${line.slice(0, 24)}…` : line;
+}
+
+/** 앵커 없이 직접 만든 하위 세션(각주). 만든 순서 */
+export function footnoteChildren(sessions: SessionMap, parentId: ID): Session[] {
+  return childrenOf(sessions, parentId).filter((s) => !s.anchor);
+}
+
 export interface BreadcrumbItem {
   id: ID;
   title: string;

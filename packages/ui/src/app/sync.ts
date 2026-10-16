@@ -105,7 +105,7 @@ export async function setPairing(p: RemotePairing | null): Promise<void> {
 /** 미러링한 PC 데이터를 화면에서 지운다 (페어링 해제) */
 function clearMirror() {
   const st = appStore.getState();
-  st.applyRemote({ sessions: {}, messages: {}, streaming: {}, summaryDrafts: {}, view: { ...st.view, activeSessionId: null, splitSessionIds: [], popups: [], sheetSessionIds: [], mode: 'single' } });
+  st.applyRemote({ sessions: {}, messages: {}, streaming: {}, summaryDrafts: {}, annotations: {}, vault: {}, view: { ...st.view, activeSessionId: null, splitSessionIds: [], popups: [], sheetSessionIds: [], mode: 'single' } });
 }
 
 /* ── 원격 모드 화면 설정 (기기별, localStorage) ─────────────── */
@@ -155,6 +155,7 @@ const OP_LABEL: Record<SyncOp['kind'], string> = {
   stop: '응답을 멈췄어요',
   retry: '다시 답변을 요청했어요',
   branch: '가지를 만들었어요',
+  subsession: '하위 세션을 만들었어요',
   rename: '세션 이름을 바꿨어요',
   'session.agent': '답할 에이전트·모델을 바꿨어요',
   delete: '세션을 삭제했어요',
@@ -165,6 +166,8 @@ const OP_LABEL: Record<SyncOp['kind'], string> = {
   'summary.remove': '요약을 떼어 냈어요',
   'annot.set': '메모를 추가했어요',
   'annot.delete': '메모를 삭제했어요',
+  'vault.put': '보관함을 정리했어요',
+  'vault.delete': '보관함에서 삭제했어요',
   'study.import': '학습을 가져왔어요',
 };
 

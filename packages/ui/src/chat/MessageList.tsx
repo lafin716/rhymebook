@@ -2,10 +2,12 @@ import type { ID, Session } from '@branch/core';
 import { useCallback, useMemo, useState, type MouseEvent } from 'react';
 import { useApp } from '../app/store';
 import type { MenuPoint } from '../session/SessionMenu';
+import { FootnoteList, FootnoteRefs } from './Footnotes';
 import { MessageItem } from './MessageItem';
 import { TurnMenu } from './turnDelete';
 
 const NONE: Session[] = [];
+const NO_REFS: { n: number; session: Session }[] = [];
 
 export function MessageList({ sessionId }: { sessionId: ID }) {
   const messages = useApp((s) => s.messages[sessionId]);
@@ -26,6 +28,24 @@ export function MessageList({ sessionId }: { sessionId: ID }) {
       list.sort((a, b) => a.anchor!.startOffset - b.anchor!.startOffset || a.createdAt - b.createdAt);
     return map;
   }, [sessions, sessionId]);
+
+  // 직접 만든 하위 세션(각주): 생성 순 번호, 만든 시점의 마지막 메시지 뒤에 표식 (ADR-054)
+  const notes = useMemo(
+    () => Object.values(sessions).filter((s) => s.parentId === sessionId && !s.anchor).sort((a, b) => a.createdAt - b.createdAt),
+    [sessions, sessionId],
+  );
+  const refsByMessage = useMemo(() => {
+    const map = new Map<ID, { n: number; session: Session }[]>();
+    const list = messages ?? [];
+    notes.forEach((session, i) => {
+      let at: ID | undefined;
+      for (const m of list) if (m.createdAt <= session.createdAt) at = m.id;
+      at ??= list.at(-1)?.id;
+      if (!at) return;
+      map.set(at, [...(map.get(at) ?? []), { n: i + 1, session }]);
+    });
+    return map;
+  }, [notes, messages]);
 
   // 메시지 → 그 메시지가 속한 질문 (질문 앞의 답변은 없음)
   const questionOf = useMemo(() => {
@@ -54,8 +74,10 @@ export function MessageList({ sessionId }: { sessionId: ID }) {
       {messages.map((m, i) => (
         <div key={m.id} onContextMenu={(e) => onContextMenu(e, m.id)}>
           <MessageItem message={m} branches={byMessage.get(m.id) ?? NONE} isLast={i === messages.length - 1} />
+          <FootnoteRefs items={refsByMessage.get(m.id) ?? NO_REFS} />
         </div>
       ))}
+      <FootnoteList notes={notes} />
       {menu && <TurnMenu at={menu} sessionId={sessionId} questionId={menu.questionId} first={menu.first} onClose={closeMenu} />}
     </div>
   );

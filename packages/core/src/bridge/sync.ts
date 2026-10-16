@@ -1,6 +1,7 @@
 import { isValidModelName, type CliId } from '../cli-options';
 import { isAttachmentList } from '../attachments';
-import type { Anchor, Annotation, Attachment, BranchKind, ID, Message, Session, Skill, SkillRef, SummaryDraft } from '../model';
+import { isVaultNode, VAULT_LIMITS } from '../vault';
+import type { Anchor, Annotation, Attachment, BranchKind, ID, Message, Session, Skill, SkillRef, SummaryDraft, VaultNode } from '../model';
 import { isMarkColor, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
 import { isSkill, isSkillRef, SKILL_LIMITS } from '../skills';
 import { STUDY_LIMITS, validateStudyBundle, type StudyBundle } from '../study';
@@ -27,6 +28,8 @@ export type SyncOp =
       /** 가지의 첫 질문(user) 메시지 id */
       messageId: ID;
     }
+  /** 앵커 없이 직접 질문으로 만드는 하위 세션(각주, IMP-22) */
+  | { kind: 'subsession'; id: ID; parentId: ID; question: string; messageId: ID }
   | { kind: 'rename'; sessionId: ID; title: string }
   /**
    * 이 세션을 PC의 어느 CLI·모델·노력치로 답할지 (IMP-08). 있는 키만 바꾸고 null은 PC 기본값으로 되돌린다.
@@ -42,6 +45,8 @@ export type SyncOp =
   | { kind: 'summary.remove'; sessionId: ID }
   | { kind: 'annot.set'; annotation: Annotation }
   | { kind: 'annot.delete'; ids: ID[] }
+  | { kind: 'vault.put'; node: VaultNode }
+  | { kind: 'vault.delete'; ids: ID[] }
   /** 학습 꾸러미 가져오기 (ADR-043). 꾸러미 JSON 길이는 STUDY_LIMITS.remoteChars 이하 */
   | { kind: 'study.import'; bundle: StudyBundle };
 
@@ -78,6 +83,9 @@ export type SyncServerMsg =
   | { type: 'sync.draft'; sessionId: ID; draft: SummaryDraft | null }
   | { type: 'sync.annot'; annotation: Annotation }
   | { type: 'sync.annot'; deleted: ID[] }
+  | { type: 'sync.vault'; nodes: VaultNode[]; first: boolean; done: boolean }
+  | { type: 'sync.vault'; node: VaultNode }
+  | { type: 'sync.vault'; deleted: ID[] }
   | { type: 'act.result'; reqId: string; ok: boolean; error?: string }
   /**
    * PC 스킬 목록 페이지 (sync.skills 응답, 요청의 reqId를 그대로 붙인다).
@@ -170,6 +178,20 @@ function validateOp(op: unknown): boolean {
       return false;
     }
     return true;
+  }
+  if (kind === 'subsession') {
+    return (
+      typeof o.id === 'string' &&
+      SYNC_ID_RE.test(o.id) &&
+      typeof o.parentId === 'string' &&
+      SYNC_ID_RE.test(o.parentId) &&
+      typeof o.messageId === 'string' &&
+      SYNC_ID_RE.test(o.messageId) &&
+      typeof o.question === 'string' &&
+      o.question.trim().length > 0 &&
+      o.question.length <= SYNC_LIMITS.text &&
+      Object.keys(o).every((k) => ['kind', 'id', 'parentId', 'question', 'messageId'].includes(k))
+    );
   }
   if (kind === 'rename') {
     return (
@@ -283,6 +305,18 @@ function validateOp(op: unknown): boolean {
       o.ids.length <= SYNC_LIMITS.id &&
       o.ids.every((id: unknown) => typeof id === 'string' && SYNC_ID_RE.test(id as string));
   }
+  if (kind === 'vault.put') {
+    return Object.keys(o).every((k) => k === 'kind' || k === 'node') && isVaultNode(o.node);
+  }
+  if (kind === 'vault.delete') {
+    return (
+      Object.keys(o).every((k) => k === 'kind' || k === 'ids') &&
+      Array.isArray(o.ids) &&
+      o.ids.length > 0 &&
+      o.ids.length <= VAULT_LIMITS.deleteIds &&
+      o.ids.every((id: unknown) => typeof id === 'string' && SYNC_ID_RE.test(id))
+    );
+  }
   if (kind === 'study.import') {
     if (Object.keys(o).some((k) => k !== 'kind' && k !== 'bundle')) return false;
     try {
@@ -365,6 +399,15 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
     if (Array.isArray(deleted)) {
       return validateOp({ kind: 'annot.delete', ids: deleted });
     }
+    return false;
+  }
+
+  if (type === 'sync.vault') {
+    if (Array.isArray(msg.nodes)) {
+      return typeof msg.first === 'boolean' && typeof msg.done === 'boolean' && msg.nodes.every(isVaultNode);
+    }
+    if (msg.node !== undefined) return isVaultNode(msg.node);
+    if (Array.isArray(msg.deleted)) return msg.deleted.every((id: unknown) => typeof id === 'string' && SYNC_ID_RE.test(id));
     return false;
   }
 

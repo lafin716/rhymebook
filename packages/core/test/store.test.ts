@@ -44,6 +44,21 @@ describe('app store', () => {
     expect(msgs[1]!.content.length).toBeGreaterThan(10);
   });
 
+  it('creates a free sub-session (no anchor) from a typed question', async () => {
+    const store = makeStore();
+    expect(store.getState().createSubSession(SEED_IDS.root, '   ')).toBe(false);
+    expect(store.getState().createSubSession('nope', 'q')).toBe(false);
+    const id = store.getState().createSubSession(SEED_IDS.root, '행렬식은 왜 넓이야?\n자세히') as string;
+    await idle(store);
+    const s = store.getState();
+    expect(s.sessions[id]!.parentId).toBe(SEED_IDS.root);
+    expect(s.sessions[id]!.anchor).toBeUndefined();
+    expect(s.sessions[id]!.title).toBe('행렬식은 왜 넓이야?');
+    const msgs = s.messages[id]!;
+    expect(msgs[0]!.content).toBe('행렬식은 왜 넓이야?\n자세히');
+    expect(msgs[1]!.status).toBe('done');
+  });
+
   it('marks offline providers as error and retries with a fallback', async () => {
     const store = makeStore();
     store.getState().setConnection('mock', { status: 'offline' });

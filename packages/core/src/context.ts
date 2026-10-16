@@ -11,6 +11,9 @@ export const BASE_SYSTEM =
 export const BRANCH_INSTRUCTION =
   '학습자가 이 맥락에서 막힌 부분이다. 맥락에 맞춰 짧고 명확하게, 비유와 예시를 들어 설명하라.';
 
+export const SUBSESSION_INSTRUCTION =
+  '학습자가 이 대화를 보다가 직접 이어서 묻는 하위 질문이다. 부모 대화의 맥락을 바탕으로 짧고 명확하게, 비유와 예시를 들어 설명하라.';
+
 export const DEFAULT_CONTEXT_WINDOW = 6;
 const MAX_MESSAGE_CHARS = 1500;
 
@@ -41,13 +44,17 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
   const n = opts.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
   const path = pathToRoot(sessions, sessionId);
   const self = path[path.length - 1];
-  if (!self || !self.parentId || !self.anchor) return BASE_SYSTEM;
+  if (!self || !self.parentId) return BASE_SYSTEM;
 
   const root = path[0]!;
   const lines: string[] = [BASE_SYSTEM, '', '## 학습 맥락', `루트 주제: ${root.title}`, '', '### 가지 경로 (루트 → 현재)'];
 
   path.slice(1).forEach((s, i) => {
-    if (!s.anchor || !s.parentId) return;
+    if (!s.parentId) return;
+    if (!s.anchor) {
+      lines.push(`${i + 1}. (직접 만든 하위 세션) "${s.title}"`);
+      return;
+    }
     const parentMsgs = messages[s.parentId] ?? [];
     const msg = parentMsgs.find((m) => m.id === s.anchor!.messageId);
     const ex = msg ? excerptAround(msg.content, s.anchor.startOffset, s.anchor.endOffset) : null;
@@ -56,15 +63,20 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
   });
 
   const parentMsgs = messages[self.parentId] ?? [];
-  const anchorIdx = parentMsgs.findIndex((m) => m.id === self.anchor!.messageId);
+  const anchor = self.anchor;
+  const anchorIdx = anchor ? parentMsgs.findIndex((m) => m.id === anchor.messageId) : -1;
   const upto = anchorIdx >= 0 ? parentMsgs.slice(0, anchorIdx + 1) : parentMsgs;
-  const recent = upto.filter((m) => m.content.trim() !== '').slice(-n);
+  // 직접 만든 하위 세션은 만든 시점까지의 부모 대화를 본다
+  const scoped = anchor ? upto : upto.filter((m) => m.createdAt <= self.createdAt);
+  const recent = scoped.filter((m) => m.content.trim() !== '').slice(-n);
   if (recent.length) {
-    lines.push('', `### 부모 대화 (앵커 메시지까지 최근 ${recent.length}개)`);
+    const label = anchor ? '앵커 메시지까지' : '하위 세션을 만들 때까지';
+    lines.push('', `### 부모 대화 (${label} 최근 ${recent.length}개)`);
     for (const m of recent) lines.push(`[${roleLabel(m.role)}] ${clip(m.content)}`);
   }
 
-  lines.push('', '## 지시', BRANCH_INSTRUCTION, `현재 질문 대상: "${self.anchor.text}"`);
+  if (anchor) lines.push('', '## 지시', BRANCH_INSTRUCTION, `현재 질문 대상: "${anchor.text}"`);
+  else lines.push('', '## 지시', SUBSESSION_INSTRUCTION);
   return lines.join('\n');
 }
 

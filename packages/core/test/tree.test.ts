@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createSeed, SEED_IDS } from '../src/seed';
-import { branchesOfMessage, breadcrumb, depthOf, descendantIds, pathToRoot } from '../src/tree';
+import { branchesOfMessage, breadcrumb, depthOf, descendantIds, footnoteChildren, pathToRoot, subSessionTitle } from '../src/tree';
 
 describe('session tree', () => {
   const { sessions, messages } = createSeed(0);
@@ -38,5 +38,13 @@ describe('session tree', () => {
     const bc = breadcrumb(sessions, SEED_IDS.cos, 3);
     expect(bc.map((b) => b.title)).toEqual(['트랜스포머 어텐션', '…', '코사인 유사도']);
     expect(breadcrumb(sessions, SEED_IDS.cos).map((b) => b.title)).toHaveLength(4);
+  });
+
+  it('footnoteChildren returns only anchorless children; subSessionTitle trims to one line', () => {
+    const free = { ...sessions[SEED_IDS.root]!, id: 'f1', parentId: SEED_IDS.root, anchor: undefined, createdAt: 99 };
+    const map = { ...sessions, f1: free };
+    expect(footnoteChildren(map, SEED_IDS.root).map((s) => s.id)).toEqual(['f1']);
+    expect(subSessionTitle('  첫  줄\n둘째 줄')).toBe('첫 줄');
+    expect(subSessionTitle('가'.repeat(30))).toBe(`${'가'.repeat(24)}…`);
   });
 });

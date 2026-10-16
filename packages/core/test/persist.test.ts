@@ -23,7 +23,7 @@ const msg = (id: string, sessionId: string, extra: Partial<Message> = {}): Messa
 describe('persist', () => {
   it('round-trips the seed tree, anchors and summaries', () => {
     const seed = createSeed(0);
-    const data = { ...seed, annotations: {}, view: emptyView(SEED_IDS.cos), settings: DEFAULT_SETTINGS, connections: initialConnections() };
+    const data = { ...seed, annotations: {}, vault: {}, view: emptyView(SEED_IDS.cos), settings: DEFAULT_SETTINGS, connections: initialConnections() };
     const back = restoreData(toStoredData(data));
     expect(back.sessions).toEqual(seed.sessions);
     expect(back.messages).toEqual(seed.messages);

@@ -8,6 +8,7 @@ export function firstRunData(): AppData {
       sessions: {},
       messages: {},
       annotations: {},
+      vault: {},
       view: emptyView(),
       settings: RUNTIME_SETTINGS,
       connections: {} as AppData['connections'],

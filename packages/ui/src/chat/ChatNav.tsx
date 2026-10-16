@@ -1,11 +1,13 @@
 import { buildTurns, type ID, type Session, type Turn } from '@branch/core';
-import { ChevronDown, ChevronUp, GitBranch, ListOrdered, LocateFixed, Sparkles, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { ChevronDown, ChevronUp, EyeOff, GitBranch, GripHorizontal, ListOrdered, LocateFixed, NotebookPen, Sparkles, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import { useApp } from '../app/store';
+import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
 import { isMac } from '../lib/platform';
+import { snapDock } from './navDock';
 import { openBranch } from './open';
 import { removeTurn } from './turnDelete';
 
@@ -52,6 +54,15 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const branchToggleRef = useRef<HTMLButtonElement>(null);
+  // 모바일: 끌어서 옮기는 핸들 (좌·우 가장자리에 붙고 세로는 자유, ADR-056)
+  const dock = useUi((s) => s.navDock);
+  const setDock = useUi((s) => s.setNavDock);
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [tbSize, setTbSize] = useState({ w: 0, h: 0 });
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+  const [handleMenu, setHandleMenu] = useState(false);
+  const [snapping, setSnapping] = useState(false);
+  const dragStart = useRef<{ px: number; py: number; ox: number; oy: number; x: number; y: number; moved: boolean } | null>(null);
 
   // 답변 id → 그 답변에서 뻗은 가지 수
   const branchCount = useMemo(() => {
@@ -79,6 +90,13 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
       )
       .map((s) => ({ session: s, turn: turnOf.get(s.anchor!.messageId), sub: subCount.get(s.id) ?? 0 }));
   }, [sessions, sessionId, messages, turns]);
+
+  // 직접 만든 하위 세션(각주): 생성 순. 가지 목록 아래에 고정해 보여준다 (ADR-054)
+  const notes = useMemo(
+    () => Object.values(sessions).filter((s) => s.parentId === sessionId && !s.anchor).sort((a, b) => a.createdAt - b.createdAt),
+    [sessions, sessionId],
+  );
+  const linked = branches.length + notes.length;
 
   const measure = useCallback(() => {
     const root = scrollRef.current;
@@ -195,6 +213,69 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
     };
   }, [panel]);
 
+  // 핸들 메뉴: 바깥을 누르면 닫는다
+  useEffect(() => {
+    if (!handleMenu) return;
+    const onDown = (e: PointerEvent) => {
+      if (!toolbarRef.current?.contains(e.target as Node)) setHandleMenu(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [handleMenu]);
+
+  // 모바일 툴바 크기 (붙을 위치 계산용)
+  const docked = mobile && !dock.hidden;
+  const showTurnsEarly = turns.length > 0 && (nav.overflow || turns.length >= 2);
+  const visible = showTurnsEarly || linked > 0;
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    if (!docked || !visible || !el) return;
+    const read = () => setTbSize((p) => (p.w === el.offsetWidth && p.h === el.offsetHeight ? p : { w: el.offsetWidth, h: el.offsetHeight }));
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [docked, visible]);
+
+  const onHandleDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const area = areaRef.current?.getBoundingClientRect();
+    const tb = toolbarRef.current?.getBoundingClientRect();
+    if (!area || !tb) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const ox = tb.left - area.left;
+    const oy = tb.top - area.top;
+    dragStart.current = { px: e.clientX, py: e.clientY, ox, oy, x: ox, y: oy, moved: false };
+  };
+  const onHandleMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = dragStart.current;
+    const area = areaRef.current;
+    if (!d || !area) return;
+    const dx = e.clientX - d.px;
+    const dy = e.clientY - d.py;
+    if (!d.moved && Math.hypot(dx, dy) < 6) return;
+    if (!d.moved) {
+      d.moved = true;
+      setHandleMenu(false);
+      setPanel(null);
+    }
+    d.x = Math.min(Math.max(0, d.ox + dx), Math.max(0, area.clientWidth - tbSize.w));
+    d.y = Math.min(Math.max(0, d.oy + dy), Math.max(0, area.clientHeight - tbSize.h));
+    setDrag({ x: d.x, y: d.y });
+  };
+  const onHandleUp = (cancel: boolean) => {
+    const d = dragStart.current;
+    const area = areaRef.current;
+    dragStart.current = null;
+    if (!d) return;
+    if (!d.moved) {
+      if (!cancel) setHandleMenu((v) => !v);
+      return;
+    }
+    if (area) setDock(snapDock(d.x, d.y, tbSize.w, tbSize.h, area.clientWidth, area.clientHeight));
+    setSnapping(true);
+    setDrag(null);
+  };
+
   /** 이 패널 본문에서 가지 앵커로 스크롤하고 깜빡인다 */
   const revealHere = (id: ID) => {
     const el = scrollRef.current?.querySelector<HTMLElement>(`mark.anchor[data-session-ids~="${CSS.escape(id)}"]`);
@@ -205,30 +286,92 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
     el.classList.add('anchor-flash');
   };
 
-  const showTurns = turns.length > 0 && (nav.overflow || turns.length >= 2);
-  if (!showTurns && !branches.length) return null;
+  const showTurns = showTurnsEarly;
+  if (!visible) return null;
 
   const alt = isMac ? '⌥' : 'Alt+';
   const btnSize = mobile ? 'md' : 'sm';
+  const dockStyle: CSSProperties = drag
+    ? { left: drag.x, top: drag.y }
+    : {
+        left: dock.side === 'left' ? 0 : `calc(100% - ${tbSize.w}px)`,
+        top: `calc((100% - ${tbSize.h}px) * ${dock.y})`,
+      };
   const position = nav.active >= 0 ? `${nav.active + 1}/${turns.length}` : `–/${turns.length}`;
 
   return (
     <>
       {rail && !mobile && turns.length >= 2 && <TurnRail turns={turns} active={nav.active} onJump={jump} />}
 
+      {mobile && dock.hidden ? null : (
+      <div ref={areaRef} className={cn(mobile ? 'pointer-events-none absolute inset-2.5 z-10' : 'contents')}>
       <div
         ref={toolbarRef}
-        className="absolute right-2.5 bottom-2.5 z-10 flex flex-col items-center rounded-xl border border-line bg-surface/95 p-0.5 shadow-pop backdrop-blur"
+        className={cn(
+          'flex flex-col items-center rounded-xl border border-line bg-surface/95 p-0.5 shadow-pop backdrop-blur',
+          mobile
+            ? cn(
+                'pointer-events-auto absolute',
+                // 손을 뗀 뒤 가장자리로 달라붙는 동안만 애니메이션 (첫 배치·크기 변화는 즉시)
+                snapping && 'transition-[left,top] duration-300 ease-[cubic-bezier(0.25,1.3,0.5,1)] motion-reduce:transition-none',
+                drag && 'shadow-float',
+                !tbSize.w && 'invisible',
+              )
+            : 'absolute right-2.5 bottom-2.5 z-10',
+        )}
+        style={mobile ? dockStyle : undefined}
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget) setSnapping(false);
+        }}
         role="toolbar"
         aria-label="질문 이동"
+        data-nav-dock={mobile ? dock.side : undefined}
       >
-        {branches.length > 0 && (
+        {mobile && (
+          <button
+            type="button"
+            aria-label="내비게이션 핸들 (끌어서 옮기기, 눌러서 메뉴)"
+            aria-haspopup="menu"
+            aria-expanded={handleMenu}
+            data-nav-handle=""
+            onPointerDown={onHandleDown}
+            onPointerMove={onHandleMove}
+            onPointerUp={() => onHandleUp(false)}
+            onPointerCancel={() => onHandleUp(true)}
+            className={cn('flex h-6 w-10 touch-none items-center justify-center rounded-lg text-muted active:bg-surface-2', drag ? 'cursor-grabbing' : 'cursor-grab')}
+          >
+            <GripHorizontal size={16} />
+          </button>
+        )}
+        {mobile && handleMenu && (
+          <div
+            role="menu"
+            className={cn(
+              'animate-pop-in absolute top-0 w-max rounded-xl border border-line bg-elev p-1 shadow-float',
+              dock.side === 'left' ? 'left-full ml-1.5' : 'right-full mr-1.5',
+            )}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setHandleMenu(false);
+                setPanel(null);
+                setDock({ hidden: true });
+              }}
+              className="flex h-10 items-center gap-2 rounded-lg px-3 text-[14px] text-fg hover:bg-surface-2"
+            >
+              <EyeOff size={15} className="text-muted" /> 숨기기
+            </button>
+          </div>
+        )}
+        {linked > 0 && (
           <>
             <span className="relative">
               <IconButton
                 ref={branchToggleRef}
                 size={btnSize}
-                label={`이 페이지의 가지 ${branches.length}개`}
+                label={`이 페이지의 가지 ${linked}개`}
                 active={panel === 'branches'}
                 aria-expanded={panel === 'branches'}
                 onClick={() => setPanel((p) => (p === 'branches' ? null : 'branches'))}
@@ -236,7 +379,7 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
                 <GitBranch size={16} className="text-anchor-line" />
               </IconButton>
               <span className="pointer-events-none absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-anchor-line px-1 text-[10px] leading-none font-semibold text-accent-fg tabular-nums">
-                {branches.length}
+                {linked}
               </span>
             </span>
             {showTurns && <div className="my-0.5 h-px w-5 bg-line" />}
@@ -267,6 +410,8 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
           </>
         )}
       </div>
+      </div>
+      )}
 
       {panel && (
         <div
@@ -313,11 +458,12 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
               <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-3.5">
                 <GitBranch size={15} className="text-anchor-line" />
                 <span className="flex-1 text-[14px] font-semibold">이 페이지의 가지</span>
-                <span className="text-[12px] text-muted">{branches.length}개</span>
+                <span className="text-[12px] text-muted">{linked}개</span>
                 <IconButton size="sm" label="가지 목록 닫기" onClick={() => setPanel(null)}>
                   <X size={16} />
                 </IconButton>
               </div>
+              {branches.length > 0 && (
               <ul className="scroll-thin min-h-0 flex-1 overflow-y-auto p-1.5">
                 {branches.map((b) => (
                   <li key={b.session.id}>
@@ -337,6 +483,41 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
                   </li>
                 ))}
               </ul>
+              )}
+              {notes.length > 0 && (
+                <div
+                  data-nav-footnotes=""
+                  className={cn('flex min-h-0 flex-col', branches.length > 0 ? 'max-h-[45%] shrink-0 border-t border-line' : 'flex-1')}
+                >
+                  <div className="flex h-9 shrink-0 items-center gap-1.5 px-3.5 text-[12.5px] font-semibold text-muted">
+                    <NotebookPen size={13} /> 각주 {notes.length}
+                  </div>
+                  <ol className="scroll-thin min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
+                    {notes.map((n, i) => (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPanel(null);
+                            openBranch(n.id);
+                          }}
+                          className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-surface-2"
+                        >
+                          <span className="shrink-0 pt-px text-[12.5px] font-semibold text-accent tabular-nums">[{i + 1}]</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="line-clamp-1 text-[13.5px] leading-snug font-medium text-fg">{n.title}</span>
+                            {n.summary && (
+                              <span className="mt-0.5 inline-flex items-center gap-0.5 text-[11.5px] text-anchor-line">
+                                <Sparkles size={11} /> 요약됨
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </>
           )}
         </div>

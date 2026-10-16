@@ -1,9 +1,10 @@
 import { breadcrumb, effectiveProviderId, excerptAround, type ID, type ProviderId } from '@branch/core';
-import { ChevronDown, ChevronRight, ChevronUp, CornerLeftUp, Quote, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Compass, CornerLeftUp, Quote, Sparkles } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
+import { useBreakpoint } from '../app/useBreakpoint';
 import { Badge, StatusDot } from '../components/Badge';
 import { IconButton } from '../components/Button';
 import { RemoteAgentPicker } from './RemoteAgentPicker';
@@ -88,6 +89,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
         )}
         <BookPdfButton sessionId={sessionId} compact={compact} />
         {!remoteMode && <ProviderSelect sessionId={sessionId} compact={compact} />}
+        {!remoteMode && <NavRestoreButton />}
         {collapsible && (
           <button
             type="button"
@@ -108,6 +110,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
           </button>
         )}
         {remoteMode && <RemoteAgentPicker sessionId={sessionId} compact={compact} />}
+        {remoteMode && <NavRestoreButton />}
         {extra}
       </div>
       {ex && !quoteCollapsed && (
@@ -147,6 +150,19 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
         </div>
       )}
     </header>
+  );
+}
+
+/** 모바일에서 숨긴 세션 내비게이션을 다시 보이는 버튼 (ADR-056) */
+function NavRestoreButton() {
+  const mobile = useBreakpoint() === 'mobile';
+  const hidden = useUi((s) => s.navDock.hidden);
+  const setNavDock = useUi((s) => s.setNavDock);
+  if (!mobile || !hidden) return null;
+  return (
+    <IconButton size="sm" label="내비게이션 보이기" data-nav-restore="" onClick={() => setNavDock({ hidden: false })}>
+      <Compass size={15} />
+    </IconButton>
   );
 }
 

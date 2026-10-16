@@ -1,7 +1,8 @@
 import type { AppState, AppStore } from '../store';
 import { isCliId } from '../cli-options';
 import { canDeleteTurn } from '../turns';
-import type { ID, Message, ProviderId, Skill } from '../model';
+import type { ID, Message, ProviderId, Skill, VaultNode } from '../model';
+import { wouldCreateCycle } from '../vault';
 import { SKILL_LIMITS } from '../skills';
 import { planStudyImport, StudyError, validateStudyBundle } from '../study';
 import {
@@ -56,7 +57,7 @@ interface PeerState {
   actWindowStart: number;
 }
 
-type Synced = Pick<AppState, 'sessions' | 'messages' | 'streaming' | 'summaryDrafts' | 'annotations'>;
+type Synced = Pick<AppState, 'sessions' | 'messages' | 'streaming' | 'summaryDrafts' | 'annotations' | 'vault'>;
 
 /** content 외 필드가 모두 같고 content가 뒤로만 늘었으면 증분으로 보낼 수 있다 */
 function appendOnly(prev: Message, next: Message): boolean {
@@ -85,6 +86,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     streaming: s.streaming,
     summaryDrafts: s.summaryDrafts,
     annotations: s.annotations,
+    vault: s.vault,
   });
   let last: Synced = pick(store.getState());
   /** 증분 전송 대기 중인 메시지 (messageId → sessionId) */
@@ -242,7 +244,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         if (!nextIds.has(id)) deleted.push(id);
       }
       broadcast((peerId) => {
-        for (const id of prevIds) {
+        for (const id of nextIds) {
           const p = next.annotations[id];
           if (p && prev.annotations[id] !== p) {
             send(peerId, { type: 'sync.annot', annotation: p });
@@ -251,6 +253,15 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         if (deleted.length) {
           send(peerId, { type: 'sync.annot', deleted });
         }
+      });
+    }
+
+    if (prev.vault !== next.vault) {
+      const deleted = Object.keys(prev.vault).filter((id) => !next.vault[id]);
+      const changed = Object.values(next.vault).filter((n) => prev.vault[n.id] !== n);
+      broadcast((peerId) => {
+        for (const node of changed) send(peerId, { type: 'sync.vault', node });
+        if (deleted.length) send(peerId, { type: 'sync.vault', deleted });
       });
     }
 
@@ -274,6 +285,26 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       summaryDrafts: state.summaryDrafts,
       ...(annotations.length ? { annotations } : {}),
     });
+    sendVault(peerId);
+  };
+
+  /** 보관함을 바이트 예산 페이지로 나눠 보낸다 (이미지가 있어 스냅샷에 넣지 않는다). 비어도 한 페이지는 보낸다 */
+  const sendVault = (peerId: string) => {
+    let page: VaultNode[] = [];
+    let bytes = 0;
+    let first = true;
+    for (const node of Object.values(store.getState().vault)) {
+      const size = JSON.stringify(node).length;
+      if (page.length && bytes + size > SYNC_LIMITS.pageBytes) {
+        send(peerId, { type: 'sync.vault', nodes: page, first, done: false });
+        first = false;
+        page = [];
+        bytes = 0;
+      }
+      page.push(node);
+      bytes += size;
+    }
+    send(peerId, { type: 'sync.vault', nodes: page, first, done: true });
   };
 
   /** 세션 메시지를 바이트 예산 페이지로 나눠 보낸다 */
@@ -368,6 +399,12 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         if (peerBusy(peer)) return 'busy';
         return null;
       }
+      case 'subsession':
+        if (op.id === op.messageId) return 'invalid';
+        if (!has(op.parentId)) return 'not-found';
+        if (idTaken(state, op.id) || idTaken(state, op.messageId)) return 'conflict';
+        if (peerBusy(peer)) return 'busy';
+        return null;
       case 'rename':
         if (op.title.length > SYNC_LIMITS.title || !op.title.trim()) return 'invalid';
         return has(op.sessionId) ? null : 'not-found';
@@ -396,6 +433,18 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         return null;
       }
       case 'annot.delete':
+        return null;
+      case 'vault.put': {
+        const { node } = op;
+        const existing = state.vault[node.id];
+        if (existing && existing.kind !== node.kind) return 'conflict';
+        if (node.parentId !== null) {
+          if (state.vault[node.parentId]?.kind !== 'folder') return 'not-found';
+          if (node.kind === 'folder' && wouldCreateCycle(state.vault, node.id, node.parentId)) return 'invalid';
+        }
+        return null;
+      }
+      case 'vault.delete':
         return null;
       case 'study.import': {
         try {
@@ -441,6 +490,14 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         case 'retry':
           if (!s.retry(op.sessionId)) return 'failed';
           peer.streams.add(op.sessionId);
+          return null;
+        case 'subsession':
+          peer.loaded.add(op.id);
+          if (!s.createSubSession(op.parentId, op.question, { sessionId: op.id, messageId: op.messageId })) {
+            peer.loaded.delete(op.id);
+            return 'failed';
+          }
+          peer.streams.add(op.id);
           return null;
         case 'branch':
           peer.loaded.add(op.id);
@@ -491,6 +548,12 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           return null;
         case 'annot.delete':
           s.deleteAnnotations(op.ids);
+          return null;
+        case 'vault.put':
+          s.putVaultNode(op.node);
+          return null;
+        case 'vault.delete':
+          s.deleteVaultNodes(op.ids);
           return null;
         case 'study.import':
           try {

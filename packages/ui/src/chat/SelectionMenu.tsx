@@ -8,6 +8,7 @@ import {
   type MarkFont,
 } from '@branch/core';
 import {
+  Archive,
   Bold,
   Check,
   ChevronDown,
@@ -42,6 +43,7 @@ import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { cn } from '../lib/cn';
+import { saveToVault } from '../vault/save';
 import { speak, stopSpeaking, useSpeech } from '../voice/speak';
 import { ColorPalette, COLOR_KIND_LABELS, colorLabel, swatchCss, type ColorKind } from './ColorPalette';
 import { openBranch } from './open';
@@ -195,6 +197,13 @@ export function SelectionMenu() {
   };
 
   /** 선택한 글을 읽어 준다 (ADR-050). 읽는 중이면 멈춘다. 메뉴는 그대로 둔다 */
+  /** 선택한 글을 보관함에 담는다 (ADR-055) */
+  const keep = () => {
+    saveToVault({ type: 'text', text: window.getSelection()?.toString() || pending.anchor.text }, pending.anchor.messageId);
+    window.getSelection()?.removeAllRanges();
+    dismiss();
+  };
+
   const listen = () => {
     if (speaking) stopSpeaking();
     else speak(window.getSelection()?.toString() || pending.anchor.text);
@@ -419,6 +428,9 @@ export function SelectionMenu() {
       >
         {speaking ? '멈춤' : '듣기'}
       </MenuButton>
+      <MenuButton size={size} icon={<Archive size={size === 'lg' ? 18 : 15} />} onClick={keep}>
+        보관
+      </MenuButton>
     </>
   );
 
@@ -461,7 +473,7 @@ export function SelectionMenu() {
             paletteView
           ) : (
             <>
-              <div className="grid grid-cols-5 gap-1.5">{actionButtons('lg')}</div>
+              <div className="grid grid-cols-3 gap-1.5">{actionButtons('lg')}</div>
               <div className="mt-2 border-t border-line pt-2">{toolbar}</div>
             </>
           )}
@@ -471,7 +483,7 @@ export function SelectionMenu() {
     );
   }
 
-  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 500;
+  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : 570;
   const pos = placeMenu(pending.rect, { w: width, h: size?.h ?? (custom ? 46 : memo !== null ? 128 : 84) });
   return createPortal(
     <div

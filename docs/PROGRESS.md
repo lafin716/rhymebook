@@ -67,6 +67,9 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - [x] IMP-19 발음 듣기: 선택 메뉴 [듣기], 기기 음성 기본, OpenAI 음성 하나 선택·실패(키·한도·연결) 시 기기 음성으로 대체, 설정 › 음성 「읽어 주기」 (ADR-050)
 - [x] IMP-20 모바일 앱 발음 듣기: iOS·Android 앱은 네이티브 기기 음성(TTS 플러그인), 음성 실패 시 같은 언어 다른 음성으로, 언어 미설치 안내, iOS 무음 스위치 무시 (ADR-051)
 - [x] IMP-21 음성으로 읽기: 기본 스킬 `/speak`, 답변 속 ```speak 블록을 읽기 카드로(줄마다 듣기·모두 듣기), 요청에 맞는 스킬 자동 사용(입력창 자동 칩·빼기·설정에서 끄기) (ADR-052, docs/plans/speak-skill-plan.md)
+- [x] IMP-22 직접 만든 하위 세션(각주): 사이드바 모든 세션 [+] → 질문 입력으로 하위 세션, 부모 대화 끝 각주 목록·내비게이션 하단 고정 (ADR-054, docs/plans/free-branch-vault-navhandle-plan.md)
+- [x] IMP-23 보관함: 답변 글·선택 글·이미지·읽기 카드(음성) 보관, 폴더 트리(만들기·이름·옮기기·지우기), 조각을 엮는 페이지(보기/편집·Markdown 저장), 저장·백업·원격 동기화 (ADR-055)
+- [x] IMP-24 모바일 세션 내비게이션 핸들: 끌어 좌/우 가장자리에 붙이기(가운데 놓으면 애니메이션 스냅), 핸들 탭 → 숨기기, 세션 상단 provider 오른쪽 아이콘으로 다시 표시 (ADR-056)
 
 ## Tasks
 
@@ -144,9 +147,14 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 | IMP21-T1 | IMP-21 | core: `speak-block.ts`(블록 해석), `skill-match.ts`(요청 → 스킬), 기본 스킬 `/speak`·seed, mock 응답 + 테스트 | lead | MEDIUM | inherit | default | DONE | 100% | IMP-19 | PASS: core 358(+10) |
 | IMP21-T2 | IMP-21 | ui: `speak.ts` 큐(`speakAll`·재생 key), `SpeakCard.tsx`, Markdown `pre` 분기, Composer 자동 칩·빼기, 설정 `AutoSkillField`(PC·원격), e2e speak.spec | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: e2e speak 4/4(desktop·mobile) |
 | IMP21-T3 | IMP-21 | 독립 리뷰·반영·검증·패키지 앱·문서 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: 아래 Latest Integration Result |
+| IMP22-T1 | IMP-22 | core `createSubSession`·`footnoteChildren`·앵커 없는 맥락·sync op `subsession` + 테스트, ui `SubSessionDialog`·사이드바 [+]·`Footnotes`·ChatNav 각주 고정, e2e subsession | lead | HIGH | inherit | default | DONE | 100% | - | PASS: e2e subsession desktop·mobile |
+| IMP23-T1 | IMP-23 | core `vault.ts`·모델·store·repo·persist(Dexie v5)·sync `vault.put/delete`·`sync.vault` 페이징·백업 + 테스트 | executor+lead | HIGH | inherit | default | DONE | 100% | - | PASS: core 384 |
+| IMP23-T2 | IMP-23 | ui `VaultOverlay`(트리·상세·페이지 편집)·`save.ts`·TopBar [보관함]·답변/선택/이미지/읽기 카드 [보관], e2e vault | lead | HIGH | inherit | default | DONE | 100% | T1 | PASS: e2e vault desktop·mobile |
+| IMP24-T1 | IMP-24 | ui `navDock.ts`(+테스트)·ChatNav 모바일 도크(끌기·스냅·메뉴)·SessionHeader `NavRestoreButton`, e2e nav-handle | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: e2e nav-handle mobile |
+| IMP22-24-T9 | IMP-22~24 | 독립 리뷰·반영·검증·패키지 앱·문서 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | 위 전부 | PASS: 아래 Latest Integration Result |
 
 ## Active Work
-- 없음 (IMP-21 완료)
+- 없음 (IMP-24 완료)
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
@@ -158,6 +166,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-16 · IMP-22~24 하위 세션 각주·보관함·모바일 내비 핸들(ADR-054~056): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 384(+23)·ui 49(+2)·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 65 passed·9 skipped — 새 subsession·vault(desktop·mobile)·nav-handle(mobile). composer-split 선택자를 가지 행 구조 변경에 맞춤. 독립 리뷰 반영: 빈 글 블록은 보기로 바꿀 때 치움, `moveVaultNode` 정리(나머지 지적은 의도된 동작 확인). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-16 · OpenAI 읽기 언어별 탭·베트남어 남부/북부 억양·공통 모델 선택(ADR-053): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 361(+3)·ui 47·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 60 passed·8 skipped(새 speak.spec: 남부 억양 지시·tts-1 전환 시 음성 맞춤·지시 없음·저장값). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-16 · IMP-21 음성으로 읽기 스킬·읽기 카드·자동 스킬(ADR-052): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 358(+10)·ui 47·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 58 passed·8 skipped — 새 speak.spec desktop·mobile: "발음 들려줘" 입력 → 자동 칩 → 보내기 → 스킬 배지·읽기 카드(3줄, 원본 JSON 숨김) → 줄 듣기(vi-VN) → 모두 듣기(vi·vi·en 순서) → 칩 빼고 보내면 스킬 없음 → 설정에서 끄면 칩 없음. 전체 실행 1회에서 annotations 메모 테스트(mobile) 타이밍 실패 → 단독 8회 PASS(변경 전 코드도 동일)·전체 재실행 PASS. 수정: Markdown이 speak.ts를 가져오며 ui 단위 테스트(node)에서 `window` 참조 실패 → runtime `hasScenarioHash` 가드. 독립 리뷰: 차단 0 → "이야기 들려줘" 오탐 제외 반영. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-15 · IMP-20 모바일 앱 발음 듣기(ADR-051): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 348(+1)·ui 47·bridge 59·relay 9·server 9 PASS, `pnpm e2e` 54 passed·8 skipped. Android 에뮬레이터(API 36) 실측: WebView `speechSynthesis` 없음 확인, 네이티브 음성 472개, 설정 › 음성 [베트남어 들어 보기] 내장 vi-VN 재생·[영어 들어 보기] 내장 en-US 데이터 손상(-4) → 온라인 en-US 대체 재생, [멈춤] 동작, ko-KR 재생. iOS 시뮬레이터 빌드 성공(플러그인 SPM 포함).
@@ -196,6 +205,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
   13개 데모 시나리오를 375px/1440px로 스크린샷 검증(콘솔 에러 0). 커밋 `stage-2: 모바일/웹 UI 프로토타입`.
 
 ## Known Issues
+- 보관함·메시지 동기화: 큰 이미지(5MB 첨부 ≈ base64 6.7MB)는 WebSocket 프레임 한도에 걸릴 수 있음(기존 첨부 동기화와 같은 한계).
 - `rhymebook serve`: 데스크톱 앱과 데이터를 공유하지 않음(별개 호스트). `unpair`는 실행 중인 serve를 다시 시작해야 연결이 끊김. 원격 기기는 PC 스킬을 읽기만 하며 스킬은 `<데이터 폴더>/skills/`를 직접 편집. 터미널 주소 목록의 한글 라벨 정렬이 약간 어긋남(표시만).
 - relay 실행: `pnpm relay` (기본 :8787) + `pnpm bridge -- --pair --relay ws://<relay>:8787 [--relay-only]`. 공개 배포는 TLS 프록시 뒤 wss(B-09).
 - 모바일 실행: `pnpm --filter @branch/mobile build:android` / `build:ios-sim` (Android Studio·Xcode 필요, iOS는 Xcode › Settings › Components에서 iOS 플랫폼 설치). 앱 내 [QR 스캔](카메라 권한) 또는 OS 카메라 → `branch://pair` 딥링크로 페어링. Android minSdk 26.

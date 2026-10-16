@@ -23,6 +23,7 @@ import {
   base64ToUtf8,
 } from '../src/backup';
 import type { Message, Session } from '../src/model';
+import { createVaultFolder } from '../src/vault';
 import type { StoredData } from '../src/persist';
 import { connectionPrefs, toStoredData } from '../src/persist';
 import { createSeed, DEFAULT_SETTINGS, emptyView, initialConnections, SEED_IDS } from '../src/seed';
@@ -43,6 +44,7 @@ const seedStored = (): StoredData => {
   return toStoredData({
     ...seed,
     annotations: {},
+    vault: {},
     view: emptyView(SEED_IDS.cos),
     settings: DEFAULT_SETTINGS,
     connections: initialConnections(),
@@ -130,6 +132,18 @@ describe('applyBackup', () => {
     expect(out.view?.activeSessionId).toBe('c');
     expect(out.settings).toEqual({ contextWindow: 8 });
     expect(out.connections).toBe(local.connections);
+  });
+
+  it('carries the vault: open filters invalid nodes, merge keeps the newer node', async () => {
+    const f = createVaultFolder('vf', null, '폴더', 10);
+    const snap = createSnapshot({ ...local, vault: [f] }, 1);
+    const opened = await openBackup(JSON.stringify({ ...snap, data: { ...snap.data, vault: [f, { id: 'bad' }] } }));
+    expect(opened.data.vault).toEqual([f]);
+    const renamed = { ...f, name: '새 이름', updatedAt: 20 };
+    const extra = createVaultFolder('vg', null, '다른', 5);
+    const merged = applyBackup({ ...local, vault: [renamed] }, { ...backup, vault: [f, extra] }, 'merge');
+    expect(merged.vault).toEqual([renamed, extra]);
+    expect(applyBackup({ ...local, vault: [renamed] }, backup, 'replace').vault).toBeUndefined();
   });
 });
 

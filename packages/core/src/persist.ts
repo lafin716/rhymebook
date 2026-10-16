@@ -1,5 +1,5 @@
 import type { MessageMap } from './context';
-import type { Annotation, ConnectionState, ID, Message, ProviderId, Session, Settings, ViewState } from './model';
+import type { Annotation, ConnectionState, ID, Message, ProviderId, Session, Settings, ViewState, VaultNode } from './model';
 import { DEFAULT_SETTINGS, emptyView, initialConnections } from './seed';
 import { isSplitNode, leafIds, normalizeLayout, rowLayout } from './splitLayout';
 import type { AppData } from './store';
@@ -10,6 +10,7 @@ export interface StoredData {
   /** 세션 내 순서대로 정렬된 메시지 */
   messages: Message[];
   annotations?: Annotation[];
+  vault?: VaultNode[];
   view?: ViewState;
   settings?: Partial<Settings>;
   /** 연결은 사용자 선택(enabled, model, effort)만 의미가 있다. 상태는 시작 시 다시 감지한다 */
@@ -62,6 +63,12 @@ export function restoreData(raw: StoredData, base = initialConnections()): AppDa
     }
   }
 
+  // 보관함
+  const vault: Record<ID, VaultNode> = {};
+  for (const v of raw.vault ?? []) {
+    vault[v.id] = v;
+  }
+
   const connections = { ...base };
   for (const c of raw.connections ?? []) {
     const cur = connections[c.providerId as ProviderId];
@@ -78,6 +85,7 @@ export function restoreData(raw: StoredData, base = initialConnections()): AppDa
     sessions,
     messages,
     annotations,
+    vault,
     view: sanitizeView(raw.view, sessions),
     settings: { ...DEFAULT_SETTINGS, ...raw.settings },
     connections,
@@ -121,10 +129,12 @@ export function sanitizeView(view: ViewState | undefined, sessions: Record<ID, S
 /** 스토어 데이터 → 저장소 원본 (전체 저장/백업용) */
 export function toStoredData(data: AppData): StoredData {
   const annotations = Object.values(data.annotations);
+  const vault = Object.values(data.vault);
   return {
     sessions: Object.values(data.sessions),
     messages: Object.values(data.messages).flat(),
     ...(annotations.length ? { annotations } : {}),
+    ...(vault.length ? { vault } : {}),
     view: data.view,
     settings: data.settings,
     connections: connectionPrefs(Object.values(data.connections)),

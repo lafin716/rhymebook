@@ -1,5 +1,6 @@
 import { isMarkColor, parseTtsPrefs, type MarkColor, type TtsPrefs } from '@branch/core';
 import { create } from 'zustand';
+import { NAV_DOCK_KEY, parseNavDock, type NavDock } from '../chat/navDock';
 
 const SIDEBAR_KEY = 'branch.sidebarCollapsed';
 const TRIGGER_KEY = 'branch.selectionTrigger';
@@ -36,6 +37,9 @@ interface UiState {
   /** 요청에 맞는 스킬 자동 사용 (기기별, 기본 켬, IMP-21) */
   autoSkill: boolean;
   setAutoSkill(v: boolean): void;
+  /** 모바일 세션 내비게이션 핸들 위치·숨김 (기기별, ADR-056) */
+  navDock: NavDock;
+  setNavDock(patch: Partial<NavDock>): void;
   /** 딥링크로 받은 페어링 링크. 설정 › 원격 Bridge 폼이 가져가면 비운다 */
   pairLink: string | null;
   /** 사이드바에서 끌고 있는 세션 (분할 놓기 영역 표시용) */
@@ -64,6 +68,14 @@ function loadTts(): TtsPrefs {
     return parseTtsPrefs(JSON.parse(load(TTS_KEY) ?? 'null'));
   } catch {
     return parseTtsPrefs(null);
+  }
+}
+
+function loadNavDock(): NavDock {
+  try {
+    return parseNavDock(JSON.parse(load(NAV_DOCK_KEY) ?? 'null'));
+  } catch {
+    return parseNavDock(null);
   }
 }
 
@@ -113,6 +125,12 @@ export const useUi = create<UiState>((set, get) => ({
   setAutoSkill: (autoSkill) => {
     set({ autoSkill });
     save(AUTO_SKILL_KEY, autoSkill ? '1' : '0');
+  },
+  navDock: loadNavDock(),
+  setNavDock: (patch) => {
+    const navDock = { ...get().navDock, ...patch };
+    set({ navDock });
+    save(NAV_DOCK_KEY, JSON.stringify(navDock));
   },
   pairLink: null,
   dragSessionId: null,

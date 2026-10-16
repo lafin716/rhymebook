@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BASE_SYSTEM,
   BRANCH_INSTRUCTION,
+  SUBSESSION_INSTRUCTION,
   buildChatRequest,
   buildSummaryRequest,
   buildSystemPrompt,
@@ -75,6 +76,18 @@ describe('맥락 구성 — 서브세션 system 프롬프트', () => {
     expect(sys).toContain(`## 지시\n${BRANCH_INSTRUCTION}\n현재 질문 대상: "고유벡터"`);
   });
 
+  it('직접 만든 하위 세션은 생성 시점까지의 부모 대화와 하위 질문 지시를 쓴다', () => {
+    const { sessions, messages } = fixture();
+    const created = messages.r![3]!.createdAt + 0.5; // r4 이후, r5 이전
+    const f = sess({ id: 'f', title: '응용', parentId: 'r', rootId: 'r', createdAt: created });
+    const sys = buildSystemPrompt({ sessions: { ...sessions, f }, messages, sessionId: 'f' });
+    expect(sys).toContain('(직접 만든 하위 세션) "응용"');
+    expect(sys).toContain('고유값은 선형 변환이');
+    expect(sys).not.toContain('앵커 이후의 질문');
+    expect(sys).toContain(`## 지시\n${SUBSESSION_INSTRUCTION}`);
+    expect(sys).not.toContain('현재 질문 대상');
+  });
+
   it('부모 대화는 앵커 메시지까지만, 최근 N개로 자른다', () => {
     const { sessions, messages } = fixture();
     const sys = buildSystemPrompt({ sessions, messages, sessionId: 'a', contextWindow: 3 });
@@ -107,12 +120,12 @@ describe('맥락 구성 — 서브세션 system 프롬프트', () => {
     expect(sys).toContain('[학습자] 앵커 이후의 질문');
   });
 
-  it('부모가 없거나(루트) 앵커 없는 세션, 없는 세션은 기본 프롬프트', () => {
+  it('부모가 없거나(루트) 없는 세션은 기본 프롬프트', () => {
     const { sessions, messages } = fixture();
     expect(buildSystemPrompt({ sessions, messages, sessionId: 'r' })).toBe(BASE_SYSTEM);
     expect(buildSystemPrompt({ sessions, messages, sessionId: 'nope' })).toBe(BASE_SYSTEM);
     const { anchor: _, ...noAnchor } = sessions.a!;
-    expect(buildSystemPrompt({ sessions: { ...sessions, a: noAnchor }, messages, sessionId: 'a' })).toBe(BASE_SYSTEM);
+    expect(buildSystemPrompt({ sessions: { ...sessions, a: noAnchor }, messages, sessionId: 'a' })).toContain(SUBSESSION_INSTRUCTION);
   });
 });
 

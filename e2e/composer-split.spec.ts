@@ -92,7 +92,7 @@ test('사이드바에서 끌어 좌우·상하로 나누고, 마인드맵을 오
   while ((await popupClose.count()) > 0) await popupClose.last().click();
 
   const nav = page.getByRole('navigation', { name: '학습 세션' });
-  const rows = nav.locator('li > button[data-session-row]');
+  const rows = nav.locator('li button[data-session-row]');
   await expect(rows).toHaveCount(2);
   const [a, b] = await Promise.all([rows.nth(0).getAttribute('data-session-row'), rows.nth(1).getAttribute('data-session-row')]);
 

@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
 import { NEW_SESSION_TITLE } from '../store';
-import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, ViewState } from '../model';
+import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, VaultNode, ViewState } from '../model';
 import type { SyncOp, SyncOpKind, SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
 import type { StudyBundle } from '../study';
@@ -10,6 +10,8 @@ import { newId } from '../id';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId } from '../cli-options';
 import { canDeleteTurn } from '../turns';
+import { subSessionTitle } from '../tree';
+import { vaultDescendants } from '../vault';
 import { normalizeLayout } from '../splitLayout';
 import { SKILL_LIMITS } from '../skills';
 
@@ -344,6 +346,21 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         apply({ summaryDrafts: drafts });
         return;
       }
+      case 'sync.vault': {
+        if ('nodes' in msg) {
+          // 첫 페이지면 PC 보관함으로 갈아 끼운다
+          const vault = msg.first ? {} : { ...s.vault };
+          for (const n of msg.nodes) vault[n.id] = n;
+          apply({ vault });
+        } else if ('node' in msg) {
+          apply({ vault: { ...s.vault, [msg.node.id]: msg.node } });
+        } else {
+          const vault = { ...s.vault };
+          for (const id of msg.deleted) delete vault[id];
+          apply({ vault });
+        }
+        return;
+      }
       case 'sync.annot': {
         if ('annotation' in msg) {
           apply({ annotations: { ...s.annotations, [msg.annotation.id]: msg.annotation } });
@@ -429,6 +446,18 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
     if (before) annotations[id] = before;
     else delete annotations[id];
     apply({ annotations });
+  };
+
+  /** 실패한 보관함 op 되돌리기: 아직 낙관적 값 그대로인 노드만 이전 값으로 */
+  const restoreVault = (optimistic: Record<ID, VaultNode | undefined>, before: Record<ID, VaultNode | undefined>) => {
+    const vault = { ...get().vault };
+    for (const [id, cur] of Object.entries(optimistic)) {
+      if (vault[id] !== cur) continue;
+      const prev = before[id];
+      if (prev) vault[id] = prev;
+      else delete vault[id];
+    }
+    apply({ vault });
   };
 
   /** 아직 낙관적 상태 그대로일 때만 세션을 걷어낸다 */
@@ -520,6 +549,35 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       return act(op, () => removeSession(sessionId)) ? sessionId : false;
     },
 
+    createSubSession(parentSessionId: ID, question: string, ids?: { sessionId?: ID; messageId?: ID }) {
+      const s = get();
+      const parent = s.sessions[parentSessionId];
+      const q = question.trim();
+      if (!parent || !q) return false;
+      const sessionId = ids?.sessionId ?? newId('s');
+      const messageId = ids?.messageId ?? newId('m');
+      if (s.sessions[sessionId]) return false;
+      const now = Date.now();
+      const session: Session = {
+        id: sessionId,
+        parentId: parent.id,
+        rootId: parent.rootId,
+        title: subSessionTitle(q),
+        ...(parent.providerId ? { providerId: parent.providerId } : {}),
+        ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+        createdAt: now,
+        updatedAt: now,
+      };
+      apply({
+        sessions: { ...s.sessions, [sessionId]: session },
+        messages: { ...s.messages, [sessionId]: [userMessage(sessionId, messageId, q)] },
+      });
+      markLoaded(sessionId);
+      return act({ kind: 'subsession', id: sessionId, parentId: parentSessionId, question: q, messageId }, () => removeSession(sessionId))
+        ? sessionId
+        : false;
+    },
+
     stopStream(sessionId) {
       act({ kind: 'stop', sessionId });
     },
@@ -602,6 +660,35 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       act({ kind: 'annot.delete', ids: toDelete }, () => {
         for (const id of toDelete) restoreAnnotation(id, undefined, s.annotations[id]);
       });
+    },
+
+    putVaultNode(node) {
+      const s = get();
+      const before = s.vault[node.id];
+      const next = before ? { ...node, createdAt: before.createdAt } : node;
+      apply({ vault: { ...s.vault, [node.id]: next } });
+      act({ kind: 'vault.put', node: next }, () => restoreVault({ [node.id]: next }, { [node.id]: before }));
+    },
+
+    deleteVaultNodes(ids) {
+      const s = get();
+      const all = new Set<ID>();
+      for (const id of ids) {
+        if (!(id in s.vault)) continue;
+        all.add(id);
+        for (const d of vaultDescendants(s.vault, id)) all.add(d);
+      }
+      if (!all.size) return;
+      const vault = { ...s.vault };
+      for (const id of all) delete vault[id];
+      apply({ vault });
+      const optimistic: Record<ID, undefined> = {};
+      const before: Record<ID, VaultNode | undefined> = {};
+      for (const id of all) {
+        optimistic[id] = undefined;
+        before[id] = s.vault[id];
+      }
+      act({ kind: 'vault.delete', ids: [...all] }, () => restoreVault(optimistic, before));
     },
 
     // 원격 모드: 이 세션을 PC의 어느 CLI·모델·노력치로 답할지 PC에 요청한다 (PC 기본값은 null)

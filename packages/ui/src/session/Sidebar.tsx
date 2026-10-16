@@ -15,6 +15,7 @@ import { cn } from '../lib/cn';
 import { isUsable, PROVIDER_ORDER, providerLabel, statusTone } from '../lib/connection';
 import { relativeTime } from '../lib/time';
 import { RenameInput, SessionMenu, type MenuPoint } from './SessionMenu';
+import { openSubSessionDialog } from './SubSessionDialog';
 
 /** 세션 목록. 데스크톱(≥1024)은 고정 사이드바(접기 가능), 그 이하는 드로어 */
 export function Sidebar() {
@@ -205,11 +206,12 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
         <IconButton
           size="sm"
           label="세션 삭제"
-          className="mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           onClick={() => void remove()}
         >
           <Trash2 size={14} />
         </IconButton>
+        <SubSessionButton parentId={id} className="mr-1" />
       </div>
       {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
       {open && childCount > 0 && <BranchTree parentId={id} depth={1} onPick={onPick} />}
@@ -252,31 +254,48 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
           />
         </div>
       ) : (
-        <button
-          type="button"
-          data-session-row={id}
-          {...dragProps(id)}
-          onClick={() => {
-            actions().openSession(id, 'main');
-            onPick();
-          }}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setMenu({ x: e.clientX, y: e.clientY });
-          }}
-          className={cn(
-            'flex w-full items-center gap-1.5 rounded-r-lg py-1.5 pr-2 pl-3 text-left text-[13px]',
-            active ? 'bg-accent-soft font-medium text-fg' : 'text-fg-2 hover:bg-surface-2/70',
-          )}
-        >
-          <GitBranch size={12} className="shrink-0 text-muted" />
-          <span className="truncate">{s.title}</span>
-          {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
-        </button>
+        <div className="group flex items-center">
+          <button
+            type="button"
+            data-session-row={id}
+            {...dragProps(id)}
+            onClick={() => {
+              actions().openSession(id, 'main');
+              onPick();
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu({ x: e.clientX, y: e.clientY });
+            }}
+            className={cn(
+              'flex min-w-0 flex-1 items-center gap-1.5 rounded-r-lg py-1.5 pr-2 pl-3 text-left text-[13px]',
+              active ? 'bg-accent-soft font-medium text-fg' : 'text-fg-2 hover:bg-surface-2/70',
+            )}
+          >
+            <GitBranch size={12} className="shrink-0 text-muted" />
+            <span className="truncate">{s.title}</span>
+            {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
+          </button>
+          <SubSessionButton parentId={id} className="mr-1" />
+        </div>
       )}
       {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
       {hasKids && <BranchTree parentId={id} depth={depth + 1} onPick={onPick} />}
     </li>
+  );
+}
+
+/** 세션 오른쪽 [+]: 직접 입력한 질문으로 하위 세션을 만든다 (ADR-054). 터치 기기는 항상 보인다 */
+function SubSessionButton({ parentId, className }: { parentId: ID; className?: string }) {
+  return (
+    <IconButton
+      size="sm"
+      label="하위 세션 만들기"
+      className={cn('shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100', className)}
+      onClick={() => openSubSessionDialog(parentId)}
+    >
+      <Plus size={14} />
+    </IconButton>
   );
 }
 

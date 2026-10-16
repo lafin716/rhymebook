@@ -12,6 +12,7 @@ import { defaultSkills } from '../src/skills';
 import { collectStudy, STUDY_LIMITS } from '../src/study';
 import type { SyncClientMsg, SyncServerMsg } from '../src/bridge/sync';
 import { SYNC_LIMITS, validateSyncClientMsg, isSyncServerMsg } from '../src/bridge/sync';
+import { createVaultFolder, createVaultItem, createVaultPage, VAULT_LIMITS } from '../src/vault';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const settle = async (n = 10) => {
@@ -305,6 +306,32 @@ describe('sync host ↔ client', () => {
     expect(hostStore.getState().sessions[id]!.parentId).toBe(SEED_IDS.root);
     expect(store.getState().messages[id]).toEqual(hostStore.getState().messages[id]);
     expect(store.getState().messages[id]!.length).toBe(2);
+  });
+
+  it('free sub-session created on the client streams back (no anchor)', async () => {
+    const { store } = await connectClient();
+    store.getState().openSession(SEED_IDS.root);
+    await settle();
+    const id = store.getState().createSubSession(SEED_IDS.root, '고유값은 어디에 쓰여?') as ID;
+    expect(id).toBeTruthy();
+    expect(store.getState().sessions[id]!.anchor).toBeUndefined();
+    expect(store.getState().messages[id]![0]!.content).toBe('고유값은 어디에 쓰여?');
+
+    await until(() => !!hostStore.getState().sessions[id]);
+    await idle(hostStore);
+    await settle();
+    const hs = hostStore.getState().sessions[id]!;
+    expect(hs.parentId).toBe(SEED_IDS.root);
+    expect(hs.anchor).toBeUndefined();
+    expect(store.getState().messages[id]).toEqual(hostStore.getState().messages[id]);
+    expect(store.getState().messages[id]!.length).toBe(2);
+  });
+
+  it('subsession op validation: empty question and unknown keys are rejected', () => {
+    const op = { kind: 'subsession', id: 's-a', parentId: SEED_IDS.root, question: 'q', messageId: 'm-a' };
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r', op })).toBeTruthy();
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r', op: { ...op, question: '  ' } })).toBeNull();
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r', op: { ...op, extra: 1 } })).toBeNull();
   });
 
   it('new root from the client keeps the PC view and receives pushes', async () => {
@@ -773,5 +800,64 @@ describe('sync host ↔ client', () => {
     hostStore.getState().deleteSession(SEED_IDS.scale);
     await settle();
     expect(store.getState().annotations[id]).toBeUndefined();
+  });
+
+  it('vault: snapshot is followed by paged sync.vault; client edits round-trip and folder delete cascades', async () => {
+    const t = Date.now();
+    hostStore.getState().putVaultNode(createVaultFolder('vf1', null, '단어', t));
+    hostStore.getState().putVaultNode(createVaultItem('vi1', 'vf1', '인사', { type: 'text', text: 'xin chào' }, undefined, t));
+
+    const { store, peer } = await connectClient();
+    await until(() => !!store.getState().vault.vi1);
+    const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
+    expect(snap && 'vault' in snap).toBe(false);
+    expect(peer.state.received.some((m) => m.type === 'sync.vault' && 'nodes' in m && m.first && m.done)).toBe(true);
+
+    // 클라이언트에서 페이지 만들기 → 호스트에 반영
+    store.getState().putVaultNode(createVaultPage('vp1', 'vf1', '정리', t));
+    await until(() => !!hostStore.getState().vault.vp1);
+
+    // 호스트에서 바뀐 노드는 클라이언트로 밀려온다
+    hostStore.getState().putVaultNode(createVaultItem('vi2', null, '새 항목', { type: 'audio', text: 'cảm ơn', lang: 'vi' }, undefined, t));
+    await until(() => !!store.getState().vault.vi2);
+
+    // 폴더를 지우면 안의 노드도 함께 지워진다
+    store.getState().deleteVaultNodes(['vf1']);
+    expect(Object.keys(store.getState().vault)).toEqual(['vi2']);
+    await until(() => Object.keys(hostStore.getState().vault).length === 1);
+    expect(hostStore.getState().vault.vi2).toBeTruthy();
+  });
+
+  it('vault ops are validated by the host and roll back when rejected', async () => {
+    const { store } = await connectClient();
+    const t = Date.now();
+    // 없는 폴더 안에 넣기 → not-found → 되돌림
+    store.getState().putVaultNode(createVaultFolder('vf-orphan', 'missing', '고아', t));
+    expect(store.getState().vault['vf-orphan']).toBeTruthy();
+    await until(() => !store.getState().vault['vf-orphan']);
+
+    // 폴더를 자기 하위로 옮기기 → invalid
+    hostStore.getState().putVaultNode(createVaultFolder('va', null, 'A', t));
+    hostStore.getState().putVaultNode(createVaultFolder('vb', 'va', 'B', t));
+    await until(() => !!store.getState().vault.vb);
+    store.getState().putVaultNode({ ...store.getState().vault.va!, parentId: 'vb' });
+    await until(() => store.getState().vault.va!.parentId === null);
+    expect(hostStore.getState().vault.va!.parentId).toBeNull();
+
+    // 형식 검증: 알 수 없는 필드·빈 이름·너무 긴 글은 거부
+    const ok = createVaultItem('vx', null, '글', { type: 'text', text: 'a' }, undefined, t);
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r1', op: { kind: 'vault.put', node: ok } })).toBeTruthy();
+    for (const node of [{ ...ok, extra: 1 }, { ...ok, name: ' ' }, { ...ok, item: { type: 'text', text: 'a'.repeat(VAULT_LIMITS.text + 1) } }]) {
+      expect(validateSyncClientMsg({ type: 'act', reqId: 'r1', op: { kind: 'vault.put', node } })).toBeNull();
+    }
+    expect(validateSyncClientMsg({ type: 'act', reqId: 'r1', op: { kind: 'vault.delete', ids: [] } })).toBeNull();
+  });
+
+  it('new annotations made on the PC are pushed to peers', async () => {
+    const { store } = await connectClient();
+    const msg = hostStore.getState().messages[SEED_IDS.root]!.find((m) => m.role === 'assistant')!;
+    const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };
+    const id = hostStore.getState().addAnnotation(SEED_IDS.root, anchor, { highlight: 'blue' }) as ID;
+    await until(() => !!store.getState().annotations[id]);
   });
 });
