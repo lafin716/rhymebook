@@ -6,6 +6,7 @@ import { wouldCreateCycle } from '../vault';
 import { SKILL_LIMITS } from '../skills';
 import { planStudyImport, StudyError, validateStudyBundle } from '../study';
 import {
+  SYNC_FEATURES,
   SYNC_LIMITS,
   SYNC_ID_RE,
   type SyncOp,
@@ -284,6 +285,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       streaming: state.streaming,
       summaryDrafts: state.summaryDrafts,
       ...(annotations.length ? { annotations } : {}),
+      features: [...SYNC_FEATURES],
     });
     sendVault(peerId);
   };

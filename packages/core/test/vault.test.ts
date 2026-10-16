@@ -14,6 +14,7 @@ import {
   vaultDescendants,
   wouldCreateCycle,
 } from '../src/vault';
+import { gatedRepository, memoryRepository } from '../src/repo';
 
 describe('vault', () => {
   const now = Date.now();
@@ -141,5 +142,19 @@ describe('vault', () => {
       expect(isVaultNode({ id: 'f1' })).toBe(false);
       expect(isVaultNode(null)).toBe(false);
     });
+  });
+});
+
+describe('gatedRepository — 보관함', () => {
+  it('보관함 저장·삭제도 통과시키고, 막혀 있으면 막는다', () => {
+    const calls: string[] = [];
+    const base = { ...memoryRepository(), saveVaultNode: () => calls.push('save'), deleteVaultNodes: () => calls.push('delete') };
+    let enabled = true;
+    const repo = gatedRepository(base, () => enabled);
+    repo.saveVaultNode(createVaultFolder('f', null, '폴더', 1));
+    repo.deleteVaultNodes(['f']);
+    enabled = false;
+    repo.saveVaultNode(createVaultFolder('g', null, '폴더', 1));
+    expect(calls).toEqual(['save', 'delete']);
   });
 });

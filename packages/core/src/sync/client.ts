@@ -2,7 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
 import { NEW_SESSION_TITLE } from '../store';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, VaultNode, ViewState } from '../model';
-import type { SyncOp, SyncOpKind, SyncServerMsg } from '../bridge/sync';
+import { OP_FEATURE, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
 import type { StudyBundle } from '../study';
 import { branchQuestion } from '../context';
@@ -253,10 +253,16 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
     if (!link.send({ type: 'sync.messages', sessionId })) requested.delete(sessionId);
   };
 
+  /** 호스트가 스냅샷에서 알려 준 지원 기능. 목록을 보내지 않는 옛 호스트는 null */
+  let hostFeatures: Set<string> | null = null;
+  /** 기능 목록이 없는 옛 호스트가 새 기능 op를 모른다('invalid')며 거절하면 'outdated'로 바꾼다 */
+  const actError = (kind: SyncOpKind, code: string) => (code === 'invalid' && !hostFeatures && OP_FEATURE[kind] ? 'outdated' : code);
+
   const handle = (msg: SyncServerMsg) => {
     const s = get();
     switch (msg.type) {
       case 'sync.snapshot': {
+        hostFeatures = msg.features ? new Set(msg.features) : null;
         dropPending();
         requested.clear();
         const gone = new Set(Object.keys(s.sessions).filter((id) => !msg.sessions[id]));
@@ -386,10 +392,11 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         if (!p) return;
         clearTimeout(p.timer);
         pending.delete(msg.reqId);
-        if (p.done) p.done(msg.ok ? null : (msg.error ?? 'failed'));
-        else if (!msg.ok) {
+        const code = msg.ok ? null : actError(p.kind, msg.error ?? 'failed');
+        if (p.done) p.done(code);
+        else if (code) {
           p.rollback();
-          fail(p.kind, msg.error ?? 'failed');
+          fail(p.kind, code);
         }
         return;
       }
@@ -420,6 +427,11 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
     };
     if (state.getState().status !== 'online') {
       failWith('offline');
+      return false;
+    }
+    const feature = OP_FEATURE[op.kind];
+    if (feature && hostFeatures && !hostFeatures.has(feature)) {
+      failWith('outdated');
       return false;
     }
     const reqId = newId('r');

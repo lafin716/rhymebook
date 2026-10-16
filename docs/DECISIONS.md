@@ -438,3 +438,11 @@
   - 숨기면 `SessionHeader`의 provider 선택 오른쪽에 내비 아이콘 버튼(`NavRestoreButton`), 누르면 다시 표시.
   - 위치·숨김은 기기별 localStorage `branch.navDock`, 모든 패널 공유. 데스크톱(≥768px) 레이아웃은 그대로.
 - 대안: 자유 위치(가운데 허용) — 요청에 반해 기각. 길게 눌러 끌기 — 스크롤과 충돌·발견성 낮아 별도 핸들로.
+
+### ADR-057 · 2026-10-16 · 호스트 기능 목록 · 'outdated' 오류 · 보관함 저장 필수화
+- 배경: 모바일에서 [보관함에 담기]·사이드바 [+] 하위 세션이 "요청을 처리할 수 없어요."로 실패. 원인은 PC에서 돌던 `rhymebook serve`가 0.16.0 이전 번들이라 `vault.put`·`subsession` op를 몰라 브리지가 `invalid`로 거절한 것. 조사 중 `gatedRepository`·서버 `fileRepo`가 보관함 저장 메서드를 넘기지 않아(선택 메서드 `?.`) 보관함이 IndexedDB·서버 파일에 저장되지 않던 버그도 발견.
+- 결정:
+  - `Repository.saveVaultNode` / `deleteVaultNodes`를 필수로 바꿔 래퍼·구현이 빠뜨리면 타입 오류가 나게 했다(gatedRepository·memory·fileRepo 보강, 테스트 추가).
+  - `sync.snapshot`에 `features: ['subsession','vault']`(호스트 지원 기능)을 싣는다. 클라이언트는 목록이 있는데 기능이 없으면 보내지 않고 바로 `outdated`, 목록이 없는 옛 호스트(0.16.0 이하)에는 보내 보고 기능 op가 `invalid`로 거절되면 `outdated`로 바꾼다(0.16.0 호스트는 기능을 지원하므로 막지 않음).
+  - 토스트: "PC 앱이 이 기능을 아직 몰라요. PC 앱(또는 rhymebook serve)을 최신 버전으로 업데이트해 주세요."
+- 대안: 프로토콜 버전 숫자 — 기능 단위 판단이 어려워 기각. 목록이 없으면 무조건 차단 — 정상 동작하는 0.16.0 PC까지 막아 기각.

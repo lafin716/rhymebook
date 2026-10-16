@@ -63,6 +63,8 @@ export function createFileRepository(file: string, opts: { intervalMs?: number; 
     saveConnections: touch,
     saveAnnotation: touch,
     deleteAnnotations: touch,
+    saveVaultNode: touch,
+    deleteVaultNodes: touch,
 
     load() {
       let text: string;

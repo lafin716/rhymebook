@@ -16,8 +16,8 @@ export interface Repository {
   saveConnections(c: ConnectionState[]): void;
   saveAnnotation(a: Annotation): void;
   deleteAnnotations(ids: ID[]): void;
-  saveVaultNode?(n: VaultNode): void;
-  deleteVaultNodes?(ids: ID[]): void;
+  saveVaultNode(n: VaultNode): void;
+  deleteVaultNodes(ids: ID[]): void;
 }
 
 export const memoryRepository = (): Repository => ({
@@ -30,6 +30,8 @@ export const memoryRepository = (): Repository => ({
   saveConnections() {},
   saveAnnotation() {},
   deleteAnnotations() {},
+  saveVaultNode() {},
+  deleteVaultNodes() {},
 });
 
 /** 조건이 참일 때만 쓰기를 통과시킨다 (데모 모드에서는 저장하지 않기 위해) */
@@ -49,5 +51,7 @@ export function gatedRepository(repo: Repository, enabled: () => boolean): Repos
     saveConnections: wrap(repo.saveConnections),
     saveAnnotation: wrap(repo.saveAnnotation),
     deleteAnnotations: wrap(repo.deleteAnnotations),
+    saveVaultNode: wrap(repo.saveVaultNode),
+    deleteVaultNodes: wrap(repo.deleteVaultNodes),
   };
 }

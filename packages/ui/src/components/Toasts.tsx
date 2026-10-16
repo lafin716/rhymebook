@@ -12,6 +12,7 @@ const FAILURE_TEXT: Record<string, string> = {
   'not-found': 'PC에 해당 세션이 없어요. 목록을 새로 받아 왔어요.',
   conflict: '다른 기기에서 먼저 바뀌었어요. 최신 내용으로 맞췄어요.',
   'not-ready': 'PC 앱이 아직 준비 중이에요. 잠시 후 다시 시도하세요.',
+  outdated: 'PC 앱이 이 기능을 아직 몰라요. PC 앱(또는 rhymebook serve)을 최신 버전으로 업데이트해 주세요.',
   invalid: '요청을 처리할 수 없어요.',
   failed: 'PC에서 처리하지 못했어요.',
 };

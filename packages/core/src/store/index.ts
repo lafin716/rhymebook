@@ -847,7 +847,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         const existing = get().vault[node.id];
         const toSave = existing ? { ...node, createdAt: existing.createdAt } : node;
         set((s) => ({ vault: { ...s.vault, [node.id]: toSave } }));
-        repo.saveVaultNode?.(toSave);
+        repo.saveVaultNode(toSave);
       },
 
       deleteVaultNodes(ids) {
@@ -866,7 +866,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           for (const id of toDelete) delete vault[id];
           return { vault };
         });
-        repo.deleteVaultNodes?.(toDelete);
+        repo.deleteVaultNodes(toDelete);
       },
 
       openSession(id, target = 'main') {

@@ -41,6 +41,19 @@ describe('fileRepo', () => {
     expect(JSON.parse(await readFile(file, 'utf8')).settings).toEqual({ n: 1 });
   });
 
+  it('보관함 저장·삭제도 파일에 쓴다', async () => {
+    const file = path.join(dir, 'data.json');
+    const repo = createFileRepository(file, { intervalMs: 60_000 });
+    let n = 0;
+    repo.attach(() => data(++n));
+    repo.saveVaultNode({} as never);
+    await repo.flush();
+    expect(n).toBe(1);
+    repo.deleteVaultNodes(['v']);
+    await repo.flush();
+    expect(n).toBe(2);
+  });
+
   it('깨진 파일은 덮어쓰지 않도록 load에서 실패한다', async () => {
     const file = path.join(dir, 'data.json');
     await writeFile(file, '{"sessions":1}');

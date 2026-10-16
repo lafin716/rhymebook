@@ -828,6 +828,35 @@ describe('sync host ↔ client', () => {
     expect(hostStore.getState().vault.vi2).toBeTruthy();
   });
 
+  it('host features: new ops are blocked or explained as outdated on an older PC', async () => {
+    const { store, client, peer } = await connectClient();
+    const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
+    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault']);
+    const inject = (m: SyncServerMsg) => {
+      for (const l of peer.state.listeners) l(m);
+    };
+    const t = Date.now();
+
+    // 기능 목록에 없는 기능은 보내지 않고 바로 'outdated'
+    inject({ ...snap!, features: ['subsession'] } as SyncServerMsg);
+    const sent = peer.state.sent.length;
+    store.getState().putVaultNode(createVaultFolder('vf-x', null, '새', t));
+    expect(client.state.getState().lastFailure?.code).toBe('outdated');
+    expect(store.getState().vault['vf-x']).toBeUndefined();
+    expect(peer.state.sent.length).toBe(sent);
+
+    // 목록을 보내지 않는 옛 호스트: 보내 보고, 모른다('invalid')고 하면 'outdated'
+    const { features: _drop, ...old } = snap as Extract<SyncServerMsg, { type: 'sync.snapshot' }>;
+    inject(old as SyncServerMsg);
+    peer.state.dropActs = true;
+    store.getState().putVaultNode(createVaultFolder('vf-y', null, '새', t));
+    const act = peer.state.sent.at(-1);
+    expect(act?.type).toBe('act');
+    inject({ type: 'act.result', reqId: (act as Extract<SyncClientMsg, { type: 'act' }>).reqId, ok: false, error: 'invalid' });
+    expect(client.state.getState().lastFailure?.code).toBe('outdated');
+    expect(store.getState().vault['vf-y']).toBeUndefined();
+  });
+
   it('vault ops are validated by the host and roll back when rejected', async () => {
     const { store } = await connectClient();
     const t = Date.now();

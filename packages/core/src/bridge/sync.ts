@@ -52,6 +52,18 @@ export type SyncOp =
 
 export type SyncOpKind = SyncOp['kind'];
 
+/**
+ * 호스트가 sync.snapshot에 싣는 지원 기능. 목록이 없거나 빠진 기능은 옛 PC 앱이라 처리하지 못하므로
+ * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
+ */
+export const SYNC_FEATURES = ['subsession', 'vault'] as const;
+export type SyncFeature = (typeof SYNC_FEATURES)[number];
+export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
+  subsession: 'subsession',
+  'vault.put': 'vault',
+  'vault.delete': 'vault',
+};
+
 export type SyncClientMsg =
   | { type: 'sync.hello' }
   | { type: 'sync.messages'; sessionId: ID }
@@ -67,6 +79,7 @@ export type SyncServerMsg =
       streaming: Record<ID, ID>;
       summaryDrafts: Record<ID, SummaryDraft>;
       annotations?: Annotation[];
+      features?: string[];
     }
   /**
    * 세션 메시지 페이지. 4MB 프레임 한도 때문에 바이트 예산(약 1MB)으로 나눠 보낸다.
@@ -122,6 +135,7 @@ export type SyncActError =
   | 'rate-limit'
   | 'forbidden' // PC에서 원격 삭제 허용 안 함
   | 'not-ready' // 호스트 엔진 미준비
+  | 'outdated' // 호스트(PC 앱)가 이 기능을 모름 — 클라이언트가 보내기 전에 판단
   | 'failed';
 
 /** Validate an individual SyncOp (used by both client and host) */
@@ -368,6 +382,8 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
   const type = msg.type;
 
   if (type === 'sync.snapshot') {
+    const features = msg.features as unknown;
+    if (features !== undefined && !(Array.isArray(features) && features.length <= 64 && features.every((f) => typeof f === 'string' && f.length <= 64))) return false;
     // snapshot.annotations을 검증한다 (있으면)
     const annotations = msg.annotations as unknown;
     if (annotations !== undefined && annotations !== null) {
