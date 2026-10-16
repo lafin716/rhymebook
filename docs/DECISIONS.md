@@ -486,3 +486,12 @@
   - 쓰임: [이게 뭐야?]·[더 자세히]는 고친 글로 질문 문장(`branchQuestion`)을 만들어 `custom` 질문으로 보낸다, [직접 질문]은 고친 글을 인용으로 앞에 붙인다, [질문에 첨부]·[복사]·[듣기]·[보관]도 고친 글.
   - 앵커(원문 위치·하이라이트·가지 제목)와 서식·메모 범위는 원래 선택 그대로 — 앵커 복원이 원문 글과 일치해야 하므로. core·sync 프로토콜 변경 없음(옛 PC 호스트와도 호환).
 - 대안: 앵커 글 자체를 바꾸기 — 원문에서 위치를 다시 찾지 못해 하이라이트가 깨져 기각. core `createBranch`에 질문 대상 글 인자 추가 — 프로토콜 변경이 필요한데 `custom` 질문으로 같은 결과를 얻을 수 있어 기각.
+
+### ADR-062 · 2026-10-16 · OctoBooks 리브랜딩을 정식판(main)으로 — 기존 데이터·앱 업데이트 유지
+- 배경: `preview/octobooks` 베타(v0.20.0-beta.1~3)에서 검증한 OctoBooks 리브랜딩(오션 팔레트 5종·새 아이콘·브랜드 문구)을 정식 v0.20.0으로 낸다. 베타는 안정판과 함께 설치되도록 별도 앱 ID(`app.octobooks.preview`)·데이터 폴더(`octobooks-preview`)·프리릴리즈 전용 워크플로를 썼다.
+- 결정:
+  - 디자인·테마·아이콘·브랜드 문구는 그대로 가져오고 표시 이름은 **OctoBooks**.
+  - 앱 ID는 기존 값 유지 — 데스크톱 `app.branchlearn.desktop`, Android/iOS `dev.branchlearn.app`. 기존 설치가 새 버전으로 업데이트된다.
+  - 데스크톱 내부 앱 이름은 `rhymebook` 유지(`app.setName`) — userData(`<appData>/rhymebook`)와 macOS safeStorage 키체인 항목(`rhymebook Safe Storage`)이 이 이름에 묶여 있어, 바꾸면 학습 기록·API 키를 읽지 못한다. Linux 실행 파일·deb 패키지 이름도 `rhymebook` 유지(업그레이드 연속성). 설치 파일 이름만 `octobooks-…`.
+  - 릴리즈 워크플로: 정식 `v*` 태그는 초안(노트 작성 후 공개), `-beta.` 태그는 프리릴리즈(Latest 제외)로 바로 공개.
+- 대안: preview 설정 그대로 머지 — 기존 사용자가 별도 앱을 새로 깔고 백업으로 데이터를 옮겨야 해 기각. 데이터 폴더를 `octobooks`로 옮기는 마이그레이션 — 키체인 항목까지 옮겨야 해 위험 대비 이득이 작아 보류.

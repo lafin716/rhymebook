@@ -143,7 +143,7 @@ function BookDoc({ book, date }: { book: Book; date: number }) {
           <h1 className="cover-title">{book.title}</h1>
           <div className="cover-rule" />
           <p className="cover-foot">
-            rhymebook
+            octobooks
             <br />
             {when}
           </p>
@@ -151,7 +151,7 @@ function BookDoc({ book, date }: { book: Book; date: number }) {
       </section>
       <section className="title-page">
         <h1>{book.title}</h1>
-        <p>rhymebook 학습 기록에서 엮음</p>
+        <p>octobooks 학습 기록에서 엮음</p>
       </section>
       <nav className="toc" aria-label="차례">
         <h2>차례</h2>
@@ -182,7 +182,7 @@ function BookDoc({ book, date }: { book: Book; date: number }) {
           <dt>엮은 날</dt>
           <dd>{when}</dd>
           <dt>엮은 곳</dt>
-          <dd>rhymebook</dd>
+          <dd>octobooks</dd>
         </dl>
         <p className="colophon-note">이 책은 학습자의 질문과 이해를 바탕으로 AI가 쓴 글입니다. 사실관계는 원문과 함께 확인하세요.</p>
       </section>

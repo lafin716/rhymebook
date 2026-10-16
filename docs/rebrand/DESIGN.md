@@ -1,0 +1,11 @@
+# OctoBooks visual identity
+
+Concept: **호기심이 뻗는 만큼, 나의 배움도 깊어져요.** The approved identity is the compact white octopus with round glasses, a graduation cap and a pencil, on its original teal tile. The sidebar shows a smaller 32px icon beside the exact wordmark **OctoBooks**, with no slogan or description. This supersedes the earlier icon-only sidebar direction. The top toolbar contains functional controls only; no duplicate brand mark, root title or PREVIEW badge. Use the shared approved image in app chrome, empty states, onboarding and all platform icons.
+
+Ocean default uses ink #142d4e, blue #1761b5 and a restrained #eef4fb background. Lagoon adds deeper green, Coral warm rose, Abyss indigo, Pearl neutral sand. All five retain independent light/dark modes and existing device-local persistence. Strengthen foreground, secondary text, muted text and boundaries; keep reading surfaces quiet. Normal text/accent/button token pairs retain at least 4.5:1 contrast on their intended surfaces. The ten palette/mode matrices exceed this threshold; computed evidence is recorded in VALIDATION.md. Palette cards retain names, descriptions, matching swatches, selected check and aria state. Never convey selection by color alone.
+
+Keep semantic token usage consistent in chat, settings, popup, sheets, mindmap, vault and controls. 14–16px body, Korean system font stack, visible keyboard focus, 40px interactive icon targets and 44px primary touch targets. The sidebar brand is non-interactive, so its 32px image does not change target sizing.
+
+Canonical icon: assets/icon/source.png, the user's selected E1+E3 image, byte-for-byte preserved. scripts/gen-icons.mjs derives desktop, web, UI, iOS, Android and splash assets without a new dependency. Android's isolated white foreground is fitted within the circular safe area. The tray uses the same mascot as a monochrome mask. SVG wrappers embed generated PNGs; do not describe the raster source as original vector artwork. Source provenance is in assets/icon/README.md.
+
+Review desktop1440×900, mobile390×844 and tablet820×1180 when available; verify light/dark and all palettes, sidebar identity, settings, text clipping and normal navigation. Use isolated test data; record tool or native-device validation limits explicitly.

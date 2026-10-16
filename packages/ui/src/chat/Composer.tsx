@@ -206,7 +206,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
             e.preventDefault();
             void addFiles(e.dataTransfer.files);
           }}
-          className="rounded-2xl border border-line bg-surface p-1.5 shadow-pop focus-within:border-line-strong"
+          className="octo-composer rounded-2xl border border-line bg-surface p-1.5 shadow-pop focus-within:border-line-strong"
         >
           {(attachments.length > 0 || skill || auto) && (
             <div className="flex flex-col gap-1.5 px-1.5 pt-1.5 pb-1">

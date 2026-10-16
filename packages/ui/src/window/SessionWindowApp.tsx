@@ -23,7 +23,7 @@ export function SessionWindowApp() {
   const exists = useApp((s) => (s.view.activeSessionId ? !!s.sessions[s.view.activeSessionId] : false));
 
   useEffect(() => {
-    document.title = title ? `${title} — rhymebook` : 'rhymebook';
+    document.title = title ? `${title} — octobooks` : 'octobooks';
   }, [title]);
 
   return (
@@ -43,7 +43,7 @@ function WindowStatus({ online }: { online: boolean }) {
   const [head, body] = online
     ? ['세션을 찾을 수 없어요', '삭제되었거나 메인 창에서 사라진 세션이에요. 이 창을 닫아 주세요.']
     : status === 'offline'
-      ? ['메인 창과 연결이 끊겼어요', 'rhymebook 메인 창이 열려 있는지 확인하세요.']
+      ? ['메인 창과 연결이 끊겼어요', 'octobooks 메인 창이 열려 있는지 확인하세요.']
       : ['불러오는 중', '메인 창에서 세션을 가져오고 있어요.'];
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 text-center">

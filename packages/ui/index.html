@@ -3,19 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)" />
-    <title>rhymebook</title>
+    <meta name="theme-color" content="#eef4fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c1729" media="(prefers-color-scheme: dark)" />
+    <title>octobooks — 나만의 가지치기 학습</title>
+    <meta name="description" content="호기심이 뻗는 만큼, 나의 배움도 깊어져요. octobooks에서 질문을 가지로 이어 나만의 학습 지도를 만드세요." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
       // 첫 페인트 전에 테마 클래스 적용 (깜빡임 방지)
       (function () {
+        var pref = 'system';
+        var palette = 'ocean';
         try {
-          var pref = localStorage.getItem('branch.theme') || 'system';
-          var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-          if (dark) document.documentElement.classList.add('dark');
+          pref = localStorage.getItem('branch.theme') || 'system';
+          palette = localStorage.getItem('octobooks.palette') || 'ocean';
         } catch (e) {}
+        document.documentElement.dataset.palette = ['ocean', 'lagoon', 'coral', 'abyss', 'pearl'].indexOf(palette) >= 0 ? palette : 'ocean';
+        var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
       })();
     </script>
   </head>

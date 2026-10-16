@@ -1,3 +1,4 @@
+import { AppearanceSettings } from './AppearanceSettings';
 import type { ProviderId } from '@branch/core';
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import { useState } from 'react';
@@ -18,7 +19,7 @@ import { SelectionTriggerField } from './SelectionTriggerField';
 import { VoiceSettings } from './VoiceSettings';
 import { providerKind, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 
-type Tab = 'connections' | 'backup' | 'voice' | 'general';
+type Tab = 'connections' | 'backup' | 'voice' | 'appearance' | 'general';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
 
@@ -66,6 +67,7 @@ export function SettingsModal() {
             ['connections', '연결'],
             ['backup', '백업'],
             ['voice', '음성'],
+            ['appearance', '테마'],
             ['general', '일반'],
           ] as const
         ).map(([t, label]) => (
@@ -85,7 +87,7 @@ export function SettingsModal() {
         ))}
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-5">
-        {tab === 'connections' ? <ConnectionsTab /> : tab === 'backup' ? <BackupTab /> : tab === 'voice' ? <VoiceSettings /> : <GeneralTab />}
+        {tab === 'connections' ? <ConnectionsTab /> : tab === 'backup' ? <BackupTab /> : tab === 'voice' ? <VoiceSettings /> : tab === 'appearance' ? <AppearanceSettings /> : <GeneralTab />}
       </div>
     </Modal>
   );
@@ -169,18 +171,6 @@ function GeneralTab() {
             </li>
           ))}
         </ol>
-      </Field>
-
-      <Field label="테마">
-        <Segmented
-          value={settings.theme}
-          options={[
-            ['system', '시스템'],
-            ['light', '라이트'],
-            ['dark', '다크'],
-          ]}
-          onChange={(v) => actions().setTheme(v)}
-        />
       </Field>
 
       <Field label="가지를 열 위치 (태블릿·데스크톱)" hint="모바일에서는 항상 바텀시트로 열립니다.">

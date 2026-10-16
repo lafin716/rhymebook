@@ -44,7 +44,7 @@ export interface StudySource {
 export type StudyErrorCode = 'invalid' | 'newer-version' | 'conflict';
 
 const STUDY_MESSAGE: Record<StudyErrorCode, string> = {
-  invalid: 'rhymebook 학습 파일이 아니거나 손상되었어요.',
+  invalid: 'octobooks 학습 파일이 아니거나 손상되었어요.',
   'newer-version': '더 새 버전의 앱에서 내보낸 학습이에요. 앱을 업데이트한 뒤 가져오세요.',
   conflict: '이 기기의 다른 학습과 겹치는 항목이 있어 가져올 수 없어요.',
 };
@@ -194,7 +194,7 @@ export function studyPackFiles(bundle: StudyBundle): StudyFile[] {
   const readme: string[] = [
     `# ${oneLine(bundle.title)}`,
     '',
-    `> rhymebook 학습 꾸러미 · ${ymd(bundle.exportedAt)} · 가지 ${nodes.length - 1}개 · 요약 ${summarized}개 · 메시지 ${bundle.messages.length}개`,
+    `> octobooks 학습 꾸러미 · ${ymd(bundle.exportedAt)} · 가지 ${nodes.length - 1}개 · 요약 ${summarized}개 · 메시지 ${bundle.messages.length}개`,
     '',
     '## 목차',
     '',
@@ -202,7 +202,7 @@ export function studyPackFiles(bundle: StudyBundle): StudyFile[] {
     '',
     '## 다른 기기에서 이어서 학습하기',
     '',
-    'rhymebook 앱에서 이해 노트 › **학습 가져오기**를 누르고 이 zip 파일(또는 안의 `study.json`)을 고르세요.',
+    'octobooks 앱에서 이해 노트 › **학습 가져오기**를 누르고 이 zip 파일(또는 안의 `study.json`)을 고르세요.',
     '같은 학습이 이미 있으면 가지마다 더 최근에 바뀐 쪽을 남기고, 그 기기에만 있는 가지는 그대로 둡니다.',
     '',
   ];
@@ -416,7 +416,7 @@ export function buildStudyDigest(bundle: StudyBundle, maxChars: number = STUDY_L
     const lines: string[] = [
       `# 학습 원문: ${oneLine(bundle.title)}`,
       '',
-      '> rhymebook 학습 트리. 번호는 가지 위치("1.2" = 1번 가지의 2번째 하위 가지), "가지 친 원문"은 학습자가 모르는 부분으로 선택한 텍스트, "내가 이해한 것"은 학습자가 직접 정리한 요약이다.',
+      '> octobooks 학습 트리. 번호는 가지 위치("1.2" = 1번 가지의 2번째 하위 가지), "가지 친 원문"은 학습자가 모르는 부분으로 선택한 텍스트, "내가 이해한 것"은 학습자가 직접 정리한 요약이다.',
       '',
     ];
     for (const n of nodes) {

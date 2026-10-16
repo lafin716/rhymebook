@@ -13,16 +13,11 @@ const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
 const THEME_LABEL = { system: '시스템', light: '라이트', dark: '다크' };
 
-/** 상단 바: 목록(모바일/태블릿 드로어, 데스크톱 접기), 루트 제목, 마인드맵 토글, 검색, 설정, 테마 */
+/** 상단 바: 목록(모바일/태블릿 드로어, 데스크톱 접기), 마인드맵 토글, 검색, 설정, 테마 */
 export function TopBar() {
   const bp = useBreakpoint();
   const mode = useApp((s) => s.view.mode);
   const theme = useApp((s) => s.settings.theme);
-  const rootTitle = useApp((s) => {
-    const a = s.view.activeSessionId;
-    const root = a ? s.sessions[s.sessions[a]?.rootId ?? ''] : undefined;
-    return root?.title ?? 'rhymebook';
-  });
   const hasRoot = useApp((s) => !!(s.view.activeSessionId && s.sessions[s.view.activeSessionId]));
   const ThemeIcon = THEME_ICON[theme];
   const mobile = bp === 'mobile';
@@ -44,7 +39,7 @@ export function TopBar() {
           <Menu size={19} />
         </IconButton>
       )}
-      <div className="min-w-0 flex-1 truncate px-1 text-[15px] font-semibold">{rootTitle}</div>
+      <div className="min-w-0 flex-1" />
 
       <PcStatusChip compact={mobile} />
 

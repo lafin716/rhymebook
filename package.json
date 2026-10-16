@@ -1,5 +1,5 @@
 {
-  "name": "rhymebook",
+  "name": "octobooks",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.28.1",
@@ -12,7 +12,8 @@
     "bridge": "pnpm --filter @branch/bridge build && node packages/bridge/dist/cli.cjs",
     "relay": "pnpm --filter @branch/relay build && node packages/relay/dist/cli.cjs",
     "rhymebook": "pnpm --filter @branch/server build && node packages/server/dist/rhymebook.cjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "octobooks": "pnpm --filter @branch/server build && node packages/server/dist/rhymebook.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

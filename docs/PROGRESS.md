@@ -8,6 +8,40 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## OctoBooks 정식판 v0.20.0 — main 머지 (2026-10-16)
+
+- DONE: preview/octobooks를 main에 머지. 앱 ID·데스크톱 데이터 폴더·키체인 이름은 기존 값 유지, 표시 이름 OctoBooks, 정식 태그 릴리즈 워크플로 복원 (ADR-062).
+
+## OctoBooks beta 3 — completed (2026-10-16)
+
+- DONE: approved graduation-cap/pencil icon applied across platform assets; smaller sidebar icon + OctoBooks wordmark.
+- DONE: stronger light/dark palette contrast and bluer Ocean; independent review passed.
+- DONE: typecheck/lint, 532 unit/integration tests, 79 E2E, final mobile6, macOS package and isolated packaged smoke.
+- DONE: iOS simulator build with preview identity/build23.
+- DONE: source8ab5be3 committed/tagged as v0.20.0-beta.3, exact-source CI and all platform release builds passed, seven assets published as prerelease (not Latest). Downloaded macOS distribution smoke and APK metadata/hash verification passed. Stable main and Latest unchanged. Plan: docs/rebrand/BETA3_PLAN.md; evidence: docs/rebrand/VALIDATION.md.
+
+## octobooks preview rebrand — completed 2026-10-16
+
+Plan: `docs/rebrand/MASTER_PLAN.md`; design: `docs/rebrand/DESIGN.md`; architecture reused from `docs/02-ARCHITECTURE.md`; validation: `docs/rebrand/TEST_STRATEGY.md`.
+Overall: 8/8 tasks DONE (100%); all work isolated in preview/octobooks.
+
+| ID | Epic | Task | Owner | Complexity | Model | Reasoning | Status | Progress | Depends On | Validation |
+|---|---|---|---|---|---|---|---|---:|---|---|
+| OCT-ARCH | Rebrand | Contracts and independent plan review | lead + architecture reviewer | HIGH | inherited | high | DONE | 100% | - | PASS: separate worktree; independent review, explicit preview userData and prerelease flags incorporated |
+| OCT-THEME | Rebrand | Device-local palettes and settings | executor | MEDIUM | gpt-5.5 | medium | DONE | 100% | OCT-ARCH | PASS: UI55 tests; appearance E2E8; five palettes in both modes; storage fallback and multiwindow sync |
+| OCT-BRAND | Rebrand | Identity, shell, illustrations, platform icons | executor | MEDIUM | gpt-5.5 | medium | DONE | 100% | OCT-ARCH | PASS: original SVG/icons/splash; desktop/mobile/tablet screenshots independently reviewed |
+| OCT-RELEASE | Rebrand | Preview identities and beta release pipeline | lead | HIGH | inherited | inherited | DONE | 100% | OCT-ARCH | PASS: independent adversarial review; preview native identities/userData/sessionData and prerelease-only workflow |
+| OCT-INTEGRATE | Rebrand | Tests, builds and real Electron/web UI smoke | lead | HIGH | inherited | inherited | DONE | 100% | OCT-THEME,OCT-BRAND,OCT-RELEASE | PASS: local and CI typecheck/lint/build; 532 tests; final E2E79; actual distribution Electron smoke; iOS simulator build; no main changes |
+| OCT-REVIEW | Rebrand | Independent final review | code-reviewer | CRITICAL | gpt-5.5 | high | DONE | 100% | OCT-INTEGRATE | PASS: independent adversarial + visual reviews, no blocking findings; bootstrap fallback fixed and validated |
+| OCT-PUBLISH | Rebrand | GitHub preview prerelease and CI artifacts | lead | HIGH | inherited | inherited | DONE | 100% | OCT-REVIEW | PASS: v0.20.0-beta.1 published, prerelease=true/latest=false; 7 assets; release CI38865307519 successful |
+| OCT-DOCS | Rebrand | Evidence/docs sync and isolation proof | lead | LOW | inherited | inherited | DONE | 100% | OCT-PUBLISH | PASS: README + docs/rebrand/VALIDATION.md updated; local/remote main e0a9a62 unchanged and original checkout clean |
+
+Decisions: no dependency/schema changes; UI-only color palette; independent preview app identities/data; preserve compatibility protocol/storage markers. Main baseline e0a9a6259685cb03c949477be606bbe3ccce0430. Existing GitHub access confirmed via gh with network permission. OMX fixed legacy models unavailable for account (explore/architect/critic); leader performs implementation directly and Compound installed architecture/review roles provide independent review with supported inherited model.
+
+후속 UI 조정(2026-10-16): 좌측 상단 아이콘 외 브랜드 문구 제거, 최상단 바 아이콘·중복 제목·PREVIEW 제거. UI 타입/린트·데스크톱/모바일 스크린샷·핵심 E2E9 통과, Preview 앱 재빌드. 별도 preview 브랜치에서만 적용.
+
+베타2 릴리즈(2026-10-16): DONE — 상단 디자인 후속 수정 b4fbafe를 포함해 v0.20.0-beta.2로 배포. Android/iOS 빌드 번호22. 베타2 설치 파일7개 게시, CI532/79 통과, 실제 mac 배포 앱·Android22 검증 완료. 기존 베타1·main·안정판 Latest 유지. 미추적 icon-candidates 작업물은 배포 커밋에 포함하지 않음.
+
 ## 체크리스트
 
 ### 1단계 · 설계 문서

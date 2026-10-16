@@ -1,3 +1,4 @@
+import { OctoMark } from '../components/OctoMark';
 import type { ProviderId } from '@branch/core';
 import { ArrowLeft, ChevronRight, KeyRound, Laptop, MonitorSmartphone, TerminalSquare } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -46,11 +47,11 @@ function RemoteOnboarding() {
             <MonitorSmartphone size={20} />
           </span>
           <p className="text-[13.5px] text-fg-2">
-            rhymebook {caps.kind === 'mobile' ? '앱' : '웹'}은 PC의 원격 화면이에요. PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 CLI로 답해요.
+            octobooks {caps.kind === 'mobile' ? '앱' : '웹'}은 PC의 원격 화면이에요. PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 CLI로 답해요.
           </p>
         </div>
         <ol className="space-y-1.5 text-[13px] text-fg-2">
-          <StepItem n={1}>PC에서 rhymebook 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.</StepItem>
+          <StepItem n={1}>PC에서 octobooks 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.</StepItem>
           <StepItem n={2}>[휴대폰·웹 연결]을 누르면 QR과 6자리 코드가 나와요.</StepItem>
           <StepItem n={3}>아래에서 QR을 찍거나 링크·주소와 코드를 입력해요.</StepItem>
         </ol>
@@ -128,7 +129,7 @@ function LocalOnboarding() {
   if (!show || isDemo()) return null;
 
   const title: Record<Step, string> = {
-    choose: 'rhymebook 시작하기',
+    choose: 'octobooks 시작하기',
     cli: '이 PC의 CLI 연결',
     api: 'API 키 등록',
   };
@@ -141,13 +142,13 @@ function LocalOnboarding() {
             <ArrowLeft size={18} />
           </button>
         )}
-        <h2 className="flex-1 text-[16px] font-semibold">{title[step]}</h2>
+        <OctoMark className="size-8 text-accent" /><h2 className="flex-1 text-[16px] font-semibold">{title[step]}</h2>
       </div>
       <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 md:px-5">
         {step === 'choose' && (
           <>
             <p className="text-[13.5px] text-fg-2">
-              답변 속 문장을 골라 가지를 치며 배우는 채팅이에요. 먼저 답변을 만들 AI를 연결하세요.
+              호기심이 뻗는 만큼, 나의 배움도 깊어져요. 답변 속 궁금한 문장에서 새 가지를 펼쳐 보세요. 먼저 함께 배울 AI를 연결해요.
             </p>
             <Choice
                   icon={<TerminalSquare size={18} />}

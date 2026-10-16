@@ -397,7 +397,7 @@ export function BridgeCard() {
         </div>
       ) : (
         <div className="space-y-2 text-[12.5px] text-fg-2">
-          <p>다른 PC의 rhymebook 앱에서 [원격 페어링 열기]를 켜면 나오는 QR 링크나 주소·코드로 연결해요.</p>
+          <p>다른 PC의 octobooks 앱에서 [원격 페어링 열기]를 켜면 나오는 QR 링크나 주소·코드로 연결해요.</p>
           <Button size="sm" variant="soft" icon={<Smartphone size={14} />} onClick={() => setForm(true)}>
             페어링 시작
           </Button>
@@ -468,7 +468,7 @@ export function PairForm({
     try {
       const text = await mobile?.scanQr?.();
       if (!text) return;
-      if (!parsePairingUri(text)) return setNote({ tone: 'danger', text: 'rhymebook 페어링 QR이 아니에요. PC 앱의 [휴대폰·웹 연결] 화면을 스캔해 주세요.' });
+      if (!parsePairingUri(text)) return setNote({ tone: 'danger', text: 'octobooks 페어링 QR이 아니에요. PC 앱의 [휴대폰·웹 연결] 화면을 스캔해 주세요.' });
       setLink(text);
     } catch {
       setNote({ tone: 'danger', text: '카메라를 열지 못했어요. 설정에서 카메라 권한을 허용해 주세요.' });

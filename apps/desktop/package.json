@@ -1,8 +1,8 @@
 {
   "name": "@branch/desktop",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
-  "description": "rhymebook 데스크톱 (Electron + 내장 bridge)",
+  "description": "OctoBooks 데스크톱 (Electron + 내장 bridge)",
   "main": "dist/main.cjs",
   "scripts": {
     "build:main": "node build.mjs",
@@ -29,7 +29,7 @@
   },
   "build": {
     "appId": "app.branchlearn.desktop",
-    "productName": "rhymebook",
+    "productName": "OctoBooks",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -66,11 +66,11 @@
       ],
       "executableName": "rhymebook",
       "category": "Education",
-      "maintainer": "rhymebook"
+      "maintainer": "octobooks"
     },
     "deb": {
       "packageName": "rhymebook",
-      "artifactName": "rhymebook_${version}_${arch}.${ext}"
+      "artifactName": "octobooks_${version}_${arch}.${ext}"
     },
     "extraResources": [
       {
@@ -80,8 +80,9 @@
           "**/*"
         ]
       }
-    ]
+    ],
+    "artifactName": "octobooks-${version}-${os}-${arch}.${ext}"
   },
-  "author": "rhymebook",
+  "author": "octobooks",
   "homepage": "https://github.com/lafin716/rhymebook"
 }

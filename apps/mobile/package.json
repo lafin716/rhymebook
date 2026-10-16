@@ -1,9 +1,9 @@
 {
   "name": "@branch/mobile",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
   "type": "module",
-  "description": "rhymebook 모바일 (Capacitor iOS/Android)",
+  "description": "OctoBooks 모바일 (Capacitor iOS/Android)",
   "scripts": {
     "build": "vite build",
     "sync": "pnpm build && cap sync",

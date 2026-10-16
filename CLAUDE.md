@@ -28,7 +28,7 @@
 ## 규칙
 - 패키지: `packages/core`(플랫폼 무관, DOM/Node import 금지), `packages/ui`, `packages/bridge`, `packages/relay`, `apps/*`.
 - TypeScript strict. 도메인 로직(앵커, 맥락 구성, 트리)은 core의 순수 함수 + Vitest 단위 테스트.
-- **데스크탑 앱 우선**: 기능 확인·시연은 데스크탑 앱이 기본. 변경 후 `pnpm --filter @branch/desktop package:dir`로 다시 빌드하고 `apps/desktop/release/mac-arm64/rhymebook.app`을 실행해 보여준다(실행 중인 이전 앱은 먼저 종료). 웹 개발 서버는 보조.
+- **데스크탑 앱 우선**: 기능 확인·시연은 데스크탑 앱이 기본. 변경 후 `pnpm --filter @branch/desktop package:dir`로 다시 빌드하고 `apps/desktop/release/mac-arm64/OctoBooks.app`을 실행해 보여준다(실행 중인 이전 앱은 먼저 종료). 웹 개발 서버는 보조.
 - 실행: `pnpm dev` (host 노출, :5173). 검증: `pnpm typecheck && pnpm lint && pnpm test`, E2E `pnpm e2e`.
 - 3단계 Phase 종료 시: 위 검증 통과 → 커밋 `phase-N: 요약` → PROGRESS.md 갱신.
 - 같은 실패 3회 반복 시 대안 선택 후 DECISIONS.md 기록.

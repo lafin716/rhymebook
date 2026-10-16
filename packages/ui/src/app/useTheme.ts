@@ -1,37 +1,43 @@
 import { useEffect } from 'react';
 import { useApp } from './store';
+import { isPalette, PALETTE_KEY, usePalette } from './palette';
 
 const KEY = 'branch.theme';
 
-/** settings.theme → <html class="dark"> 동기화 (index.html 인라인 스크립트와 같은 키 사용) */
+/** Apply mode and palette to all shared UI, including floating session windows. */
 export function useThemeSync() {
   const pref = useApp((s) => s.settings.theme);
+  const palette = usePalette((s) => s.palette);
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, pref);
-    } catch {
-      // 저장소 접근 불가 시 무시
-    }
+    try { localStorage.setItem(KEY, pref); } catch { /* unavailable storage */ }
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
-      const dark = pref === 'dark' || (pref === 'system' && mq.matches);
-      document.documentElement.classList.toggle('dark', dark);
-      document
-        .querySelectorAll('meta[name="theme-color"]')
-        .forEach((m) => m.setAttribute('content', dark ? '#16171a' : '#f7f6f2'));
+      const html = document.documentElement;
+      html.classList.toggle('dark', pref === 'dark' || (pref === 'system' && mq.matches));
+      html.dataset.palette = palette;
+      const background = getComputedStyle(html).getPropertyValue('--bg').trim();
+      document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute('content', background));
     };
     apply();
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
-  }, [pref]);
+  }, [pref, palette]);
+
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === PALETTE_KEY || event.key === null) {
+        usePalette.setState({ palette: isPalette(event.newValue) ? event.newValue : 'ocean' });
+      }
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
 }
 
 export function initialThemePref(): 'system' | 'light' | 'dark' {
   try {
-    const v = localStorage.getItem(KEY);
-    if (v === 'light' || v === 'dark' || v === 'system') return v;
-  } catch {
-    // ignore
-  }
+    const value = localStorage.getItem(KEY);
+    if (value === 'light' || value === 'dark' || value === 'system') return value;
+  } catch { /* unavailable storage */ }
   return 'system';
 }
