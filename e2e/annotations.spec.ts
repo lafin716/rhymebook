@@ -376,3 +376,30 @@ test('드래그 메뉴: 버튼 글자가 한 줄로 다 보이고, [질문에 �
   await expect(input).toBeFocused();
   expect(errors).toEqual([]);
 });
+
+test('드래그 메뉴: 선택한 글을 직접 고쳐 질문·첨부에 쓴다 (앵커는 원래 선택)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await start(page, '글 고치기 테스트');
+  const main = page.locator(MAIN);
+
+  // 고친 글을 입력창에 첨부
+  let menu = await select(page, '가중합');
+  await menu.getByRole('button', { name: '선택한 글 고치기' }).first().click();
+  const box = menu.getByLabel('선택한 글 고치기', { exact: true }).and(page.locator('textarea'));
+  await expect(box).toHaveValue('가중합');
+  await box.fill('가중 합계');
+  await menu.getByRole('button', { name: '적용' }).click();
+  await expect(menu.getByTestId('selection-edited')).toHaveText('가중 합계');
+  await menu.getByRole('button', { name: '질문에 첨부' }).click();
+  await expect(main.getByLabel('메시지 입력')).toHaveValue('> 가중 합계\n\n');
+
+  // 고친 글로 가지 질문
+  menu = await select(page, '가중합');
+  await expect(menu.getByTestId('selection-edited')).toHaveCount(0);
+  await menu.getByRole('button', { name: '선택한 글 고치기' }).first().click();
+  await menu.locator('textarea').fill('가중 합계');
+  await menu.locator('textarea').press('ControlOrMeta+Enter');
+  await menu.getByRole('button', { name: '이게 뭐야?' }).click();
+  await expect(page.getByText('"가중 합계"이(가) 뭐야?').first()).toBeVisible();
+  expect(errors).toEqual([]);
+});

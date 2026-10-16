@@ -1,4 +1,5 @@
 import {
+  branchQuestion,
   findAnnotationsOverlapping,
   findExactAnnotation,
   MAX_NOTE_LENGTH,
@@ -19,6 +20,8 @@ import {
   HelpCircle,
   Italic,
   MessageSquarePlus,
+  Pencil,
+  RotateCcw,
   Send,
   Square,
   StickyNote,
@@ -48,7 +51,7 @@ import { cn } from '../lib/cn';
 import { saveToVault } from '../vault/save';
 import { speak, stopSpeaking, useSpeech } from '../voice/speak';
 import { ColorPalette, COLOR_KIND_LABELS, colorLabel, swatchCss, type ColorKind } from './ColorPalette';
-import { hasComposer, quoteToComposer } from './composerBridge';
+import { hasComposer, quoteToComposer, toQuote } from './composerBridge';
 import { openBranch } from './open';
 import { MENU_GAP, placeMenu, readSelection, type PendingBranch } from './selection';
 
@@ -70,14 +73,18 @@ export function SelectionMenu() {
   const [memo, setMemo] = useState<string | null>(null);
   const [palette, setPalette] = useState<ColorKind | null>(null);
   const [copied, setCopied] = useState(false);
+  /** 직접 고친 선택 글 (null = 선택 그대로). 질문·첨부·복사·듣기·보관에 쓴다. 서식·메모 범위는 원래 선택 그대로 */
+  const [edited, setEdited] = useState<string | null>(null);
+  /** 선택 글 고치는 중의 입력값 (null = 고치는 중 아님) */
+  const [draft, setDraft] = useState<string | null>(null);
   const annotations = useApp((s) => s.annotations);
   const speaking = useSpeech((s) => s.status !== 'idle');
   const dragging = useRef(false);
   const touchingMenu = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  /** 입력 중(직접 질문·메모·색상표)에는 DOM 선택이 사라져도 메뉴를 유지한다 */
+  /** 입력 중(직접 질문·메모·색상표·글 고치기)이나 글을 고친 뒤에는 DOM 선택이 사라져도 메뉴를 유지한다 */
   const frozenRef = useRef(false);
-  frozenRef.current = custom || memo !== null || palette !== null;
+  frozenRef.current = custom || memo !== null || palette !== null || draft !== null || edited !== null;
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   const dismiss = useCallback(() => {
@@ -87,6 +94,8 @@ export function SelectionMenu() {
     setMemo(null);
     setPalette(null);
     setCopied(false);
+    setEdited(null);
+    setDraft(null);
   }, []);
 
   useEffect(() => {
@@ -104,9 +113,10 @@ export function SelectionMenu() {
     };
     const onDown = (e: MouseEvent) => {
       if ((e.target as Element).closest?.('[data-selection-menu]')) return;
-      // 색상표가 열린 채 바깥을 누르면 색상표를 닫고 평소처럼 선택을 다시 읽는다
+      // 색상표가 열린 채 바깥을 누르면 색상표를 닫고 평소처럼 선택을 다시 읽는다. 고친 글도 새 선택에서는 버린다
       setPalette(null);
-      frozenRef.current = custom || memo !== null;
+      if (draft === null) setEdited(null);
+      frozenRef.current = custom || memo !== null || draft !== null;
       dragging.current = true;
     };
     const onUp = () => {
@@ -138,7 +148,7 @@ export function SelectionMenu() {
       document.removeEventListener('selectionchange', onChange);
       document.removeEventListener('contextmenu', onContext);
     };
-  }, [mobile, onContextMenu, custom, memo]);
+  }, [mobile, onContextMenu, custom, memo, draft]);
 
   useEffect(() => {
     if (!pending) return;
@@ -146,6 +156,10 @@ export function SelectionMenu() {
       if (e.key !== 'Escape') return;
       if (palette) {
         setPalette(null);
+        return;
+      }
+      if (draft !== null) {
+        setDraft(null);
         return;
       }
       window.getSelection()?.removeAllRanges();
@@ -160,7 +174,7 @@ export function SelectionMenu() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScroll, true);
     };
-  }, [pending, mobile, palette, dismiss]);
+  }, [pending, mobile, palette, draft, dismiss]);
 
   // 실제 메뉴 크기를 재서 위치를 정한다 (내용에 따라 높이가 달라짐)
   useLayoutEffect(() => {
@@ -178,9 +192,21 @@ export function SelectionMenu() {
 
   if (!pending) return null;
 
+  /** 질문·첨부 등에 쓸 글: 고친 글이 있으면 그것, 아니면 지금 선택 */
+  const textOf = () => edited ?? (window.getSelection()?.toString() || pending.anchor.text);
+
   const run = (kind: 'what' | 'detail' | 'custom') => {
     if (kind === 'custom' && !question.trim()) return;
-    const id = actions().createBranch(pending.sessionId, pending.anchor, kind, kind === 'custom' ? question.trim() : undefined);
+    // 고친 글은 질문 문장에만 반영한다. 앵커(원문 위치·하이라이트)는 원래 선택 그대로
+    const id =
+      edited === null
+        ? actions().createBranch(pending.sessionId, pending.anchor, kind, kind === 'custom' ? question.trim() : undefined)
+        : actions().createBranch(
+            pending.sessionId,
+            pending.anchor,
+            'custom',
+            kind === 'custom' ? `${toQuote(edited)}\n\n${question.trim()}` : branchQuestion(kind, edited),
+          );
     window.getSelection()?.removeAllRanges();
     dismiss();
     if (id) openBranch(id);
@@ -188,7 +214,7 @@ export function SelectionMenu() {
 
   /** 선택한 글을 복사한다. 메뉴는 그대로 두어 이어서 가지를 칠 수 있다 */
   const copy = async () => {
-    const text = window.getSelection()?.toString() || pending.anchor.text;
+    const text = textOf();
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -201,7 +227,7 @@ export function SelectionMenu() {
 
   /** 선택한 글을 이 세션 입력창에 인용으로 붙인다. 이어서 질문을 쓰면 함께 보낸다 */
   const attach = () => {
-    const text = window.getSelection()?.toString() || pending.anchor.text;
+    const text = textOf();
     if (!quoteToComposer(pending.sessionId, text)) {
       pushNotice('이 세션의 입력창이 열려 있지 않아요.');
       return;
@@ -212,7 +238,7 @@ export function SelectionMenu() {
 
   /** 선택한 글을 보관함에 담는다 (ADR-055) */
   const keep = () => {
-    saveToVault({ type: 'text', text: window.getSelection()?.toString() || pending.anchor.text }, pending.anchor.messageId);
+    saveToVault({ type: 'text', text: textOf() }, pending.anchor.messageId);
     window.getSelection()?.removeAllRanges();
     dismiss();
   };
@@ -220,7 +246,7 @@ export function SelectionMenu() {
   /** 선택한 글을 읽어 준다 (ADR-050). 읽는 중이면 멈춘다. 메뉴는 그대로 둔다 */
   const listen = () => {
     if (speaking) stopSpeaking();
-    else speak(window.getSelection()?.toString() || pending.anchor.text);
+    else speak(textOf());
   };
 
   const { messageId, startOffset, endOffset } = pending.anchor;
@@ -281,7 +307,86 @@ export function SelectionMenu() {
     },
   };
 
-  const quote = pending.anchor.text.length > 40 ? `${pending.anchor.text.slice(0, 40)}…` : pending.anchor.text;
+  const shown = edited ?? pending.anchor.text;
+  const quote = shown.length > 40 ? `${shown.slice(0, 40)}…` : shown;
+
+  /** 선택 글 고치기 시작 (지금 선택 또는 이미 고친 글로) */
+  const startEdit = () => setDraft(edited ?? (window.getSelection()?.toString() || pending.anchor.text));
+  const applyEdit = () => {
+    const t = (draft ?? '').trim();
+    if (!t) return;
+    // 원래 선택과 같으면 고치지 않은 것으로
+    setEdited(t === pending.anchor.text.trim() ? null : t);
+    setDraft(null);
+  };
+
+  const editForm = (
+    <form
+      className="flex flex-col gap-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        applyEdit();
+      }}
+    >
+      <textarea
+        autoFocus
+        value={draft ?? ''}
+        maxLength={SELECTION_MAX}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            applyEdit();
+          }
+        }}
+        onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
+        rows={3}
+        aria-label="선택한 글 고치기"
+        className="w-full resize-none rounded-lg border border-line bg-bg p-2 text-sm outline-none focus:border-accent"
+      />
+      <div className="flex items-center justify-between gap-1.5">
+        <span className="text-[12px] text-muted">질문·첨부·복사에 고친 글을 써요</span>
+        <span className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setDraft(null)}
+            className="h-8 rounded-lg px-3 text-[13px] text-fg-2 hover:bg-surface-2"
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            disabled={!(draft ?? '').trim()}
+            className="h-8 rounded-lg bg-accent px-3 text-[13px] font-medium text-accent-fg disabled:opacity-40"
+          >
+            적용
+          </button>
+        </span>
+      </div>
+    </form>
+  );
+
+  /** 고친 글 표시 (데스크톱 메뉴 위쪽) */
+  const editedBar = edited !== null && (
+    <div className="mb-1 flex w-0 min-w-full items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-1 text-[12px] text-fg-2">
+      <Pencil size={12} className="shrink-0 text-accent" />
+      <span className="min-w-0 flex-1 truncate" data-testid="selection-edited">
+        {quote}
+      </span>
+      <button type="button" onClick={startEdit} className="shrink-0 rounded px-1 text-accent hover:bg-surface">
+        고치기
+      </button>
+      <button
+        type="button"
+        aria-label="원래 선택으로"
+        title="원래 선택으로"
+        onClick={() => setEdited(null)}
+        className="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface hover:text-fg"
+      >
+        <RotateCcw size={12} />
+      </button>
+    </div>
+  );
 
   const customForm = (
     <form
@@ -400,6 +505,9 @@ export function SelectionMenu() {
       <ToolButton label="서식 지우기" onClick={clearStyle}>
         <Eraser size={15} />
       </ToolButton>
+      <ToolButton label="선택한 글 고치기" pressed={edited !== null} onClick={startEdit}>
+        <Pencil size={15} />
+      </ToolButton>
       <ToolButton label={exact?.note ? '메모 수정' : '메모'} pressed={!!exact?.note} onClick={() => setMemo(exact?.note ?? '')}>
         <StickyNote size={15} />
       </ToolButton>
@@ -469,9 +577,17 @@ export function SelectionMenu() {
       >
         <div className="flex items-center gap-2 px-4 pt-3 text-[13px] text-fg-2">
           <CornerDownRight size={14} className="shrink-0 text-anchor-line" />
-          <span className="min-w-0 flex-1 truncate">
-            <span className="rounded bg-anchor px-1 text-fg">{quote}</span> 로 가지 치기
-          </span>
+          <button
+            type="button"
+            onClick={startEdit}
+            aria-label="선택한 글 고치기"
+            className="min-w-0 flex-1 truncate text-left"
+          >
+            <span className="rounded bg-anchor px-1 text-fg" data-testid={edited !== null ? 'selection-edited' : undefined}>
+              {quote}
+            </span>{' '}
+            로 가지 치기 <Pencil size={12} className="inline align-[-1px] text-accent" />
+          </button>
           <button
             aria-label="닫기"
             onClick={() => {
@@ -484,7 +600,9 @@ export function SelectionMenu() {
           </button>
         </div>
         <div className="px-3 pt-2 pb-3">
-          {memo !== null ? (
+          {draft !== null ? (
+            editForm
+          ) : memo !== null ? (
             memoForm
           ) : custom ? (
             customForm
@@ -503,8 +621,11 @@ export function SelectionMenu() {
   }
 
   // 기본 메뉴는 버튼 글자가 잘리지 않게 내용 너비에 맞춘다 (잰 너비로 배치)
-  const width = custom ? 340 : memo !== null ? 320 : palette ? 300 : undefined;
-  const pos = placeMenu(pending.rect, { w: width ?? size?.w ?? 660, h: size?.h ?? (custom ? 46 : memo !== null ? 128 : 84) });
+  const width = draft !== null ? 360 : custom ? 340 : memo !== null ? 320 : palette ? 300 : undefined;
+  const pos = placeMenu(pending.rect, {
+    w: width ?? size?.w ?? 660,
+    h: size?.h ?? (custom ? 46 : memo !== null || draft !== null ? 128 : 84),
+  });
   return createPortal(
     <div
       ref={menuRef}
@@ -518,14 +639,20 @@ export function SelectionMenu() {
         width === undefined && 'w-max',
       )}
     >
-      {memo !== null ? (
+      {draft !== null ? (
+        <div className="p-1">{editForm}</div>
+      ) : memo !== null ? (
         <div className="p-1">{memoForm}</div>
       ) : custom ? (
-        customForm
+        <>
+          {editedBar}
+          {customForm}
+        </>
       ) : palette ? (
         paletteView
       ) : (
         <>
+          {editedBar}
           <div className="flex flex-wrap items-center gap-0.5">{actionButtons('sm')}</div>
           <div className="mt-1 border-t border-line px-0.5 pt-1">{toolbar}</div>
         </>
@@ -562,6 +689,9 @@ function MenuButton({
     </button>
   );
 }
+
+/** 고친 선택 글 최대 길이 (sync 앵커 글 한도와 같게) */
+const SELECTION_MAX = 10_000;
 
 const COLOR_KINDS: { kind: ColorKind; Icon: typeof Highlighter }[] = [
   { kind: 'highlight', Icon: Highlighter },
