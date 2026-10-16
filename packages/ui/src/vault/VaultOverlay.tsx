@@ -6,6 +6,7 @@ import {
   moveVaultNode,
   newId,
   normalizePageBlocks,
+  placeVaultNode,
   renameVaultNode,
   vaultChildren,
   vaultDescendants,
@@ -70,13 +71,17 @@ export function VaultOverlay() {
   );
 }
 
+/** 놓을 자리: 폴더 안(null은 맨 위) 또는 어떤 줄의 앞·뒤 (ADR-059) */
+type TreeTarget = { into: ID | null } | { id: ID; where: 'before' | 'after' };
 interface TreeDrag {
   id: ID;
   x: number;
   y: number;
-  /** 놓을 폴더 (null: 맨 위, undefined: 놓을 수 없음) */
-  to: ID | null | undefined;
+  /** undefined: 놓을 수 없음 */
+  to: TreeTarget | undefined;
 }
+
+const sameOrder = (a: VaultNode[], b: VaultNode[]) => a.length === b.length && a.every((n, i) => n.id === b[i]!.id);
 
 function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose(): void }) {
   const mobile = useBreakpoint() === 'mobile';
@@ -88,9 +93,11 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
   const [drag, setDrag] = useState<TreeDrag | null>(null);
   const treeRef = useRef<HTMLDivElement>(null);
   const vaultRef = useRef(vault);
+  const expandedRef = useRef(expanded);
   useEffect(() => {
     vaultRef.current = vault;
-  }, [vault]);
+    expandedRef.current = expanded;
+  }, [vault, expanded]);
   const selected = selectedId ? vault[selectedId] : undefined;
   const setDirty = useCallback((d: boolean) => {
     dirty.current = d;
@@ -130,7 +137,10 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
     pushNotice(to ? `'${vaultRef.current[to]?.name ?? '폴더'}' 폴더로 옮겼어요.` : '보관함 맨 위로 옮겼어요.');
   };
 
-  /** 트리 항목 끌기: 폴더 줄 위에 놓으면 그 폴더 안, 항목 줄 위면 그 항목이 든 폴더, 빈 곳이면 맨 위 */
+  /**
+   * 트리 항목 끌기: 줄의 위·아래 가장자리에 놓으면 그 줄 앞·뒤(같은 폴더 안 순서), 폴더 줄 가운데면 그 폴더 안,
+   * 빈 곳이면 맨 위 폴더의 맨 뒤. 놓일 자리는 선(앞·뒤)이나 테두리(폴더 안)로 미리 보여 준다
+   */
   const startDrag = (e: PointerEvent, id: ID) => {
     const scroller = edgeScroller(treeRef.current);
     let to: TreeDrag['to'];
@@ -139,15 +149,39 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
       if (hover) clearTimeout(hover.timer);
       hover = undefined;
     };
-    const targetAt = (x: number, y: number): TreeDrag['to'] => {
-      const el = pointTarget(x, y, '[data-vault-drop]');
-      if (!el) return undefined;
+    const into = (dest: ID | null): TreeDrag['to'] => {
       const v = vaultRef.current;
       const node = v[id];
-      const dest = el.dataset.vaultDrop || null;
       if (!node || dest === node.parentId) return undefined;
       if (dest && (dest === id || (isVaultFolder(node) && wouldCreateCycle(v, id, dest)))) return undefined;
-      return dest;
+      return { into: dest };
+    };
+    const line = (targetId: ID, where: 'before' | 'after'): TreeDrag['to'] => {
+      const v = vaultRef.current;
+      const changed = placeVaultNode(v, id, targetId, where, 0);
+      if (!changed.length) return undefined;
+      const parentId = v[targetId]!.parentId;
+      const next = { ...v, ...Object.fromEntries(changed.map((n) => [n.id, n])) };
+      // 자리가 그대로면(바로 앞·뒤에 놓기) 놓을 곳이 아니다
+      if (v[id]!.parentId === parentId && sameOrder(vaultChildren(v, parentId), vaultChildren(next, parentId))) return undefined;
+      return { id: targetId, where };
+    };
+    const targetAt = (x: number, y: number): TreeDrag['to'] => {
+      const row = pointTarget(x, y, '[data-vault-node]');
+      const targetId = row?.dataset.vaultNode;
+      if (row && targetId) {
+        if (targetId === id) return undefined;
+        const r = row.getBoundingClientRect();
+        const ry = (y - r.top) / r.height;
+        if (row.dataset.kind === 'folder') {
+          if (ry < 0.25) return line(targetId, 'before');
+          // 펼친 폴더의 아래쪽은 첫 칸과 겹쳐 보이므로 폴더 안으로 둔다
+          if (ry > 0.75 && !expandedRef.current.has(targetId)) return line(targetId, 'after');
+          return into(targetId);
+        }
+        return line(targetId, ry < 0.5 ? 'before' : 'after');
+      }
+      return pointTarget(x, y, '[data-vault-drop]') ? into(null) : undefined;
     };
     const end = () => {
       scroller.stop();
@@ -160,17 +194,26 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
         scroller.update(y);
         to = targetAt(x, y);
         setDrag({ id, x, y, to });
-        // 닫힌 폴더 위에 잠시 머물면 펼친다
-        const over = pointTarget(x, y, '[data-kind="folder"]')?.dataset.vaultNode;
-        if (over !== hover?.id) {
+        // 닫힌 폴더 가운데에 잠시 머물면 펼친다
+        const over = to && 'into' in to ? to.into : null;
+        if (over !== (hover?.id ?? null)) {
           clearHover();
           if (over) hover = { id: over, timer: setTimeout(() => expand(over), 650) };
         }
       },
       onDrop: () => {
         end();
-        const node = vaultRef.current[id];
-        if (node && to !== undefined) moveTo(node, to);
+        const v = vaultRef.current;
+        const node = v[id];
+        if (!node || !to) return;
+        if ('into' in to) return moveTo(node, to.into);
+        const changed = placeVaultNode(v, id, to.id, to.where, Date.now());
+        changed.forEach(put);
+        const parentId = v[to.id]?.parentId ?? null;
+        if (parentId !== node.parentId) {
+          expand(parentId);
+          pushNotice(parentId ? `'${v[parentId]?.name ?? '폴더'}' 폴더로 옮겼어요.` : '보관함 맨 위로 옮겼어요.');
+        }
       },
       onCancel: end,
     });
@@ -216,7 +259,7 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
               data-vault-drop=""
               className={cn(
                 'scroll-thin min-h-0 flex-1 overflow-y-auto px-2 py-2 transition-shadow',
-                drag && drag.to === null && 'shadow-[inset_0_0_0_2px_var(--color-accent)]',
+                drag?.to && 'into' in drag.to && drag.to.into === null && 'shadow-[inset_0_0_0_2px_var(--color-accent)]',
               )}
               role="tree"
               aria-label="보관함 폴더"
@@ -238,7 +281,7 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
                     onToggle={toggle}
                     onDragStart={startDrag}
                   />
-                  {drag && <p className="px-3 pt-3 pb-6 text-center text-[12px] text-muted">빈 곳에 놓으면 보관함 맨 위로 옮겨요.</p>}
+                  {drag && <p className="px-3 pt-3 pb-6 text-center text-[12px] text-muted">줄 사이에 놓으면 그 자리로, 폴더 가운데에 놓으면 폴더 안으로, 빈 곳에 놓으면 맨 위로 옮겨요.</p>}
                 </>
               )}
             </div>
@@ -297,7 +340,9 @@ function TreeRows(props: {
       {children.map((n) => {
         const folder = isVaultFolder(n);
         const open = folder && expanded.has(n.id);
-        const target = !!drag && folder && drag.to === n.id;
+        const to = drag?.to;
+        const target = !!to && 'into' in to && to.into === n.id;
+        const edge = to && 'where' in to && to.id === n.id ? to.where : null;
         return (
           <li key={n.id} role="treeitem" aria-expanded={folder ? open : undefined} aria-selected={selectedId === n.id}>
             <div
@@ -305,12 +350,22 @@ function TreeRows(props: {
               data-kind={n.kind}
               data-vault-drop={folder ? n.id : (n.parentId ?? '')}
               className={cn(
-                'flex min-h-10 items-center rounded-lg pr-2 text-[14px] select-none [-webkit-touch-callout:none] md:min-h-8 md:text-[13.5px]',
+                'relative flex min-h-10 items-center rounded-lg pr-2 text-[14px] select-none [-webkit-touch-callout:none] md:min-h-8 md:text-[13.5px]',
                 target ? 'bg-accent-soft text-fg ring-2 ring-accent ring-inset' : selectedId === n.id ? 'bg-accent-soft text-fg' : 'text-fg-2 hover:bg-surface-2',
                 drag?.id === n.id && 'opacity-40',
               )}
               style={{ paddingLeft: `${4 + Math.min(depth, 6) * 14}px` }}
             >
+              {edge && (
+                <span
+                  aria-hidden
+                  data-vault-drop-line={edge}
+                  className={cn('pointer-events-none absolute right-1 h-0.5 rounded-full bg-accent', edge === 'before' ? '-top-px' : '-bottom-px')}
+                  style={{ left: `${4 + Math.min(depth, 6) * 14 + 24}px` }}
+                >
+                  <span className="absolute -top-[3px] -left-1.5 size-2 rounded-full border-2 border-accent bg-surface" />
+                </span>
+              )}
               {folder ? (
                 <button
                   type="button"

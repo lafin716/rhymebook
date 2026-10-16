@@ -12,6 +12,7 @@ import {
   movePageBlock,
   normalizePageBlocks,
   pageRows,
+  placeVaultNode,
   placePageBlock,
   removePageBlock,
   renameVaultNode,
@@ -20,7 +21,7 @@ import {
   vaultDescendants,
   wouldCreateCycle,
 } from '../src/vault';
-import type { VaultPageBlock } from '../src/model';
+import type { ID, VaultNode, VaultPageBlock } from '../src/model';
 import { gatedRepository, memoryRepository } from '../src/repo';
 
 describe('vault', () => {
@@ -217,5 +218,58 @@ describe('보관함 페이지 레이아웃 (ADR-058)', () => {
     expect(isVaultNode(page)).toBe(true);
     expect(isVaultNode({ ...page, blocks: [{ id: 'a', text: 'a', beside: false }] })).toBe(false);
     expect(isVaultNode({ ...page, blocks: [{ id: 'a', text: 'a', side: true }] })).toBe(false);
+  });
+});
+
+describe('보관함 트리 순서 (ADR-059)', () => {
+  const tree = (...nodes: VaultNode[]) => Object.fromEntries(nodes.map((n) => [n.id, n])) as Record<ID, VaultNode>;
+  const item = (id: string, parentId: string | null = null) => createVaultItem(id, parentId, id, { type: 'text', text: id }, undefined, 1);
+  const names = (v: Record<ID, VaultNode>, parentId: ID | null = null) => vaultChildren(v, parentId).map((n) => n.id);
+  const apply = (v: Record<ID, VaultNode>, changed: VaultNode[]) => tree(...Object.values(v), ...changed);
+
+  it('order가 있으면 먼저, 없으면 기존 정렬(폴더 먼저·이름순)로 뒤에', () => {
+    const v = tree(item('a'), item('b'), createVaultFolder('f', null, 'f', 1), { ...item('c'), order: 0 });
+    expect(names(v)).toEqual(['c', 'f', 'a', 'b']);
+  });
+
+  it('같은 폴더 안에서 앞·뒤로 놓고 형제 순서를 다시 매긴다', () => {
+    let v = tree(item('a'), item('b'), item('c'));
+    v = apply(v, placeVaultNode(v, 'c', 'a', 'before', 5));
+    expect(names(v)).toEqual(['c', 'a', 'b']);
+    v = apply(v, placeVaultNode(v, 'c', 'b', 'after', 6));
+    expect(names(v)).toEqual(['a', 'b', 'c']);
+    expect(v.c!.updatedAt).toBe(6);
+  });
+
+  it('바뀐 노드만 돌려준다', () => {
+    let v = tree(item('a'), item('b'), item('c'));
+    v = apply(v, placeVaultNode(v, 'c', 'a', 'before', 5));
+    expect(placeVaultNode(v, 'b', 'c', 'after', 7).map((n) => n.id)).toEqual(['b', 'a']);
+    expect(placeVaultNode(v, 'c', 'a', 'before', 7)).toEqual([]);
+  });
+
+  it('다른 폴더 항목 옆에 놓으면 그 폴더로 옮긴다', () => {
+    let v = tree(createVaultFolder('f', null, 'f', 1), item('x', 'f'), item('y', 'f'), item('a'));
+    v = apply(v, placeVaultNode(v, 'a', 'x', 'after', 5));
+    expect(v.a!.parentId).toBe('f');
+    expect(names(v, 'f')).toEqual(['x', 'a', 'y']);
+  });
+
+  it('폴더를 자기 아래로는 놓지 않는다', () => {
+    const v = tree(createVaultFolder('f', null, 'f', 1), item('x', 'f'));
+    expect(placeVaultNode(v, 'f', 'x', 'before', 5)).toEqual([]);
+    expect(placeVaultNode(v, 'f', 'f', 'before', 5)).toEqual([]);
+  });
+
+  it('폴더 안으로 옮기면 순서를 지워 맨 뒤로 간다', () => {
+    const moved = moveVaultNode({ ...item('a'), order: 0 }, 'f', 5);
+    expect('order' in moved).toBe(false);
+  });
+
+  it('order는 0 이상의 정수만 허용한다', () => {
+    expect(isVaultNode({ ...item('a'), order: 3 })).toBe(true);
+    expect(isVaultNode({ ...item('a'), order: -1 })).toBe(false);
+    expect(isVaultNode({ ...item('a'), order: 1.5 })).toBe(false);
+    expect(isVaultNode({ ...item('a'), order: '1' })).toBe(false);
   });
 });

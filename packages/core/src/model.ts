@@ -292,6 +292,8 @@ export interface VaultFolder {
   kind: 'folder';
   parentId: ID | null;
   name: string;
+  /** 같은 폴더 안 순서 (작을수록 위, 없으면 기본 정렬로 뒤에) — ADR-059 */
+  order?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -304,6 +306,7 @@ export interface VaultItem {
   item: VaultItemContent;
   /** 원본 출처 (선택사항) */
   source?: { sessionId: ID; messageId: ID };
+  order?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -314,6 +317,7 @@ export interface VaultPage {
   parentId: ID | null;
   name: string;
   blocks: VaultPageBlock[];
+  order?: number;
   createdAt: number;
   updatedAt: number;
 }

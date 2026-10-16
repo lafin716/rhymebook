@@ -100,6 +100,22 @@ test('보관함: 답변 담기 · 폴더 트리 · 페이지 구성', async ({ p
     await dragTo(page, pageRow, vault.locator('[data-vault-tree] [role="tree"]'), 0.5, 0.95);
     await expect(page.getByText('보관함 맨 위로 옮겼어요.')).toBeVisible();
     await expect(vault.getByRole('treeitem', { name: /단어장/ }).getByRole('group')).not.toContainText('복습 페이지');
+
+    // 같은 폴더 안 순서 바꾸기: 폴더 줄 위쪽 가장자리로 끌면 선으로 자리를 보여 주고, 놓으면 그 앞으로 (ADR-059)
+    const topRows = vault.locator('[role="tree"] > ul > li > [data-vault-node]');
+    await expect(topRows.first()).toHaveAttribute('data-kind', 'folder');
+    const from = (await pageRow.boundingBox())!;
+    const to = (await vault.locator('[data-vault-node][data-kind="folder"]').boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2 - 10, { steps: 3 });
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height * 0.1, { steps: 8 });
+    await expect(vault.locator('[data-vault-drop-line="before"]')).toBeVisible();
+    await page.screenshot({ path: `test-results/vault-reorder-${info.project.name}.png` });
+    await page.mouse.up();
+    await expect(vault.locator('[data-vault-drop-line]')).toHaveCount(0);
+    await expect(topRows.first()).toHaveAttribute('data-kind', 'page');
+    await expect(topRows.nth(1)).toHaveAttribute('data-kind', 'folder');
   }
 
   // 페이지 보기 화면

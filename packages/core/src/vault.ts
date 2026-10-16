@@ -26,11 +26,12 @@ export function isVaultNode(v: unknown): v is VaultNode {
     !node.name.trim() ||
     node.name.length > VAULT_LIMITS.name ||
     !isTime(node.createdAt) ||
-    !isTime(node.updatedAt)
+    !isTime(node.updatedAt) ||
+    !(node.order === undefined || (Number.isInteger(node.order) && (node.order as number) >= 0))
   ) {
     return false;
   }
-  const base = ['id', 'kind', 'parentId', 'name', 'createdAt', 'updatedAt'];
+  const base = ['id', 'kind', 'parentId', 'name', 'order', 'createdAt', 'updatedAt'];
   if (node.kind === 'folder') return onlyKeys(node, base);
   if (node.kind === 'item') {
     return (
@@ -97,10 +98,14 @@ export function isVaultPage(node: VaultNode): node is VaultPage {
   return node.kind === 'page';
 }
 
-/** 주어진 parentId를 가진 자식 노드 반환 (폴더 먼저, 그 다음 이름순, 마지막 생성순) */
+/** 주어진 parentId를 가진 자식 노드 반환 (순서를 정한 것 먼저, 나머지는 폴더 먼저 → 이름순 → 생성순) */
 export function vaultChildren(vault: Record<ID, VaultNode>, parentId: ID | null): VaultNode[] {
   const children = Object.values(vault).filter((n) => n.parentId === parentId);
   return children.sort((a, b) => {
+    // 끌어서 정한 순서 (ADR-059)
+    const ao = a.order ?? Infinity;
+    const bo = b.order ?? Infinity;
+    if (ao !== bo) return ao - bo;
     // 폴더 먼저
     if ((a.kind === 'folder') !== (b.kind === 'folder')) {
       return a.kind === 'folder' ? -1 : 1;
@@ -215,9 +220,30 @@ export function renameVaultNode(node: VaultNode, newName: string, now: number): 
   };
 }
 
-/** 노드의 parentId 변경 (폴더 순환 검사는 호출 쪽에서 wouldCreateCycle로) */
+/** 노드의 parentId 변경 (폴더 순환 검사는 호출 쪽에서 wouldCreateCycle로). 새 폴더에서는 맨 뒤로 간다 */
 export function moveVaultNode(node: VaultNode, newParentId: ID | null, now: number): VaultNode {
-  return { ...node, parentId: newParentId, updatedAt: now };
+  const { order: _, ...rest } = node;
+  return { ...rest, parentId: newParentId, updatedAt: now };
+}
+
+/**
+ * 노드를 다른 노드의 앞·뒤에 놓는다 (ADR-059). 대상과 같은 폴더로 옮기고 그 폴더 형제의 순서를 0부터 다시 매긴다.
+ * 바뀐 노드만 돌려준다 (놓을 수 없으면 빈 배열)
+ */
+export function placeVaultNode(vault: Record<ID, VaultNode>, id: ID, targetId: ID, where: 'before' | 'after', now: number): VaultNode[] {
+  const node = vault[id];
+  const target = vault[targetId];
+  if (!node || !target || id === targetId) return [];
+  const parentId = target.parentId;
+  if (isVaultFolder(node) && wouldCreateCycle(vault, id, parentId)) return [];
+  const siblings = vaultChildren(vault, parentId).filter((n) => n.id !== id);
+  siblings.splice(siblings.indexOf(target) + (where === 'after' ? 1 : 0), 0, node);
+  const changed: VaultNode[] = [];
+  siblings.forEach((n, i) => {
+    if (n.order === i && n.parentId === parentId) return;
+    changed.push({ ...n, parentId, order: i, updatedAt: now });
+  });
+  return changed;
 }
 
 /** 페이지에 블록 추가 */
