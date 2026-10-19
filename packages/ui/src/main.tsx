@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { remoteMode } from './app/capabilities';
+import { restoreLastPage } from './app/lastPage';
 import { isDemo, mobile, sessionWindowId } from './app/runtime';
 import { actions, db } from './app/store';
 import { initRemoteSettings, startData } from './app/sync';
@@ -15,6 +16,8 @@ import './styles.css';
 async function boot() {
   initRemoteSettings();
   await startData();
+  // 세션 창은 세션 하나만 보여 주므로 페이지를 되살리지 않는다
+  if (!sessionWindowId) restoreLastPage();
   // 원격 모드는 이 기기에 데이터가 없으므로 백업도 PC에서만 한다
   if (!remoteMode) void startBackupService();
   // 스킬은 기기별 (원격 모드도 이 기기에 둔다). 데모 모드는 저장하지 않는다
