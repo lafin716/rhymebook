@@ -1,5 +1,5 @@
 import { breadcrumb, effectiveProviderId, excerptAround, type ID, type ProviderId } from '@branch/core';
-import { ChevronDown, ChevronRight, ChevronUp, Compass, CornerLeftUp, Quote, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Compass, CornerLeftUp, ListRestart, Quote, Sparkles } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
@@ -12,6 +12,7 @@ import { BookPdfButton } from '../book/BookPdfButton';
 import { cn } from '../lib/cn';
 import { PROVIDER_ORDER, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 import { revealAnchor } from './open';
+import { reorganizeSession } from './turnActions';
 
 export interface SessionHeaderProps {
   sessionId: ID;
@@ -36,6 +37,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
   });
   const hasDraft = useApp((s) => !!s.summaryDrafts[sessionId]);
   const streaming = useApp((s) => !!s.streaming[sessionId]);
+  const answered = useApp((s) => !!s.messages[sessionId]?.some((m) => m.role === 'assistant' && m.content.trim()));
   const quoteCollapsed = useUi((s) => s.quoteCollapsed);
   const toggleQuote = useUi((s) => s.toggleQuote);
   if (!session) return null;
@@ -86,6 +88,11 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
         {summaryButton && collapsible && quoteCollapsed && (
           <IconButton size="sm" label={summaryLabel} disabled={streaming} onClick={requestSummary}>
             <Sparkles size={14} className="text-anchor-line" />
+          </IconButton>
+        )}
+        {answered && (
+          <IconButton size="sm" label="세션 재정리" data-reorganize="" disabled={streaming} onClick={() => void reorganizeSession(sessionId)}>
+            <ListRestart size={14} />
           </IconButton>
         )}
         <BookPdfButton sessionId={sessionId} compact={compact} />

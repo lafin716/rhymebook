@@ -18,6 +18,7 @@ import {
   BOOK_SKILL_ID,
   QUIZ_SKILL_ID,
   SPEAK_SKILL_ID,
+  REORGANIZE_SKILL_ID,
   CURRICULUM_SKILL_ID,
   defaultSkills,
   filterSkills,
@@ -119,13 +120,14 @@ describe('attachments', () => {
 describe('skills', () => {
   const skills = defaultSkills(0);
 
-  it('ships curriculum, book, quiz and speak example skills', () => {
-    expect(skills).toHaveLength(4);
+  it('ships curriculum, book, quiz, speak and reorganize example skills', () => {
+    expect(skills).toHaveLength(5);
     expect(skills[0]).toMatchObject({ name: 'curriculum', title: '커리큘럼 생성', builtin: true });
     expect(skills[1]).toMatchObject({ name: 'book', title: '책으로 만들기', builtin: true });
     expect(isSkillRef(skillRef(skills[0]!))).toBe(true);
     expect(skills[2]).toMatchObject({ name: 'quiz', title: '퀴즈 풀기', builtin: true });
     expect(skills[3]).toMatchObject({ name: 'speak', title: '음성으로 읽기', builtin: true });
+    expect(skills[4]).toMatchObject({ id: REORGANIZE_SKILL_ID, name: 'reorganize', title: '세션 재정리', builtin: true });
     expect(skills.every((s) => isSkillRef(skillRef(s)))).toBe(true);
   });
 
@@ -177,15 +179,15 @@ describe('skills', () => {
 
   it('seeds new builtin skills and tracks seeded ids', () => {
     const defaults = defaultSkills();
-    const all = [BOOK_SKILL_ID, CURRICULUM_SKILL_ID, QUIZ_SKILL_ID, SPEAK_SKILL_ID];
+    const all = [BOOK_SKILL_ID, CURRICULUM_SKILL_ID, QUIZ_SKILL_ID, REORGANIZE_SKILL_ID, SPEAK_SKILL_ID];
     // 신규: 아무 스킬도 없고, 아무것도 시드되지 않음
     const { add: add1, seeded: seeded1 } = skillsToSeed([], undefined);
-    expect(add1.map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz', 'speak']);
+    expect(add1.map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz', 'speak', 'reorganize']);
     expect(seeded1).toEqual(all);
 
     // 호환성: 기존 true 값은 [CURRICULUM_SKILL_ID]로 변환
     const { add: add2, seeded: seeded2 } = skillsToSeed([], true);
-    expect(add2.map((s) => s.name)).toEqual(['book', 'quiz', 'speak']);
+    expect(add2.map((s) => s.name)).toEqual(['book', 'quiz', 'speak', 'reorganize']);
     expect(seeded2).toEqual(all);
 
     // 이미 시드됨: 모든 것이 있으면 추가 없음
@@ -195,10 +197,12 @@ describe('skills', () => {
 
     // 이전 버전 사용자: 새로 생긴 quiz·speak만 추가
     const { add: add4, seeded: seeded4 } = skillsToSeed(defaults.slice(0, 2), [CURRICULUM_SKILL_ID, BOOK_SKILL_ID]);
-    expect(add4.map((s) => s.name)).toEqual(['quiz', 'speak']);
+    expect(add4.map((s) => s.name)).toEqual(['quiz', 'speak', 'reorganize']);
 
-    // v0.13 사용자: speak만 추가
-    expect(skillsToSeed(defaults.slice(0, 3), [CURRICULUM_SKILL_ID, BOOK_SKILL_ID, QUIZ_SKILL_ID]).add.map((s) => s.name)).toEqual(['speak']);
+    // v0.13 사용자: speak·reorganize만 추가
+    expect(skillsToSeed(defaults.slice(0, 3), [CURRICULUM_SKILL_ID, BOOK_SKILL_ID, QUIZ_SKILL_ID]).add.map((s) => s.name)).toEqual(['speak', 'reorganize']);
+    // v0.22 사용자: reorganize만 추가
+    expect(skillsToSeed(defaults.slice(0, 4), [CURRICULUM_SKILL_ID, BOOK_SKILL_ID, QUIZ_SKILL_ID, SPEAK_SKILL_ID]).add.map((s) => s.name)).toEqual(['reorganize']);
     expect(seeded4).toEqual(all);
 
     // 사용자가 지운 스킬은 다시 넣지 않는다
@@ -208,6 +212,6 @@ describe('skills', () => {
     // 같은 이름의 사용자 스킬이 있으면 넣지 않는다
     const own = { ...defaults[2]!, id: 'mine', builtin: undefined };
     const { add: add6 } = skillsToSeed([own], [CURRICULUM_SKILL_ID, BOOK_SKILL_ID]);
-    expect(add6.map((s) => s.name)).toEqual(['speak']);
+    expect(add6.map((s) => s.name)).toEqual(['speak', 'reorganize']);
   });
 });

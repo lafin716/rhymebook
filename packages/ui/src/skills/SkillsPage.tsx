@@ -17,6 +17,7 @@ import { sessionWindowId } from '../app/runtime';
 import { actions, useApp } from '../app/store';
 import { pushNotice, syncClient, useSync } from '../app/sync';
 import { useBreakpoint } from '../app/useBreakpoint';
+import { Badge } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
@@ -299,6 +300,11 @@ function SkillsPageBody() {
                   <div className="flex items-baseline gap-2">
                     <span className="truncate text-[14px] font-medium text-fg">{s.title}</span>
                     <code className="shrink-0 text-[12px] text-accent">/{s.name}</code>
+                    {s.builtin && (
+                      <Badge tone="neutral" className="ml-auto shrink-0 self-center">
+                        기본 스킬
+                      </Badge>
+                    )}
                   </div>
                   {s.description && <div className="mt-0.5 line-clamp-2 text-[12.5px] text-muted">{s.description}</div>}
                 </button>

@@ -379,6 +379,120 @@ describe('app store', () => {
   });
 });
 
+describe('turn move · sibling split · reorganize', () => {
+  beforeEach(() => {
+    mockControl.firstTokenDelay = 0;
+    mockControl.speed = 0;
+    mockControl.failNext = false;
+  });
+  const anchorIn = (store: AppStore, sessionId: string, messageId: string, text: string) => {
+    const msg = store.getState().messages[sessionId]!.find((m) => m.id === messageId)!;
+    const start = msg.content.indexOf(text);
+    return { messageId, text, startOffset: start, endOffset: start + text.length };
+  };
+
+  it('moveTurn appends the turn to another study and carries branches with their rootId', async () => {
+    const store = makeStore();
+    const [, , q2, a2] = store.getState().messages[SEED_IDS.root]!;
+    const branch = store.getState().createBranch(SEED_IDS.root, anchorIn(store, SEED_IDS.root, a2!.id, a2!.content.slice(0, 4)), 'what') as string;
+    await idle(store);
+    const ba = store.getState().messages[branch]![1]!;
+    const deep = store.getState().createBranch(branch, anchorIn(store, branch, ba.id, ba.content.slice(0, 3)), 'what') as string;
+    await idle(store);
+    const lastBp = store.getState().messages[SEED_IDS.backprop]!.at(-1)!;
+
+    // 자기 자신·옮겨질 가지 안으로는 못 옮긴다
+    expect(store.getState().moveTurn(SEED_IDS.root, q2!.id, SEED_IDS.root)).toBe(false);
+    expect(store.getState().moveTurn(SEED_IDS.root, q2!.id, deep)).toBe(false);
+    expect(store.getState().moveTurn(SEED_IDS.root, q2!.id, 'nope')).toBe(false);
+
+    expect(store.getState().moveTurn(SEED_IDS.root, q2!.id, SEED_IDS.backprop)).toBe(true);
+    const s = store.getState();
+    const bp = s.messages[SEED_IDS.backprop]!;
+    expect(bp.slice(-2).map((m) => m.id)).toEqual([q2!.id, a2!.id]);
+    expect(bp.at(-2)!.createdAt).toBeGreaterThan(lastBp.createdAt);
+    expect(bp.at(-2)!.sessionId).toBe(SEED_IDS.backprop);
+    expect(s.messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(false);
+    expect(s.sessions[branch]).toMatchObject({ parentId: SEED_IDS.backprop, rootId: SEED_IDS.backprop });
+    expect(s.sessions[deep]).toMatchObject({ parentId: branch, rootId: SEED_IDS.backprop });
+  });
+
+  it('moveTurn refuses the first question and streaming sessions', async () => {
+    const store = makeStore();
+    const [q1, , q2] = store.getState().messages[SEED_IDS.root]!;
+    expect(store.getState().moveTurn(SEED_IDS.root, q1!.id, SEED_IDS.backprop)).toBe(false);
+    mockControl.firstTokenDelay = 50;
+    store.getState().sendMessage(SEED_IDS.backprop, '새 질문');
+    expect(store.getState().moveTurn(SEED_IDS.root, q2!.id, SEED_IDS.backprop)).toBe(false);
+    await idle(store);
+    expect(store.getState().moveTurn(SEED_IDS.root, q2!.id, SEED_IDS.backprop)).toBe(true);
+  });
+
+  it('sibling split puts the turn next to the session and titles it with AI', async () => {
+    const store = makeStore();
+    // 하위 세션에서: 같은 부모 아래
+    store.getState().sendMessage(SEED_IDS.qkv, '그럼 Value는 왜 따로 있어?');
+    await idle(store);
+    const q = store.getState().messages[SEED_IDS.qkv]![2]!;
+    const id = store.getState().splitTurn(SEED_IDS.qkv, q.id, 's-sib', { sibling: true }) as string;
+    expect(id).toBe('s-sib');
+    const qkv = store.getState().sessions[SEED_IDS.qkv]!;
+    expect(store.getState().sessions[id]).toMatchObject({ parentId: SEED_IDS.root, rootId: SEED_IDS.root, createdAt: qkv.createdAt + 1 });
+    expect(store.getState().sessions[id]!.anchor).toBeUndefined();
+    expect(store.getState().messages[id]!.map((m) => m.id)[0]).toBe(q.id);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(store.getState().sessions[id]!.title).not.toBe('그럼 Value는 왜 따로 있어?');
+
+    // 루트에서: 새 루트
+    const [, , q2] = store.getState().messages[SEED_IDS.root]!;
+    const root = store.getState().splitTurn(SEED_IDS.root, q2!.id, 's-root2', { sibling: true }) as string;
+    expect(store.getState().sessions[root]).toMatchObject({ parentId: null, rootId: 's-root2' });
+  });
+
+  it('reorganizeSession condenses the session into one Q&A and turns anchored branches into footnotes', async () => {
+    const deleted: string[] = [];
+    const store = createAppStore({
+      registry: createDemoRegistry(() => store.getState().connections),
+      initial: { ...createSeed(0), view: emptyView(SEED_IDS.root) },
+      repo: { ...memoryRepository(), deleteMessage: (id) => deleted.push(id) },
+    });
+    const before = store.getState().messages[SEED_IDS.root]!;
+    expect(store.getState().reorganizeSession(SEED_IDS.root)).toBe(true);
+    // 스트리밍 중에는 임시 질문·답변이 뒤에 붙는다
+    expect(store.getState().messages[SEED_IDS.root]!.length).toBe(before.length + 2);
+    expect(store.getState().reorganizeSession(SEED_IDS.root)).toBe(false);
+    await idle(store);
+    const s = store.getState();
+    const after = s.messages[SEED_IDS.root]!;
+    expect(after).toHaveLength(2);
+    expect(after.map((m) => m.role)).toEqual(['user', 'assistant']);
+    expect(after[0]!.createdAt).toBe(before[0]!.createdAt);
+    expect(after[1]).toMatchObject({ status: 'done' });
+    expect(after[1]!.content.length).toBeGreaterThan(0);
+    expect(deleted.sort()).toEqual(before.map((m) => m.id).sort());
+    for (const id of [SEED_IDS.qkv, SEED_IDS.softmax, SEED_IDS.scale]) expect(s.sessions[id]!.anchor).toBeUndefined();
+    // 손주는 그대로
+    expect(s.sessions[SEED_IDS.dot]!.anchor).toBeTruthy();
+  });
+
+  it('reorganizeSession keeps the session as is when the answer fails', async () => {
+    const store = makeStore();
+    const before = store.getState().messages[SEED_IDS.root]!;
+    mockControl.failNext = true;
+    expect(store.getState().reorganizeSession(SEED_IDS.root)).toBe(true);
+    await idle(store);
+    expect(store.getState().messages[SEED_IDS.root]).toEqual(before);
+    expect(store.getState().sessions[SEED_IDS.qkv]!.anchor).toBeTruthy();
+  });
+
+  it('reorganizeSession refuses empty sessions', () => {
+    const store = makeStore();
+    const id = store.getState().newRootSession() as string;
+    expect(store.getState().reorganizeSession(id)).toBe(false);
+    expect(store.getState().reorganizeSession('nope')).toBe(false);
+  });
+});
+
 describe('store × 실제 provider 흐름', () => {
   it('refreshConnections는 available() 결과로 상태를 채우고 enabled를 보존한다', async () => {
     const registry = new ProviderRegistry();

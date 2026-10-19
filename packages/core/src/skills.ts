@@ -314,6 +314,8 @@ export const CURRICULUM_SKILL_ID = 'skill-curriculum';
 export const BOOK_SKILL_ID = 'skill-book';
 export const QUIZ_SKILL_ID = 'skill-quiz';
 export const SPEAK_SKILL_ID = 'skill-speak';
+/** 세션 [재정리] 버튼이 쓰는 기본 스킬 */
+export const REORGANIZE_SKILL_ID = 'skill-reorganize';
 
 export function defaultSkills(now = Date.now()): Skill[] {
   return [
@@ -457,6 +459,31 @@ export function defaultSkills(now = Date.now()): Skill[] {
         '```',
         '',
         '- 언어 이름은 `speak`, 본문은 올바른 JSON(큰따옴표, 끝 쉼표 없음)이다. 항목은 최대 50개.',
+      ].join('\n'),
+      builtin: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: REORGANIZE_SKILL_ID,
+      name: 'reorganize',
+      title: '세션 재정리',
+      description: '세션의 질문·답변 전체를 하나의 질문과 깔끔한 답변으로 정리해요. 세션의 [재정리] 버튼이 이 스킬을 써요.',
+      prompt: [
+        '학습자가 이 세션에서 나눈 질문·답변 전체를 하나의 질문과 하나의 답변으로 다시 정리한다.',
+        '',
+        '## 정리 규칙',
+        '- 질문은 세션 전체를 아우르는 한 문장으로 쓴다.',
+        '- 답변은 개념이 이어지는 순서로 다시 구성한다(대화 순서를 그대로 따를 필요 없음). 소제목(##)·목록·표·코드 블록을 알맞게 쓴다.',
+        '- 겹치는 설명은 하나로 합치고, 틀렸다가 바로잡은 내용은 바로잡은 쪽만 남긴다.',
+        '- 대화에 없던 사실을 새로 지어내지 않는다. 빠진 연결 설명은 짧게만 보탠다.',
+        '- 각주 목록이 주어지면 관련 문장 끝에 [1], [2]처럼 번호로 가리킨다. 각주 내용을 본문에 길게 옮기지 않는다.',
+        '- 인사·서두·"정리했습니다" 같은 말은 쓰지 않는다.',
+        '',
+        '## 출력 형식 (반드시 지킨다)',
+        '첫 줄: `질문: <정리한 질문 한 문장>`',
+        '둘째 줄: `---`',
+        '셋째 줄부터: 정리한 답변(마크다운)',
       ].join('\n'),
       builtin: true,
       createdAt: now,

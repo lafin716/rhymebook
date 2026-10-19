@@ -3,8 +3,11 @@ import {
   branchQuestion,
   buildChatRequest,
   buildSummaryRequest,
+  buildReorganizeRequest,
   buildTitleRequest,
   cleanTitle,
+  parseReorganized,
+  REORGANIZE_REQUEST,
   type MessageMap,
 } from '../context';
 import { newId } from '../id';
@@ -48,13 +51,13 @@ import {
 import { MAX_SPLIT } from '../model';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId, isValidEffort, sessionModelOptions } from '../cli-options';
-import { collectStream, providerError, type ProviderError, type ProviderRegistry } from '../provider';
+import { collectStream, providerError, type ProviderError, type ProviderRegistry, type StreamRequest } from '../provider';
 import { memoryRepository, type Repository } from '../repo';
 import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
-import { chatTarget } from '../skills';
+import { chatTarget, defaultSkills, REORGANIZE_SKILL_ID, skillRef } from '../skills';
 import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
-import { descendantIds, subSessionTitle, type SessionMap } from '../tree';
-import { planTurnSplit, turnMessageIds } from '../turns';
+import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../tree';
+import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
 import { vaultDescendants } from '../vault';
 
 export const NEW_SESSION_TITLE = '새 학습';
@@ -63,6 +66,26 @@ export const NEW_SESSION_TITLE = '새 학습';
 export const STREAM_SAVE_INTERVAL = 1000;
 
 export type OpenTarget = 'main' | 'split' | 'popup' | 'sheet';
+
+/** sibling: 하위 세션 대신 같은 레벨(형제, 루트면 새 루트)로 분리하고 AI로 제목을 짓는다 (ADR-066) */
+export interface SplitTurnOptions {
+  sibling?: boolean;
+}
+
+/** 채팅 대신 별도 요청으로 assistant 메시지를 채우는 실행 (재정리) */
+interface CustomRun {
+  request: StreamRequest;
+  /** 완료 텍스트를 반영. 반영하지 못하면 false */
+  done(text: string): boolean;
+  /** 실패·중지: 임시 메시지를 걷어낸다 (여러 번 불려도 안전해야 한다) */
+  failed(): void;
+}
+
+/** 재정리 기본 스킬 사본 (사용자가 스킬을 지웠어도 동작) */
+export const defaultReorganizeSkill = (): SkillRef => skillRef(defaultSkills(0).find((k) => k.id === REORGANIZE_SKILL_ID)!);
+
+/** 첨부만 있는 질문의 대신 글 */
+const plainQuestion = (m: Message) => (m.attachments?.length ? `[첨부] ${m.attachments.map((a) => a.name).join(', ')}` : '세션 재정리');
 
 /** 질문에 덧붙이는 첨부·스킬 (IMP-09) */
 export interface SendExtra {
@@ -122,7 +145,17 @@ export interface AppState extends AppData {
    * 질문 하나와 그 답변을 새 하위 세션(앵커 없음)으로 옮긴다. 그 답변의 가지·서식, 그 질문 중에 만든 각주도 따라간다.
    * 새 세션 id, 첫 질문이거나 응답 생성 중이면 false
    */
-  splitTurn(sessionId: ID, questionId: ID, newSessionId?: ID): ID | false;
+  splitTurn(sessionId: ID, questionId: ID, newSessionId?: ID, opts?: SplitTurnOptions): ID | false;
+  /**
+   * 질문 하나와 그 답변을 다른 세션 끝으로 옮긴다 (분리와 같은 것이 따라간다, ADR-067).
+   * 첫 질문, 대상이 없거나 옮길 가지 안쪽, 어느 쪽이든 응답 생성 중이면 false
+   */
+  moveTurn(sessionId: ID, questionId: ID, targetId: ID): boolean;
+  /**
+   * 세션 전체를 질문 하나 + 답변 하나로 재정리한다 (기본 스킬 reorganize, ADR-068).
+   * 시작하면 true. 성공하면 옛 메시지를 바꾸고 앵커 가지는 각주가 된다. 실패·중지면 그대로 둔다
+   */
+  reorganizeSession(sessionId: ID, skill?: SkillRef): boolean;
   renameSession(id: ID, title: string): void;
   setSessionProvider(id: ID, providerId: ProviderId | undefined): void;
   /** 이 채팅의 모델·노력치 덮어쓰기. 값을 비우면(undefined) 연결 기본값을 따른다 */
@@ -298,9 +331,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
 
     const touch = (sessionId: ID) => patchSession(sessionId, { updatedAt: Date.now() });
 
-    const maybeTitle = async (sessionId: ID) => {
-      const s = get().sessions[sessionId];
-      if (!s || s.parentId !== null || s.title !== NEW_SESSION_TITLE) return;
+    /** 대화로 제목을 지어, 그사이 제목이 expected에서 바뀌지 않았을 때만 바꾼다 */
+    const aiTitle = async (sessionId: ID, expected: string) => {
       const providerId = effectiveProviderId(get(), sessionId);
       const provider = registry.get(providerId);
       if (!provider) return;
@@ -311,10 +343,55 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         };
         const raw = await collectStream(provider, req);
         const title = cleanTitle(raw);
-        if (title && get().sessions[sessionId]?.title === NEW_SESSION_TITLE) patchSession(sessionId, { title });
+        if (title && get().sessions[sessionId]?.title === expected) patchSession(sessionId, { title });
       } catch {
-        // 제목 생성 실패는 무시 (다음 응답 후 재시도)
+        // 제목 생성 실패는 무시 (지금 제목 유지)
       }
+    };
+
+    const maybeTitle = async (sessionId: ID) => {
+      const s = get().sessions[sessionId];
+      if (!s || s.parentId !== null || s.title !== NEW_SESSION_TITLE) return;
+      await aiTitle(sessionId, NEW_SESSION_TITLE);
+    };
+
+    /**
+     * 질문 하나(계획)를 dest 세션 끝으로 옮긴다. isNew면 dest를 새로 만든다.
+     * delta만큼 옮길 메시지·각주의 시각을 민다(각주 자리·맥락 범위가 함께 움직인다).
+     * 루트가 바뀌면 따라가는 가지의 자손까지 rootId를 바꾼다
+     */
+    const relocateTurn = (sessionId: ID, questionId: ID, plan: TurnSplitPlan, dest: Session, isNew: boolean, delta: number) => {
+      const st = get();
+      const list = st.messages[sessionId] ?? [];
+      const moved = new Set(plan.messageIds);
+      const from = list.findIndex((m) => m.id === questionId);
+      const rest = list.filter((m) => !moved.has(m.id));
+      const destList = isNew ? [] : (st.messages[dest.id] ?? []);
+      const movedMsgs = list.filter((m) => moved.has(m.id)).map((m) => ({ ...m, sessionId: dest.id, createdAt: m.createdAt + delta }));
+      const rootChanged = st.sessions[sessionId]?.rootId !== dest.rootId;
+      const changed: Session[] = plan.childIds.map((cid) => {
+        const c = st.sessions[cid]!;
+        return { ...c, parentId: dest.id, rootId: dest.rootId, ...(c.anchor ? {} : { createdAt: c.createdAt + delta }) };
+      });
+      if (rootChanged) {
+        for (const cid of plan.childIds) {
+          for (const d of descendantIds(st.sessions, cid).slice(1)) changed.push({ ...st.sessions[d]!, rootId: dest.rootId });
+        }
+      }
+      const annos = Object.values(st.annotations)
+        .filter((a) => a.sessionId === sessionId && moved.has(a.anchor.messageId))
+        .map((a) => ({ ...a, sessionId: dest.id }));
+      set((s) => ({
+        sessions: { ...s.sessions, ...(isNew ? { [dest.id]: dest } : {}), ...Object.fromEntries(changed.map((c) => [c.id, c])) },
+        messages: { ...s.messages, [sessionId]: rest, [dest.id]: [...destList, ...movedMsgs] },
+        annotations: { ...s.annotations, ...Object.fromEntries(annos.map((a) => [a.id, a])) },
+      }));
+      if (isNew) repo.saveSession(dest);
+      for (const c of changed) repo.saveSession(c);
+      movedMsgs.forEach((m, i) => repo.saveMessage(m, destList.length + i));
+      // 복원 순서(seq)가 어긋나지 않게 뒤쪽 메시지 위치를 다시 저장
+      for (let i = from; i < rest.length; i++) repo.saveMessage(rest[i]!, i);
+      for (const a of annos) repo.saveAnnotation(a);
     };
 
     /** assistant 메시지 하나를 스트리밍으로 채운다 */
@@ -322,11 +399,12 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
     const targetOf = (sessionId: ID, ignoreSkill?: boolean) =>
       chatTarget(get(), sessionId, { usable: (id) => !!registry.get(id), ...(ignoreSkill ? { ignoreSkill } : {}) });
 
-    const runAssistant = async (sessionId: ID, messageId: ID, ignoreSkill?: boolean) => {
+    const runAssistant = async (sessionId: ID, messageId: ID, ignoreSkill?: boolean, custom?: CustomRun) => {
       const target = targetOf(sessionId, ignoreSkill);
       const providerId = target.providerId;
       const provider = registry.get(providerId);
       const fail = (error: ProviderError, content?: string) => {
+        if (custom) return custom.failed();
         const m = getMessage(sessionId, messageId);
         if (!m) return;
         putMessage({
@@ -356,12 +434,14 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       set((s) => ({ streaming: { ...s.streaming, [sessionId]: messageId } }));
 
       const state = get();
-      const req = buildChatRequest({
-        sessions: state.sessions,
-        messages: state.messages,
-        sessionId,
-        contextWindow: state.settings.contextWindow,
-      });
+      const req =
+        custom?.request ??
+        buildChatRequest({
+          sessions: state.sessions,
+          messages: state.messages,
+          sessionId,
+          contextWindow: state.settings.contextWindow,
+        });
       Object.assign(req, target.options);
       req.signal = ctrl.signal;
 
@@ -374,7 +454,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           if (ev.type === 'delta') {
             text += ev.text;
             const m = getMessage(sessionId, messageId);
-            const persist = Date.now() - savedAt >= STREAM_SAVE_INTERVAL;
+            // 재정리 중 임시 메시지는 저장하지 않는다 (끝나면 결과만 저장)
+            const persist = !custom && Date.now() - savedAt >= STREAM_SAVE_INTERVAL;
             if (persist) savedAt = Date.now();
             if (m) putMessage({ ...m, content: text }, persist);
           } else if (ev.type === 'image') {
@@ -383,6 +464,9 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           } else if (ev.type === 'error') {
             fail(ev.error, text);
             break;
+          } else if (custom) {
+            ok = custom.done(text);
+            if (!ok) custom.failed();
           } else {
             const m = getMessage(sessionId, messageId);
             if (m) putMessage({ ...m, content: text, status: 'done' });
@@ -394,8 +478,9 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       } finally {
         finish();
       }
-      touch(sessionId);
-      if (ok) void maybeTitle(sessionId);
+      if (custom && !ok && getMessage(sessionId, messageId)) custom.failed();
+      if (get().sessions[sessionId]) touch(sessionId);
+      if (ok && !custom) void maybeTitle(sessionId);
     };
 
     /** ignoreSkill: 대체 provider로 다시 시도할 때처럼 사용자가 provider를 직접 고르면 스킬 설정을 쓰지 않는다 */
@@ -591,47 +676,125 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         return true;
       },
 
-      splitTurn(sessionId, questionId, newSessionId) {
+      splitTurn(sessionId, questionId, newSessionId, opts) {
         const st = get();
-        const parent = st.sessions[sessionId];
-        if (!parent || st.streaming[sessionId]) return false;
+        const src = st.sessions[sessionId];
+        if (!src || st.streaming[sessionId]) return false;
         const list = st.messages[sessionId] ?? [];
         const plan = planTurnSplit(st.sessions, list, sessionId, questionId);
         if (!plan) return false;
         const id = newSessionId ?? newId('s');
         if (st.sessions[id] || st.messages[id]) return false;
-        const moved = new Set(plan.messageIds);
         const now = Date.now();
-        const child: Session = {
-          id,
-          parentId: parent.id,
-          rootId: parent.rootId,
-          title: subSessionTitle(plan.question),
-          ...(parent.providerId ? { providerId: parent.providerId } : {}),
-          ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
-          createdAt: plan.createdAt,
-          updatedAt: now,
+        const title = subSessionTitle(plan.question);
+        const inherit = {
+          ...(src.providerId ? { providerId: src.providerId } : {}),
+          ...(src.modelPref ? { modelPref: src.modelPref } : {}),
         };
-        const from = list.findIndex((m) => m.id === questionId);
-        const rest = list.filter((m) => !moved.has(m.id));
-        const movedMsgs = list.filter((m) => moved.has(m.id)).map((m) => ({ ...m, sessionId: id }));
-        const reparented = plan.childIds.map((cid) => ({ ...st.sessions[cid]!, parentId: id }));
-        const annos = Object.values(st.annotations)
-          .filter((a) => a.sessionId === sessionId && moved.has(a.anchor.messageId))
-          .map((a) => ({ ...a, sessionId: id }));
-        set((s) => ({
-          sessions: { ...s.sessions, [id]: child, ...Object.fromEntries(reparented.map((c) => [c.id, c])) },
-          messages: { ...s.messages, [sessionId]: rest, [id]: movedMsgs },
-          annotations: { ...s.annotations, ...Object.fromEntries(annos.map((a) => [a.id, a])) },
-        }));
-        repo.saveSession(child);
-        for (const c of reparented) repo.saveSession(c);
-        movedMsgs.forEach((m, i) => repo.saveMessage(m, i));
-        // 복원 순서(seq)가 어긋나지 않게 뒤쪽 메시지 위치를 다시 저장
-        for (let i = from; i < rest.length; i++) repo.saveMessage(rest[i]!, i);
-        for (const a of annos) repo.saveAnnotation(a);
+        // 형제: 부모가 있으면 같은 부모 아래 각주(원래 세션 바로 뒤 자리), 루트면 새 루트
+        const dest: Session = opts?.sibling
+          ? src.parentId
+            ? { id, parentId: src.parentId, rootId: src.rootId, title, ...inherit, createdAt: src.createdAt + 1, updatedAt: now }
+            : { id, parentId: null, rootId: id, title, ...inherit, createdAt: now, updatedAt: now }
+          : { id, parentId: src.id, rootId: src.rootId, title, ...inherit, createdAt: plan.createdAt, updatedAt: now };
+        relocateTurn(sessionId, questionId, plan, dest, true, 0);
         touch(sessionId);
+        if (opts?.sibling) void aiTitle(id, title);
         return id;
+      },
+
+      moveTurn(sessionId, questionId, targetId) {
+        const st = get();
+        if (!st.sessions[sessionId] || st.streaming[sessionId] || st.streaming[targetId]) return false;
+        const list = st.messages[sessionId] ?? [];
+        const plan = planTurnMove(st.sessions, list, sessionId, questionId, targetId);
+        if (!plan) return false;
+        const q = list.find((m) => m.id === questionId)!;
+        const last = (st.messages[targetId] ?? []).at(-1);
+        // 대상 끝에 붙인다: 질문 시각이 대상 마지막 메시지 뒤가 되도록 민다
+        const base = Math.max(Date.now(), (last?.createdAt ?? 0) + 1);
+        relocateTurn(sessionId, questionId, plan, st.sessions[targetId]!, false, base - q.createdAt);
+        touch(sessionId);
+        touch(targetId);
+        return true;
+      },
+
+      reorganizeSession(sessionId, skill) {
+        const st = get();
+        if (!st.sessions[sessionId] || st.streaming[sessionId]) return false;
+        const old = st.messages[sessionId] ?? [];
+        const firstQ = old.find((m) => m.role === 'user');
+        if (!firstQ || !old.some((m) => m.role === 'assistant' && m.content.trim())) return false;
+        const ref = skill ?? defaultReorganizeSkill();
+        // 재정리 후 모든 하위 세션이 각주가 된다: 만든 순서가 각주 번호
+        const notes = childrenOf(st.sessions, sessionId);
+        const request = buildReorganizeRequest(
+          { sessions: st.sessions, messages: st.messages, sessionId, contextWindow: st.settings.contextWindow },
+          old,
+          notes.map((c) => ({ title: c.title, ...(c.anchor ? { anchorText: c.anchor.text } : {}), ...(c.summary ? { summary: c.summary } : {}) })),
+          ref,
+        );
+        const now = Date.now();
+        const ask: Message = { id: newId('m'), sessionId, role: 'user', content: REORGANIZE_REQUEST, createdAt: now, skill: ref };
+        putMessage(ask, false);
+        const reply: Message = {
+          id: newId('m'),
+          sessionId,
+          role: 'assistant',
+          content: '',
+          createdAt: now + 1,
+          status: 'streaming',
+          providerId: targetOf(sessionId).providerId,
+        };
+        putMessage(reply, false);
+        const temp = new Set([ask.id, reply.id]);
+        const fallback = firstQ.content.trim() || plainQuestion(firstQ);
+        void runAssistant(sessionId, reply.id, false, {
+          request,
+          done(text) {
+            const parsed = parseReorganized(text, fallback);
+            if (!parsed || !get().sessions[sessionId]) return false;
+            const oldIds = new Set(old.map((m) => m.id));
+            const q: Message = { id: newId('m'), sessionId, role: 'user', content: parsed.question, createdAt: firstQ.createdAt };
+            const a: Message = {
+              id: reply.id,
+              sessionId,
+              role: 'assistant',
+              content: parsed.answer,
+              createdAt: firstQ.createdAt + 1,
+              status: 'done',
+              ...(reply.providerId ? { providerId: reply.providerId } : {}),
+            };
+            // 그사이 들어온 다른 메시지(없어야 정상)는 뒤에 남긴다
+            const extra = (get().messages[sessionId] ?? []).filter((m) => !oldIds.has(m.id) && !temp.has(m.id));
+            const annos = Object.values(get().annotations)
+              .filter((x) => oldIds.has(x.anchor.messageId))
+              .map((x) => x.id);
+            if (annos.length) get().deleteAnnotations(annos);
+            const footnotes = childrenOf(get().sessions, sessionId)
+              .filter((c) => c.anchor)
+              .map((c) => {
+                const next = { ...c };
+                delete next.anchor;
+                return next;
+              });
+            const next = [q, a, ...extra];
+            set((s) => ({
+              sessions: { ...s.sessions, ...Object.fromEntries(footnotes.map((c) => [c.id, c])) },
+              messages: { ...s.messages, [sessionId]: next },
+            }));
+            for (const id of oldIds) repo.deleteMessage(id);
+            next.forEach((m, i) => repo.saveMessage(m, i));
+            for (const c of footnotes) repo.saveSession(c);
+            return true;
+          },
+          failed() {
+            const list = get().messages[sessionId];
+            if (!list?.some((m) => temp.has(m.id))) return;
+            set((s) => ({ messages: { ...s.messages, [sessionId]: list.filter((m) => !temp.has(m.id)) } }));
+          },
+        });
+        return true;
       },
 
       renameSession(id, title) {

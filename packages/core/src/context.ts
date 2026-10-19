@@ -1,7 +1,7 @@
 import { excerptAround } from './anchor';
 import { withTextAttachments } from './attachments';
 import { withSkill } from './skills';
-import type { ID, Message, Session } from './model';
+import type { ID, Message, Session, SkillRef } from './model';
 import type { ChatTurn, StreamRequest } from './provider';
 import { pathToRoot, type SessionMap } from './tree';
 
@@ -144,4 +144,56 @@ export function branchQuestion(kind: 'what' | 'detail', text: string): string {
 
 export function cleanTitle(raw: string): string {
   return raw.replace(/["'“”‘’.。]/g, '').replace(/\s+/g, ' ').trim().slice(0, 30);
+}
+
+/** 재정리 요청에 실을 각주(하위 세션) 한 개 */
+export interface ReorganizeNote {
+  title: string;
+  /** 본문에서 고른 글 (앵커 가지였으면) */
+  anchorText?: string;
+  summary?: string;
+}
+
+export const REORGANIZE_REQUEST = '이 세션의 대화 전체를 하나의 질문과 하나의 답변으로 재정리해 줘.';
+
+/**
+ * 세션 재정리 요청: system은 세션 맥락 + 재정리 스킬, 사용자 턴 하나에 대화 전문과 각주 목록을 싣는다.
+ * notes 순서가 재정리 후 각주 번호다.
+ */
+export function buildReorganizeRequest(
+  opts: BranchContextOptions,
+  source: readonly Message[],
+  notes: readonly ReorganizeNote[],
+  skill: SkillRef | undefined,
+): StreamRequest {
+  const lines: string[] = ['## 세션 대화'];
+  let n = 0;
+  for (const t of toTurns([...source])) {
+    if (t.role === 'user') n++;
+    lines.push('', `### ${t.role === 'user' ? '질문' : '답변'} ${Math.max(n, 1)}`, clip(t.content, 6000));
+  }
+  if (notes.length) {
+    lines.push('', '## 각주 (재정리 후 이 번호로 가리킨다)');
+    notes.forEach((note, i) => {
+      const parts = [`[${i + 1}] ${note.title}`];
+      if (note.anchorText) parts.push(`본문의 "${clip(note.anchorText, 120)}"에서 파생`);
+      if (note.summary) parts.push(`요약: ${clip(note.summary, 300)}`);
+      lines.push(parts.join(' — '));
+    });
+  }
+  lines.push('', '## 요청', REORGANIZE_REQUEST);
+  return {
+    system: withSkill(buildSystemPrompt(opts), skill),
+    messages: [{ role: 'user', content: lines.join('\n') }],
+    purpose: 'chat',
+  };
+}
+
+/** 재정리 응답을 질문/답변으로 나눈다. 형식을 어기면 질문은 fallback, 전체를 답변으로 */
+export function parseReorganized(text: string, fallbackQuestion: string): { question: string; answer: string } | null {
+  const body = text.replace(/^\uFEFF/, '').trim();
+  if (!body) return null;
+  const m = /^\s*(?:\*\*)?질문(?:\*\*)?\s*[:：]\s*(.+?)\s*(?:\*\*)?\s*\n+\s*-{3,}\s*\n([\s\S]*)$/.exec(body);
+  if (m && m[1]!.trim() && m[2]!.trim()) return { question: m[1]!.replace(/\*\*/g, '').trim(), answer: m[2]!.trim() };
+  return { question: fallbackQuestion, answer: body };
 }

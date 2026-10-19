@@ -41,6 +41,12 @@ export type SyncOp =
   | { kind: 'turn.delete'; sessionId: ID; questionId: ID }
   /** 질문 하나와 답변을 새 하위 세션 id로 분리 (첫 질문 제외) */
   | { kind: 'turn.split'; sessionId: ID; questionId: ID; id: ID }
+  /** 질문 하나와 답변을 같은 레벨의 새 세션 id로 분리, 제목은 PC가 AI로 짓는다 (ADR-066) */
+  | { kind: 'turn.splitOut'; sessionId: ID; questionId: ID; id: ID }
+  /** 질문 하나와 답변을 다른 세션 끝으로 옮기기 (ADR-067) */
+  | { kind: 'turn.move'; sessionId: ID; questionId: ID; targetId: ID }
+  /** 세션 재정리 (ADR-068). skill이 없으면 PC의 기본 재정리 스킬 */
+  | { kind: 'session.reorganize'; sessionId: ID; skill?: SkillRef }
   | { kind: 'summary.request'; sessionId: ID }
   | { kind: 'summary.discard'; sessionId: ID }
   | { kind: 'summary.attach'; sessionId: ID; text?: string }
@@ -58,13 +64,16 @@ export type SyncOpKind = SyncOp['kind'];
  * 호스트가 sync.snapshot에 싣는 지원 기능. 목록이 없거나 빠진 기능은 옛 PC 앱이라 처리하지 못하므로
  * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
  */
-export const SYNC_FEATURES = ['subsession', 'vault', 'split'] as const;
+export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns'] as const;
 export type SyncFeature = (typeof SYNC_FEATURES)[number];
 export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   subsession: 'subsession',
   'vault.put': 'vault',
   'vault.delete': 'vault',
   'turn.split': 'split',
+  'turn.splitOut': 'turns',
+  'turn.move': 'turns',
+  'session.reorganize': 'turns',
 };
 
 export type SyncClientMsg =
@@ -233,6 +242,26 @@ function validateOp(op: unknown): boolean {
   }
   if (kind === 'turn.delete') {
     return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId) && typeof o.questionId === 'string' && SYNC_ID_RE.test(o.questionId);
+  }
+  if (kind === 'turn.splitOut' || kind === 'turn.move') {
+    const key = kind === 'turn.move' ? 'targetId' : 'id';
+    return (
+      typeof o.sessionId === 'string' &&
+      SYNC_ID_RE.test(o.sessionId) &&
+      typeof o.questionId === 'string' &&
+      SYNC_ID_RE.test(o.questionId) &&
+      typeof o[key] === 'string' &&
+      SYNC_ID_RE.test(o[key]) &&
+      Object.keys(o).every((k) => ['kind', 'sessionId', 'questionId', key].includes(k))
+    );
+  }
+  if (kind === 'session.reorganize') {
+    return (
+      typeof o.sessionId === 'string' &&
+      SYNC_ID_RE.test(o.sessionId) &&
+      (o.skill === undefined || isSkillRef(o.skill)) &&
+      Object.keys(o).every((k) => ['kind', 'sessionId', 'skill'].includes(k))
+    );
   }
   if (kind === 'turn.split') {
     return (

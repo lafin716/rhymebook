@@ -11,7 +11,7 @@ test('질문 우클릭 → 하위 세션으로 분리', async ({ page }, info) =
   // 첫 질문은 분리·삭제할 수 없다
   await first.click({ button: 'right' });
   await expect(page.getByRole('menuitem', { name: '하위 세션으로 분리' })).toBeDisabled();
-  await expect(page.getByText('첫 질문은 분리·삭제할 수 없어요.')).toBeVisible();
+  await expect(page.getByText('첫 질문은 분리·옮기기·삭제할 수 없어요.')).toBeVisible();
   await page.keyboard.press('Escape');
 
   await third.click({ button: 'right' });

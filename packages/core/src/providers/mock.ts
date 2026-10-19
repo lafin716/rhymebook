@@ -1,3 +1,4 @@
+import { REORGANIZE_REQUEST } from '../context';
 import type { ProviderId } from '../model';
 import {
   providerError,
@@ -197,6 +198,9 @@ export function mockAnswer(req: StreamRequest): string {
     const hit = CANNED.find((c) => c.keys.test(target));
     const gist = hit ? hit.answer.split('\n')[0]!.replace(/[*`]/g, '') : `${target}의 핵심 의미와 쓰임`;
     return `${gist} 즉, 앞선 설명의 맥락에서 "${target}"을(를) 이렇게 이해하면 된다.`;
+  }
+  if (user.includes(REORGANIZE_REQUEST)) {
+    return '질문: 트랜스포머의 어텐션을 처음부터 정리해 줘\n---\n## 어텐션 한눈에 보기\n\n어텐션은 **Query·Key·Value**로 관련도를 계산해 값을 가중합하는 방법이에요.\n\n> (데모 재정리 응답입니다.)';
   }
   if (/^## 스킬: .+ \(\/quiz\)$/m.test(req.system)) return MOCK_QUIZ;
   if (/^## 스킬: .+ \(\/speak\)$/m.test(req.system)) return MOCK_SPEAK;

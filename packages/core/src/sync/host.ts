@@ -1,6 +1,6 @@
 import type { AppState, AppStore } from '../store';
 import { isCliId } from '../cli-options';
-import { canDeleteTurn } from '../turns';
+import { canDeleteTurn, planTurnMove } from '../turns';
 import type { ID, Message, ProviderId, Skill, VaultNode } from '../model';
 import { wouldCreateCycle } from '../vault';
 import { SKILL_LIMITS } from '../skills';
@@ -426,6 +426,22 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         if (idTaken(state, op.id)) return 'conflict';
         if (state.streaming[op.sessionId]) return 'busy';
         return null;
+      case 'turn.splitOut':
+        if (!has(op.sessionId)) return 'not-found';
+        if (!canDeleteTurn(state.messages[op.sessionId] ?? [], op.questionId)) return 'invalid';
+        if (idTaken(state, op.id)) return 'conflict';
+        if (state.streaming[op.sessionId]) return 'busy';
+        return null;
+      case 'turn.move':
+        if (!has(op.sessionId) || !has(op.targetId)) return 'not-found';
+        if (!planTurnMove(state.sessions, state.messages[op.sessionId] ?? [], op.sessionId, op.questionId, op.targetId)) return 'invalid';
+        if (state.streaming[op.sessionId] || state.streaming[op.targetId]) return 'busy';
+        return null;
+      case 'session.reorganize':
+        if (!has(op.sessionId)) return 'not-found';
+        if (state.streaming[op.sessionId] || peerBusy(peer)) return 'busy';
+        // 옛 질문·답변을 지우고 바꾸므로 삭제 허용 설정을 따른다
+        return allowDelete(peerId) ? null : 'forbidden';
       case 'summary.attach':
         if (op.text && op.text.length > SYNC_LIMITS.text) return 'invalid';
         return has(op.sessionId) ? null : 'not-found';
@@ -543,6 +559,25 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
             return 'failed';
           }
           return null;
+        case 'turn.splitOut':
+          peer.loaded.add(op.id);
+          if (!s.splitTurn(op.sessionId, op.questionId, op.id, { sibling: true })) {
+            peer.loaded.delete(op.id);
+            return 'failed';
+          }
+          return null;
+        case 'turn.move':
+          return s.moveTurn(op.sessionId, op.questionId, op.targetId) ? null : 'failed';
+        case 'session.reorganize': {
+          let skill = op.skill;
+          if (skill?.options && !isCliId(skill.options.providerId) && !anySkillProvider(peerId)) {
+            const { options: _o, ...rest } = skill;
+            skill = rest;
+          }
+          if (!s.reorganizeSession(op.sessionId, skill)) return 'failed';
+          peer.streams.add(op.sessionId);
+          return null;
+        }
         case 'summary.request':
           void s.requestSummary(op.sessionId);
           return null;

@@ -198,7 +198,7 @@ describe('sync host ↔ client', () => {
 
   it('pullSkills: the client receives the PC skill list, paged by size', async () => {
     const { client } = await connectClient();
-    expect((await client.pullSkills()).map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz', 'speak']);
+    expect((await client.pullSkills()).map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz', 'speak', 'reorganize']);
     // 1MB 페이지 예산을 넘는 목록은 여러 페이지로 나눠 받아도 모두 모인다
     const big = (i: number): Skill => ({
       id: `k${i}`,
@@ -224,7 +224,7 @@ describe('sync host ↔ client', () => {
     const pending = client.pullSkills();
     // 이전 요청의 남은 페이지가 늦게 도착해도 지금 요청의 결과가 되지 않는다
     for (const l of peer.state.listeners) l({ type: 'sync.skills', reqId: 'stale', skills: [], first: false, done: true });
-    expect((await pending).map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz', 'speak']);
+    expect((await pending).map((s) => s.name)).toEqual(['curriculum', 'book', 'quiz', 'speak', 'reorganize']);
   });
 
   it('pullSkills fails when offline', async () => {
@@ -425,6 +425,46 @@ describe('sync host ↔ client', () => {
     await until(() => store.getState().messages[id as string]?.[0]?.id === q2!.id);
     expect(store.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(false);
     expect(client.state.getState().lastFailure).toBeUndefined();
+  });
+
+  it('remote sibling split, move and reorganize run on the PC', async () => {
+    const { store, client } = await connectClient();
+    store.getState().openSession(SEED_IDS.root);
+    await until(() => !!client.state.getState().loaded[SEED_IDS.root]);
+    const [, , q2, , q3] = store.getState().messages[SEED_IDS.root]!;
+
+    // 같은 레벨로 분리: 루트면 새 루트
+    const id = store.getState().splitTurn(SEED_IDS.root, q2!.id, undefined, { sibling: true }) as string;
+    expect(id).toBeTruthy();
+    await until(() => !!hostStore.getState().sessions[id]);
+    expect(hostStore.getState().sessions[id]).toMatchObject({ parentId: null, rootId: id });
+    await until(() => store.getState().messages[id]?.[0]?.id === q2!.id);
+
+    // 다른 세션으로 옮기기 (삭제 권한 불필요)
+    expect(store.getState().moveTurn(SEED_IDS.root, q3!.id, SEED_IDS.root)).toBe(false);
+    expect(store.getState().moveTurn(SEED_IDS.root, q3!.id, SEED_IDS.backprop)).toBe(true);
+    await until(() => hostStore.getState().messages[SEED_IDS.backprop]!.some((m) => m.id === q3!.id));
+    await until(() => !store.getState().messages[SEED_IDS.root]!.some((m) => m.id === q3!.id));
+
+    // 재정리는 원본 메시지를 지우므로 삭제 권한이 있어야 한다
+    expect(store.getState().reorganizeSession(SEED_IDS.root)).toBe(true);
+    await until(() => client.state.getState().lastFailure?.code === 'forbidden');
+    allowDelete = true;
+    expect(store.getState().reorganizeSession(SEED_IDS.root)).toBe(true);
+    await until(() => hostStore.getState().messages[SEED_IDS.root]!.length === 2 && !hostStore.getState().streaming[SEED_IDS.root]);
+    await until(() => store.getState().messages[SEED_IDS.root]!.length === 2 && !store.getState().streaming[SEED_IDS.root]);
+    expect(hostStore.getState().sessions[SEED_IDS.qkv]!.anchor).toBeUndefined();
+    await until(() => !store.getState().sessions[SEED_IDS.qkv]!.anchor);
+  });
+
+  it('validates turn.splitOut / turn.move / session.reorganize shapes', () => {
+    const act = (op: unknown) => validateSyncClientMsg({ type: 'act', reqId: 'r', op });
+    expect(act({ kind: 'turn.splitOut', sessionId: 's1', questionId: 'm1', id: 's2' })).toBeTruthy();
+    expect(act({ kind: 'turn.splitOut', sessionId: 's1', questionId: 'm1', id: 's2', x: 1 })).toBeNull();
+    expect(act({ kind: 'turn.move', sessionId: 's1', questionId: 'm1', targetId: 's2' })).toBeTruthy();
+    expect(act({ kind: 'turn.move', sessionId: 's1', questionId: 'm1' })).toBeNull();
+    expect(act({ kind: 'session.reorganize', sessionId: 's1' })).toBeTruthy();
+    expect(act({ kind: 'session.reorganize', sessionId: 's1', skill: { id: 1 } })).toBeNull();
   });
 
   it('study.import: a remote client brings a study into the PC; overwriting needs the delete permission', async () => {
@@ -853,7 +893,7 @@ describe('sync host ↔ client', () => {
   it('host features: new ops are blocked or explained as outdated on an older PC', async () => {
     const { store, client, peer } = await connectClient();
     const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
-    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split']);
+    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns']);
     const inject = (m: SyncServerMsg) => {
       for (const l of peer.state.listeners) l(m);
     };

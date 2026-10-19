@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Message, Session } from '../src/model';
 import { createSeed, SEED_IDS } from '../src/seed';
-import { buildTurns, canDeleteTurn, plainPreview, planTurnSplit, turnMessageIds } from '../src/turns';
+import { buildTurns, canDeleteTurn, plainPreview, planTurnMove, planTurnSplit, turnMessageIds, turnMoveTargets } from '../src/turns';
 
 const m = (id: string, role: Message['role'], content: string, extra: Partial<Message> = {}): Message => ({
   id,
@@ -108,5 +108,33 @@ describe('planTurnSplit', () => {
   it('names attachment-only questions by their files', () => {
     const withFile = [...list, m('q4', 'user', '', { createdAt: 50, attachments: [{ id: 'f', kind: 'text', name: 'a.txt', mime: 'text/plain', size: 1, data: 'x' }] })];
     expect(planTurnSplit({}, withFile, 's', 'q4')?.question).toBe('[첨부] a.txt');
+  });
+});
+
+describe('planTurnMove / turnMoveTargets', () => {
+  const { sessions, messages } = createSeed(0);
+  const list = messages[SEED_IDS.root]!;
+
+  it('refuses itself, missing targets, the first question and branches that move along', () => {
+    const q2 = list[2]!.id;
+    expect(planTurnMove(sessions, list, SEED_IDS.root, q2, SEED_IDS.root)).toBeNull();
+    expect(planTurnMove(sessions, list, SEED_IDS.root, q2, 'nope')).toBeNull();
+    expect(planTurnMove(sessions, list, SEED_IDS.root, list[0]!.id, SEED_IDS.backprop)).toBeNull();
+    expect(planTurnMove(sessions, list, SEED_IDS.root, q2, SEED_IDS.backprop)?.messageIds).toEqual([list[2]!.id, list[3]!.id]);
+    // 첫 답변의 가지(qkv)는 옮겨지지 않으니 대상이 될 수 있다
+    expect(planTurnMove(sessions, list, SEED_IDS.root, q2, SEED_IDS.qkv)).toBeTruthy();
+  });
+
+  it('lists every other session except the ones moving along', () => {
+    const extra: Session = { id: 's-foot', parentId: SEED_IDS.root, rootId: SEED_IDS.root, title: '각주', createdAt: list[3]!.createdAt, updatedAt: 0 };
+    const child: Session = { id: 's-foot2', parentId: 's-foot', rootId: SEED_IDS.root, title: '손주', createdAt: 0, updatedAt: 0 };
+    const all = { ...sessions, [extra.id]: extra, [child.id]: child };
+    const targets = turnMoveTargets(all, list, SEED_IDS.root, list[2]!.id);
+    expect(targets).not.toContain(SEED_IDS.root);
+    expect(targets).not.toContain('s-foot');
+    expect(targets).not.toContain('s-foot2');
+    expect(targets).toContain(SEED_IDS.backprop);
+    expect(targets).toContain(SEED_IDS.qkv);
+    expect(turnMoveTargets(all, list, SEED_IDS.root, list[0]!.id)).toEqual([]);
   });
 });

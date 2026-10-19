@@ -5,6 +5,7 @@ import { syncClient, useSync } from '../app/sync';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { useThemeSync } from '../app/useTheme';
 import { SelectionMenu } from '../chat/SelectionMenu';
+import { MoveTurnHost } from '../chat/turnActions';
 import { ConfirmHost } from '../components/ConfirmDialog';
 import { Toasts } from '../components/Toasts';
 import { MainView } from '../views/MainView';
@@ -32,6 +33,7 @@ export function SessionWindowApp() {
       {bp === 'mobile' ? <SheetStack /> : <PopupLayer />}
       <SelectionMenu />
       <ConfirmHost />
+      <MoveTurnHost />
       <Toasts />
     </div>
   );

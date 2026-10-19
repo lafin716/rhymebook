@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { SelectionMenu } from '../chat/SelectionMenu';
+import { MoveTurnHost } from '../chat/turnActions';
 import { ConfirmHost } from '../components/ConfirmDialog';
 import { SubSessionDialog } from '../session/SubSessionDialog';
 import { Toasts } from '../components/Toasts';
@@ -63,6 +64,7 @@ export function App() {
       <SkillsPage />
       <SubSessionDialog />
       <ConfirmHost />
+      <MoveTurnHost />
       <Toasts />
       <Onboarding />
     </div>

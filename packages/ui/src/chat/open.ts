@@ -40,3 +40,26 @@ export function setAnchorActive(sessionId: ID, active: boolean) {
     else delete el.dataset.active;
   });
 }
+
+/** 세션을 열고 그 안의 질문으로 스크롤·강조한다 (마인드맵 질문 목록) */
+export function revealTurn(sessionId: ID, questionId: ID, target: OpenTarget) {
+  actions().openSession(sessionId, target);
+  let tries = 0;
+  const tick = () => {
+    const el = document.querySelector<HTMLElement>(`[data-turn="${CSS.escape(questionId)}"]`);
+    if (!el) {
+      if (tries++ < 90) requestAnimationFrame(tick);
+      return;
+    }
+    // 세션을 막 열면 목록이 맨 아래로 붙으므로 한 박자 늦게 이동한다
+    window.setTimeout(() => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+      el.focus({ preventScroll: true });
+      el.classList.remove('turn-flash');
+      void el.offsetWidth;
+      el.classList.add('turn-flash');
+    }, 150);
+  };
+  requestAnimationFrame(tick);
+}

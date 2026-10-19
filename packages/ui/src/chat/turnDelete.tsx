@@ -1,5 +1,5 @@
 import { descendantIds, turnMessageIds, type ID } from '@branch/core';
-import { GitBranchPlus, Trash2 } from 'lucide-react';
+import { FolderInput, GitBranchPlus, Split, Trash2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { actions, appStore } from '../app/store';
@@ -7,6 +7,7 @@ import { pushNotice } from '../app/sync';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
 import type { MenuPoint } from '../session/SessionMenu';
+import { pickMoveTarget, splitTurnSibling } from './turnActions';
 
 /** 질문(과 답변) 삭제: 확인 후 그 답변의 가지까지 함께 지운다. 첫 질문은 지울 수 없다 */
 export async function removeTurn(sessionId: ID, questionId: ID) {
@@ -56,7 +57,7 @@ export function splitTurnOut(sessionId: ID, questionId: ID) {
   if (!actions().splitTurn(sessionId, questionId)) pushNotice('질문을 분리하지 못했어요.');
 }
 
-/** 세션 본문 우클릭 메뉴 (하위 세션으로 분리 · 질문 삭제) */
+/** 세션 본문 우클릭 메뉴 (하위/별도 세션으로 분리 · 다른 세션으로 옮기기 · 질문 삭제) */
 export function TurnMenu({
   at,
   sessionId,
@@ -95,50 +96,47 @@ export function TurnMenu({
     };
   }, [onClose]);
 
-  const w = first ? 228 : 184;
-  const h = first ? 98 : 80;
+  const items: { label: string; icon: typeof Trash2; run(): void; danger?: boolean }[] = [
+    { label: '하위 세션으로 분리', icon: GitBranchPlus, run: () => splitTurnOut(sessionId, questionId) },
+    { label: '별도 세션으로 분리', icon: Split, run: () => splitTurnSibling(sessionId, questionId) },
+    { label: '다른 세션으로 옮기기', icon: FolderInput, run: () => pickMoveTarget(sessionId, questionId) },
+    { label: '질문 삭제', icon: Trash2, run: () => void removeTurn(sessionId, questionId), danger: true },
+  ];
+  const w = first ? 228 : 196;
+  const h = items.length * 34 + 8 + (first ? 22 : 0);
   return createPortal(
     <div
       ref={ref}
       role="menu"
       aria-label="질문 메뉴"
       onContextMenu={(e) => e.preventDefault()}
-      style={{ top: Math.min(at.y, window.innerHeight - h - 8), left: Math.min(at.x, window.innerWidth - w - 8), width: w }}
+      style={{ top: Math.max(8, Math.min(at.y, window.innerHeight - h - 8)), left: Math.min(at.x, window.innerWidth - w - 8), width: w }}
       className="animate-pop-in fixed z-[90] rounded-lg border border-line bg-elev p-1 shadow-float"
     >
-      <button
-        type="button"
-        role="menuitem"
-        disabled={first}
-        aria-disabled={first}
-        onClick={() => {
-          onClose();
-          splitTurnOut(sessionId, questionId);
-        }}
-        className={cn(
-          'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] outline-none',
-          first ? 'cursor-not-allowed text-muted' : 'text-fg hover:bg-surface-2 focus:bg-surface-2',
-        )}
-      >
-        <GitBranchPlus size={14} /> 하위 세션으로 분리
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        disabled={first}
-        aria-disabled={first}
-        onClick={() => {
-          onClose();
-          void removeTurn(sessionId, questionId);
-        }}
-        className={cn(
-          'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] outline-none',
-          first ? 'cursor-not-allowed text-muted' : 'text-danger hover:bg-danger-soft focus:bg-danger-soft',
-        )}
-      >
-        <Trash2 size={14} /> 질문 삭제
-      </button>
-      {first && <p className="px-2.5 pb-1.5 text-[11.5px] text-muted">첫 질문은 분리·삭제할 수 없어요.</p>}
+      {items.map(({ label, icon: Icon, run, danger }) => (
+        <button
+          key={label}
+          type="button"
+          role="menuitem"
+          disabled={first}
+          aria-disabled={first}
+          onClick={() => {
+            onClose();
+            run();
+          }}
+          className={cn(
+            'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] outline-none',
+            first
+              ? 'cursor-not-allowed text-muted'
+              : danger
+                ? 'text-danger hover:bg-danger-soft focus:bg-danger-soft'
+                : 'text-fg hover:bg-surface-2 focus:bg-surface-2',
+          )}
+        >
+          <Icon size={14} /> {label}
+        </button>
+      ))}
+      {first && <p className="px-2.5 pb-1.5 text-[11.5px] text-muted">첫 질문은 분리·옮기기·삭제할 수 없어요.</p>}
     </div>,
     document.body,
   );

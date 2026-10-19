@@ -9,7 +9,7 @@ import { branchQuestion } from '../context';
 import { newId } from '../id';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId } from '../cli-options';
-import { canDeleteTurn } from '../turns';
+import { canDeleteTurn, planTurnMove } from '../turns';
 import { subSessionTitle } from '../tree';
 import { vaultDescendants } from '../vault';
 import { normalizeLayout } from '../splitLayout';
@@ -609,14 +609,28 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       return act({ kind: 'turn.delete', sessionId, questionId });
     },
 
-    splitTurn(sessionId, questionId, newSessionId) {
+    splitTurn(sessionId, questionId, newSessionId, opts) {
       const s = get();
       if (s.streaming[sessionId] || !canDeleteTurn(s.messages[sessionId] ?? [], questionId)) return false;
       const id = newSessionId ?? newId('s');
       if (s.sessions[id]) return false;
       // 호스트가 옮긴 메시지를 이 세션으로 보내 준다
       markLoaded(id);
-      return act({ kind: 'turn.split', sessionId, questionId, id }) ? id : false;
+      const kind = opts?.sibling ? 'turn.splitOut' : 'turn.split';
+      return act({ kind, sessionId, questionId, id }) ? id : false;
+    },
+
+    moveTurn(sessionId, questionId, targetId) {
+      const s = get();
+      if (s.streaming[sessionId] || s.streaming[targetId]) return false;
+      if (!planTurnMove(s.sessions, s.messages[sessionId] ?? [], sessionId, questionId, targetId)) return false;
+      return act({ kind: 'turn.move', sessionId, questionId, targetId });
+    },
+
+    reorganizeSession(sessionId, skill) {
+      const s = get();
+      if (!s.sessions[sessionId] || s.streaming[sessionId]) return false;
+      return act({ kind: 'session.reorganize', sessionId, ...(skill ? { skill } : {}) });
     },
 
     renameSession(sessionId, title) {

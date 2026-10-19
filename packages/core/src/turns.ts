@@ -1,4 +1,5 @@
 import type { ID, Message, MessageStatus, Session } from './model';
+import { descendantIds } from './tree';
 
 /** 세션 내 "질문 1개 + 이어지는 답변"의 묶음 (대화 목차/질문 이동용) */
 export interface Turn {
@@ -92,4 +93,30 @@ export function planTurnSplit(sessions: Record<ID, Session>, messages: readonly 
     .map((s) => s.id);
   const question = q.content.trim() || (q.attachments?.length ? `[첨부] ${q.attachments.map((a) => a.name).join(', ')}` : '분리한 질문');
   return { messageIds, childIds, question, createdAt: q.createdAt - 1 };
+}
+
+/**
+ * 질문을 다른 세션 끝으로 옮기는 계획. 분리 계획과 같은 것을 옮긴다.
+ * 대상이 원래 세션이거나, 함께 옮길 가지(와 그 자손)이면 순환이 생기므로 거부 → null
+ */
+export function planTurnMove(
+  sessions: Record<ID, Session>,
+  messages: readonly Message[],
+  sessionId: ID,
+  questionId: ID,
+  targetId: ID,
+): TurnSplitPlan | null {
+  if (targetId === sessionId || !sessions[targetId]) return null;
+  const plan = planTurnSplit(sessions, messages, sessionId, questionId);
+  if (!plan) return null;
+  const blocked = new Set(plan.childIds.flatMap((id) => descendantIds(sessions, id)));
+  return blocked.has(targetId) ? null : plan;
+}
+
+/** 이 질문을 옮길 수 있는 세션 id (첫 질문이면 빈 목록) */
+export function turnMoveTargets(sessions: Record<ID, Session>, messages: readonly Message[], sessionId: ID, questionId: ID): ID[] {
+  const plan = planTurnSplit(sessions, messages, sessionId, questionId);
+  if (!plan) return [];
+  const blocked = new Set([sessionId, ...plan.childIds.flatMap((id) => descendantIds(sessions, id))]);
+  return Object.keys(sessions).filter((id) => !blocked.has(id));
 }

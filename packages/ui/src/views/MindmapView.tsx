@@ -1,5 +1,5 @@
 import { Graph, layout } from '@dagrejs/dagre';
-import { descendantIds, type ID, type Session } from '@branch/core';
+import { buildTurns, descendantIds, type ID, type Message, type Session } from '@branch/core';
 import {
   Background,
   Controls,
@@ -11,9 +11,11 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { CheckCircle2, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { CheckCircle2, ChevronDown, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import { actions, useApp } from '../app/store';
+import { syncClient } from '../app/sync';
+import { revealTurn } from '../chat/open';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
@@ -23,19 +25,32 @@ const NODE_W = 220;
 const NODE_H = 84;
 /** 모바일은 위→아래 배치 + 좁은 노드로 화면 폭에 맞춘다 */
 const NODE_W_COMPACT = 156;
+/** 펼친 질문 목록: 한 줄 높이·최대 표시 줄(넘치면 노드 안에서 스크롤) */
+const TURN_H = 28;
+const TURN_MAX = 8;
+
+const turnsOf = (list: readonly Message[] | undefined) => (list ? buildTurns(list) : []);
+const listHeight = (n: number) => (n ? Math.min(n, TURN_MAX) * TURN_H + 10 : 34);
 
 interface MindData extends Record<string, unknown> {
   session: Session;
   active: boolean;
   depth: number;
   vertical: boolean;
+  expanded: boolean;
+  toggle(id: ID): void;
+  openTurn(sessionId: ID, questionId: ID): void;
 }
 type MindNode = Node<MindData, 'session'>;
 
 function SessionNode({ data }: NodeProps<MindNode>) {
-  const { session, active, depth, vertical } = data;
+  const { session, active, depth, vertical, expanded, toggle, openTurn } = data;
+  const list = useApp((s) => s.messages[session.id]);
+  const turns = useMemo(() => turnsOf(list), [list]);
+  const label = expanded ? '질문 목록 접기' : '질문 목록 펼치기';
   return (
     <div
+      data-mind-node={session.id}
       className={cn(
         vertical ? 'w-[156px]' : 'w-[220px]',
         'rounded-xl border bg-surface px-3 py-2.5 text-left shadow-pop transition-colors',
@@ -51,13 +66,59 @@ function SessionNode({ data }: NodeProps<MindNode>) {
             <CheckCircle2 size={14} />
           </span>
         )}
+        <button
+          type="button"
+          aria-label={label}
+          title={label}
+          aria-expanded={expanded}
+          data-mind-toggle={session.id}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggle(session.id);
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+          className="nodrag -mt-0.5 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
+        >
+          <ChevronDown size={14} className={cn('transition-transform', expanded && 'rotate-180')} />
+        </button>
       </div>
       {session.anchor ? (
         <div className="mt-1 truncate text-[11.5px] text-muted">
           <span className="rounded bg-anchor/70 px-1 text-fg-2">“{session.anchor.text}”</span>
         </div>
       ) : (
-        <div className="mt-1 text-[11.5px] text-muted">루트 세션</div>
+        <div className="mt-1 text-[11.5px] text-muted">{session.parentId ? '각주 세션' : '루트 세션'}</div>
+      )}
+      {expanded && (
+        <ul
+          aria-label={`${session.title} 질문 목록`}
+          style={{ maxHeight: TURN_MAX * TURN_H }}
+          className="nowheel nodrag scroll-thin mt-2 -mx-1 overflow-y-auto border-t border-line pt-1"
+        >
+          {turns.length ? (
+            turns.map((t) => (
+              <li key={t.questionId}>
+                <button
+                  type="button"
+                  data-mind-turn={t.questionId}
+                  title={t.question}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openTurn(session.id, t.questionId);
+                  }}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  style={{ height: TURN_H }}
+                  className="flex w-full items-center gap-1.5 rounded-md px-1 text-left text-[12px] text-fg-2 hover:bg-surface-2 hover:text-fg"
+                >
+                  <span className="w-4 shrink-0 text-right text-[11px] text-muted tabular-nums">{t.index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate">{t.question || '(빈 질문)'}</span>
+                </button>
+              </li>
+            ))
+          ) : (
+            <li className="px-1 py-1.5 text-[12px] text-muted">{list ? '아직 질문이 없어요.' : '불러오는 중…'}</li>
+          )}
+        </ul>
       )}
       <Handle type="source" position={vertical ? Position.Bottom : Position.Right} className="!h-1.5 !w-1.5 !border-0 !bg-line-strong" />
     </div>
@@ -67,8 +128,15 @@ function SessionNode({ data }: NodeProps<MindNode>) {
 const nodeTypes = { session: SessionNode };
 
 /** 현재 루트의 세션 트리를 dagre로 자동 배치 (데스크톱 좌→우, 모바일 위→아래) */
-function useTree(rootId: ID | undefined, vertical: boolean) {
+function useTree(
+  rootId: ID | undefined,
+  vertical: boolean,
+  expanded: ReadonlySet<ID>,
+  toggle: (id: ID) => void,
+  openTurn: (sessionId: ID, questionId: ID) => void,
+) {
   const sessions = useApp((s) => s.sessions);
+  const messages = useApp((s) => s.messages);
   const activeId = useApp((s) => s.view.activeSessionId);
   return useMemo(() => {
     if (!rootId || !sessions[rootId]) return { nodes: [], edges: [] };
@@ -84,8 +152,9 @@ function useTree(rootId: ID | undefined, vertical: boolean) {
     });
     g.setDefaultEdgeLabel(() => ({}));
     const depth: Record<ID, number> = { [rootId]: 0 };
+    const height = (id: ID) => (expanded.has(id) ? NODE_H + listHeight(turnsOf(messages[id]).length) : NODE_H);
     for (const id of ids) {
-      g.setNode(id, { width: w, height: NODE_H });
+      g.setNode(id, { width: w, height: height(id) });
       const p = sessions[id]!.parentId;
       if (p && id !== rootId) {
         g.setEdge(p, id);
@@ -98,8 +167,16 @@ function useTree(rootId: ID | undefined, vertical: boolean) {
       return {
         id,
         type: 'session',
-        position: { x: n.x - w / 2, y: n.y - NODE_H / 2 },
-        data: { session: sessions[id]!, active: id === activeId, depth: depth[id] ?? 0, vertical },
+        position: { x: n.x - w / 2, y: n.y - height(id) / 2 },
+        data: {
+          session: sessions[id]!,
+          active: id === activeId,
+          depth: depth[id] ?? 0,
+          vertical,
+          expanded: expanded.has(id),
+          toggle,
+          openTurn,
+        },
         draggable: false,
         connectable: false,
       };
@@ -108,7 +185,7 @@ function useTree(rootId: ID | undefined, vertical: boolean) {
       .filter((id) => id !== rootId && sessions[id]!.parentId)
       .map((id) => ({ id: `e-${id}`, source: sessions[id]!.parentId!, target: id, type: 'smoothstep' }));
     return { nodes, edges };
-  }, [sessions, rootId, activeId, vertical]);
+  }, [sessions, messages, rootId, activeId, vertical, expanded, toggle, openTurn]);
 }
 
 /** 마인드맵 보기. 클릭: 팝업(모바일 시트), Shift+클릭: 분할 추가, 더블클릭: 메인으로 */
@@ -117,7 +194,17 @@ export function MindmapView() {
   const rootId = useApp((s) => (activeId ? s.sessions[activeId]?.rootId : undefined));
   const bp = useBreakpoint();
   const mobile = bp === 'mobile';
-  const { nodes, edges } = useTree(rootId, mobile);
+  const [expanded, setExpanded] = useState<ReadonlySet<ID>>(() => new Set());
+  const toggle = useCallback((id: ID) => {
+    syncClient?.ensureMessages(id);
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }, []);
+  const openTurn = useCallback((sessionId: ID, questionId: ID) => revealTurn(sessionId, questionId, mobile ? 'sheet' : 'popup'), [mobile]);
+  const { nodes, edges } = useTree(rootId, mobile, expanded, toggle, openTurn);
 
   const body = (
     <div className="relative h-full w-full">
@@ -142,7 +229,7 @@ export function MindmapView() {
         <Controls showInteractive={false} position="bottom-right" />
       </ReactFlow>
       <div className="pointer-events-none absolute top-3 left-3 max-w-[70%] rounded-lg bg-surface/90 px-3 py-2 text-[12px] text-muted shadow-pop">
-        {mobile ? '탭: 시트로 열기 · 두 번 탭: 전체 화면' : `클릭: 팝업 · ${isMac ? '⇧' : 'Shift'}+클릭: 분할에 추가 · 더블클릭: 메인`}
+        {mobile ? '탭: 시트로 열기 · 두 번 탭: 전체 화면 · ▾: 질문 목록' : `클릭: 팝업 · ${isMac ? '⇧' : 'Shift'}+클릭: 분할에 추가 · 더블클릭: 메인 · ▾: 질문 목록`}
       </div>
     </div>
   );

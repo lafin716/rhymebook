@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_SYSTEM, BRANCH_INSTRUCTION, branchQuestion, buildChatRequest, buildSystemPrompt } from '../src/context';
+import { BASE_SYSTEM, BRANCH_INSTRUCTION, branchQuestion, buildChatRequest, buildReorganizeRequest, buildSystemPrompt, parseReorganized, REORGANIZE_REQUEST } from '../src/context';
+import { defaultReorganizeSkill } from '../src/store';
 import { createSeed, SEED_IDS } from '../src/seed';
 
 describe('context inheritance', () => {
@@ -35,5 +36,33 @@ describe('context inheritance', () => {
   it('branch question templates', () => {
     expect(branchQuestion('what', '내적')).toBe('"내적"이(가) 뭐야?');
     expect(branchQuestion('detail', '내적')).toBe('"내적"에 대해 더 자세히 설명해줘.');
+  });
+});
+
+describe('reorganize request', () => {
+  const { sessions, messages } = createSeed(0);
+  const skill = defaultReorganizeSkill();
+
+  it('sends the whole session with numbered footnotes and the reorganize skill', () => {
+    const req = buildReorganizeRequest({ sessions, messages, sessionId: SEED_IDS.root }, messages[SEED_IDS.root]!, [
+      { title: 'Query, Key, Value', anchorText: 'Query, Key, Value', summary: '요약 A' },
+      { title: '자유 질문' },
+    ], skill);
+    expect(req.messages).toHaveLength(1);
+    const text = req.messages[0]!.content;
+    expect(text).toContain('### 질문 1');
+    expect(text).toContain('### 질문 4');
+    expect(text).toContain('[1] Query, Key, Value');
+    expect(text).toContain('요약 A');
+    expect(text).toContain('[2] 자유 질문');
+    expect(text).toContain(REORGANIZE_REQUEST);
+    expect(req.system).toContain('## 스킬: 세션 재정리 (/reorganize)');
+  });
+
+  it('parses the question line and the answer, or falls back', () => {
+    expect(parseReorganized('질문: 어텐션이란?\n---\n본문 [1]', 'x')).toEqual({ question: '어텐션이란?', answer: '본문 [1]' });
+    expect(parseReorganized('**질문:** 어텐션이란?\n\n---\n본문', 'x')).toEqual({ question: '어텐션이란?', answer: '본문' });
+    expect(parseReorganized('그냥 본문', '원래 질문')).toEqual({ question: '원래 질문', answer: '그냥 본문' });
+    expect(parseReorganized('  ', 'x')).toBeNull();
   });
 });
