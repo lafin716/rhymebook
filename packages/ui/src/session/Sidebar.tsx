@@ -295,16 +295,30 @@ function BranchTree({ parentId, depth, onPick }: { parentId: ID; depth: number; 
 function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): void }) {
   const s = useApp((st) => st.sessions[id]);
   const active = useApp((st) => st.view.activeSessionId === id);
-  const hasKids = useApp((st) => childrenOf(st.sessions, id).length > 0);
+  const kidCount = useApp((st) => childrenOf(st.sessions, id).length);
+  const hasKids = kidCount > 0;
+  /** 열린 세션이 이 가지 아래에 있으면 접혀 있어도 펼친다 */
+  const holdsActive = useApp((st) => {
+    let cur = st.view.activeSessionId ? st.sessions[st.view.activeSessionId] : undefined;
+    while (cur?.parentId) {
+      if (cur.parentId === id) return true;
+      cur = st.sessions[cur.parentId];
+    }
+    return false;
+  });
+  const [open, setOpen] = useState(true);
   const [menu, setMenu] = useState<MenuPoint | null>(null);
   const [renaming, setRenaming] = useState(false);
   const closeMenu = useCallback(() => setMenu(null), []);
   const remove = useRemoveSession(id);
+  useEffect(() => {
+    if (holdsActive) setOpen(true);
+  }, [holdsActive]);
   if (!s) return null;
   return (
     <li>
       {renaming ? (
-        <div className="flex items-center gap-1.5 py-1 pr-2 pl-3">
+        <div className="flex items-center gap-1.5 py-1 pr-2 pl-[22px]">
           <GitBranch size={12} className="shrink-0 text-muted" />
           <RenameInput
             value={s.title}
@@ -319,6 +333,16 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
         <div className="group flex items-center">
           <button
             type="button"
+            aria-label={open ? '하위 세션 접기' : '하위 세션 펼치기'}
+            aria-expanded={hasKids ? open : undefined}
+            tabIndex={hasKids ? undefined : -1}
+            onClick={() => setOpen(!open)}
+            className={cn('ml-0.5 grid h-7 w-4 shrink-0 place-items-center text-muted hover:text-fg', !hasKids && 'invisible')}
+          >
+            <ChevronRight size={12} className={cn('transition-transform', open && 'rotate-90')} />
+          </button>
+          <button
+            type="button"
             data-session-row={id}
             {...dragProps(id)}
             onClick={() => {
@@ -330,19 +354,20 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
               setMenu({ x: e.clientX, y: e.clientY });
             }}
             className={cn(
-              'flex min-w-0 flex-1 items-center gap-1.5 rounded-r-lg py-1.5 pr-2 pl-3 text-left text-[13px]',
+              'flex min-w-0 flex-1 items-center gap-1.5 rounded-r-lg py-1.5 pr-2 pl-1 text-left text-[13px]',
               active ? 'bg-accent-soft font-medium text-fg' : 'text-fg-2 hover:bg-surface-2/70',
             )}
           >
             <GitBranch size={12} className="shrink-0 text-muted" />
             <span className="truncate">{s.title}</span>
+            {hasKids && !open && <span className="shrink-0 text-[11px] text-muted">+{kidCount}</span>}
             {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
           </button>
           <SubSessionButton parentId={id} className="mr-1" />
         </div>
       )}
       {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
-      {hasKids && <BranchTree parentId={id} depth={depth + 1} onPick={onPick} />}
+      {hasKids && open && <BranchTree parentId={id} depth={depth + 1} onPick={onPick} />}
     </li>
   );
 }
