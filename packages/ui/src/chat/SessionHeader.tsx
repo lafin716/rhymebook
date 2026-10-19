@@ -48,8 +48,9 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
     session.anchor && anchorMsg
       ? excerptAround(anchorMsg.content, session.anchor.startOffset, session.anchor.endOffset, compact ? 28 : 48)
       : null;
-  /** 접으면 부모 원문 인용과 요약 버튼 줄을 모두 숨긴다 (기기별 저장) */
-  const collapsible = isBranch && !!ex;
+  /** 접으면 부모 원문 인용과 요약 버튼 줄을 모두 숨긴다 (기기별 저장). 앵커 없는 하위 세션은 요약 버튼 줄만 */
+  const collapsible = isBranch && (!!ex || summaryButton);
+  const foldLabel = ex ? (quoteCollapsed ? '부모 원문 펼치기' : '부모 원문 접기') : quoteCollapsed ? '요약 버튼 펼치기' : '요약 버튼 접기';
 
   return (
     <header className={cn('shrink-0 border-b border-line bg-surface', compact ? 'px-3 pt-2 pb-2' : 'px-4 pt-3 pb-3 md:px-6')}>
@@ -95,8 +96,8 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
             type="button"
             onClick={toggleQuote}
             aria-expanded={!quoteCollapsed}
-            aria-label={quoteCollapsed ? '부모 원문 펼치기' : '부모 원문 접기'}
-            title={quoteCollapsed ? '부모 원문 펼치기' : '부모 원문 접기'}
+            aria-label={foldLabel}
+            title={foldLabel}
             className={cn(
               'inline-flex shrink-0 items-center gap-0.5 rounded-lg border px-1.5 transition-colors',
               compact ? 'h-7' : 'h-8',
@@ -105,7 +106,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
                 : 'border-anchor-line/40 bg-anchor/50 text-anchor-line hover:bg-anchor',
             )}
           >
-            <Quote size={13} />
+            {ex && <Quote size={13} />}
             {quoteCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
           </button>
         )}

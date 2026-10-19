@@ -209,6 +209,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-19 · 앵커 없는(빈) 하위 세션도 헤더의 [부모에 요약 붙이기] 줄을 접기(부모 원문 접기와 같은 기기별 상태, 접으면 헤더 ✨ 아이콘). `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 89 passed·11 skipped(새 subsession 접기 desktop·mobile), skill-sync-split 2건은 기존 실패. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-19 · 사이드바 하위 세션의 하위 세션 접기 토글(▸, 접으면 `+N`, 열린 세션이 안에 있으면 자동 펼침). `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 86 passed·11 skipped(새 branch-collapse desktop·mobile). 실패 3건: skill-sync-split 2건은 기존 문제, annotations(mobile) 1건은 단독 재실행 PASS(간헐). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-19 · 질문 우클릭 → 하위 세션으로 분리(ADR-065): core `planTurnSplit`·store `splitTurn`·sync op `turn.split`(기능 `split`), ui 우클릭 메뉴 [하위 세션으로 분리](첫 질문 비활성). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 410(+7)·ui 64·bridge 59·relay 9·server 10 PASS, `pnpm e2e` 85 passed·11 skipped(새 turn-split desktop·mobile), skill-sync-split의 '웹(원격) 스킬 동기화 버튼' 2건 실패 — 이 변경 전에도 실패(기존 문제). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-19 · 웹·모바일 여러 PC 연결 목록(ADR-063): core `bridge/hosts.ts`(+4 테스트), ui `sync.ts` 저장 목록·`switchHost`·`forgetHost`, `HostList.tsx`(메인 화면·설정). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 403·ui 55·bridge 59·relay 9·server 10 PASS(core `sync.reset` 테스트가 전체 실행에서 간헐 실패 2회 — 단독·재실행 PASS, 코드 무관), `pnpm e2e` 85 passed·11 skipped(새 host-list 2). 모바일 스크린샷 확인. iOS·Android 네이티브 빌드는 안 함.

@@ -38,3 +38,27 @@ test('하위 세션: 사이드바 + → 질문 입력 → 부모 각주와 내�
   await expect(pinned).toContainText('이 내용을 실생활 예시로 다시 설명해줘');
   await page.screenshot({ path: `test-results/subsession-nav-${info.project.name}.png` });
 });
+
+/** 앵커 없는 하위 세션: 부모 원문이 없어도 요약 버튼 줄을 접는다 (접으면 헤더 아이콘으로) */
+test('빈 하위 세션: 요약 버튼 줄 접기·펼치기', async ({ page }, info) => {
+  const mobile = info.project.name === 'mobile';
+  await page.goto('/#scenario=home');
+  if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
+  const nav = page.getByRole('navigation', { name: '학습 세션' });
+  await nav.locator('div.truncate').first().click();
+  if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
+  await nav.getByRole('button', { name: '하위 세션 만들기' }).first().click({ force: true });
+  const dialog = page.getByRole('dialog', { name: '하위 세션 만들기' });
+  await dialog.getByRole('textbox').fill('빈 하위 세션 질문');
+  await dialog.getByRole('button', { name: '만들기' }).click();
+  await expect(dialog).toBeHidden();
+
+  const header = page.locator('header').filter({ hasText: '빈 하위 세션 질문' }).first();
+  await expect(header.getByRole('button', { name: '부모에 요약 붙이기' })).toHaveText(/부모에 요약 붙이기/);
+  await header.getByRole('button', { name: '요약 버튼 접기' }).click();
+  // 줄은 사라지고 헤더 아이콘 버튼만 남는다
+  await expect(header.getByRole('button', { name: '부모에 요약 붙이기' })).not.toHaveText(/부모에 요약 붙이기/);
+  await page.screenshot({ path: `test-results/subsession-fold-${info.project.name}.png` });
+  await header.getByRole('button', { name: '요약 버튼 펼치기' }).click();
+  await expect(header.getByRole('button', { name: '부모에 요약 붙이기' })).toHaveText(/부모에 요약 붙이기/);
+});
