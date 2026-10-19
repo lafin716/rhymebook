@@ -6,6 +6,7 @@ export const PALETTES = [
   { id: 'coral', name: '코랄', description: '따뜻한 산호초의 분홍빛', colors: ['#9d304b', '#472433', '#f4e5e5', '#c86c84'] },
   { id: 'abyss', name: '어비스', description: '고요한 심해의 보랏빛', colors: ['#5940a6', '#28203f', '#e9e4f5', '#9073c5'] },
   { id: 'pearl', name: '펄', description: '조개껍질처럼 차분한 모래빛', colors: ['#695137', '#342b21', '#ece7dc', '#a78a61'] },
+  { id: 'vscode', name: 'VS Code', description: '코드 편집기처럼 차분한 회색 화면', colors: ['#1f1f1f', '#2b2b2b', '#007acc', '#4daafc'] },
 ] as const;
 
 export type PaletteId = (typeof PALETTES)[number]['id'];

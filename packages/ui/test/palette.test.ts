@@ -5,7 +5,7 @@ afterEach(() => { vi.unstubAllGlobals(); usePalette.setState({ palette: 'ocean' 
 
 describe('device-local color palette', () => {
   it('accepts only supported identifiers, without interpreting arbitrary storage values', () => {
-    for (const id of ['ocean', 'lagoon', 'coral', 'abyss', 'pearl']) expect(isPalette(id)).toBe(true);
+    for (const id of ['ocean', 'lagoon', 'coral', 'abyss', 'pearl', 'vscode']) expect(isPalette(id)).toBe(true);
     for (const id of [null, undefined, 'dark', '', 'toString', '<script>']) expect(isPalette(id)).toBe(false);
   });
   it('restores a known selection and falls back for unknown values', () => {

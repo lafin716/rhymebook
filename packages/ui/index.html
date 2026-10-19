@@ -18,7 +18,7 @@
           pref = localStorage.getItem('branch.theme') || 'system';
           palette = localStorage.getItem('octobooks.palette') || 'ocean';
         } catch (e) {}
-        document.documentElement.dataset.palette = ['ocean', 'lagoon', 'coral', 'abyss', 'pearl'].indexOf(palette) >= 0 ? palette : 'ocean';
+        document.documentElement.dataset.palette = ['ocean', 'lagoon', 'coral', 'abyss', 'pearl', 'vscode'].indexOf(palette) >= 0 ? palette : 'ocean';
         var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.classList.toggle('dark', dark);
       })();

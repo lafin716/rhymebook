@@ -213,6 +213,58 @@
   --elev: var(--surface-2);
 }
 
+/* VS Code Light/Dark Modern — editor gray chrome with blue focus accents. */
+:root[data-palette="vscode"] {
+  --bg: #f8f8f8;
+  --surface: #ffffff;
+  --surface-2: #efefef;
+  --elev: #ffffff;
+  --border: #d0d0d0;
+  --border-strong: #a8a8a8;
+  --fg: #1f1f1f;
+  --fg-2: #3b3b3b;
+  --muted: #616161;
+  --accent: #005fb8;
+  --accent-soft: #e0edf9;
+  --anchor: #cce3f7;
+  --anchor-active: #add3f2;
+  --code-bg: #f3f3f3;
+  --anchor-line: var(--accent);
+}
+:root.dark[data-palette="vscode"] {
+  --bg: #181818;
+  --surface: #1f1f1f;
+  --surface-2: #2b2b2b;
+  --elev: #252526;
+  --border: #3c3c3c;
+  --border-strong: #5a5a5a;
+  --fg: #e6e6e6;
+  --fg-2: #cccccc;
+  --muted: #9d9d9d;
+  --accent: #4daafc;
+  --accent-fg: #0b1622;
+  --accent-soft: #04395e;
+  --anchor: #264f78;
+  --anchor-active: #2f6497;
+  --code-bg: #141414;
+}
+:root[data-palette="vscode"] .hljs-keyword,
+:root[data-palette="vscode"] .hljs-literal { color: #0000ff; }
+:root[data-palette="vscode"] .hljs-built_in { color: #267f99; }
+:root[data-palette="vscode"] .hljs-string { color: #a31515; }
+:root[data-palette="vscode"] .hljs-number { color: #098658; }
+:root[data-palette="vscode"] .hljs-comment { color: #008000; }
+:root[data-palette="vscode"] .hljs-title,
+:root[data-palette="vscode"] .hljs-function { color: #795e26; }
+:root.dark[data-palette="vscode"] .hljs-keyword,
+:root.dark[data-palette="vscode"] .hljs-literal { color: #569cd6; }
+:root.dark[data-palette="vscode"] .hljs-built_in { color: #4ec9b0; }
+:root.dark[data-palette="vscode"] .hljs-string { color: #ce9178; }
+:root.dark[data-palette="vscode"] .hljs-number { color: #b5cea8; }
+:root.dark[data-palette="vscode"] .hljs-comment { color: #6a9955; }
+:root.dark[data-palette="vscode"] .hljs-title,
+:root.dark[data-palette="vscode"] .hljs-function { color: #dcdcaa; }
+
 /* Calm, consistent chrome; reading surfaces retain flat, high-contrast backgrounds. */
 .octo-sidebar { background: linear-gradient(165deg, var(--surface), var(--bg)); }
 .octo-wordmark { font-weight: 750; letter-spacing: -0.055em; }
