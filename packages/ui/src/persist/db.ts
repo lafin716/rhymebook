@@ -19,7 +19,7 @@ import Dexie, { type Table } from 'dexie';
 type MessageRow = Message & { seq: number };
 
 interface KvRow {
-  key: 'view' | 'settings' | 'connections' | 'backup' | 'skillsSeeded';
+  key: 'view' | 'settings' | 'connections' | 'backup' | 'skillsSeeded' | 'hostSkillsMigrated';
   value: unknown;
 }
 
@@ -32,6 +32,9 @@ export interface BackupRow {
   encrypted: boolean;
   body: string;
 }
+
+/** 웹·모바일: PC(bridgeId)마다 따로 둔 스킬 (ADR-064) */
+export type HostSkillRow = Skill & { hostId: string };
 
 const DATA_KEYS: KvRow['key'][] = ['view', 'settings', 'connections'];
 
@@ -47,6 +50,7 @@ export class BranchDB extends Dexie {
   kv!: Table<KvRow, KvRow['key']>;
   backups!: Table<BackupRow, string>;
   skills!: Table<Skill, ID>;
+  hostSkills!: Table<HostSkillRow, [string, ID]>;
 
   constructor(name = 'branch-learn') {
     super(name);
@@ -63,6 +67,8 @@ export class BranchDB extends Dexie {
     this.version(4).stores({ skills: 'id, name' });
     // v5 (IMP-23): 보관함
     this.version(5).stores({ vault: 'id, parentId' });
+    // v6 (ADR-064): 웹·모바일 스킬을 PC별로. 옛 기기 전체 목록(skills)은 처음 연결한 PC로 옮긴다
+    this.version(6).stores({ hostSkills: '[hostId+id], hostId' });
   }
 }
 

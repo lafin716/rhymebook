@@ -20,7 +20,7 @@ import { isUsable } from '../lib/connection';
 import { remoteMode } from './capabilities';
 import { desktop, isDemo, mobile, loadRemoteHosts, loadRemotePairing, remoteLink, saveRemoteHosts, saveRemotePairing, sessionWindowId } from './runtime';
 import { appStore, loadPersisted } from './store';
-import { syncSkillFolders, useSkills } from '../skills/skillsStore';
+import { dropHostSkills, pullSkillsFromPc, switchSkillHost, syncSkillFolders, useSkills } from '../skills/skillsStore';
 
 /**
  * 원격 전용 동기화 연결 (ADR-026).
@@ -83,7 +83,27 @@ function watchResume(client: SyncClient) {
   else if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => onActive(document.visibilityState === 'visible'));
 }
 
-if (syncClient && !localLink) watchResume(syncClient);
+if (syncClient && !localLink) {
+  watchResume(syncClient);
+  // PC에 연결될 때마다(처음·전환·다시 연결) 그 PC의 스킬을 받아 이 PC 목록에 합친다 (ADR-064)
+  syncClient.state.subscribe((s, prev) => {
+    if (s.status === 'online' && prev.status !== 'online') void autoPullSkills(syncClient);
+  });
+}
+
+async function autoPullSkills(client: SyncClient) {
+  if (isDemo()) return;
+  try {
+    const { added, updated } = await pullSkillsFromPc(() => client.pullSkills());
+    if (added || updated) {
+      const parts = [added && `${added}개 추가`, updated && `${updated}개 갱신`].filter(Boolean);
+      pushNotice(`${client.state.getState().hostName ?? 'PC'} 스킬을 동기화했어요 (${parts.join(', ')})`);
+    }
+  } catch (e) {
+    // 옛 PC(sync.skills 미지원)·연결 끊김: 스킬 관리의 [동기화]로 다시 받을 수 있다
+    console.warn('[skills] PC 스킬 자동 동기화 실패', e);
+  }
+}
 
 const idleState = createStore<SyncClientState>(() => ({ status: 'unsupported', loaded: {} }));
 
@@ -114,6 +134,7 @@ async function loadHosts(): Promise<void> {
   const hosts = withActiveHost(list, active);
   if (hosts.length !== list.length) await saveRemoteHosts(hosts);
   remoteHosts.setState({ hosts, activeId: active?.bridgeId ?? null, loaded: true });
+  void switchSkillHost(active?.bridgeId ?? null);
   // 연결되기 전에도 '집 맥북에 연결하는 중'처럼 저장한 이름으로 보여 준다
   if (active && !syncClient?.state.getState().hostName) syncClient?.state.setState({ hostName: active.bridgeName });
 }
@@ -128,6 +149,8 @@ export async function setPairing(p: RemotePairing | null): Promise<void> {
   const { hosts, activeId } = remoteHosts.getState();
   if (p) await writeHosts(upsertHost(hosts, p), p.bridgeId);
   else await writeHosts(activeId ? removeHost(hosts, activeId) : hosts, null);
+  // 해제한 PC의 스킬도 지운다 (다시 페어링하면 연결될 때 PC에서 다시 받는다)
+  if (!p && activeId) await dropHostSkills(activeId);
   await applyPairing(p, p?.bridgeId !== activeId);
 }
 
@@ -136,7 +159,11 @@ async function applyPairing(p: RemotePairing | null, otherHost: boolean) {
   await saveRemotePairing(p);
   if (!syncClient || isDemo()) return;
   syncClient.stop();
-  if (otherHost || !p) clearMirror();
+  if (otherHost || !p) {
+    clearMirror();
+    // 스킬도 PC별: 연결 전에 이 PC의 목록으로 바꿔 둔다 (연결되면 PC에서 받아 합친다)
+    await switchSkillHost(p?.bridgeId ?? null);
+  }
   if (!p) return;
   // 이전 PC 이름이 '연결 중'에 남지 않게 페어링한 이름으로 바꿔 둔다
   syncClient.state.setState({ hostName: p.bridgeName, error: undefined });
@@ -161,6 +188,7 @@ export async function forgetHost(bridgeId: string): Promise<void> {
   const { hosts, activeId } = remoteHosts.getState();
   if (bridgeId === activeId) return setPairing(null);
   await writeHosts(removeHost(hosts, bridgeId), activeId);
+  await dropHostSkills(bridgeId);
 }
 
 /** 미러링한 PC 데이터를 화면에서 지운다 (페어링 해제) */

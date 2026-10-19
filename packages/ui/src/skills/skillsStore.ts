@@ -15,11 +15,13 @@ import {
 } from '@branch/core';
 import { create } from 'zustand';
 import { actions } from '../app/store';
+import { remoteMode } from '../app/capabilities';
 import { desktop, sessionWindowId } from '../app/runtime';
 import type { BranchDB } from '../persist/db';
 
 /**
- * 스킬 목록 (IMP-09, ADR-034). 기기별로 IndexedDB에 둔다(원격 모드 웹·모바일도 이 기기에).
+ * 스킬 목록 (IMP-09, ADR-034). 이 기기의 IndexedDB에 둔다.
+ * 웹·모바일은 연결한 PC(bridgeId)마다 목록을 따로 두고, PC에 연결될 때마다 그 PC 스킬을 받아 합친다 (ADR-064).
  * 질문에는 보낸 시점의 사본(SkillRef)이 실리므로 PC가 같은 스킬을 몰라도 된다.
  * 처음 실행할 때 예시 스킬(커리큘럼 생성)을 한 번 넣고, 지운 예시는 다시 넣지 않는다.
  *
@@ -44,6 +46,16 @@ interface SkillsState {
 }
 
 let db: BranchDB | null = null;
+let markReady: () => void = () => {};
+/** loadSkills가 저장소를 정하면 풀린다 (PC 목록 전환·동기화는 이것을 기다린다) */
+const dbReady = new Promise<void>((resolve) => (markReady = resolve));
+
+/** 웹·모바일(세션 창 제외): 스킬을 PC별로 둔다 */
+const perHost = remoteMode && !sessionWindowId;
+/** perHost일 때 지금 목록의 PC. null이면 연결한 PC가 없어 저장하지 않는다 */
+let hostId: string | null = null;
+/** 진행 중인 PC 목록 전환 (차례로) */
+let switching: Promise<void> = dbReady;
 
 /** 스킬 폴더를 쓰는 창: 데스크톱 메인 창만 (세션 창은 같은 DB를 읽기만) */
 const folders = !sessionWindowId ? desktop?.skills : undefined;
@@ -54,6 +66,21 @@ function persist(fn: (db: BranchDB) => Promise<unknown>) {
   if (!db) return;
   fn(db).catch((e: unknown) => console.warn('[skills] 저장 실패', e));
 }
+
+/** 지금 목록에 쓴다: 데스크톱은 기기 전체 목록, 웹·모바일은 지금 PC의 목록 */
+function putSkills(skills: Skill[]) {
+  if (!perHost) return persist((d) => d.skills.bulkPut(skills));
+  const host = hostId;
+  if (host) persist((d) => d.hostSkills.bulkPut(skills.map((s) => ({ ...s, hostId: host }))));
+}
+
+function deleteSkill(id: ID) {
+  if (!perHost) return persist((d) => d.skills.delete(id));
+  const host = hostId;
+  if (host) persist((d) => d.hostSkills.delete([host, id]));
+}
+
+const stripHost = ({ hostId: _h, ...skill }: Skill & { hostId: string }): Skill => skill;
 
 /** 앱에서 지웠는데 폴더 삭제가 아직 끝나지 않은(또는 실패한) 이름: 동기화로 되살리지 않는다 */
 const tombstones = new Set<string>();
@@ -100,7 +127,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     const prev = input.id ? get().skills.find((s) => s.id === input.id) : undefined;
     const skill = build(input, prev, Date.now());
     set((s) => ({ skills: [...s.skills.filter((x) => x.id !== skill.id), skill].sort(byTitle) }));
-    persist((d) => d.skills.put(skill));
+    putSkills([skill]);
     // 지울 파일: 편집 화면이 알려 준 것, 아니면 저장 전에 있다가 빠진 것
     const kept = pathsOf(skill.files);
     const removed = removedFiles ?? (prev?.files ?? []).map((f) => f.path);
@@ -111,7 +138,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
   remove(id) {
     const gone = get().skills.find((x) => x.id === id);
     set((s) => ({ skills: s.skills.filter((x) => x.id !== id) }));
-    persist((d) => d.skills.delete(id));
+    deleteSkill(id);
     if (gone && folders) {
       tombstones.add(gone.name);
       folders.remove(gone.name).catch((e: unknown) => console.warn('[skills] 폴더 삭제 실패', e));
@@ -123,7 +150,7 @@ export const useSkills = create<SkillsState>((set, get) => ({
     const { add } = skillsToSeed(existing, undefined);
     if (!add.length) return;
     set((s) => ({ skills: [...s.skills, ...add].sort(byTitle) }));
-    persist((d) => d.skills.bulkPut(add));
+    putSkills(add);
     for (const s of add) writeFolder(s);
   },
 }));
@@ -133,7 +160,7 @@ function applyFolder(fields: SkillFolderFields & { id?: ID }) {
   const prev = fields.id ? useSkills.getState().skills.find((s) => s.id === fields.id) : undefined;
   const skill = build(fields, prev, Date.now());
   useSkills.setState((s) => ({ skills: [...s.skills.filter((x) => x.id !== skill.id), skill].sort(byTitle) }));
-  persist((d) => d.skills.put(skill));
+  putSkills([skill]);
 }
 
 let syncing: Promise<void> | null = null;
@@ -167,19 +194,70 @@ export function syncSkillFolders(writeMissing = false): Promise<void> {
 }
 
 /**
- * 웹·모바일: PC에서 만든 스킬을 받아 이 기기 스킬에 합친다 (명령 이름이 같으면 PC 내용으로).
- * 이 기기에만 있는 스킬은 지우지 않는다.
+ * 웹·모바일: 지금 PC에서 만든 스킬을 받아 이 PC의 목록에 합친다 (명령 이름이 같으면 PC 내용으로).
+ * 이 기기에서만 만든 스킬은 지우지 않는다. 받는 사이 다른 PC로 바뀌면 버린다.
  */
 export async function pullSkillsFromPc(pull: () => Promise<Skill[]>): Promise<{ added: number; updated: number; skipped: number }> {
+  await switching;
+  const host = hostId;
   const incoming = (await pull()).filter(isSkill);
+  await switching;
+  if (hostId !== host || (perHost && !host)) return { added: 0, updated: 0, skipped: 0 };
   const { skills, added, updated, skipped } = mergeSkills(useSkills.getState().skills, incoming, () => newId('k'));
   if (added || updated) {
     const before = new Map(useSkills.getState().skills.map((s) => [s.id, s]));
     const changed = skills.filter((s) => before.get(s.id) !== s);
     useSkills.setState({ skills: [...skills].sort(byTitle) });
-    persist((d) => d.skills.bulkPut(changed));
+    putSkills(changed);
   }
   return { added, updated, skipped };
+}
+
+/** 예전(PC별 목록 전) 기기 전체 스킬을 처음 연결한 PC의 목록으로 한 번 옮긴다 */
+async function migrateLegacy(d: BranchDB, host: string) {
+  if ((await d.kv.get('hostSkillsMigrated'))?.value) return;
+  await d.transaction('rw', d.skills, d.hostSkills, d.kv, async () => {
+    const legacy = (await d.skills.toArray()).filter(isSkill);
+    if (legacy.length) await d.hostSkills.bulkPut(legacy.map((s) => ({ ...s, hostId: host })));
+    await d.skills.clear();
+    await d.kv.put({ key: 'hostSkillsMigrated', value: true });
+  });
+}
+
+/**
+ * 웹·모바일: 스킬 목록을 이 PC의 것으로 바꾼다 (시작·PC 전환·페어링 해제). null이면 빈 목록.
+ * 데스크톱·데모 모드에서는 아무것도 하지 않는다.
+ */
+export function switchSkillHost(next: string | null): Promise<void> {
+  if (!perHost) return Promise.resolve();
+  switching = switching.then(async () => {
+    if (!db) return;
+    hostId = next;
+    let skills: Skill[] = [];
+    if (next) {
+      try {
+        await migrateLegacy(db, next);
+        skills = (await db.hostSkills.where('hostId').equals(next).toArray()).map(stripHost).filter(isSkill);
+      } catch (e) {
+        console.warn('[skills] PC 스킬 불러오기 실패', e);
+      }
+    }
+    if (hostId === next) useSkills.setState({ skills: skills.sort(byTitle), loaded: true });
+  });
+  return switching;
+}
+
+/** 목록에서 지운 PC의 스킬을 이 기기에서 지운다 */
+export function dropHostSkills(host: string): Promise<void> {
+  if (!perHost) return Promise.resolve();
+  switching = switching.then(async () => {
+    try {
+      await db?.hostSkills.where('hostId').equals(host).delete();
+    } catch (e) {
+      console.warn('[skills] PC 스킬 삭제 실패', e);
+    }
+  });
+  return switching;
 }
 
 /** 스킬 폴더를 OS 파일 탐색기로 연다. 스킬을 주지 않으면 스킬 폴더 루트 */
@@ -194,6 +272,11 @@ export const skillFoldersRoot = folders?.root ?? '';
 /** 시작 시 한 번: 저장된 스킬을 읽고, 시드되지 않은 예시 스킬을 넣는다. 저장소를 못 쓰면 메모리에서만 */
 export async function loadSkills(database: BranchDB | null) {
   db = database;
+  // 웹·모바일은 PC 목록(sync.ts)이 정해 주는 PC의 스킬을 읽는다 (switchSkillHost)
+  if (perHost && database) {
+    markReady();
+    return;
+  }
   let skills: Skill[];
   try {
     if (database) {
@@ -222,6 +305,7 @@ export async function loadSkills(database: BranchDB | null) {
     skills = defaultSkills();
   }
   useSkills.setState({ skills: skills.sort(byTitle), loaded: true });
+  markReady();
   // 데모 모드(db 없음)는 폴더를 건드리지 않는다
   if (folders && db) {
     await syncSkillFolders(true);
