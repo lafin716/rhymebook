@@ -54,7 +54,7 @@ import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
 import { chatTarget } from '../skills';
 import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
 import { descendantIds, subSessionTitle, type SessionMap } from '../tree';
-import { turnMessageIds } from '../turns';
+import { planTurnSplit, turnMessageIds } from '../turns';
 import { vaultDescendants } from '../vault';
 
 export const NEW_SESSION_TITLE = '새 학습';
@@ -118,6 +118,11 @@ export interface AppState extends AppData {
    * 첫 질문이거나 이 세션이 응답 생성 중이면 false
    */
   deleteTurn(sessionId: ID, questionId: ID): boolean;
+  /**
+   * 질문 하나와 그 답변을 새 하위 세션(앵커 없음)으로 옮긴다. 그 답변의 가지·서식, 그 질문 중에 만든 각주도 따라간다.
+   * 새 세션 id, 첫 질문이거나 응답 생성 중이면 false
+   */
+  splitTurn(sessionId: ID, questionId: ID, newSessionId?: ID): ID | false;
   renameSession(id: ID, title: string): void;
   setSessionProvider(id: ID, providerId: ProviderId | undefined): void;
   /** 이 채팅의 모델·노력치 덮어쓰기. 값을 비우면(undefined) 연결 기본값을 따른다 */
@@ -584,6 +589,49 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         for (let i = from; i < next.length; i++) repo.saveMessage(next[i]!, i);
         touch(sessionId);
         return true;
+      },
+
+      splitTurn(sessionId, questionId, newSessionId) {
+        const st = get();
+        const parent = st.sessions[sessionId];
+        if (!parent || st.streaming[sessionId]) return false;
+        const list = st.messages[sessionId] ?? [];
+        const plan = planTurnSplit(st.sessions, list, sessionId, questionId);
+        if (!plan) return false;
+        const id = newSessionId ?? newId('s');
+        if (st.sessions[id] || st.messages[id]) return false;
+        const moved = new Set(plan.messageIds);
+        const now = Date.now();
+        const child: Session = {
+          id,
+          parentId: parent.id,
+          rootId: parent.rootId,
+          title: subSessionTitle(plan.question),
+          ...(parent.providerId ? { providerId: parent.providerId } : {}),
+          ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+          createdAt: plan.createdAt,
+          updatedAt: now,
+        };
+        const from = list.findIndex((m) => m.id === questionId);
+        const rest = list.filter((m) => !moved.has(m.id));
+        const movedMsgs = list.filter((m) => moved.has(m.id)).map((m) => ({ ...m, sessionId: id }));
+        const reparented = plan.childIds.map((cid) => ({ ...st.sessions[cid]!, parentId: id }));
+        const annos = Object.values(st.annotations)
+          .filter((a) => a.sessionId === sessionId && moved.has(a.anchor.messageId))
+          .map((a) => ({ ...a, sessionId: id }));
+        set((s) => ({
+          sessions: { ...s.sessions, [id]: child, ...Object.fromEntries(reparented.map((c) => [c.id, c])) },
+          messages: { ...s.messages, [sessionId]: rest, [id]: movedMsgs },
+          annotations: { ...s.annotations, ...Object.fromEntries(annos.map((a) => [a.id, a])) },
+        }));
+        repo.saveSession(child);
+        for (const c of reparented) repo.saveSession(c);
+        movedMsgs.forEach((m, i) => repo.saveMessage(m, i));
+        // 복원 순서(seq)가 어긋나지 않게 뒤쪽 메시지 위치를 다시 저장
+        for (let i = from; i < rest.length; i++) repo.saveMessage(rest[i]!, i);
+        for (const a of annos) repo.saveAnnotation(a);
+        touch(sessionId);
+        return id;
       },
 
       renameSession(id, title) {

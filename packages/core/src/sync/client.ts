@@ -609,6 +609,16 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       return act({ kind: 'turn.delete', sessionId, questionId });
     },
 
+    splitTurn(sessionId, questionId, newSessionId) {
+      const s = get();
+      if (s.streaming[sessionId] || !canDeleteTurn(s.messages[sessionId] ?? [], questionId)) return false;
+      const id = newSessionId ?? newId('s');
+      if (s.sessions[id]) return false;
+      // 호스트가 옮긴 메시지를 이 세션으로 보내 준다
+      markLoaded(id);
+      return act({ kind: 'turn.split', sessionId, questionId, id }) ? id : false;
+    },
+
     renameSession(sessionId, title) {
       const t = title.trim();
       const s = get();

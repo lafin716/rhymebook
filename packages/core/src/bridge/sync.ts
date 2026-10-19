@@ -39,6 +39,8 @@ export type SyncOp =
   | { kind: 'delete'; sessionId: ID }
   /** 질문 하나와 답변 삭제 (첫 질문 제외). 세션 삭제와 같은 PC 허용 설정을 따른다 */
   | { kind: 'turn.delete'; sessionId: ID; questionId: ID }
+  /** 질문 하나와 답변을 새 하위 세션 id로 분리 (첫 질문 제외) */
+  | { kind: 'turn.split'; sessionId: ID; questionId: ID; id: ID }
   | { kind: 'summary.request'; sessionId: ID }
   | { kind: 'summary.discard'; sessionId: ID }
   | { kind: 'summary.attach'; sessionId: ID; text?: string }
@@ -56,12 +58,13 @@ export type SyncOpKind = SyncOp['kind'];
  * 호스트가 sync.snapshot에 싣는 지원 기능. 목록이 없거나 빠진 기능은 옛 PC 앱이라 처리하지 못하므로
  * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
  */
-export const SYNC_FEATURES = ['subsession', 'vault'] as const;
+export const SYNC_FEATURES = ['subsession', 'vault', 'split'] as const;
 export type SyncFeature = (typeof SYNC_FEATURES)[number];
 export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   subsession: 'subsession',
   'vault.put': 'vault',
   'vault.delete': 'vault',
+  'turn.split': 'split',
 };
 
 export type SyncClientMsg =
@@ -230,6 +233,17 @@ function validateOp(op: unknown): boolean {
   }
   if (kind === 'turn.delete') {
     return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId) && typeof o.questionId === 'string' && SYNC_ID_RE.test(o.questionId);
+  }
+  if (kind === 'turn.split') {
+    return (
+      typeof o.sessionId === 'string' &&
+      SYNC_ID_RE.test(o.sessionId) &&
+      typeof o.questionId === 'string' &&
+      SYNC_ID_RE.test(o.questionId) &&
+      typeof o.id === 'string' &&
+      SYNC_ID_RE.test(o.id) &&
+      Object.keys(o).every((k) => ['kind', 'sessionId', 'questionId', 'id'].includes(k))
+    );
   }
   if (kind === 'summary.request') {
     return typeof o.sessionId === 'string' && SYNC_ID_RE.test(o.sessionId);

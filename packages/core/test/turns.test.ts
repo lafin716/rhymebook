@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Message } from '../src/model';
+import type { Message, Session } from '../src/model';
 import { createSeed, SEED_IDS } from '../src/seed';
-import { buildTurns, canDeleteTurn, plainPreview, turnMessageIds } from '../src/turns';
+import { buildTurns, canDeleteTurn, plainPreview, planTurnSplit, turnMessageIds } from '../src/turns';
 
 const m = (id: string, role: Message['role'], content: string, extra: Partial<Message> = {}): Message => ({
   id,
@@ -71,5 +71,42 @@ describe('turnMessageIds', () => {
   it('rejects answers and unknown ids', () => {
     expect(turnMessageIds(list, 'a2')).toBeNull();
     expect(turnMessageIds(list, 'nope')).toBeNull();
+  });
+});
+
+describe('planTurnSplit', () => {
+  const list = [
+    m('q1', 'user', '첫 질문', { createdAt: 10 }),
+    m('a1', 'assistant', '답1', { createdAt: 11 }),
+    m('q2', 'user', ' 둘째 ', { createdAt: 20 }),
+    m('a2', 'assistant', '답2', { createdAt: 21 }),
+    m('q3', 'user', '셋째', { createdAt: 30 }),
+  ];
+  const sess = (id: string, extra: Partial<Session>): Session => ({ id, parentId: 's', rootId: 's', title: id, createdAt: 0, updatedAt: 0, ...extra });
+  const sessions = {
+    onA2: sess('onA2', { anchor: { messageId: 'a2', text: '답', startOffset: 0, endOffset: 1 }, createdAt: 40 }),
+    onA1: sess('onA1', { anchor: { messageId: 'a1', text: '답', startOffset: 0, endOffset: 1 }, createdAt: 40 }),
+    noteInQ2: sess('noteInQ2', { createdAt: 25 }),
+    noteBefore: sess('noteBefore', { createdAt: 15 }),
+    other: sess('other', { parentId: 'x', anchor: { messageId: 'a2', text: '답', startOffset: 0, endOffset: 1 } }),
+  };
+
+  it('moves the turn, its branches and footnotes made during it', () => {
+    expect(planTurnSplit(sessions, list, 's', 'q2')).toEqual({
+      messageIds: ['q2', 'a2'],
+      childIds: ['onA2', 'noteInQ2'],
+      question: '둘째',
+      createdAt: 19,
+    });
+  });
+
+  it('never splits the first question', () => {
+    expect(planTurnSplit(sessions, list, 's', 'q1')).toBeNull();
+    expect(planTurnSplit(sessions, list, 's', 'a2')).toBeNull();
+  });
+
+  it('names attachment-only questions by their files', () => {
+    const withFile = [...list, m('q4', 'user', '', { createdAt: 50, attachments: [{ id: 'f', kind: 'text', name: 'a.txt', mime: 'text/plain', size: 1, data: 'x' }] })];
+    expect(planTurnSplit({}, withFile, 's', 'q4')?.question).toBe('[첨부] a.txt');
   });
 });

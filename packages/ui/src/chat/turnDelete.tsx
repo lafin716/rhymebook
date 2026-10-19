@@ -1,5 +1,5 @@
 import { descendantIds, turnMessageIds, type ID } from '@branch/core';
-import { Trash2 } from 'lucide-react';
+import { GitBranchPlus, Trash2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { actions, appStore } from '../app/store';
@@ -42,7 +42,21 @@ export async function removeTurn(sessionId: ID, questionId: ID) {
   }
 }
 
-/** 세션 본문 우클릭 메뉴 (질문 삭제) */
+/** 질문(과 답변)을 하위 세션으로 분리: 부모에는 그 자리에 각주 표식이 남는다. 첫 질문은 분리할 수 없다 */
+export function splitTurnOut(sessionId: ID, questionId: ID) {
+  const st = appStore.getState();
+  if (!turnMessageIds(st.messages[sessionId] ?? [], questionId)) {
+    pushNotice('첫 질문은 분리할 수 없어요.');
+    return;
+  }
+  if (st.streaming[sessionId]) {
+    pushNotice('답변이 끝난 뒤 분리할 수 있어요.');
+    return;
+  }
+  if (!actions().splitTurn(sessionId, questionId)) pushNotice('질문을 분리하지 못했어요.');
+}
+
+/** 세션 본문 우클릭 메뉴 (하위 세션으로 분리 · 질문 삭제) */
 export function TurnMenu({
   at,
   sessionId,
@@ -53,7 +67,7 @@ export function TurnMenu({
   at: MenuPoint;
   sessionId: ID;
   questionId: ID;
-  /** 첫 질문: 삭제 항목을 비활성으로 보이고 이유를 적는다 */
+  /** 첫 질문: 분리·삭제 항목을 비활성으로 보이고 이유를 적는다 */
   first: boolean;
   onClose(): void;
 }) {
@@ -81,8 +95,8 @@ export function TurnMenu({
     };
   }, [onClose]);
 
-  const w = first ? 212 : 168;
-  const h = first ? 62 : 44;
+  const w = first ? 228 : 184;
+  const h = first ? 98 : 80;
   return createPortal(
     <div
       ref={ref}
@@ -99,6 +113,22 @@ export function TurnMenu({
         aria-disabled={first}
         onClick={() => {
           onClose();
+          splitTurnOut(sessionId, questionId);
+        }}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] outline-none',
+          first ? 'cursor-not-allowed text-muted' : 'text-fg hover:bg-surface-2 focus:bg-surface-2',
+        )}
+      >
+        <GitBranchPlus size={14} /> 하위 세션으로 분리
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={first}
+        aria-disabled={first}
+        onClick={() => {
+          onClose();
           void removeTurn(sessionId, questionId);
         }}
         className={cn(
@@ -108,7 +138,7 @@ export function TurnMenu({
       >
         <Trash2 size={14} /> 질문 삭제
       </button>
-      {first && <p className="px-2.5 pb-1.5 text-[11.5px] text-muted">첫 질문은 삭제할 수 없어요.</p>}
+      {first && <p className="px-2.5 pb-1.5 text-[11.5px] text-muted">첫 질문은 분리·삭제할 수 없어요.</p>}
     </div>,
     document.body,
   );

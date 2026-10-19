@@ -5,6 +5,7 @@ import { createDemoRegistry } from '../src/providers/demo';
 import { mockControl } from '../src/providers/mock';
 import { ProviderRegistry, providerError } from '../src/provider';
 import { memoryRepository } from '../src/repo';
+import { buildSystemPrompt } from '../src/context';
 
 const idle = (store: AppStore) =>
   new Promise<void>((resolve) => {
@@ -300,6 +301,80 @@ describe('app store', () => {
       expect(store.getState().deleteTurn(SEED_IDS.root, q2)).toBe(false);
       await idle(store);
       expect(store.getState().deleteTurn(SEED_IDS.root, q2)).toBe(true);
+    });
+  });
+
+  describe('splitTurn', () => {
+    const anchorIn = (store: AppStore, messageId: string, text: string) => {
+      const msg = store.getState().messages[SEED_IDS.root]!.find((m) => m.id === messageId)!;
+      const start = msg.content.indexOf(text);
+      return { messageId, text, startOffset: start, endOffset: start + text.length };
+    };
+
+    it('moves the turn with its branches and annotations into a new sub-session', async () => {
+      const saved: [string, string, number][] = [];
+      const deleted: string[] = [];
+      const store = createAppStore({
+        registry: createDemoRegistry(() => store.getState().connections),
+        initial: { ...createSeed(0), view: emptyView(SEED_IDS.root) },
+        repo: {
+          ...memoryRepository(),
+          saveMessage: (m, i) => saved.push([m.id, m.sessionId, i]),
+          deleteMessage: (id) => deleted.push(id),
+        },
+      });
+      const before = store.getState().messages[SEED_IDS.root]!;
+      const [, , q2, a2] = before;
+      const text = a2!.content.slice(0, 4);
+      const branch = store.getState().createBranch(SEED_IDS.root, anchorIn(store, a2!.id, text), 'what') as string;
+      await idle(store);
+      const anno = store.getState().addAnnotation(SEED_IDS.root, anchorIn(store, a2!.id, text), { highlight: 'yellow' });
+      saved.length = 0;
+
+      const id = store.getState().splitTurn(SEED_IDS.root, q2!.id, 's-split');
+      expect(id).toBe('s-split');
+      const s = store.getState();
+      expect(s.sessions['s-split']).toMatchObject({ parentId: SEED_IDS.root, rootId: SEED_IDS.root, createdAt: q2!.createdAt - 1 });
+      expect(s.sessions['s-split']!.anchor).toBeUndefined();
+      expect(s.messages['s-split']!.map((m) => [m.id, m.sessionId])).toEqual([
+        [q2!.id, 's-split'],
+        [a2!.id, 's-split'],
+      ]);
+      expect(s.messages[SEED_IDS.root]!.map((m) => m.id)).toEqual([before[0]!.id, before[1]!.id, ...before.slice(4).map((m) => m.id)]);
+      expect(s.sessions[branch]!.parentId).toBe('s-split');
+      expect(s.annotations[anno]!.sessionId).toBe('s-split');
+      // 첫 질문 답변의 가지는 그대로
+      expect(s.sessions[SEED_IDS.qkv]!.parentId).toBe(SEED_IDS.root);
+      // 메시지는 지우지 않고 새 세션으로 다시 저장, 부모 뒤쪽은 새 위치로
+      expect(deleted).toEqual([]);
+      expect(saved.slice(0, 2)).toEqual([
+        [q2!.id, 's-split', 0],
+        [a2!.id, 's-split', 1],
+      ]);
+      expect(saved.slice(2)).toEqual(s.messages[SEED_IDS.root]!.slice(2).map((m, i) => [m.id, SEED_IDS.root, i + 2]));
+    });
+
+    it('refuses the first question, taken ids and streaming sessions', async () => {
+      const store = makeStore();
+      const [q1, , q2] = store.getState().messages[SEED_IDS.root]!;
+      expect(store.getState().splitTurn(SEED_IDS.root, q1!.id)).toBe(false);
+      expect(store.getState().splitTurn(SEED_IDS.root, q2!.id, SEED_IDS.qkv)).toBe(false);
+      mockControl.firstTokenDelay = 50;
+      store.getState().sendMessage(SEED_IDS.root, '새 질문');
+      expect(store.getState().splitTurn(SEED_IDS.root, q2!.id)).toBe(false);
+      await idle(store);
+      expect(store.getState().splitTurn(SEED_IDS.root, q2!.id)).toBeTruthy();
+    });
+
+    it('scopes the new sub-session context to the parent before the question', () => {
+      const store = makeStore();
+      const [q1, a1, q2] = store.getState().messages[SEED_IDS.root]!;
+      const id = store.getState().splitTurn(SEED_IDS.root, q2!.id) as string;
+      const s = store.getState();
+      const prompt = buildSystemPrompt({ sessions: s.sessions, messages: s.messages, sessionId: id });
+      expect(prompt).toContain(q1!.content.slice(0, 20));
+      expect(prompt).toContain(a1!.content.slice(0, 20));
+      expect(prompt).not.toContain(s.messages[SEED_IDS.root]![2]!.content.slice(0, 40));
     });
   });
 });

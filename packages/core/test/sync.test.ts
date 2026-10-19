@@ -405,6 +405,28 @@ describe('sync host ↔ client', () => {
     expect(hostStore.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(false);
   });
 
+  it('remote question split moves the turn into a new sub-session on the PC; never the first question', async () => {
+    const { store, client } = await connectClient();
+    store.getState().openSession(SEED_IDS.root);
+    await until(() => !!client.state.getState().loaded[SEED_IDS.root]);
+    const [q1, , q2] = store.getState().messages[SEED_IDS.root]!;
+    expect(store.getState().splitTurn(SEED_IDS.root, q1!.id)).toBe(false);
+
+    // 삭제 권한 없이도 분리할 수 있다 (메시지를 지우지 않는다)
+    const id = store.getState().splitTurn(SEED_IDS.root, q2!.id);
+    expect(id).toBeTruthy();
+    await until(() => !!hostStore.getState().sessions[id as string]);
+    const child = hostStore.getState().sessions[id as string]!;
+    expect(child.parentId).toBe(SEED_IDS.root);
+    expect(child.anchor).toBeUndefined();
+    expect(hostStore.getState().messages[id as string]![0]!.id).toBe(q2!.id);
+    expect(hostStore.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(false);
+    // 클라이언트도 새 세션과 옮겨진 메시지를 받는다
+    await until(() => store.getState().messages[id as string]?.[0]?.id === q2!.id);
+    expect(store.getState().messages[SEED_IDS.root]!.some((m) => m.id === q2!.id)).toBe(false);
+    expect(client.state.getState().lastFailure).toBeUndefined();
+  });
+
   it('study.import: a remote client brings a study into the PC; overwriting needs the delete permission', async () => {
     const bundle = JSON.parse(JSON.stringify(collectStudy(hostStore.getState(), SEED_IDS.root)!)) as NonNullable<ReturnType<typeof collectStudy>>;
     const ids = bundle.sessions.map((s) => s.id);
@@ -831,7 +853,7 @@ describe('sync host ↔ client', () => {
   it('host features: new ops are blocked or explained as outdated on an older PC', async () => {
     const { store, client, peer } = await connectClient();
     const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
-    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault']);
+    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split']);
     const inject = (m: SyncServerMsg) => {
       for (const l of peer.state.listeners) l(m);
     };

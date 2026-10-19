@@ -209,6 +209,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-19 · 질문 우클릭 → 하위 세션으로 분리(ADR-065): core `planTurnSplit`·store `splitTurn`·sync op `turn.split`(기능 `split`), ui 우클릭 메뉴 [하위 세션으로 분리](첫 질문 비활성). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 410(+7)·ui 64·bridge 59·relay 9·server 10 PASS, `pnpm e2e` 85 passed·11 skipped(새 turn-split desktop·mobile), skill-sync-split의 '웹(원격) 스킬 동기화 버튼' 2건 실패 — 이 변경 전에도 실패(기존 문제). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-19 · 웹·모바일 여러 PC 연결 목록(ADR-063): core `bridge/hosts.ts`(+4 테스트), ui `sync.ts` 저장 목록·`switchHost`·`forgetHost`, `HostList.tsx`(메인 화면·설정). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 403·ui 55·bridge 59·relay 9·server 10 PASS(core `sync.reset` 테스트가 전체 실행에서 간헐 실패 2회 — 단독·재실행 PASS, 코드 무관), `pnpm e2e` 85 passed·11 skipped(새 host-list 2). 모바일 스크린샷 확인. iOS·Android 네이티브 빌드는 안 함.
 - 2026-10-19 · VS Code 팔레트, 한국어 조사가 붙은 `**강조**` 렌더링(remark-cjk-friendly), 웹·모바일 PC별 스킬 목록·연결 시 자동 동기화(ADR-064, Dexie v6 `hostSkills`). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 403·ui 64·bridge 59·relay 9·server 10 PASS.
 - 2026-10-16 · 마지막 페이지 기억: 보관함·스킬·이해 노트 중 열어 둔 페이지를 기기별(localStorage `branch.lastPage`)로 기억해 앱을 다시 켜면 연다(닫으면 잊음, 검색·설정·데모·세션 창 제외). 열린 세션·분할은 기존 view 저장으로 이미 복원. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 81 passed(새 last-page desktop·mobile). 패키지 데스크톱 앱 재빌드·실행.

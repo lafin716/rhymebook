@@ -420,6 +420,12 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         if (!canDeleteTurn(state.messages[op.sessionId] ?? [], op.questionId)) return 'invalid';
         if (state.streaming[op.sessionId]) return 'busy';
         return allowDelete(peerId) ? null : 'forbidden';
+      case 'turn.split':
+        if (!has(op.sessionId)) return 'not-found';
+        if (!canDeleteTurn(state.messages[op.sessionId] ?? [], op.questionId)) return 'invalid';
+        if (idTaken(state, op.id)) return 'conflict';
+        if (state.streaming[op.sessionId]) return 'busy';
+        return null;
       case 'summary.attach':
         if (op.text && op.text.length > SYNC_LIMITS.text) return 'invalid';
         return has(op.sessionId) ? null : 'not-found';
@@ -528,6 +534,14 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           return null;
         case 'turn.delete':
           if (!s.deleteTurn(op.sessionId, op.questionId)) return 'failed';
+          return null;
+        case 'turn.split':
+          // 요청한 기기가 새 하위 세션의 메시지를 바로 받도록
+          peer.loaded.add(op.id);
+          if (!s.splitTurn(op.sessionId, op.questionId, op.id)) {
+            peer.loaded.delete(op.id);
+            return 'failed';
+          }
           return null;
         case 'summary.request':
           void s.requestSummary(op.sessionId);
