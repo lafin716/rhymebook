@@ -6,3 +6,4 @@ export * from './secure';
 export * from './remote';
 export * from './relay';
 export * from './sync';
+export * from './hosts';

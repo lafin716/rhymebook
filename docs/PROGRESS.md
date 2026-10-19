@@ -209,6 +209,8 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-19 · 웹·모바일 여러 PC 연결 목록(ADR-063): core `bridge/hosts.ts`(+4 테스트), ui `sync.ts` 저장 목록·`switchHost`·`forgetHost`, `HostList.tsx`(메인 화면·설정). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 403·ui 55·bridge 59·relay 9·server 10 PASS(core `sync.reset` 테스트가 전체 실행에서 간헐 실패 2회 — 단독·재실행 PASS, 코드 무관), `pnpm e2e` 85 passed·11 skipped(새 host-list 2). 모바일 스크린샷 확인. iOS·Android 네이티브 빌드는 안 함.
+- 2026-10-16 · 마지막 페이지 기억: 보관함·스킬·이해 노트 중 열어 둔 페이지를 기기별(localStorage `branch.lastPage`)로 기억해 앱을 다시 켜면 연다(닫으면 잊음, 검색·설정·데모·세션 창 제외). 열린 세션·분할은 기존 view 저장으로 이미 복원. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 81 passed(새 last-page desktop·mobile). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-16 · IMP-29 드래그 메뉴 선택 글 고치기(ADR-061): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 399·ui 51·bridge 59·relay 9·server 10 PASS, `pnpm e2e` 71 passed·11 skipped(새: 고친 글 → [질문에 첨부]·[이게 뭐야?] desktop·mobile). 스크린샷 확인. 패키지 데스크톱 앱 재빌드·재실행.
 - 2026-10-16 · IMP-28 사이드바 너비·분할창 이동 끌기·드래그 메뉴·질문에 첨부(ADR-060): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 399·ui 51(+2) PASS, `pnpm e2e` 69 passed·11 skipped(새: 드래그 메뉴 글자 한 줄·[질문에 첨부] 인용, 이동 버튼 끌어 자리 바꾸기, 사이드바 끌기·저장·더블클릭 초기화). 패키지 데스크톱 앱 재빌드·재실행.
 - 2026-10-16 · IMP-27 보관함 트리 놓을 자리 선·순서 바꾸기(ADR-059): `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 399(+7)·ui 49·bridge 59·relay 9·server 10 PASS, e2e vault desktop·mobile PASS(폴더 줄 위쪽 가장자리로 끌면 선 표시 → 놓으면 페이지가 폴더 앞으로). 스크린샷 확인. 패키지 데스크톱 앱 재빌드·실행.

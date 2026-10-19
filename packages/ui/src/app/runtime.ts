@@ -4,6 +4,8 @@ import {
   createRemoteBridgeLink,
   createRemoteBridgeProviders,
   memorySecretStore,
+  parseHostList,
+  REMOTE_HOSTS_SECRET,
   REMOTE_PAIRING_SECRET,
   type RemotePairing,
   type BridgeClient,
@@ -86,6 +88,16 @@ export async function saveRemotePairing(p: RemotePairing | null): Promise<void> 
   remoteLink.reset();
   if (p) await secrets.set(REMOTE_PAIRING_SECRET, JSON.stringify(p));
   else await secrets.delete(REMOTE_PAIRING_SECRET);
+}
+
+/** 전환할 수 있게 저장해 둔 PC 목록 (ADR-063). 지금 쓰는 PC는 위의 페어링 하나다 */
+export async function loadRemoteHosts(): Promise<RemotePairing[]> {
+  return parseHostList(await secrets.get(REMOTE_HOSTS_SECRET));
+}
+
+export async function saveRemoteHosts(list: RemotePairing[]): Promise<void> {
+  if (list.length) await secrets.set(REMOTE_HOSTS_SECRET, JSON.stringify(list));
+  else await secrets.delete(REMOTE_HOSTS_SECRET);
 }
 
 /**

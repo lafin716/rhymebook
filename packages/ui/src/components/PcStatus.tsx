@@ -14,7 +14,7 @@ export const PC_STATUS_LABEL: Record<SyncStatus, string> = {
   unsupported: 'PC 앱 업데이트 필요',
 };
 
-const TONE = { online: 'ok', connecting: 'warn', offline: 'danger', unpaired: 'neutral', unsupported: 'danger' } as const;
+export const PC_STATUS_TONE = { online: 'ok', connecting: 'warn', offline: 'danger', unpaired: 'neutral', unsupported: 'danger' } as const;
 
 /** 원격 모드: 지금 PC와 연결되어 있는지 (데모 중에는 항상 사용 가능) */
 export function usePcOnline(): boolean {
@@ -44,7 +44,7 @@ export function PcStatusChip({ compact }: { compact?: boolean }) {
       ) : (
         <span className="relative">
           <Laptop size={15} />
-          <StatusDot tone={TONE[status]} className="absolute -right-1 -bottom-0.5 size-1.5 ring-2 ring-surface" />
+          <StatusDot tone={PC_STATUS_TONE[status]} className="absolute -right-1 -bottom-0.5 size-1.5 ring-2 ring-surface" />
         </span>
       )}
       {(!compact || connecting) && <span className="truncate">{compact ? PC_STATUS_LABEL.connecting : label}</span>}

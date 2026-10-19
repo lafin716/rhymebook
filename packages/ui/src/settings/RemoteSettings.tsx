@@ -4,10 +4,11 @@ import { Download, Info, Laptop, Link2, RefreshCw, Unlink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { caps } from '../app/capabilities';
 import { actions, persistence, useApp } from '../app/store';
-import { setPairing, syncClient, useRemotePairing, useSync } from '../app/sync';
+import { setPairing, syncClient, useRemoteHosts, useRemotePairing, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { StatusDot } from '../components/Badge';
 import { Button } from '../components/Button';
+import { HostList } from '../components/HostList';
 import { confirm } from '../components/ConfirmDialog';
 import { PC_STATUS_LABEL } from '../components/PcStatus';
 import { saveTextFile } from '../lib/download';
@@ -29,6 +30,7 @@ export function RemoteSettings() {
     <div className="space-y-6">
       <Section title="연결된 PC" hint="이 기기는 PC의 학습 내용을 보여 주고, 질문은 PC로 보내요. 답변은 PC의 CLI가 만들어요.">
         <PcCard />
+        <SavedHosts />
       </Section>
 
       <AppearanceSettings />
@@ -56,6 +58,12 @@ export function RemoteSettings() {
       <RemoteNote />
     </div>
   );
+}
+
+/** 저장한 PC가 둘 이상이면 여기서도 전환한다 (ADR-063). 추가는 위 카드의 [다른 PC와 페어링] */
+function SavedHosts() {
+  const many = useRemoteHosts((s) => s.hosts.length > 1);
+  return many ? <HostList addable={false} /> : null;
 }
 
 const TONE = { online: 'ok', connecting: 'warn', offline: 'danger', unpaired: 'neutral', unsupported: 'danger' } as const;
@@ -91,7 +99,7 @@ function PcCard() {
   const unpair = async () => {
     const ok = await confirm({
       title: 'PC 연결을 해제할까요?',
-      message: 'PC의 학습 내용은 그대로 남아요. 다시 쓰려면 PC에서 새 페어링 코드를 받아야 해요.',
+      message: 'PC의 학습 내용은 그대로 남아요. 이 PC는 저장한 목록에서도 빠지고, 다시 쓰려면 PC에서 새 페어링 코드를 받아야 해요.',
       confirmLabel: '연결 해제',
       tone: 'danger',
     });

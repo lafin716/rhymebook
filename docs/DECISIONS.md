@@ -495,3 +495,12 @@
   - 데스크톱 내부 앱 이름은 `rhymebook` 유지(`app.setName`) — userData(`<appData>/rhymebook`)와 macOS safeStorage 키체인 항목(`rhymebook Safe Storage`)이 이 이름에 묶여 있어, 바꾸면 학습 기록·API 키를 읽지 못한다. Linux 실행 파일·deb 패키지 이름도 `rhymebook` 유지(업그레이드 연속성). 설치 파일 이름만 `octobooks-…`.
   - 릴리즈 워크플로: 정식 `v*` 태그는 초안(노트 작성 후 공개), `-beta.` 태그는 프리릴리즈(Latest 제외)로 바로 공개.
 - 대안: preview 설정 그대로 머지 — 기존 사용자가 별도 앱을 새로 깔고 백업으로 데이터를 옮겨야 해 기각. 데이터 폴더를 `octobooks`로 옮기는 마이그레이션 — 키체인 항목까지 옮겨야 해 위험 대비 이득이 작아 보류.
+
+### ADR-063 · 2026-10-19 · 웹·모바일 여러 PC 저장 · 메인 화면 연결 목록
+- 배경: 사용자 요청 — 모바일 앱에서 여러 호스트(PC)에 붙어 작업할 수 있도록 메인 화면에 연결 목록을 띄우기. 지금은 페어링 하나만 저장해 다른 PC로 가려면 매번 다시 페어링해야 했다.
+- 결정:
+  - 저장: 페어링 목록을 비밀 저장소 `pairing:remote-hosts`(`REMOTE_HOSTS_SECRET`, 모바일 SecureStorage)에 JSON 배열로, `bridgeId`가 키(같은 PC 다시 페어링 = 자리 그대로 교체). 활성 페어링은 기존 `pairing:remote-bridge` 그대로 — remoteLink·provider 경로 변경 없음. 처음 읽을 때 목록에 없는 기존 활성 페어링을 앞에 넣어 옮긴다(core `hosts.ts` 순수 함수 + 테스트).
+  - 전환: 목록에서 다른 PC를 누르면 활성 페어링 저장 → 동기화 클라이언트 stop → 거울(mirror) 비우기 → start. 다른 PC의 세션이 섞이지 않는다. 활성 PC를 누르면 오프라인일 때만 다시 연결.
+  - 화면: 원격 모드 메인 화면(세션 없음·PC 연결 끊김 화면)에 "내 PC" 목록(이름·상태·경로, [목록에서 지우기], [PC 추가] → 페어링 폼). 설정 › 연결된 PC 아래에도 PC가 둘 이상이면 목록. 활성 PC를 지우면 연결 해제와 같다.
+  - 데스크톱 앱의 "다른 PC에 연결"(BridgeCard)은 그대로 한 개만.
+- 대안: 여러 PC에 동시 연결해 세션을 합쳐 보기 — 거울 store·sync 프로토콜이 PC 하나를 전제로 해 범위가 커서 기각. 목록을 localStorage에 — 기기 비밀(deviceSecret)이 들어 있어 기각.

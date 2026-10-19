@@ -3,9 +3,10 @@ import type { ID } from '@branch/core';
 import { Laptop, Link2, List, RefreshCw, Sparkles } from 'lucide-react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
-import { syncClient, useSync } from '../app/sync';
+import { syncClient, useRemoteHosts, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
+import { HostList } from '../components/HostList';
 import { usePcOnline } from '../components/PcStatus';
 
 const SUGGESTIONS = ['바다는 왜 파랗게 보일까?', 'AI는 어떻게 말을 배울까?', '오늘 배운 것을 오래 기억하려면?'];
@@ -88,6 +89,18 @@ export function NoSessions() {
           새 학습 시작
         </button>
       </div>
+      {remoteMode && <RemoteHosts />}
+    </div>
+  );
+}
+
+/** 원격 모드 메인 화면: 저장한 PC 목록에서 다른 PC로 전환한다 (ADR-063) */
+function RemoteHosts() {
+  const count = useRemoteHosts((s) => s.hosts.length);
+  if (!count) return null;
+  return (
+    <div className="mt-8 flex w-full justify-center">
+      <HostList />
     </div>
   );
 }
@@ -96,47 +109,57 @@ export function NoSessions() {
 function PcNotConnected() {
   const status = useSync((s) => s.status);
   const hostName = useSync((s) => s.hostName);
+  const hasHosts = useRemoteHosts((s) => s.hosts.length > 0);
   const pc = hostName ?? 'PC';
   const copy = {
-    unpaired: ['PC와 연결해 주세요', 'octobooks PC 앱과 페어링하면 PC에서 학습 중인 내용을 여기서 보고 이어서 질문할 수 있어요.'],
+    unpaired: hasHosts
+      ? ['연결할 PC를 골라 주세요', '저장해 둔 PC를 누르면 그 PC의 학습을 보고 이어서 질문할 수 있어요.']
+      : ['PC와 연결해 주세요', 'octobooks PC 앱과 페어링하면 PC에서 학습 중인 내용을 여기서 보고 이어서 질문할 수 있어요.'],
     connecting: [`${pc}에 연결하는 중`, 'PC의 학습 목록을 불러오고 있어요.'],
     offline: [`${pc}와 연결이 끊겼어요`, 'PC 앱이 켜져 있고 원격 페어링이 열려 있는지 확인하세요.'],
     unsupported: ['PC 앱 업데이트가 필요해요', 'PC의 octobooks 앱을 최신 버전으로 업데이트하면 원격 학습을 쓸 수 있어요.'],
     online: ['', ''],
   }[status];
   return (
-    <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+    <div className="flex h-full flex-col items-center justify-center overflow-y-auto px-6 py-8 text-center">
+      <div className="mb-4 flex size-14 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent">
         <Laptop size={28} className={status === 'connecting' ? 'animate-pulse' : undefined} />
       </div>
       <h2 className="text-[19px] font-semibold">{copy[0]}</h2>
       <p className="mt-1.5 max-w-xs text-[14px] leading-relaxed text-muted">{copy[1]}</p>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        {status === 'offline' && (
-          <button
-            type="button"
-            onClick={() => syncClient?.reconnect()}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg"
-          >
-            <RefreshCw size={16} />
-            다시 연결
-          </button>
-        )}
-        {status !== 'connecting' && (
-          <button
-            type="button"
-            onClick={() => actions().setOverlay('settings')}
-            className={
-              status === 'offline'
-                ? 'inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2'
-                : 'inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg'
-            }
-          >
-            <Link2 size={16} />
-            {status === 'unpaired' ? 'PC와 페어링' : '연결 설정'}
-          </button>
-        )}
-      </div>
+      {hasHosts ? (
+        // 목록이 있으면 다시 연결·전환·추가는 목록에서 한다
+        <div className="mt-6 flex w-full justify-center">
+          <HostList />
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {status === 'offline' && (
+            <button
+              type="button"
+              onClick={() => syncClient?.reconnect()}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg"
+            >
+              <RefreshCw size={16} />
+              다시 연결
+            </button>
+          )}
+          {status !== 'connecting' && (
+            <button
+              type="button"
+              onClick={() => actions().setOverlay('settings')}
+              className={
+                status === 'offline'
+                  ? 'inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2'
+                  : 'inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg'
+              }
+            >
+              <Link2 size={16} />
+              {status === 'unpaired' ? 'PC와 페어링' : '연결 설정'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

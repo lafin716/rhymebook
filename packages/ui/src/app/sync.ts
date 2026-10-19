@@ -1,6 +1,9 @@
 import {
   createSyncClient,
   createSyncHost,
+  removeHost,
+  upsertHost,
+  withActiveHost,
   syncLinkOf,
   type DesktopWindowsApi,
   type RemotePairing,
@@ -15,7 +18,7 @@ import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { isUsable } from '../lib/connection';
 import { remoteMode } from './capabilities';
-import { desktop, isDemo, mobile, loadRemotePairing, remoteLink, saveRemotePairing, sessionWindowId } from './runtime';
+import { desktop, isDemo, mobile, loadRemoteHosts, loadRemotePairing, remoteLink, saveRemoteHosts, saveRemotePairing, sessionWindowId } from './runtime';
 import { appStore, loadPersisted } from './store';
 import { syncSkillFolders, useSkills } from '../skills/skillsStore';
 
@@ -89,17 +92,75 @@ export function useSync<T>(selector: (s: SyncClientState) => T): T {
   return useStore(syncClient?.state ?? idleState, selector);
 }
 
-/** 페어링을 저장·해제하고 동기화를 다시 시작한다 */
+/* ── 저장한 PC 목록 (ADR-063) ─────────────────────────── */
+
+export interface RemoteHostsState {
+  /** 전환할 수 있는 PC들 (페어링한 순서) */
+  hosts: RemotePairing[];
+  /** 지금 쓰는 PC의 bridgeId */
+  activeId: string | null;
+  loaded: boolean;
+}
+
+export const remoteHosts = createStore<RemoteHostsState>(() => ({ hosts: [], activeId: null, loaded: false }));
+
+export function useRemoteHosts<T>(selector: (s: RemoteHostsState) => T): T {
+  return useStore(remoteHosts, selector);
+}
+
+/** 보안 저장소에서 목록을 읽는다. 목록 기능 전에 페어링한 PC도 목록에 넣어 둔다 */
+async function loadHosts(): Promise<void> {
+  const [list, active] = await Promise.all([loadRemoteHosts(), loadRemotePairing()]);
+  const hosts = withActiveHost(list, active);
+  if (hosts.length !== list.length) await saveRemoteHosts(hosts);
+  remoteHosts.setState({ hosts, activeId: active?.bridgeId ?? null, loaded: true });
+  // 연결되기 전에도 '집 맥북에 연결하는 중'처럼 저장한 이름으로 보여 준다
+  if (active && !syncClient?.state.getState().hostName) syncClient?.state.setState({ hostName: active.bridgeName });
+}
+
+async function writeHosts(hosts: RemotePairing[], activeId: string | null) {
+  await saveRemoteHosts(hosts);
+  remoteHosts.setState({ hosts, activeId, loaded: true });
+}
+
+/** 페어링을 저장·해제하고 동기화를 다시 시작한다. 새로 페어링한 PC는 목록에 넣고 바로 쓴다, 해제하면 목록에서도 뺀다 */
 export async function setPairing(p: RemotePairing | null): Promise<void> {
+  const { hosts, activeId } = remoteHosts.getState();
+  if (p) await writeHosts(upsertHost(hosts, p), p.bridgeId);
+  else await writeHosts(activeId ? removeHost(hosts, activeId) : hosts, null);
+  await applyPairing(p, p?.bridgeId !== activeId);
+}
+
+/** 활성 페어링을 바꾸고 동기화를 다시 시작한다. 다른 PC로 바뀌면 이전 PC의 화면은 먼저 지운다 */
+async function applyPairing(p: RemotePairing | null, otherHost: boolean) {
   await saveRemotePairing(p);
   if (!syncClient || isDemo()) return;
-  if (p) {
-    syncClient.stop();
-    syncClient.start();
-  } else {
-    syncClient.stop();
-    clearMirror();
+  syncClient.stop();
+  if (otherHost || !p) clearMirror();
+  if (!p) return;
+  // 이전 PC 이름이 '연결 중'에 남지 않게 페어링한 이름으로 바꿔 둔다
+  syncClient.state.setState({ hostName: p.bridgeName, error: undefined });
+  syncClient.start();
+}
+
+/** 저장한 PC로 전환한다. 지금 쓰는 PC면 끊겼을 때만 다시 잇는다 */
+export async function switchHost(bridgeId: string): Promise<void> {
+  const { hosts, activeId } = remoteHosts.getState();
+  const p = hosts.find((h) => h.bridgeId === bridgeId);
+  if (!p) return;
+  if (bridgeId === activeId) {
+    if (syncClient?.state.getState().status !== 'online') syncClient?.reconnect();
+    return;
   }
+  remoteHosts.setState({ activeId: bridgeId });
+  await applyPairing(p, true);
+}
+
+/** 저장한 PC를 목록에서 지운다. 지금 쓰는 PC면 연결도 해제한다 */
+export async function forgetHost(bridgeId: string): Promise<void> {
+  const { hosts, activeId } = remoteHosts.getState();
+  if (bridgeId === activeId) return setPairing(null);
+  await writeHosts(removeHost(hosts, bridgeId), activeId);
 }
 
 /** 미러링한 PC 데이터를 화면에서 지운다 (페어링 해제) */
@@ -243,6 +304,7 @@ export async function startData(): Promise<void> {
   if (isDemo()) return;
   if (syncClient) {
     clearMirror();
+    if (!localLink) await loadHosts();
     // 세션 창: 스냅샷을 받으면 이 세션의 메시지를 바로 요청하도록 미리 활성화해 둔다
     if (sessionWindowId) appStore.getState().applyRemote({ view: { ...appStore.getState().view, activeSessionId: sessionWindowId } });
     // 페어링 확인 전 '페어링 필요' 화면이 깜빡이지 않게 먼저 연결 중으로 둔다
