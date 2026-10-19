@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown, { type Options } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
+import remarkCjkFriendly from 'remark-cjk-friendly';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { normalizeMathDelimiters } from '../chat/Markdown';
@@ -57,7 +58,7 @@ function rehypeBoxes() {
   };
 }
 
-const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkMath];
+const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkCjkFriendly, remarkMath];
 const rehypePlugins: Options['rehypePlugins'] = [
   [rehypeKatex, { throwOnError: false, strict: 'ignore' }],
   [rehypeHighlight, { plainText: ['text', 'txt'] }],

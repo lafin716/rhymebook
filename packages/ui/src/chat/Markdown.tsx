@@ -4,6 +4,7 @@ import { memo, useMemo, type ComponentProps } from 'react';
 import ReactMarkdown, { type ExtraProps, type Options } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
+import remarkCjkFriendly from 'remark-cjk-friendly';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { rehypeAnchors, rehypeMathSource, type AnchorMark } from './anchorPlugin';
@@ -22,7 +23,7 @@ export interface MarkdownProps {
   streaming?: boolean;
 }
 
-const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkMath];
+const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkCjkFriendly, remarkMath];
 /** ```quiz 블록은 퀴즈 카드, ```speak 블록은 읽기 카드, 나머지 코드 블록은 SVG 미리보기/일반 코드 */
 function Pre(props: ComponentProps<'pre'> & ExtraProps) {
   const quiz = quizSource(props.node);

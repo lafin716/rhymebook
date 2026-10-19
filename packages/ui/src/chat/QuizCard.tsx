@@ -4,6 +4,7 @@ import { Check, ChevronRight, ListChecks, RotateCcw, X } from 'lucide-react';
 import { createContext, memo, useContext, useState, type ComponentProps, type FormEvent } from 'react';
 import ReactMarkdown, { type ExtraProps, type Options } from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
+import remarkCjkFriendly from 'remark-cjk-friendly';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { Button } from '../components/Button';
@@ -65,7 +66,7 @@ function saveProgress(key: string, p: Progress) {
 
 /* ── 문제·보기·해설 안의 마크다운 (굵게·코드·수식) ── */
 
-const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkMath];
+const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkCjkFriendly, remarkMath];
 const rehypePlugins: Options['rehypePlugins'] = [[rehypeKatex, { throwOnError: false, strict: 'ignore' }]];
 const inlineComponents: Options['components'] = { p: ({ children }) => <>{children}</> };
 
