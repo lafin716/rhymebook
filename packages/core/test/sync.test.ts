@@ -893,7 +893,7 @@ describe('sync host ↔ client', () => {
   it('host features: new ops are blocked or explained as outdated on an older PC', async () => {
     const { store, client, peer } = await connectClient();
     const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
-    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns']);
+    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns', 'websearch']);
     const inject = (m: SyncServerMsg) => {
       for (const l of peer.state.listeners) l(m);
     };
@@ -905,6 +905,12 @@ describe('sync host ↔ client', () => {
     store.getState().putVaultNode(createVaultFolder('vf-x', null, '새', t));
     expect(client.state.getState().lastFailure?.code).toBe('outdated');
     expect(store.getState().vault['vf-x']).toBeUndefined();
+    expect(peer.state.sent.length).toBe(sent);
+    // 웹 검색 토글도 옛 호스트에는 보내지 않는다 (ADR-070)
+    const sid = Object.keys(store.getState().sessions)[0]!;
+    store.getState().setSessionWebSearch(sid, false);
+    expect(client.state.getState().lastFailure?.code).toBe('outdated');
+    expect(store.getState().sessions[sid]!.webSearch).toBeUndefined();
     expect(peer.state.sent.length).toBe(sent);
 
     // 목록을 보내지 않는 옛 호스트: 보내 보고, 모른다('invalid')고 하면 'outdated'

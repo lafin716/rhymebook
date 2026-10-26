@@ -184,7 +184,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
       if (msg.providerId === 'claude-cli') {
         const systemFile = path.join(workDir, 'system.txt');
         await writeFile(systemFile, system, { mode: 0o600 });
-        args = claudeArgs({ systemFile, ...cliModelOptions(msg), inputJson: files.length > 0 });
+        args = claudeArgs({ systemFile, ...cliModelOptions(msg), inputJson: files.length > 0, webSearch: msg.webSearch === true });
         stdin = files.length ? claudeJsonInput(prompt, files) : prompt;
         parser = createClaudeParser();
       } else {
@@ -197,7 +197,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
         }
         const note = binaryNote(files.filter((f) => f.kind === 'pdf'));
         const imageGen = msg.imageGen === true;
-        args = codexArgs({ ...cliModelOptions(msg), images, imageGen });
+        args = codexArgs({ ...cliModelOptions(msg), images, imageGen, webSearch: msg.webSearch === true });
         stdin = withInstructions(imageGen ? `${system}\n\n${IMAGE_GEN_NOTE}` : system, note ? `${prompt}\n\n${note}` : prompt);
         const codex = createCodexParser();
         parser = codex;
@@ -228,7 +228,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
             if (ended) break;
             if (ev.type === 'done' && codexThread) heldDone = ev;
             else emit(ev);
-            if (ev.type !== 'delta') ended = true;
+            if (ev.type === 'done' || ev.type === 'error') ended = true;
           }
         },
       });
@@ -359,6 +359,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
             runChat(msg, ac.signal, (ev) => {
               if (ev.type === 'delta') safeSend({ type: 'chat.delta', reqId, text: ev.text });
               else if (ev.type === 'image') safeSend({ type: 'chat.image', reqId, attachment: ev.attachment });
+              else if (ev.type === 'tool') safeSend({ type: 'chat.tool', reqId, tool: ev.tool });
               else if (ev.type === 'done') safeSend({ type: 'chat.done', reqId, ...(ev.stopReason ? { stopReason: ev.stopReason } : {}) });
               else safeSend({ type: 'chat.error', reqId, error: ev.error });
             })

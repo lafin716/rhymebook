@@ -23,6 +23,8 @@ export interface Session {
   providerId?: ProviderId;
   /** 채팅에서 고른 모델·노력치 (연결 기본값 덮어쓰기, ADR-023) */
   modelPref?: ModelPref;
+  /** 웹 검색·페이지 읽기 도구 허용. 없으면 켜짐, false면 꺼짐 (ADR-070) */
+  webSearch?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -50,6 +52,24 @@ export interface Message {
   attachments?: Attachment[];
   /** 사용자 메시지에 적용한 스킬 (보낸 시점 사본) */
   skill?: SkillRef;
+  /** 응답 중 쓴 도구 (웹 검색·페이지 읽기, ADR-070) */
+  tools?: ToolActivity[];
+}
+
+/** 응답 중 도구 사용 한 건 (ADR-070). 같은 id 이벤트가 오면 갱신한다 */
+export interface ToolActivity {
+  id: string;
+  /** 'web_search' | 'web_fetch' | 그 밖의 도구 이름 */
+  name: string;
+  status: 'running' | 'done' | 'error';
+  query?: string;
+  url?: string;
+  sources?: ToolSource[];
+}
+
+export interface ToolSource {
+  url: string;
+  title?: string;
 }
 
 /**

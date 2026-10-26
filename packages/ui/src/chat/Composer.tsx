@@ -353,7 +353,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
             }}
           />
         </form>
-        {!remoteMode && <ModelChips sessionId={sessionId} compact={compact} />}
+        <ModelChips sessionId={sessionId} compact={compact} remote={remoteMode} />
       </div>
     </div>
   );

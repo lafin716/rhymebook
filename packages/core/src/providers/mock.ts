@@ -2,6 +2,7 @@ import { REORGANIZE_REQUEST } from '../context';
 import type { ProviderId } from '../model';
 import {
   providerError,
+  wantsWebTools,
   type Availability,
   type LLMProvider,
   type StreamEvent,
@@ -164,6 +165,12 @@ function lastUser(req: StreamRequest): string {
   return '';
 }
 
+/** 검색을 부르는 질문이면 검색어 (데모) */
+export function mockSearchQuery(user: string): string | null {
+  if (!/검색|최신|뉴스|search/i.test(user)) return null;
+  return user.replace(/\s+/g, ' ').trim().slice(0, 40);
+}
+
 function focusOf(req: StreamRequest): string | null {
   const m = /현재 질문 대상: "([^"]+)"/.exec(req.system);
   return m?.[1] ?? null;
@@ -261,6 +268,25 @@ export function createMockProvider(opts: MockProviderOptions = {}): LLMProvider 
             ),
           };
           return;
+        }
+        // 웹 검색이 켜진 대화에서 검색할 만한 질문이면 가짜 검색을 먼저 보여준다 (ADR-070, e2e용)
+        const query = wantsWebTools(req) ? mockSearchQuery(lastUser(req)) : null;
+        if (query) {
+          yield { type: 'tool', tool: { id: 'mock-ws', name: 'web_search', status: 'running', query } };
+          await sleep(500 * mockControl.speed, signal);
+          yield {
+            type: 'tool',
+            tool: {
+              id: 'mock-ws',
+              name: 'web_search',
+              status: 'done',
+              query,
+              sources: [
+                { url: 'https://example.com/news', title: '예시 뉴스' },
+                { url: 'https://example.org/docs', title: '예시 문서' },
+              ],
+            },
+          };
         }
         const text = respond(req);
         const parts = chunk(text);

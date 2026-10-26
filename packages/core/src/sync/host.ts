@@ -543,6 +543,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           if ('model' in op) patch.model = op.model ?? undefined;
           if ('effort' in op) patch.effort = op.effort ?? undefined;
           if ('model' in op || 'effort' in op) store.getState().setSessionModel(op.sessionId, patch);
+          if (typeof op.webSearch === 'boolean') store.getState().setSessionWebSearch(op.sessionId, op.webSearch);
           return null;
         }
         case 'delete':

@@ -1,6 +1,6 @@
 # Project Progress
 
-Last Updated: 2026-10-16
+Last Updated: 2026-10-26
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
@@ -209,6 +209,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-26 · 웹 검색·도구 사용(ADR-070): core `ToolActivity`·`Message.tools`·`Session.webSearch`·`wantsWebTools`·`supportsWebTools`·`upsertTool`, Anthropic 서버 도구 web_search/web_fetch + `pause_turn` 이어 받기, mock 가짜 검색, store `setSessionWebSearch`, sync `session.agent.webSearch`(기능 `websearch`); bridge Claude CLI `--tools WebSearch,WebFetch`·Codex `web_search=live|disabled` 파싱·`chat.tool`; ui [웹 검색] 칩·`ToolActivityList`. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 433·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 101 passed·11 skipped(새 web-search desktop·mobile), skill-sync-split '웹(원격) 스킬 동기화 버튼' 2건 실패 — 변경 전에도 실패(기존 문제). 독립 리뷰 통과. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-19 · 마인드맵 질문 목록·질문 옮기기·별도 세션 분리·세션 재정리(ADR-066~069): core `planTurnMove`·`turnMoveTargets`·`buildReorganizeRequest`·`parseReorganized`·기본 스킬 `reorganize`, store `moveTurn`·`splitTurn({sibling})`(AI 제목)·`reorganizeSession`, sync op `turn.splitOut`·`turn.move`·`session.reorganize`, ui 우클릭 메뉴·질문 옮기기 창·[세션 재정리]·마인드맵 ▾ 질문 목록·기본 스킬 배지. 계획: docs/plans/mindmap-turns-reorganize-plan.md. 독립 리뷰 7건 중 1건 반영(재정리 실패 감지 구독이 시작 실패·세션 삭제 시 풀리지 않던 문제), 나머지는 코드 확인 결과 문제 아님. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 422(+12)·ui 64·bridge 59·relay 9·server 10 PASS, `pnpm e2e` 99 passed·11 skipped(새 turn-move-reorganize 5개 × desktop·mobile), skill-sync-split '웹(원격) 스킬 동기화 버튼' 2건 실패 — 기존 문제. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-19 · 앵커 없는(빈) 하위 세션도 헤더의 [부모에 요약 붙이기] 줄을 접기(부모 원문 접기와 같은 기기별 상태, 접으면 헤더 ✨ 아이콘). `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 89 passed·11 skipped(새 subsession 접기 desktop·mobile), skill-sync-split 2건은 기존 실패. 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-19 · 사이드바 하위 세션의 하위 세션 접기 토글(▸, 접으면 `+N`, 열린 세션이 안에 있으면 자동 펼침). `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, `pnpm e2e` 86 passed·11 skipped(새 branch-collapse desktop·mobile). 실패 3건: skill-sync-split 2건은 기존 문제, annotations(mobile) 1건은 단독 재실행 PASS(간헐). 패키지 데스크톱 앱 재빌드·실행.

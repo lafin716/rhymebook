@@ -1,6 +1,6 @@
 import { newId } from '../id';
 import type { ProviderId } from '../model';
-import { PROVIDER_LABELS, providerError, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
+import { PROVIDER_LABELS, providerError, wantsWebTools, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
 import type { SttModelId, SttState, SttStatus } from '../stt';
 import type { BridgeClientMsg, BridgeServerMsg, BridgeStatus, CliProviderId, SttManageOp } from './protocol';
 import { CLI_PROVIDER_IDS } from './protocol';
@@ -176,6 +176,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         if (m.reqId !== reqId) return;
         if (m.type === 'chat.delta') push({ type: 'delta', text: m.text });
         else if (m.type === 'chat.image') push({ type: 'image', attachment: m.attachment });
+        else if (m.type === 'chat.tool') push({ type: 'tool', tool: m.tool });
         else if (m.type === 'chat.done') push({ type: 'done', ...(m.stopReason ? { stopReason: m.stopReason } : {}) });
         else if (m.type === 'chat.error') push({ type: 'error', error: m.error });
       });
@@ -204,6 +205,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
               ...(req.model ? { model: req.model } : {}),
               ...(req.effort ? { effort: req.effort } : {}),
               ...(!req.purpose || req.purpose === 'chat' ? { imageGen: true } : {}),
+              ...(wantsWebTools(req) ? { webSearch: true } : {}),
             });
           } catch {
             push({ type: 'error', error: providerError('offline', offline) });
@@ -213,7 +215,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
           if (!queue.length) await new Promise<void>((r) => (wake = r));
           const ev = queue.shift()!;
           yield ev;
-          if (ev.type !== 'delta' && ev.type !== 'image') {
+          if (ev.type === 'done' || ev.type === 'error') {
             ended = true;
             return;
           }

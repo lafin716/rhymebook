@@ -10,6 +10,7 @@
 3. **공개 배포 시 기본 provider는 API 키(BYOK)** 이다. CLI provider는 사용자가 명시적으로 켠다.
 4. 앱은 히스토리와 브랜치 맥락을 **소유**하고, CLI는 **매 호출 무상태**로 사용한다(CLI 세션 resume 미사용).
 5. CLI는 **도구 비활성/읽기 전용 샌드박스**로 실행한다. 사용자 파일을 수정할 수 없어야 한다.
+   예외: 일반 대화에서 웹 검색·웹 페이지 읽기 도구만 허용한다(세션별 토글, ADR-070). 파일·셸 도구는 계속 끈다.
 6. API 키·페어링 키는 OS 보안 저장소에만 저장하며, 로그·relay에 평문으로 남기지 않는다.
 
 이 원칙에 반하는 기능 요청은 DECISIONS.md에 거절 근거와 함께 기록한다.
@@ -53,8 +54,8 @@ interface LLMProvider {
 | MockProvider | 시드 기반 가짜 스트리밍. 지연/오류/오프라인 시나리오 주입 가능. 이후 **데모 모드**로 유지 | 전체 | 프로토타입 |
 | AnthropicApiProvider | Messages API SSE 스트리밍(`anthropic-dangerous-direct-browser-access` 헤더로 브라우저 직접 호출, BYOK) | 전체 | 1 |
 | OpenAIApiProvider | Chat Completions/Responses 스트리밍(BYOK) | 전체 | 1 |
-| ClaudeCliProvider | bridge가 `claude -p --output-format stream-json --verbose`를 spawn. 도구 비활성(`--tools ""` 또는 `--disallowedTools` 전체), system은 `--system-prompt`, 대화는 stdin으로 직렬화 | 데스크톱/원격 | 3 |
-| CodexCliProvider | bridge가 `codex exec --json --sandbox read-only --skip-git-repo-check` 실행(또는 app-server) | 데스크톱/원격 | 3 |
+| ClaudeCliProvider | bridge가 `claude -p --output-format stream-json --verbose`를 spawn. 도구 비활성(`--tools ""`), 웹 검색이 켜진 일반 대화만 `--tools WebSearch,WebFetch`(ADR-070), system은 `--system-prompt`, 대화는 stdin으로 직렬화 | 데스크톱/원격 | 3 |
+| CodexCliProvider | bridge가 `codex exec --json --sandbox read-only --skip-git-repo-check` 실행(또는 app-server), 웹 검색 `-c web_search=live|disabled`(ADR-070) | 데스크톱/원격 | 3 |
 | RemoteBridgeProvider | 원격 bridge에 WebSocket 연결 후 위 CLI provider를 대리 호출 | 데스크톱(다른 PC에 연결) | 4, 6 |
 
 > ADR-026: 웹·모바일은 provider를 직접 쓰지 않는다. PC 스토어를 미러링하고 질문은 액션 신호로 보내며, CLI 호출은 PC의 호스트 엔진이 PC의 provider 설정(원격 요청 에이전트·기본 모델·노력치)으로 수행한다. 구독 CLI는 사용자 본인 PC에서만 실행된다는 정책 원칙을 그대로 따른다.

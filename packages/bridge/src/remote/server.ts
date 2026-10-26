@@ -149,6 +149,7 @@ export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
     ...(typeof m.model === 'string' ? { model: m.model } : {}),
     ...(typeof m.effort === 'string' ? { effort: m.effort } : {}),
     ...(m.imageGen === true ? { imageGen: true } : {}),
+    ...(m.webSearch === true ? { webSearch: true } : {}),
   };
 }
 

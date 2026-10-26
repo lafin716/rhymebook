@@ -9,6 +9,7 @@ import { AttachmentList } from './Attachments';
 import { Markdown } from './Markdown';
 import { openBranch } from './open';
 import { setSegmentMap } from './segmentRegistry';
+import { ToolActivityList } from './ToolActivityList';
 import { BranchChips, SummaryCard } from './SummaryCard';
 import { AnnotationPopover } from './AnnotationPopover';
 import { RegionGutter } from './RegionGutter';
@@ -97,14 +98,19 @@ function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
 
   const summaries = branches.filter((b) => b.summary);
   const images = message.attachments?.filter((a) => a.kind === 'image') ?? [];
+  const tools = message.tools ?? [];
 
   return (
     <div className="group/msg space-y-2.5">
+      {tools.length > 0 && <ToolActivityList tools={tools} />}
       {streaming && !message.content ? (
-        <div className="flex items-center gap-2 py-1 text-[14px] text-muted">
-          <span className="stream-caret" />
-          생각 중…
-        </div>
+        // 도구가 돌고 있으면 그 줄이 진행 표시다
+        tools.some((t) => t.status === 'running') ? null : (
+          <div className="flex items-center gap-2 py-1 text-[14px] text-muted">
+            <span className="stream-caret" />
+            생각 중…
+          </div>
+        )
       ) : !message.content && images.length ? null : (
         <div className="relative">
           <div

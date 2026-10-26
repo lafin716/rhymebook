@@ -2,7 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
 import { NEW_SESSION_TITLE } from '../store';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, VaultNode, ViewState } from '../model';
-import { OP_FEATURE, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
+import { OP_FEATURE, opFeature, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
 import type { StudyBundle } from '../study';
 import { branchQuestion } from '../context';
@@ -429,7 +429,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       failWith('offline');
       return false;
     }
-    const feature = OP_FEATURE[op.kind];
+    const feature = opFeature(op);
     if (feature && hostFeatures && !hostFeatures.has(feature)) {
       failWith('outdated');
       return false;
@@ -539,6 +539,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         anchor,
         ...(parent.providerId ? { providerId: parent.providerId } : {}),
         ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+        ...(parent.webSearch === false ? { webSearch: false } : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -577,6 +578,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         title: subSessionTitle(q),
         ...(parent.providerId ? { providerId: parent.providerId } : {}),
         ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+        ...(parent.webSearch === false ? { webSearch: false } : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -737,6 +739,9 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       if ('model' in patch) op.model = patch.model ?? null;
       if ('effort' in patch) op.effort = patch.effort ?? null;
       act(op);
+    },
+    setSessionWebSearch(sessionId, on) {
+      act({ kind: 'session.agent', sessionId, webSearch: on });
     },
     async refreshConnections() {},
   };

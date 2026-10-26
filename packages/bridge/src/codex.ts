@@ -1,4 +1,4 @@
-import { type StreamEvent } from '@branch/core';
+import { type StreamEvent, type ToolActivity, type ToolSource } from '@branch/core';
 import { finishFromExit } from './claude';
 import { classifyCliError, type CliErrorContext } from './errors';
 import { isObj, str, type CliParser } from './parser';
@@ -41,9 +41,10 @@ const IMAGE_GEN_FEATURES = ['image_generation', 'code_mode_host'];
 /**
  * 공식 codex CLI 무상태 실행 인자. 읽기 전용 샌드박스, 세션 파일 저장 안 함,
  * 사용자 config.toml/rules 미적용(앱이 모델과 지시를 정한다), 도구 비활성. 프롬프트는 stdin('-').
+ * webSearch면 웹 검색만 live로 켠다 (셸·파일 도구는 계속 끈다, ADR-070).
  * 값에 따옴표를 넣지 않는다 — win32 cmd 경유 시 이스케이프가 깨진다(TOML이 아니면 문자열로 읽힌다).
  */
-export function codexArgs(opts: { model?: string; effort?: string; images?: string[]; imageGen?: boolean }): string[] {
+export function codexArgs(opts: { model?: string; effort?: string; images?: string[]; imageGen?: boolean; webSearch?: boolean }): string[] {
   // 이미지 생성은 일반 대화에서만 켠다 (ADR-041). 결과는 runChat이 generated_images에서 거둔다
   const off = opts.imageGen ? CODEX_OFF_FEATURES.filter((f) => !IMAGE_GEN_FEATURES.includes(f)) : CODEX_OFF_FEATURES;
   return [
@@ -62,7 +63,7 @@ export function codexArgs(opts: { model?: string; effort?: string; images?: stri
     // --ignore-user-config 여도 -c 덮어쓰기는 적용된다
     ...off.flatMap((f) => ['-c', `features.${f}=false`]),
     '-c',
-    'web_search=disabled',
+    `web_search=${opts.webSearch ? 'live' : 'disabled'}`,
     ...(opts.model ? ['-m', opts.model] : []),
     ...(opts.effort ? ['-c', `model_reasoning_effort=${opts.effort}`] : []),
     '-',
@@ -83,6 +84,27 @@ function innerMessage(raw: string): string {
     // 일반 문자열
   }
   return raw;
+}
+
+/** web_search 항목 → 도구 사용 (action: search{query} / open_page{url} / find_in_page{url}) */
+function webSearchActivity(item: Record<string, unknown>, id: string, done: boolean): ToolActivity {
+  const action = isObj(item.action) ? item.action : {};
+  const query = str(item.query) || str(action.query) || (Array.isArray(action.queries) ? str(action.queries[0]) : undefined);
+  const url = str(action.url);
+  const sources: ToolSource[] = [];
+  if (Array.isArray(item.results)) {
+    for (const r of item.results) {
+      if (isObj(r) && str(r.url)) sources.push({ url: str(r.url)!, ...(str(r.title) ? { title: str(r.title)! } : {}) });
+    }
+  }
+  return {
+    id,
+    name: url && !query ? 'web_fetch' : 'web_search',
+    status: done ? 'done' : 'running',
+    ...(query ? { query } : {}),
+    ...(url ? { url } : {}),
+    ...(sources.length ? { sources } : {}),
+  };
 }
 
 /**
@@ -106,6 +128,9 @@ export function createCodexParser(): CliParser & { threadId(): string | undefine
       }
       if ((t === 'item.started' || t === 'item.updated' || t === 'item.completed') && isObj(obj.item)) {
         const item = obj.item;
+        if (item.type === 'web_search') {
+          return [{ type: 'tool', tool: webSearchActivity(item, `codex-${str(item.id) ?? 'ws'}`, t === 'item.completed') }];
+        }
         if (item.type !== 'agent_message') return [];
         const text = str(item.text) ?? '';
         const id = str(item.id) ?? 'item';

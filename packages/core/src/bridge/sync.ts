@@ -35,7 +35,7 @@ export type SyncOp =
    * 이 세션을 PC의 어느 CLI·모델·노력치로 답할지 (IMP-08). 있는 키만 바꾸고 null은 PC 기본값으로 되돌린다.
    * providerId를 바꾸면 PC 스토어가 다른 CLI의 모델·노력치 덮어쓰기를 버린다
    */
-  | { kind: 'session.agent'; sessionId: ID; providerId?: CliId | null; model?: string | null; effort?: string | null }
+  | { kind: 'session.agent'; sessionId: ID; providerId?: CliId | null; model?: string | null; effort?: string | null; webSearch?: boolean }
   | { kind: 'delete'; sessionId: ID }
   /** 질문 하나와 답변 삭제 (첫 질문 제외). 세션 삭제와 같은 PC 허용 설정을 따른다 */
   | { kind: 'turn.delete'; sessionId: ID; questionId: ID }
@@ -64,7 +64,7 @@ export type SyncOpKind = SyncOp['kind'];
  * 호스트가 sync.snapshot에 싣는 지원 기능. 목록이 없거나 빠진 기능은 옛 PC 앱이라 처리하지 못하므로
  * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
  */
-export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns'] as const;
+export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch'] as const;
 export type SyncFeature = (typeof SYNC_FEATURES)[number];
 export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   subsession: 'subsession',
@@ -75,6 +75,12 @@ export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   'turn.move': 'turns',
   'session.reorganize': 'turns',
 };
+
+/** op에 필요한 호스트 기능. session.agent의 웹 검색 토글은 'websearch' (ADR-070) */
+export function opFeature(op: SyncOp): SyncFeature | undefined {
+  if (op.kind === 'session.agent' && 'webSearch' in op) return 'websearch';
+  return OP_FEATURE[op.kind];
+}
 
 export type SyncClientMsg =
   | { type: 'sync.hello' }
@@ -229,12 +235,13 @@ function validateOp(op: unknown): boolean {
   }
   if (kind === 'session.agent') {
     if (typeof o.sessionId !== 'string' || !SYNC_ID_RE.test(o.sessionId)) return false;
-    if (!('providerId' in o) && !('model' in o) && !('effort' in o)) return false;
+    if (!('providerId' in o) && !('model' in o) && !('effort' in o) && !('webSearch' in o)) return false;
+    if ('webSearch' in o && typeof o.webSearch !== 'boolean') return false;
     if ('providerId' in o && o.providerId !== null && o.providerId !== 'claude-cli' && o.providerId !== 'codex-cli') return false;
     if ('model' in o && o.model !== null && (typeof o.model !== 'string' || !isValidModelName(o.model))) return false;
     // 노력치가 그 CLI·모델에 맞는지는 호스트 스토어가 확인해 맞지 않으면 버린다
     if ('effort' in o && o.effort !== null && (typeof o.effort !== 'string' || !/^[a-z]{1,16}$/.test(o.effort))) return false;
-    const allowed = new Set(['kind', 'sessionId', 'providerId', 'model', 'effort']);
+    const allowed = new Set(['kind', 'sessionId', 'providerId', 'model', 'effort', 'webSearch']);
     return Object.keys(o).every((k) => allowed.has(k));
   }
   if (kind === 'delete') {

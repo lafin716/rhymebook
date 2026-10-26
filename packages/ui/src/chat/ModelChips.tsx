@@ -5,32 +5,59 @@ import {
   effortsFor,
   isCliId,
   modelLabel,
+  supportsWebTools,
   type CliId,
   type ID,
 } from '@branch/core';
-import { ChevronDown, Cpu, Gauge } from 'lucide-react';
+import { ChevronDown, Cpu, Gauge, Globe } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { caps } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { cn } from '../lib/cn';
 
 /**
- * CLI provider 채팅의 모델·노력치 선택 (세션 덮어쓰기, 비우면 설정의 기본값).
- * 웹·모바일은 고를 수 없다 — 원격 요청의 모델·노력치는 PC 설정이 정한다 (ADR-025).
+ * 입력창 아래 칩: 웹 검색 켜기·끄기(ADR-070) + CLI provider 채팅의 모델·노력치 선택 (세션 덮어쓰기, 비우면 설정의 기본값).
+ * 웹·모바일(remote)은 모델을 고를 수 없다 — 원격 요청의 모델·노력치는 PC 설정이 정한다 (ADR-025). 웹 검색은 원격도 바꾼다.
  */
-export function ModelChips({ sessionId, compact }: { sessionId: ID; compact?: boolean }) {
+export function ModelChips({ sessionId, compact, remote }: { sessionId: ID; compact?: boolean; remote?: boolean }) {
   const eff = useApp((s) => effectiveProviderId(s, sessionId));
   const pref = useApp((s) => s.sessions[sessionId]?.modelPref);
+  const webOn = useApp((s) => s.sessions[sessionId]?.webSearch !== false);
   const conn = useApp((s) => s.connections[eff]);
-  if (!caps.modelChoice || !isCliId(eff)) return null;
+  const showWeb = supportsWebTools(eff);
+  const cli = !remote && caps.modelChoice && isCliId(eff) ? eff : null;
+  if (!showWeb && !cli) return null;
   const own = pref?.providerId === eff ? pref : undefined;
-  return <Chips id={eff} sessionId={sessionId} compact={compact} model={own?.model} effort={own?.effort} defModel={conn?.model} defEffort={conn?.effort} />;
+  return (
+    <div className={cn('flex flex-wrap items-center gap-1.5', compact ? 'mt-1.5' : 'mt-2')}>
+      {showWeb && <WebSearchChip sessionId={sessionId} on={webOn} />}
+      {cli && <Chips id={cli} sessionId={sessionId} model={own?.model} effort={own?.effort} defModel={conn?.model} defEffort={conn?.effort} />}
+    </div>
+  );
+}
+
+/** 모델이 필요할 때 웹 검색·페이지 읽기를 쓰게 할지 (세션별, 기본 켜짐) */
+function WebSearchChip({ sessionId, on }: { sessionId: ID; on: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      title={on ? '웹 검색 켜짐 — 필요하면 모델이 웹을 검색합니다' : '웹 검색 꺼짐'}
+      onClick={() => actions().setSessionWebSearch(sessionId, !on)}
+      className={cn(
+        'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[12px] focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none',
+        on ? 'border-accent/40 bg-accent-soft text-accent' : 'border-line bg-surface text-muted hover:bg-surface-2',
+      )}
+    >
+      <Globe size={12} className="shrink-0 opacity-80" />
+      <span>{on ? '웹 검색' : '웹 검색 끔'}</span>
+    </button>
+  );
 }
 
 function Chips({
   id,
   sessionId,
-  compact,
   model,
   effort,
   defModel,
@@ -38,7 +65,6 @@ function Chips({
 }: {
   id: CliId;
   sessionId: ID;
-  compact?: boolean;
   model?: string;
   effort?: string;
   defModel?: string;
@@ -54,7 +80,7 @@ function Chips({
   const effortText = curEffort ? (EFFORT_LABELS[curEffort] ?? curEffort) : '기본 노력치';
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-1.5', compact ? 'mt-1.5' : 'mt-2')}>
+    <>
       <Chip icon={<Cpu size={12} />} text={modelText} active={!!model} title="이 채팅의 모델">
         <select
           aria-label="이 채팅의 모델"
@@ -90,7 +116,7 @@ function Chips({
           ))}
         </select>
       </Chip>
-    </div>
+    </>
   );
 }
 

@@ -557,3 +557,14 @@
   - 제목 클릭은 기존처럼 세션 창, 질문 클릭은 `revealTurn` — 세션을 열고(PC 팝업·모바일 시트) 그 질문으로 스크롤·포커스·잠깐 강조.
   - 앵커 없는 하위 세션 노드의 표시를 "각주 세션"으로.
   - 스킬 관리 목록에서 `builtin` 스킬에 "기본 스킬" 배지.
+
+### ADR-070 · 2026-10-26 · 웹 검색 · 도구 사용
+- 배경: 사용자 요청 — 세션에서 필요하면 웹 검색을 하고, 도구 사용 기능도 추가. 03-PROVIDERS 원칙 5(도구 비활성)를 웹 도구에 한해 완화한다.
+- 결정:
+  - 도구는 `web_search`(검색)·`web_fetch`(페이지 읽기)만 허용. 파일·셸·코드 실행 도구는 계속 끈다. 일반 대화(purpose 없음/'chat')에만 붙이고 요약·제목·스킬·재정리 요청은 도구 없이(`wantsWebTools`).
+  - 세션별 토글 `Session.webSearch`(필드 없음 = 켜짐, `false` = 꺼짐). 입력창 모델 칩 옆 [웹 검색] 칩(`aria-pressed`). OpenAI API(Chat Completions)는 미지원이라 칩을 숨긴다(`supportsWebTools`).
+  - Anthropic API: 서버 도구 `web_search_20260209`·`web_fetch_20260209`(Opus/Sonnet 4.6 이상), 그 밖의 모델은 기본판(`web_search_20250305`·`web_fetch_20250910`). `pause_turn`이면 받은 내용을 assistant 메시지로 붙여 최대 5회 이어 받는다.
+  - Claude CLI: 켜면 `--tools WebSearch,WebFetch --allowedTools WebSearch,WebFetch`, 끄면 `--tools ''`. stream-json의 tool_use/tool_result로 사용 내역을 만든다. Codex CLI: `-c web_search=live|disabled`(셸 도구는 계속 끔), `web_search` 항목 파싱.
+  - 사용 내역 `ToolActivity {id,name,status,query?,url?,sources?}`를 `Message.tools`에 같은 id로 갱신 저장, 답변 위 `ToolActivityList`로 검색어·출처(http(s)만, 새 창 `noopener`) 표시. 도구 뒤 이어지는 글은 문단을 나눈다.
+  - bridge: `chat.start.webSearch`, 서버 메시지 `chat.tool`. 스트림은 done/error에서만 끝난다. 원격: sync op `session.agent`의 `webSearch`(호스트 기능 `websearch`, 옛 PC면 'outdated').
+- 대안: 파일 읽기 등 범용 도구까지 허용 — 사용자 파일 접근이 생겨 정책 원칙 5에 어긋나 기각. 앱이 검색 API를 직접 호출(클라이언트 도구) — 별도 키·비용이 필요하고 CLI 구독 경로와 맞지 않아 기각.

@@ -51,7 +51,7 @@ import {
 import { MAX_SPLIT } from '../model';
 import { applyAnnotationPatch, createAnnotation, isEmptyAnnotation } from '../annotations';
 import { isCliId, isValidEffort, sessionModelOptions } from '../cli-options';
-import { collectStream, providerError, type ProviderError, type ProviderRegistry, type StreamRequest } from '../provider';
+import { collectStream, providerError, upsertTool, type ProviderError, type ProviderRegistry, type StreamRequest } from '../provider';
 import { memoryRepository, type Repository } from '../repo';
 import { DEFAULT_SETTINGS, defaultConnections, emptyView } from '../seed';
 import { chatTarget, defaultSkills, REORGANIZE_SKILL_ID, skillRef } from '../skills';
@@ -160,6 +160,8 @@ export interface AppState extends AppData {
   setSessionProvider(id: ID, providerId: ProviderId | undefined): void;
   /** 이 채팅의 모델·노력치 덮어쓰기. 값을 비우면(undefined) 연결 기본값을 따른다 */
   setSessionModel(id: ID, patch: { model?: string | undefined; effort?: string | undefined }): void;
+  /** 이 채팅의 웹 검색·페이지 읽기 도구 켜기/끄기 (기본 켜짐, ADR-070) */
+  setSessionWebSearch(id: ID, on: boolean): void;
 
   // 메시지
   /** 질문 보내기. 첨부가 있으면 text가 비어도 된다 */
@@ -443,6 +445,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           contextWindow: state.settings.contextWindow,
         });
       Object.assign(req, target.options);
+      // 일반 대화에만 웹 도구를 붙인다. 재정리 같은 내부 요청은 도구 없이 (ADR-070)
+      if (!custom) req.webSearch = state.sessions[sessionId]?.webSearch !== false;
       req.signal = ctrl.signal;
 
       let text = '';
@@ -461,6 +465,9 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           } else if (ev.type === 'image') {
             const m = getMessage(sessionId, messageId);
             if (m) putMessage({ ...m, attachments: [...(m.attachments ?? []), ev.attachment] });
+          } else if (ev.type === 'tool') {
+            const m = getMessage(sessionId, messageId);
+            if (m) putMessage({ ...m, tools: upsertTool(m.tools, ev.tool) });
           } else if (ev.type === 'error') {
             fail(ev.error, text);
             break;
@@ -690,6 +697,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         const inherit = {
           ...(src.providerId ? { providerId: src.providerId } : {}),
           ...(src.modelPref ? { modelPref: src.modelPref } : {}),
+          ...(src.webSearch === false ? { webSearch: false } : {}),
         };
         // 형제: 부모가 있으면 같은 부모 아래 각주(원래 세션 바로 뒤 자리), 루트면 새 루트
         const dest: Session = opts?.sibling
@@ -816,6 +824,16 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         repo.saveSession(next);
       },
 
+      setSessionWebSearch(id, on) {
+        const cur = get().sessions[id];
+        if (!cur || (cur.webSearch !== false) === on) return;
+        const next: Session = { ...cur };
+        if (on) delete next.webSearch;
+        else next.webSearch = false;
+        set((s) => ({ sessions: { ...s.sessions, [id]: next } }));
+        repo.saveSession(next);
+      },
+
       setSessionModel(id, patch) {
         const cur = get().sessions[id];
         if (!cur) return;
@@ -900,6 +918,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           anchor,
           ...(parent.providerId ? { providerId: parent.providerId } : {}),
           ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+          ...(parent.webSearch === false ? { webSearch: false } : {}),
           createdAt: now,
           updatedAt: now,
         };
@@ -928,6 +947,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           title: subSessionTitle(q),
           ...(parent.providerId ? { providerId: parent.providerId } : {}),
           ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+          ...(parent.webSearch === false ? { webSearch: false } : {}),
           createdAt: now,
           updatedAt: now,
         };
