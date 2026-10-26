@@ -14,8 +14,9 @@ import {
   type Skill,
   type SkillRef,
 } from '@branch/core';
-import { ArrowUp, ImagePlus, Paperclip, Plus, Settings2, Sparkles, Square, WandSparkles, WifiOff, X } from 'lucide-react';
+import { ArrowUp, ImagePlus, Maximize2, Minimize2, Paperclip, Plus, Settings2, Sparkles, Square, WandSparkles, WifiOff, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { pushNotice } from '../app/sync';
@@ -42,6 +43,8 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const [slashClosed, setSlashClosed] = useState(false);
   // 자동 스킬 칩을 뺀 스킬 id (입력창을 비우면 다시 고른다)
   const [dismissed, setDismissed] = useState<string | null>(null);
+  // 자세히 입력하기: 입력창을 전체 화면으로 펼친다. Enter는 줄바꿈, Ctrl/⌘+Enter로 보낸다
+  const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -61,9 +64,27 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (expanded) {
+      el.style.height = '';
+      return;
+    }
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
-  }, [text]);
+  }, [text, expanded]);
+
+  // 펼치거나 접으면 입력창이 새로 그려지므로 포커스와 커서를 글 끝으로 옮긴다
+  const toggled = useRef(false);
+  useEffect(() => {
+    if (!toggled.current) {
+      toggled.current = true;
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollTop = el.scrollHeight;
+  }, [expanded]);
 
   // 슬래시 명령 입력 중이면 스킬 후보
   const query = skill ? null : slashQuery(text);
@@ -145,217 +166,305 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
     setSkill(null);
     setSlashClosed(false);
     setDismissed(null);
+    setExpanded(false);
   };
 
-  return (
-    <div className={cn('shrink-0 bg-bg', compact ? 'px-2.5 pt-1.5 pb-2.5' : 'safe-bottom px-3 pt-2 pb-3 md:px-6')}>
-      <div className="relative mx-auto max-w-3xl">
-        {/* 원격 모드: 응답 가능 여부는 PC 연결이 결정한다 (어떤 CLI를 쓸지는 PC가 정함) */}
-        {remoteMode && !pcOnline && <PcOfflineBanner />}
-        {!remoteMode && !usable && (
-          <div role="status" className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-warn/30 bg-warn-soft px-3 py-2 text-[13px] text-warn">
-            <WifiOff size={15} className="shrink-0" />
-            <span className="min-w-[14rem] flex-1">
-              <b className="font-semibold">{providerLabel(eff)}</b> {conn?.enabled === false ? '꺼짐' : STATUS_LABEL[conn?.status ?? 'offline']} — 지금은 응답을 받을 수 없어요
-            </span>
-            <span className="ml-auto flex gap-1.5">
-              {fallback && (
-                <Button size="sm" variant="secondary" onClick={() => actions().setSessionProvider(sessionId, fallback)}>
-                  {providerLabel(fallback)}로 전환
-                </Button>
-              )}
-              <Button size="sm" variant="ghost" icon={<Settings2 size={14} />} onClick={() => actions().setOverlay('settings')}>
-                설정
-              </Button>
-            </span>
-          </div>
-        )}
-
-        {slashOpen && (
-          <div role="listbox" aria-label="스킬" className="animate-pop-in absolute inset-x-0 bottom-full z-20 mb-1.5 overflow-hidden rounded-xl border border-line bg-elev p-1 shadow-float">
-            <div className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">스킬 · ↑↓ 선택 · Enter</div>
-            {slashItems.map((s, i) => (
-              <button
-                key={s.id}
-                type="button"
-                role="option"
-                aria-selected={i === slashIndex}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setSlashIndex(i)}
-                onClick={() => pickSkill(s)}
-                className={cn('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left', i === slashIndex && 'bg-surface-2')}
-              >
-                <Sparkles size={15} className="shrink-0 text-accent" />
-                <code className="shrink-0 text-[13px] text-accent">/{s.name}</code>
-                <span className="min-w-0 flex-1 truncate text-[13px] text-fg-2">{s.title}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
+  const plusMenu = (
+    <PlusMenu
+      open={menu}
+      setOpen={setMenu}
+      skills={skills}
+      onPhoto={() => photoRef.current?.click()}
+      onFile={() => fileRef.current?.click()}
+      onSkill={pickSkill}
+    />
+  );
+  const input = (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        setSlashClosed(false);
+        if (!e.target.value.trim()) setDismissed(null);
+      }}
+      onPaste={(e) => {
+        const files = Array.from(e.clipboardData.files);
+        if (files.length) {
+          e.preventDefault();
+          void addFiles(files);
+          return;
+        }
+        const pasted = e.clipboardData.getData('text/plain');
+        if (pasted && isLongPaste(pasted)) {
+          e.preventDefault();
+          addAttachment(pastedTextAttachment(pasted, attachRef.current));
+        }
+      }}
+      onKeyDown={(e) => {
+        if (slashOpen) {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const n = slashItems.length;
+            setSlashIndex((i) => (i + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
+            return;
+          }
+          if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            pickSkill(slashItems[slashIndex] ?? slashItems[0]!);
+            return;
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            setSlashClosed(true);
+            return;
+          }
+        }
+        if (e.key === 'Backspace' && !text && skill) {
+          setSkill(null);
+          return;
+        }
+        if (expanded) {
+          // 자세히 입력: Enter는 줄바꿈, Ctrl/⌘+Enter만 보낸다
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
             e.preventDefault();
             send();
-          }}
-          onDragOver={(e) => {
-            if (e.dataTransfer.types.includes('Files')) e.preventDefault();
-          }}
-          onDrop={(e) => {
-            if (!e.dataTransfer.files.length) return;
+          } else if (e.key === 'Escape') {
             e.preventDefault();
-            void addFiles(e.dataTransfer.files);
-          }}
-          className="octo-composer rounded-2xl border border-line bg-surface p-1.5 shadow-pop focus-within:border-line-strong"
-        >
-          {(attachments.length > 0 || skill || auto) && (
-            <div className="flex flex-col gap-1.5 px-1.5 pt-1.5 pb-1">
-              {skill && (
-                <span data-skill-chip={skill.name} className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-accent/40 bg-accent-soft pr-1 pl-2.5 text-[12.5px] text-accent">
-                  <Sparkles size={13} />
-                  <span className="truncate font-medium">{skill.title}</span>
-                  <code className="text-[11.5px] opacity-75">/{skill.name}</code>
-                  {/* 웹·모바일에서 PC CLI가 아닌 설정은 PC가 따르지 않아 보이지 않는다 */}
-                  {skill.options && (caps.localCli || isCliId(skill.options.providerId)) && (
-                    <span className="truncate text-[11.5px] opacity-75" title="이 스킬 전용 설정으로 답해요">
-                      · {[PROVIDER_LABELS[skill.options.providerId], skill.options.model, skill.options.effort].filter(Boolean).join(' · ')}
-                    </span>
-                  )}
-                  <button type="button" aria-label="스킬 빼기" onClick={() => setSkill(null)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
-                    <X size={12} />
-                  </button>
-                </span>
-              )}
-              {auto && (
-                <span
-                  data-auto-skill={auto.name}
-                  title="요청에 맞는 스킬을 자동으로 써요. 빼면 일반 질문으로 보내요."
-                  className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-dashed border-accent/50 bg-accent-soft/50 pr-1 pl-2.5 text-[12.5px] text-accent"
-                >
-                  <WandSparkles size={13} />
-                  <span className="shrink-0 opacity-75">자동</span>
-                  <span className="truncate font-medium">{auto.title}</span>
-                  <code className="text-[11.5px] opacity-75">/{auto.name}</code>
-                  <button type="button" aria-label="자동 스킬 빼기" onClick={() => setDismissed(auto.id)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
-                    <X size={12} />
-                  </button>
-                </span>
-              )}
-              <AttachmentList items={attachments} onRemove={(id) => setAttachments((cur) => cur.filter((a) => a.id !== id))} />
-            </div>
-          )}
-          <div className="flex items-end gap-1.5">
-            <PlusMenu
-              open={menu}
-              setOpen={setMenu}
-              skills={skills}
-              onPhoto={() => photoRef.current?.click()}
-              onFile={() => fileRef.current?.click()}
-              onSkill={pickSkill}
-            />
-            <textarea
-              ref={ref}
-              rows={1}
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setSlashClosed(false);
-                if (!e.target.value.trim()) setDismissed(null);
-              }}
-              onPaste={(e) => {
-                const files = Array.from(e.clipboardData.files);
-                if (files.length) {
-                  e.preventDefault();
-                  void addFiles(files);
-                  return;
-                }
-                const pasted = e.clipboardData.getData('text/plain');
-                if (pasted && isLongPaste(pasted)) {
-                  e.preventDefault();
-                  addAttachment(pastedTextAttachment(pasted, attachRef.current));
-                }
-              }}
-              onKeyDown={(e) => {
-                if (slashOpen) {
-                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    const n = slashItems.length;
-                    setSlashIndex((i) => (i + (e.key === 'ArrowDown' ? 1 : n - 1)) % n);
-                    return;
-                  }
-                  if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    pickSkill(slashItems[slashIndex] ?? slashItems[0]!);
-                    return;
-                  }
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setSlashClosed(true);
-                    return;
-                  }
-                }
-                if (e.key === 'Backspace' && !text && skill) {
-                  setSkill(null);
-                  return;
-                }
-                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !('ontouchstart' in window)) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              placeholder={skill ? `${skill.title}: 주제나 요청을 적어 주세요…` : isBranch ? '이 가지에서 더 물어보기…' : '무엇이든 물어보세요… (/ 스킬)'}
-              aria-label="메시지 입력"
-              className="max-h-[180px] min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-6 outline-none placeholder:text-muted"
-            />
-            <MicButton disabled={remoteMode && !pcOnline} onText={appendSpoken} />
-            {streaming ? (
-              <button
-                type="button"
-                aria-label="응답 중지"
-                onClick={() => actions().stopStream(sessionId)}
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-fg text-bg"
-              >
-                <Square size={14} fill="currentColor" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                aria-label="보내기"
-                disabled={!canSend}
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-fg transition-opacity disabled:opacity-35"
-              >
-                <ArrowUp size={18} />
-              </button>
+            e.nativeEvent.stopPropagation();
+            setExpanded(false);
+          }
+          return;
+        }
+        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !('ontouchstart' in window)) {
+          e.preventDefault();
+          send();
+        }
+      }}
+      placeholder={skill ? `${skill.title}: 주제나 요청을 적어 주세요…` : isBranch ? '이 가지에서 더 물어보기…' : '무엇이든 물어보세요… (/ 스킬)'}
+      aria-label="메시지 입력"
+      className={cn(
+        'flex-1 resize-none bg-transparent text-[15px] leading-6 outline-none placeholder:text-muted',
+        expanded ? 'scroll-thin min-h-0 w-full px-2 py-2' : 'max-h-[180px] min-h-9 py-1.5',
+      )}
+    />
+  );
+  const sendButton = streaming ? (
+    <button
+      type="button"
+      aria-label="응답 중지"
+      onClick={() => actions().stopStream(sessionId)}
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-fg text-bg"
+    >
+      <Square size={14} fill="currentColor" />
+    </button>
+  ) : (
+    <button
+      type="submit"
+      aria-label="보내기"
+      disabled={!canSend}
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-fg transition-opacity disabled:opacity-35"
+    >
+      <ArrowUp size={18} />
+    </button>
+  );
+  const expandButton = (
+    <button
+      type="button"
+      aria-label={expanded ? '입력창 접기' : '자세히 입력하기'}
+      title={expanded ? '입력창 접기 (Esc)' : '자세히 입력하기 — 전체 화면, Ctrl+Enter로 보내기'}
+      aria-pressed={expanded}
+      onClick={() => setExpanded(!expanded)}
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg"
+    >
+      {expanded ? <Minimize2 size={17} /> : <Maximize2 size={16} />}
+    </button>
+  );
+
+  const body = (
+    <div className={cn('relative mx-auto', expanded ? 'flex min-h-0 w-full max-w-4xl flex-1 flex-col' : 'max-w-3xl')}>
+      {expanded && (
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-fg">자세히 입력하기</h2>
+          {expandButton}
+        </div>
+      )}
+      {/* 원격 모드: 응답 가능 여부는 PC 연결이 결정한다 (어떤 CLI를 쓸지는 PC가 정함) */}
+      {remoteMode && !pcOnline && <PcOfflineBanner />}
+      {!remoteMode && !usable && (
+        <div role="status" className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-warn/30 bg-warn-soft px-3 py-2 text-[13px] text-warn">
+          <WifiOff size={15} className="shrink-0" />
+          <span className="min-w-[14rem] flex-1">
+            <b className="font-semibold">{providerLabel(eff)}</b> {conn?.enabled === false ? '꺼짐' : STATUS_LABEL[conn?.status ?? 'offline']} — 지금은 응답을 받을 수 없어요
+          </span>
+          <span className="ml-auto flex gap-1.5">
+            {fallback && (
+              <Button size="sm" variant="secondary" onClick={() => actions().setSessionProvider(sessionId, fallback)}>
+                {providerLabel(fallback)}로 전환
+              </Button>
             )}
+            <Button size="sm" variant="ghost" icon={<Settings2 size={14} />} onClick={() => actions().setOverlay('settings')}>
+              설정
+            </Button>
+          </span>
+        </div>
+      )}
+
+      {slashOpen && (
+        <div
+          role="listbox"
+          aria-label="스킬"
+          className={cn('animate-pop-in absolute inset-x-0 z-20 overflow-hidden rounded-xl border border-line bg-elev p-1 shadow-float', expanded ? 'top-12' : 'bottom-full mb-1.5')}
+        >
+          <div className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">스킬 · ↑↓ 선택 · Enter</div>
+          {slashItems.map((s, i) => (
+            <button
+              key={s.id}
+              type="button"
+              role="option"
+              aria-selected={i === slashIndex}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setSlashIndex(i)}
+              onClick={() => pickSkill(s)}
+              className={cn('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left', i === slashIndex && 'bg-surface-2')}
+            >
+              <Sparkles size={15} className="shrink-0 text-accent" />
+              <code className="shrink-0 text-[13px] text-accent">/{s.name}</code>
+              <span className="min-w-0 flex-1 truncate text-[13px] text-fg-2">{s.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return;
+          e.preventDefault();
+          void addFiles(e.dataTransfer.files);
+        }}
+        className={cn('octo-composer rounded-2xl border border-line bg-surface p-1.5 shadow-pop focus-within:border-line-strong', expanded && 'flex min-h-0 flex-1 flex-col')}
+      >
+        {(attachments.length > 0 || skill || auto) && (
+          <div className="flex flex-col gap-1.5 px-1.5 pt-1.5 pb-1">
+            {skill && (
+              <span data-skill-chip={skill.name} className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-accent/40 bg-accent-soft pr-1 pl-2.5 text-[12.5px] text-accent">
+                <Sparkles size={13} />
+                <span className="truncate font-medium">{skill.title}</span>
+                <code className="text-[11.5px] opacity-75">/{skill.name}</code>
+                {/* 웹·모바일에서 PC CLI가 아닌 설정은 PC가 따르지 않아 보이지 않는다 */}
+                {skill.options && (caps.localCli || isCliId(skill.options.providerId)) && (
+                  <span className="truncate text-[11.5px] opacity-75" title="이 스킬 전용 설정으로 답해요">
+                    · {[PROVIDER_LABELS[skill.options.providerId], skill.options.model, skill.options.effort].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+                <button type="button" aria-label="스킬 빼기" onClick={() => setSkill(null)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {auto && (
+              <span
+                data-auto-skill={auto.name}
+                title="요청에 맞는 스킬을 자동으로 써요. 빼면 일반 질문으로 보내요."
+                className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-dashed border-accent/50 bg-accent-soft/50 pr-1 pl-2.5 text-[12.5px] text-accent"
+              >
+                <WandSparkles size={13} />
+                <span className="shrink-0 opacity-75">자동</span>
+                <span className="truncate font-medium">{auto.title}</span>
+                <code className="text-[11.5px] opacity-75">/{auto.name}</code>
+                <button type="button" aria-label="자동 스킬 빼기" onClick={() => setDismissed(auto.id)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            <AttachmentList items={attachments} onRemove={(id) => setAttachments((cur) => cur.filter((a) => a.id !== id))} />
           </div>
-          <input
-            ref={photoRef}
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp"
-            multiple
-            hidden
-            data-testid="photo-input"
-            onChange={(e) => {
-              if (e.target.files) void addFiles(Array.from(e.target.files));
-              e.target.value = '';
-            }}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept={FILE_ACCEPT}
-            multiple
-            hidden
-            data-testid="file-input"
-            onChange={(e) => {
-              if (e.target.files) void addFiles(Array.from(e.target.files));
-              e.target.value = '';
-            }}
-          />
-        </form>
-        <ModelChips sessionId={sessionId} compact={compact} remote={remoteMode} />
-      </div>
+        )}
+        {expanded ? (
+          <>
+            {input}
+            <div className="flex items-center gap-1.5 pt-1">
+              {plusMenu}
+              <span className="min-w-0 flex-1 truncate px-1 text-[12px] text-muted">
+                <span className="max-md:hidden">Enter 줄바꿈 · Ctrl+Enter 보내기</span>
+              </span>
+              <MicButton disabled={remoteMode && !pcOnline} onText={appendSpoken} />
+              {sendButton}
+            </div>
+          </>
+        ) : (
+          <div className="flex items-end gap-1.5">
+            {plusMenu}
+            {input}
+            {expandButton}
+            <MicButton disabled={remoteMode && !pcOnline} onText={appendSpoken} />
+            {sendButton}
+          </div>
+        )}
+        <input
+          ref={photoRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          multiple
+          hidden
+          data-testid="photo-input"
+          onChange={(e) => {
+            if (e.target.files) void addFiles(Array.from(e.target.files));
+            e.target.value = '';
+          }}
+        />
+        <input
+          ref={fileRef}
+          type="file"
+          accept={FILE_ACCEPT}
+          multiple
+          hidden
+          data-testid="file-input"
+          onChange={(e) => {
+            if (e.target.files) void addFiles(Array.from(e.target.files));
+            e.target.value = '';
+          }}
+        />
+      </form>
+      <ModelChips sessionId={sessionId} compact={compact} remote={remoteMode} />
     </div>
+  );
+
+  const wrap = cn('shrink-0 bg-bg', compact ? 'px-2.5 pt-1.5 pb-2.5' : 'safe-bottom px-3 pt-2 pb-3 md:px-6');
+  if (!expanded) return <div className={wrap}>{body}</div>;
+  return (
+    <>
+      {/* 펼친 동안 원래 자리: 누르면 접는다 */}
+      <div className={wrap}>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="mx-auto flex w-full max-w-3xl items-center gap-2 rounded-2xl border border-dashed border-line px-3 py-2.5 text-left text-[13px] text-muted hover:border-line-strong"
+        >
+          <Maximize2 size={14} className="shrink-0" />
+          <span className="truncate">{text.trim() ? text.trim().split('\n')[0] : '자세히 입력하는 중…'}</span>
+        </button>
+      </div>
+      {createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="자세히 입력하기"
+          className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-bg px-3 pt-[max(env(safe-area-inset-top),0.75rem)] pb-[max(env(safe-area-inset-bottom),0.75rem)] md:px-8 md:py-6"
+        >
+          {body}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 

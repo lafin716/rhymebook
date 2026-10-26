@@ -568,3 +568,11 @@
   - 사용 내역 `ToolActivity {id,name,status,query?,url?,sources?}`를 `Message.tools`에 같은 id로 갱신 저장, 답변 위 `ToolActivityList`로 검색어·출처(http(s)만, 새 창 `noopener`) 표시. 도구 뒤 이어지는 글은 문단을 나눈다.
   - bridge: `chat.start.webSearch`, 서버 메시지 `chat.tool`. 스트림은 done/error에서만 끝난다. 원격: sync op `session.agent`의 `webSearch`(호스트 기능 `websearch`, 옛 PC면 'outdated').
 - 대안: 파일 읽기 등 범용 도구까지 허용 — 사용자 파일 접근이 생겨 정책 원칙 5에 어긋나 기각. 앱이 검색 API를 직접 호출(클라이언트 도구) — 별도 키·비용이 필요하고 CLI 구독 경로와 맞지 않아 기각.
+
+### ADR-071 · 2026-10-26 · 자세히 입력하기 (전체 화면 입력창)
+- 배경: 사용자 요청 — 긴 질문을 편하게 쓰도록 입력창을 전체 화면으로 펼치고, Enter로 바로 보내지지 않게.
+- 결정:
+  - 입력창 마이크 앞 [자세히 입력하기](Maximize2, `aria-pressed`). 누르면 같은 Composer 상태(글·첨부·스킬)를 그대로 `document.body` 포털의 전체 화면 창(`role=dialog`, z-[55] — 설정 등 모달(z-60)은 위에 뜬다)으로 옮긴다. 원래 자리엔 첫 줄을 보여 주는 점선 자리 표시(누르면 접기).
+  - 펼친 동안 Enter·Shift+Enter는 줄바꿈, Ctrl/⌘+Enter 또는 [보내기]로만 보낸다. Esc나 [입력창 접기]로 접고, 보내면 자동으로 접는다. 슬래시 스킬 목록은 위쪽에 연다.
+  - 펼치기·접기 때 입력창에 포커스, 커서는 글 끝.
+- 대안: 별도 편집 모달에 글을 복사했다가 돌려주기 — 첨부·스킬 칩·슬래시 명령을 따로 구현해야 해 기각.
