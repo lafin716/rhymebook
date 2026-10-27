@@ -197,7 +197,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP27-T1 | IMP-27 | core `order`·`placeVaultNode`·`vaultChildren` 정렬·검증 + 테스트, ui 트리 놓을 자리(앞/뒤/안으로) 선 표시, e2e vault 순서 바꾸기 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 399, e2e vault desktop·mobile |
 
 ## Active Work
-- 없음 (IMP-29 완료)
+- 없음 (ADR-073 페이지 / 블록 입력 완료)
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
@@ -209,6 +209,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-27 · 페이지 / 블록 입력(ADR-073): core `PAGE_BLOCKS`(11종)·`pageSlashQuery`(줄 처음·공백 뒤, 울타리 안 제외)·`filterPageBlocks`(한글·영문 검색)·`applyPageBlock`(표식 바꾸기·덩어리 블록 빈 줄·커서 위치) + 테스트 9; ui `lib/caret.ts`(거울 div 커서 좌표), `PagePanel` 블록 메뉴(↑↓·Enter/Tab·클릭, Esc는 메뉴만 닫음, IME 조합 보호, 아래 공간 부족 시 위로). 독립 리뷰 지적 7건 반영. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 446(+9)·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS(core `sync.reset` 1회 간헐 실패 → 재실행 PASS), `pnpm e2e` 110 passed·12 skipped(새 page / 블록 desktop·mobile), 실패: skill-sync-split 2건(기존). 패키지 데스크톱 앱 재빌드, 격리 실행으로 데스크톱·390 폭 메뉴·삽입·렌더 스크린샷 확인.
 - 2026-10-27 · 마크다운 페이지 세션·새로 만들기 메뉴(ADR-072): core `Session.kind='page'`·`isPage`·`pageDoc`, store `newPage`·`updatePage`(대화 전용 동작은 페이지에서 막음), sync op `page.new`·`page.edit`(기능 `page`, 호스트도 페이지에 send·retry·split·move·reorganize 거부), 페이지 부모 가지의 맥락에 '부모 문서' 넣기·편집 후 앵커 위치 다시 찾기, 학습 내보내기에서 페이지는 '## 문서'로; ui `PagePanel`(보기/편집 전환, 500ms 자동 저장, 보기 모드는 대화 답변과 같은 렌더러라 드래그 메뉴·하이라이트·메모·가지가 그대로 됨), 사이드바 [새로 만들기 ▾] 메뉴(대화/빈 페이지, ↑↓·Esc·Tab 키보드), 문서 아이콘(사이드바·마인드맵), 헤더 제목 눌러 이름 바꾸기. 독립 리뷰 9건 중 5건 반영. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 437(+4)·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 108 passed·12 skipped(새 page desktop·mobile 3건), 실패: skill-sync-split 2건(기존), annotations 메모(mobile) 간헐 실패 — 변경 전 HEAD에서도 12회 중 2회 실패(IndexedDB 저장 직후 새로고침 경합). 패키지 데스크톱 앱 재빌드, 1280·820·390 폭 스크린샷 확인.
 - 2026-10-26 · 자세히 입력하기(ADR-071): ui Composer [자세히 입력하기] — 전체 화면 포털 입력창, Enter 줄바꿈·Ctrl/⌘+Enter 보내기·Esc 접기, 보내면 접힘. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 433·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 105 passed·11 skipped(새 composer-expand desktop·mobile 4건), skill-sync-split 2건 실패는 변경 전과 동일(기존). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-26 · 웹 검색·도구 사용(ADR-070): core `ToolActivity`·`Message.tools`·`Session.webSearch`·`wantsWebTools`·`supportsWebTools`·`upsertTool`, Anthropic 서버 도구 web_search/web_fetch + `pause_turn` 이어 받기, mock 가짜 검색, store `setSessionWebSearch`, sync `session.agent.webSearch`(기능 `websearch`); bridge Claude CLI `--tools WebSearch,WebFetch`·Codex `web_search=live|disabled` 파싱·`chat.tool`; ui [웹 검색] 칩·`ToolActivityList`. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 433·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 101 passed·11 skipped(새 web-search desktop·mobile), skill-sync-split '웹(원격) 스킬 동기화 버튼' 2건 실패 — 변경 전에도 실패(기존 문제). 독립 리뷰 통과. 패키지 데스크톱 앱 재빌드·실행.

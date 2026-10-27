@@ -110,3 +110,57 @@ test('사이드바 새로 만들기 메뉴 → 빈 페이지, 문서 아이콘�
   await expect(main.getByLabel('페이지 본문 (마크다운)')).toHaveValue(DOC);
   expect(errors).toEqual([]);
 });
+
+test('/ 블록 넣기 — 검색·키보드로 고르고 Esc는 메뉴만 닫는다 (ADR-073)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  const body = main.getByLabel('페이지 본문 (마크다운)');
+  const menu = main.getByRole('listbox', { name: '블록 넣기' });
+  await expect(body).toBeFocused();
+
+  // /제목 → 제목 1·2·3, ↓로 제목 2 → Enter
+  await page.keyboard.type('/제목');
+  await expect(menu.getByRole('option')).toHaveCount(3);
+  await expect(menu.getByRole('option', { selected: true })).toContainText('제목 1');
+  await page.keyboard.press('ArrowDown');
+  await expect(menu.getByRole('option', { selected: true })).toContainText('제목 2');
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveCount(0);
+  await page.keyboard.type('어텐션 노트');
+  await expect(body).toHaveValue('## 어텐션 노트');
+
+  // 문단 뒤 /hr → 구분선은 빈 줄로 띄운다, 영문 검색어
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('본문 문장');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/hr');
+  await expect(menu.getByRole('option')).toHaveCount(1);
+  await page.keyboard.press('Enter');
+  // 할 일 목록은 클릭으로
+  await page.keyboard.type('/할');
+  await menu.getByRole('option', { name: /할 일 목록/ }).click();
+  await page.keyboard.type('복습하기');
+  await expect(body).toHaveValue('## 어텐션 노트\n본문 문장\n\n---\n- [ ] 복습하기');
+
+  // Esc는 메뉴만 닫고 편집을 이어간다. 같은 / 자리에선 다시 열리지 않는다
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/제');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(body).toBeVisible();
+  await page.keyboard.type('목'); // 여전히 맞는 검색어여도 닫힌 채다
+  await expect(menu).toHaveCount(0);
+  await expect(body).toHaveValue(/\/제목$/);
+  // 맞는 블록이 없으면 메뉴가 없고, 경로 같은 a/b에서는 열리지 않는다
+  await page.keyboard.type(' /없는블록 a/b');
+  await expect(menu).toHaveCount(0);
+
+  await main.getByRole('button', { name: '완료' }).click();
+  await expect(main.getByRole('heading', { level: 2, name: '어텐션 노트' })).toBeVisible();
+  await expect(main.locator('hr')).toHaveCount(1);
+  await expect(main.locator('input[type="checkbox"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
