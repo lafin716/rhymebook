@@ -77,23 +77,15 @@ test('빈 페이지 작성 → 글을 골라 가지 → 새로고침 후 본문�
   expect(errors).toEqual([]);
 });
 
-test('사이드바 새로 만들기 메뉴 → 빈 페이지, 문서 아이콘과 제목 바꾸기', async ({ page }, info) => {
+test('사이드바 새로 만들기 → 빈 화면에서 빈 페이지로 시작, 문서 아이콘과 제목 바꾸기', async ({ page }, info) => {
   test.skip(info.project.name === 'mobile', '모바일은 사이드바가 서랍이라 데스크톱에서 검증');
   const errors = collectErrors(page);
   await onboard(page);
 
-  const create = page.getByRole('button', { name: '새로 만들기' });
-  await create.click();
-  const menu = page.getByRole('menu', { name: '새로 만들기' });
-  await expect(menu.getByRole('menuitem', { name: /대화/ })).toBeFocused();
-  await page.keyboard.press('ArrowDown');
-  await expect(menu.getByRole('menuitem', { name: /빈 페이지/ })).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(menu).toHaveCount(0);
-  await expect(create).toBeFocused();
-
-  await create.click();
-  await menu.getByRole('menuitem', { name: /빈 페이지/ }).click();
+  // 작은 메뉴 없이 바로 빈 대화 화면이 열린다 (ADR-074)
+  await page.getByRole('button', { name: '새로 만들기' }).click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await page.locator(MAIN).getByRole('button', { name: '빈 페이지로 시작' }).click();
   await writePage(page);
   await expect(page.locator('svg[aria-label="페이지"]').first()).toBeVisible();
 

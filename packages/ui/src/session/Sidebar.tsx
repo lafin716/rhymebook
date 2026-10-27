@@ -1,7 +1,7 @@
 import { OctoMark } from '../components/OctoMark';
-import { childrenOf, rootSessions, type ID } from '@branch/core';
-import { ChevronDown, ChevronRight, FileText, GitBranch, MessageSquare, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { childrenOf, listedRootSessions, type ID } from '@branch/core';
+import { ChevronRight, FileText, GitBranch, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
 import { useSync } from '../app/sync';
@@ -17,6 +17,7 @@ import { isUsable, PROVIDER_ORDER, providerLabel, statusTone } from '../lib/conn
 import { relativeTime } from '../lib/time';
 import { RenameInput, SessionMenu, type MenuPoint } from './SessionMenu';
 import { openSubSessionDialog } from './SubSessionDialog';
+import { startNewSession } from './newSession';
 
 /** 세션 목록. 데스크톱(≥1024)은 고정 사이드바(접기 가능), 그 이하는 드로어 */
 export function Sidebar() {
@@ -113,7 +114,7 @@ function SidebarResizer() {
 }
 
 function SidebarBody() {
-  const roots = useAppShallow((s) => rootSessions(s.sessions).map((r) => r.id));
+  const roots = useAppShallow((s) => listedRootSessions(s.sessions, s.messages).map((r) => r.id));
   const close = () => useUi.getState().setDrawer(false);
   const pcOnline = usePcOnline();
   return (
@@ -123,7 +124,19 @@ function SidebarBody() {
         <span className="text-[17px] font-semibold tracking-tight text-fg">OctoBooks</span>
       </div>
       <div className="px-3 pb-2">
-        <NewMenu disabled={!pcOnline} onPick={close} />
+        <Button
+          variant="primary"
+          className="w-full justify-center"
+          icon={<Plus size={16} />}
+          disabled={!pcOnline}
+          title={pcOnline ? undefined : 'PC와 연결되면 새로 만들 수 있어요'}
+          onClick={() => {
+            startNewSession();
+            close();
+          }}
+        >
+          새로 만들기
+        </Button>
       </div>
       <div className="flex items-center justify-between px-4 pt-4 pb-2 text-[10px] font-semibold tracking-widest text-muted"><span>나의 학습 바다</span><span>{roots.length}개의 시작점</span></div>
       <nav aria-label="학습 세션" className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-3">
@@ -147,82 +160,6 @@ function SidebarBody() {
       <ConnectionFooter />
       <div className="flex items-center justify-between px-4 pb-3 pt-1 text-[10px] text-muted"><span>octobooks</span><span className="rounded-full border border-line px-2 py-0.5 tracking-wider">PREVIEW BETA</span></div>
     </>
-  );
-}
-
-/** 새로 만들기: 대화 또는 빈 페이지 (ADR-072) */
-function NewMenu({ disabled, onPick }: { disabled: boolean; onPick(): void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-    const onDown = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        setOpen(false);
-        ref.current?.querySelector<HTMLElement>('[aria-haspopup="menu"]')?.focus();
-      } else if (e.key === 'Tab') {
-        setOpen(false);
-      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        // 위아래 화살표로 항목을 돈다
-        e.preventDefault();
-        const i = items.indexOf(document.activeElement as HTMLElement);
-        const step = e.key === 'ArrowDown' ? 1 : -1;
-        items[(i + step + items.length) % items.length]?.focus();
-      }
-    };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('keydown', onKey, true);
-    };
-  }, [open]);
-  const pick = (make: () => unknown) => {
-    setOpen(false);
-    make();
-    onPick();
-  };
-  const item = 'flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left outline-none hover:bg-surface-2 focus-visible:bg-surface-2';
-  return (
-    <div ref={ref} className="relative">
-      <Button
-        variant="primary"
-        className="w-full justify-center"
-        icon={<Plus size={16} />}
-        disabled={disabled}
-        title={disabled ? 'PC와 연결되면 새로 만들 수 있어요' : undefined}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
-        새로 만들기
-        <ChevronDown size={14} className={cn('transition-transform', open && 'rotate-180')} />
-      </Button>
-      {open && (
-        <div role="menu" aria-label="새로 만들기" className="animate-pop-in absolute inset-x-0 top-full z-30 mt-1 rounded-lg border border-line bg-elev p-1 shadow-float">
-          <button type="button" role="menuitem" className={item} onClick={() => pick(() => actions().newRootSession())}>
-            <MessageSquare size={16} className="mt-0.5 shrink-0 text-accent" />
-            <span>
-              <span className="block text-[13.5px] font-medium text-fg">대화</span>
-              <span className="block text-[12px] text-muted">AI에게 물으며 배우는 학습</span>
-            </span>
-          </button>
-          <button type="button" role="menuitem" className={item} onClick={() => pick(() => actions().newPage())}>
-            <FileText size={16} className="mt-0.5 shrink-0 text-accent" />
-            <span>
-              <span className="block text-[13.5px] font-medium text-fg">빈 페이지</span>
-              <span className="block text-[12px] text-muted">마크다운으로 직접 쓰는 문서</span>
-            </span>
-          </button>
-        </div>
-      )}
-    </div>
   );
 }
 

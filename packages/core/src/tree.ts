@@ -1,4 +1,4 @@
-import type { ID, Session } from './model';
+import type { ID, Message, Session } from './model';
 
 export type SessionMap = Record<ID, Session>;
 
@@ -23,6 +23,33 @@ export function childrenOf(sessions: SessionMap, parentId: ID | null): Session[]
 
 export function rootSessions(sessions: SessionMap): Session[] {
   return childrenOf(sessions, null).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+type MessageMap = Record<ID, readonly Message[] | undefined>;
+
+/**
+ * 아직 대화를 시작하지 않은 루트 대화(초안) id. 목록·검색에 보이지 않고 첫 메시지를 보내면 나타난다 (ADR-074).
+ * 원격 모드처럼 메시지를 아직 불러오지 않은 세션은 초안으로 보지 않는다.
+ */
+export function draftSessionIds(sessions: SessionMap, messages: MessageMap): Set<ID> {
+  const parents = new Set(Object.values(sessions).map((s) => s.parentId));
+  const out = new Set<ID>();
+  for (const s of Object.values(sessions)) {
+    if (s.parentId === null && s.kind !== 'page' && messages[s.id]?.length === 0 && !parents.has(s.id)) out.add(s.id);
+  }
+  return out;
+}
+
+/** 사이드바에 보이는 루트 세션 (초안 제외, 최근 순) */
+export function listedRootSessions(sessions: SessionMap, messages: MessageMap): Session[] {
+  const drafts = draftSessionIds(sessions, messages);
+  return rootSessions(sessions).filter((r) => !drafts.has(r.id));
+}
+
+/** 다시 쓸 초안 (가장 최근에 만든 것) */
+export function findDraftSession(sessions: SessionMap, messages: MessageMap): ID | undefined {
+  const drafts = draftSessionIds(sessions, messages);
+  return [...drafts].map((id) => sessions[id]!).sort((a, b) => b.createdAt - a.createdAt)[0]?.id;
 }
 
 /** 자기 자신을 포함한 모든 자손 id (DFS 순서) */

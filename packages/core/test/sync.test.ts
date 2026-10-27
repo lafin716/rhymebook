@@ -863,6 +863,19 @@ describe('sync host ↔ client', () => {
     expect(hostStore.getState().annotations[badId]).toBeUndefined();
   });
 
+  it('snapshot marks drafts as loaded-empty and pushes their first turn (ADR-074)', async () => {
+    const draft = hostStore.getState().newRootSession('s-draft', { focus: false }) as ID;
+    const { store, peer } = await connectClient();
+    const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
+    expect(snap && 'drafts' in snap && snap.drafts).toEqual([draft]);
+    // 원격에서도 초안은 빈 대화로 보여 목록에서 숨는다
+    expect(store.getState().messages[draft]).toEqual([]);
+
+    // PC에서 첫 질문을 보내면 원격에도 밀려온다
+    hostStore.getState().sendMessage(draft, '안녕');
+    await until(() => !!store.getState().messages[draft]?.some((m) => m.role === 'user'));
+  });
+
   it('snapshot contains annotations', async () => {
     const msg = hostStore.getState().messages[SEED_IDS.root]![1]!;
     const anchor = { messageId: msg.id, text: 'test', startOffset: 0, endOffset: 4 };

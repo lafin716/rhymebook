@@ -1,5 +1,5 @@
 import { OctoGarden } from '../components/OctoMark';
-import type { ID } from '@branch/core';
+import { listedRootSessions, type ID } from '@branch/core';
 import { FileText, Laptop, Link2, List, RefreshCw, Sparkles } from 'lucide-react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
@@ -8,12 +8,15 @@ import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { HostList } from '../components/HostList';
 import { usePcOnline } from '../components/PcStatus';
+import { startNewSession } from '../session/newSession';
 
 const SUGGESTIONS = ['바다는 왜 파랗게 보일까?', 'AI는 어떻게 말을 배울까?', '오늘 배운 것을 오래 기억하려면?'];
 
 /** 메시지가 없는 세션의 첫 화면 */
 export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boolean }) {
   const online = usePcOnline();
+  // 새로 만들기로 연 빈 대화는 아직 목록에 없다. 대화 대신 빈 페이지로 시작할 수도 있다 (ADR-074)
+  const root = useApp((s) => s.sessions[sessionId]?.parentId === null);
   return (
     <div className="octo-welcome mx-auto flex max-w-xl flex-col items-center rounded-3xl px-4 py-8 text-center sm:py-12">
       <OctoGarden />
@@ -37,6 +40,20 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
           </button>
         ))}
       </div>
+      {root && (
+        <p className="mt-4 flex flex-wrap items-center justify-center gap-1 text-[13px] text-muted">
+          직접 정리하고 싶다면
+          <button
+            type="button"
+            disabled={!online}
+            onClick={() => actions().newPage()}
+            className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
+          >
+            <FileText size={14} />
+            빈 페이지로 시작
+          </button>
+        </p>
+      )}
     </div>
   );
 }
@@ -44,7 +61,7 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
 /** 세션이 하나도 없을 때. 원격 모드는 PC와 연결된 뒤에만 시작할 수 있다 */
 export function NoSessions() {
   const online = usePcOnline();
-  const hasSessions = useApp((s) => Object.keys(s.sessions).length > 0);
+  const hasSessions = useApp((s) => listedRootSessions(s.sessions, s.messages).length > 0);
   const bp = useBreakpoint();
   if (remoteMode && !online) return <PcNotConnected />;
   const openList = () => {
@@ -79,7 +96,7 @@ export function NoSessions() {
         )}
         <button
           type="button"
-          onClick={() => actions().newRootSession()}
+          onClick={startNewSession}
           className={
             hasSessions
               ? 'inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2'

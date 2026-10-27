@@ -1,4 +1,4 @@
-import { childrenOf, defaultSkills, REORGANIZE_SKILL_ID, rootSessions, skillRef, turnMessageIds, turnMoveTargets, type ID, type Session } from '@branch/core';
+import { childrenOf, defaultSkills, listedRootSessions, REORGANIZE_SKILL_ID, skillRef, turnMessageIds, turnMoveTargets, type ID, type Message, type Session } from '@branch/core';
 import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { create } from 'zustand';
@@ -50,13 +50,13 @@ interface Row {
 }
 
 /** 학습(루트) 순서 → 트리 DFS 순서로 펼친다 */
-function treeRows(sessions: Record<ID, Session>): Row[] {
+function treeRows(sessions: Record<ID, Session>, messages: Record<ID, Message[]>): Row[] {
   const out: Row[] = [];
   const walk = (s: Session, depth: number) => {
     out.push({ session: s, depth });
     for (const c of childrenOf(sessions, s.id)) walk(c, depth + 1);
   };
-  for (const r of rootSessions(sessions)) walk(r, 0);
+  for (const r of listedRootSessions(sessions, messages)) walk(r, 0);
   return out;
 }
 
@@ -73,14 +73,15 @@ export function MoveTurnHost() {
 
 function MoveTurnPicker({ sessionId, questionId, onClose }: { sessionId: ID; questionId: ID; onClose(): void }) {
   const sessions = useApp((s) => s.sessions);
-  const list = useApp((s) => s.messages[sessionId]);
+  const messages = useApp((s) => s.messages);
+  const list = messages[sessionId];
   const [q, setQ] = useState('');
   const targets = useMemo(() => new Set(turnMoveTargets(sessions, list ?? [], sessionId, questionId)), [sessions, list, sessionId, questionId]);
   const rows = useMemo(() => {
-    const all = treeRows(sessions);
+    const all = treeRows(sessions, messages);
     const needle = q.trim().toLowerCase();
     return needle ? all.filter((r) => r.session.title.toLowerCase().includes(needle)).map((r) => ({ ...r, depth: 0 })) : all;
-  }, [sessions, q]);
+  }, [sessions, messages, q]);
   const question = list?.find((m) => m.id === questionId)?.content.replace(/\s+/g, ' ').trim() ?? '';
 
   const move = (targetId: ID) => {

@@ -1,4 +1,4 @@
-import { breadcrumb, type ID } from '@branch/core';
+import { breadcrumb, draftSessionIds, type ID } from '@branch/core';
 import { GitBranch, MessageSquare, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { actions, useApp } from '../app/store';
@@ -46,7 +46,11 @@ function PaletteBody({ onClose }: { onClose(): void }) {
 
   const hits = useMemo<Hit[]>(() => {
     const query = q.trim();
-    const all = Object.values(sessions).sort((a, b) => b.updatedAt - a.updatedAt);
+    // 아직 대화를 시작하지 않은 초안은 찾지 않는다 (ADR-074)
+    const drafts = draftSessionIds(sessions, messages);
+    const all = Object.values(sessions)
+      .filter((s) => !drafts.has(s.id))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
     const out: Hit[] = [];
     for (const s of all) {
       const path = breadcrumb(sessions, s.id, 4)

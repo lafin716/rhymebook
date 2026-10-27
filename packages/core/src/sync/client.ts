@@ -273,9 +273,11 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         for (const a of annotations) {
           if (msg.sessions[a.sessionId]) filtered[a.id] = a;
         }
+        // 호스트가 알려 준 초안은 빈 메시지로 불러온 것으로 둔다 — 목록에 보이지 않고 다시 쓸 수 있다 (ADR-074)
+        const drafts = (msg.drafts ?? []).filter((id) => msg.sessions[id]);
         apply({
           sessions: msg.sessions,
-          messages: {},
+          messages: Object.fromEntries(drafts.map((id) => [id, []])),
           streaming: msg.streaming,
           summaryDrafts: msg.summaryDrafts,
           annotations: filtered,
@@ -283,7 +285,8 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         });
         backoffMs = backoff.base;
         resumeRetrying = false;
-        setState({ status: 'online', hostName: msg.hostName, error: undefined, loaded: {} });
+        setState({ status: 'online', hostName: msg.hostName, error: undefined, loaded: Object.fromEntries(drafts.map((id) => [id, true])) });
+        for (const id of drafts) requested.add(id);
         for (const id of visibleSessions(get().view)) requestMessages(id);
         return;
       }

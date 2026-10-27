@@ -104,6 +104,8 @@ export type SyncServerMsg =
       summaryDrafts: Record<ID, SummaryDraft>;
       annotations?: Annotation[];
       features?: string[];
+      /** 메시지가 없는 루트 대화(초안) id — 클라이언트는 빈 메시지로 불러온 것으로 본다 (ADR-074). 옛 호스트는 보내지 않는다 */
+      drafts?: ID[];
     }
   /**
    * 세션 메시지 페이지. 4MB 프레임 한도 때문에 바이트 예산(약 1MB)으로 나눠 보낸다.
@@ -461,6 +463,8 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
   if (type === 'sync.snapshot') {
     const features = msg.features as unknown;
     if (features !== undefined && !(Array.isArray(features) && features.length <= 64 && features.every((f) => typeof f === 'string' && f.length <= 64))) return false;
+    const drafts = msg.drafts as unknown;
+    if (drafts !== undefined && !(Array.isArray(drafts) && drafts.every((d) => typeof d === 'string' && d.length <= SYNC_LIMITS.id))) return false;
     // snapshot.annotations을 검증한다 (있으면)
     const annotations = msg.annotations as unknown;
     if (annotations !== undefined && annotations !== null) {

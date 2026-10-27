@@ -1,6 +1,7 @@
 import type { AppState, AppStore } from '../store';
 import { isCliId } from '../cli-options';
 import { canDeleteTurn, planTurnMove } from '../turns';
+import { draftSessionIds } from '../tree';
 import type { ID, Message, ProviderId, Skill, VaultNode } from '../model';
 import { wouldCreateCycle } from '../vault';
 import { SKILL_LIMITS } from '../skills';
@@ -278,6 +279,9 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     peer.loaded.clear();
     peer.sentLen.clear();
     const annotations = Object.values(state.annotations);
+    // 초안은 비어 있다고 알리고 불러온 것으로 친다 — 첫 메시지가 오면 바로 받아 목록에 나타난다 (ADR-074)
+    const drafts = [...draftSessionIds(state.sessions, state.messages)];
+    for (const id of drafts) peer.loaded.add(id);
     send(peerId, {
       type: 'sync.snapshot',
       hostName: hostName(),
@@ -286,6 +290,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       summaryDrafts: state.summaryDrafts,
       ...(annotations.length ? { annotations } : {}),
       features: [...SYNC_FEATURES],
+      ...(drafts.length ? { drafts } : {}),
     });
     sendVault(peerId);
   };
