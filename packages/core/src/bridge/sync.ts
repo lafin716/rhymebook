@@ -15,8 +15,13 @@ import { STUDY_LIMITS, validateStudyBundle, type StudyBundle } from '../study';
 /** 클라이언트가 호스트에 요청하는 조작. id는 클라이언트가 만든다(낙관적 표시 후 호스트 push가 덮어쓴다) */
 export type SyncOp =
   | { kind: 'newRoot'; id: ID }
-  /** 빈 마크다운 페이지 (ADR-072). docId는 본문 문서 메시지 id */
-  | { kind: 'page.new'; id: ID; docId: ID }
+  /**
+   * 빈 마크다운 페이지 (ADR-072). docId는 본문 문서 메시지 id.
+   * parentId가 있으면 그 세션의 하위 페이지 (기능 'subpage')
+   */
+  | { kind: 'page.new'; id: ID; docId: ID; parentId?: ID }
+  /** 앵커 없는 빈 하위 대화 (기능 'subpage') — 첫 질문은 따로 보낸다 */
+  | { kind: 'session.child'; id: ID; parentId: ID }
   /** 페이지 본문 바꾸기 (전체 교체) */
   | { kind: 'page.edit'; sessionId: ID; content: string }
   | { kind: 'send'; sessionId: ID; text: string; messageId: ID; attachments?: Attachment[]; skill?: SkillRef }
@@ -68,7 +73,7 @@ export type SyncOpKind = SyncOp['kind'];
  * 호스트가 sync.snapshot에 싣는 지원 기능. 목록이 없거나 빠진 기능은 옛 PC 앱이라 처리하지 못하므로
  * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
  */
-export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch', 'page'] as const;
+export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch', 'page', 'subpage'] as const;
 export type SyncFeature = (typeof SYNC_FEATURES)[number];
 export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   subsession: 'subsession',
@@ -80,11 +85,13 @@ export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   'session.reorganize': 'turns',
   'page.new': 'page',
   'page.edit': 'page',
+  'session.child': 'subpage',
 };
 
-/** op에 필요한 호스트 기능. session.agent의 웹 검색 토글은 'websearch' (ADR-070) */
+/** op에 필요한 호스트 기능. session.agent의 웹 검색 토글은 'websearch' (ADR-070), 하위 페이지는 'subpage' */
 export function opFeature(op: SyncOp): SyncFeature | undefined {
   if (op.kind === 'session.agent' && 'webSearch' in op) return 'websearch';
+  if (op.kind === 'page.new' && op.parentId !== undefined) return 'subpage';
   return OP_FEATURE[op.kind];
 }
 
@@ -242,7 +249,18 @@ function validateOp(op: unknown): boolean {
       o.docId.length <= SYNC_LIMITS.id &&
       SYNC_ID_RE.test(o.docId) &&
       o.id !== o.docId &&
-      Object.keys(o).every((k) => ['kind', 'id', 'docId'].includes(k))
+      (o.parentId === undefined || (typeof o.parentId === 'string' && SYNC_ID_RE.test(o.parentId) && o.parentId !== o.id)) &&
+      Object.keys(o).every((k) => ['kind', 'id', 'docId', 'parentId'].includes(k))
+    );
+  }
+  if (kind === 'session.child') {
+    return (
+      typeof o.id === 'string' &&
+      SYNC_ID_RE.test(o.id) &&
+      typeof o.parentId === 'string' &&
+      SYNC_ID_RE.test(o.parentId) &&
+      o.id !== o.parentId &&
+      Object.keys(o).every((k) => ['kind', 'id', 'parentId'].includes(k))
     );
   }
   if (kind === 'page.edit') {

@@ -14,6 +14,7 @@ import { RenameInput } from '../session/SessionMenu';
 import { PROVIDER_ORDER, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 import { revealAnchor } from './open';
 import { reorganizeSession } from './turnActions';
+import { renameSession } from './PagePanel';
 
 export interface SessionHeaderProps {
   sessionId: ID;
@@ -95,7 +96,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
               className={compact ? 'text-[15px]' : 'h-8 text-[17px] font-semibold'}
               onDone={(next) => {
                 setRenaming(false);
-                if (next) actions().renameSession(sessionId, next);
+                if (next) renameSession(sessionId, next);
               }}
             />
           </div>

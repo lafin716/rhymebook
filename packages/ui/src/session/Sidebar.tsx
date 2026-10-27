@@ -15,9 +15,9 @@ import { PC_STATUS_LABEL, usePcOnline } from '../components/PcStatus';
 import { cn } from '../lib/cn';
 import { isUsable, PROVIDER_ORDER, providerLabel, statusTone } from '../lib/connection';
 import { relativeTime } from '../lib/time';
-import { RenameInput, SessionMenu, type MenuPoint } from './SessionMenu';
-import { openSubSessionDialog } from './SubSessionDialog';
+import { RenameInput, SessionMenu, SubCreateMenu, type MenuPoint } from './SessionMenu';
 import { startNewSession } from './newSession';
+import { renameSession } from '../chat/PagePanel';
 
 /** 세션 목록. 데스크톱(≥1024)은 고정 사이드바(접기 가능), 그 이하는 드로어 */
 export function Sidebar() {
@@ -245,7 +245,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
               value={s.title}
               onDone={(next) => {
                 setRenaming(false);
-                if (next) actions().renameSession(id, next);
+                if (next) renameSession(id, next);
               }}
             />
           </div>
@@ -329,7 +329,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
             className="h-6 text-[13px]"
             onDone={(next) => {
               setRenaming(false);
-              if (next) actions().renameSession(id, next);
+              if (next) renameSession(id, next);
             }}
           />
         </div>
@@ -376,20 +376,33 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
   );
 }
 
-/** 세션 오른쪽 [+]: 직접 입력한 질문으로 하위 세션을 만든다 (ADR-054). 터치 기기는 항상 보인다 */
+/** 세션 오른쪽 [+]: 빈 하위 페이지나 빈 하위 세션을 바로 만든다 (ADR-075). 터치 기기는 항상 보인다 */
 function SubSessionButton({ parentId, className }: { parentId: ID; className?: string }) {
+  const [at, setAt] = useState<MenuPoint | null>(null);
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
+  const close = useCallback(() => setAt(null), []);
   return (
-    <IconButton
-      size="sm"
-      label="하위 세션 만들기"
-      className={cn('shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100', className)}
-      onClick={() => openSubSessionDialog(parentId)}
-    >
-      <Plus size={14} />
-    </IconButton>
+    <>
+      <IconButton
+        ref={setTrigger}
+        size="sm"
+        label="하위 항목 만들기"
+        aria-haspopup="menu"
+        aria-expanded={!!at}
+        className={cn('shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100', at && 'opacity-100', className)}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (at) return close();
+          const r = e.currentTarget.getBoundingClientRect();
+          setAt({ x: r.left, y: r.bottom + 4 });
+        }}
+      >
+        <Plus size={14} />
+      </IconButton>
+      {at && <SubCreateMenu at={at} parentId={parentId} trigger={trigger} onClose={close} />}
+    </>
   );
 }
-
 const PC_TONE = { online: 'ok', connecting: 'warn', offline: 'danger', unpaired: 'neutral', unsupported: 'danger' } as const;
 
 function ConnectionFooter() {

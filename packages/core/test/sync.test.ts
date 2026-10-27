@@ -11,7 +11,7 @@ import type { ID, Skill } from '../src/model';
 import { defaultSkills } from '../src/skills';
 import { collectStudy, STUDY_LIMITS } from '../src/study';
 import type { SyncClientMsg, SyncServerMsg } from '../src/bridge/sync';
-import { SYNC_LIMITS, validateSyncClientMsg, isSyncServerMsg } from '../src/bridge/sync';
+import { SYNC_LIMITS, validateSyncClientMsg, isSyncServerMsg, opFeature } from '../src/bridge/sync';
 import { createVaultFolder, createVaultItem, createVaultPage, VAULT_LIMITS } from '../src/vault';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -372,6 +372,86 @@ describe('sync host ↔ client', () => {
     expect(ok({ kind: 'page.edit', sessionId: 's1', content: '' })).toBe(true);
     expect(ok({ kind: 'page.edit', sessionId: 's1', content: 'x'.repeat(SYNC_LIMITS.text + 1) })).toBe(false);
     expect(ok({ kind: 'page.edit', sessionId: '../x', content: 'a' })).toBe(false);
+  });
+
+  it('validates subpage ops: page.new parentId and session.child', () => {
+    const ok = (op: object) => !!validateSyncClientMsg({ type: 'act', reqId: 'r1', op });
+    expect(ok({ kind: 'page.new', id: 's1', docId: 'm1', parentId: 's0' })).toBe(true);
+    expect(ok({ kind: 'page.new', id: 's1', docId: 'm1', parentId: 's1' })).toBe(false);
+    expect(ok({ kind: 'page.new', id: 's1', docId: 'm1', parentId: '../x' })).toBe(false);
+    expect(ok({ kind: 'session.child', id: 's1', parentId: 's0' })).toBe(true);
+    expect(ok({ kind: 'session.child', id: 's1', parentId: 's1' })).toBe(false);
+    expect(ok({ kind: 'session.child', id: 's1' })).toBe(false);
+    expect(ok({ kind: 'session.child', id: 's1', parentId: 's0', extra: 1 })).toBe(false);
+    expect(opFeature({ kind: 'session.child', id: 's1', parentId: 's0' })).toBe('subpage');
+    expect(opFeature({ kind: 'page.new', id: 's1', docId: 'm1', parentId: 's0' })).toBe('subpage');
+    expect(opFeature({ kind: 'page.new', id: 's1', docId: 'm1' })).toBe('page');
+  });
+
+  it('remote subpages: child page, sub-session and parent link rename converge on the PC', async () => {
+    const { store } = await connectClient();
+    const parent = store.getState().newPage() as ID;
+    await until(() => !!hostStore.getState().sessions[parent]);
+    const child = store.getState().newPage(undefined, { parentId: parent, focus: false }) as ID;
+    expect(child).toBeTruthy();
+    expect(store.getState().sessions[child]).toMatchObject({ parentId: parent, rootId: store.getState().sessions[parent]!.rootId, kind: 'page' });
+    await until(() => !!hostStore.getState().sessions[child]);
+    expect(hostStore.getState().sessions[child]?.parentId).toBe(parent);
+
+    const sub = store.getState().newSubSession(SEED_IDS.root, undefined, { focus: true }) as ID;
+    expect(sub).toBeTruthy();
+    expect(store.getState().view.activeSessionId).toBe(sub);
+    await until(() => !!hostStore.getState().sessions[sub]);
+    expect(hostStore.getState().sessions[sub]).toMatchObject({ parentId: SEED_IDS.root, title: '새 학습' });
+
+    // 부모 페이지 본문의 링크를 이름 바꾸면 클라이언트·PC 양쪽 링크 글자가 바뀐다
+    store.getState().updatePage(parent, `[옛 이름](#page:${child})`);
+    store.getState().renameSession(child, '새 이름');
+    expect(store.getState().messages[parent]?.[0]?.content).toBe(`[새 이름](#page:${child})`);
+    await until(() => hostStore.getState().messages[parent]?.[0]?.content === `[새 이름](#page:${child})`);
+  });
+
+  it('subpage ops roll back when the PC does not answer', async () => {
+    const { store, peer } = await connectClient('p1', { timeoutMs: 80 });
+    peer.state.dropActs = true;
+    const sub = store.getState().newSubSession(SEED_IDS.root, undefined, { focus: false }) as ID;
+    const page = store.getState().newPage(undefined, { parentId: SEED_IDS.root, focus: false }) as ID;
+    expect(store.getState().sessions[sub]).toBeDefined();
+    expect(store.getState().sessions[page]).toBeDefined();
+    await until(() => !store.getState().sessions[sub] && !store.getState().sessions[page]);
+    expect(store.getState().newSubSession('s-missing-parent' as ID)).toBe(false);
+  });
+
+  it('subpage ops are refused as outdated on a PC without the subpage feature', async () => {
+    const { store, client, peer } = await connectClient();
+    const snap = peer.state.received.find((m) => m.type === 'sync.snapshot') as Extract<SyncServerMsg, { type: 'sync.snapshot' }>;
+    for (const l of peer.state.listeners) l({ ...snap, features: ['subsession', 'vault', 'split', 'turns', 'websearch', 'page'] } as SyncServerMsg);
+    const sent = peer.state.sent.length;
+    const before = Object.keys(store.getState().sessions).length;
+    expect(store.getState().newSubSession(SEED_IDS.root, undefined, { focus: false })).toBe(false);
+    expect(store.getState().newPage(undefined, { parentId: SEED_IDS.root, focus: false })).toBe(false);
+    expect(client.state.getState().lastFailure?.code).toBe('outdated');
+    expect(Object.keys(store.getState().sessions).length).toBe(before);
+    expect(peer.state.sent.length).toBe(sent);
+  });
+
+  it('host validates subpage ops: missing parent, bad ids, conflict', async () => {
+    const out: SyncServerMsg[] = [];
+    const raw = createSyncHost({ store: hostStore, hostName: () => 'pc', send: (_p, m) => out.push(m), throttleMs: 0 });
+    const result = (reqId: string) => out.find((m) => m.type === 'act.result' && m.reqId === reqId) as Extract<SyncServerMsg, { type: 'act.result' }> | undefined;
+    raw.receive('x', { type: 'sync.hello' });
+    raw.receive('x', { type: 'act', reqId: 'c-nf', op: { kind: 'session.child', id: 's-c1', parentId: 's-nope' } });
+    expect(result('c-nf')?.error).toBe('not-found');
+    raw.receive('x', { type: 'act', reqId: 'c-self', op: { kind: 'session.child', id: 's-c2', parentId: 's-c2' } });
+    expect(result('c-self')?.error).toBe('invalid');
+    raw.receive('x', { type: 'act', reqId: 'p-nf', op: { kind: 'page.new', id: 's-c3', docId: 'm-c3', parentId: 's-nope' } });
+    expect(result('p-nf')?.error).toBe('not-found');
+    raw.receive('x', { type: 'act', reqId: 'c-dup', op: { kind: 'session.child', id: SEED_IDS.cos, parentId: SEED_IDS.root } });
+    expect(result('c-dup')?.error).toBe('conflict');
+    raw.receive('x', { type: 'act', reqId: 'c-ok', op: { kind: 'session.child', id: 's-c4', parentId: SEED_IDS.root } });
+    expect(result('c-ok')?.ok).toBe(true);
+    expect(hostStore.getState().sessions['s-c4']?.parentId).toBe(SEED_IDS.root);
+    raw.dispose();
   });
 
   it('rejects a second send while streaming (busy) and rolls back', async () => {
@@ -936,7 +1016,7 @@ describe('sync host ↔ client', () => {
   it('host features: new ops are blocked or explained as outdated on an older PC', async () => {
     const { store, client, peer } = await connectClient();
     const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
-    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns', 'websearch', 'page']);
+    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns', 'websearch', 'page', 'subpage']);
     const inject = (m: SyncServerMsg) => {
       for (const l of peer.state.listeners) l(m);
     };

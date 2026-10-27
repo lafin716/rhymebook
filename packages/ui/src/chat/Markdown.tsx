@@ -1,5 +1,6 @@
-import type { ID, SegmentMap, Annotation } from '@branch/core';
+import { pageLinkId, type ID, type SegmentMap, type Annotation } from '@branch/core';
 import 'katex/dist/katex.min.css';
+import { FileText } from 'lucide-react';
 import { memo, useMemo, type ComponentProps } from 'react';
 import ReactMarkdown, { type ExtraProps, type Options } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
@@ -12,6 +13,7 @@ import { rehypeSvgPreview, svgRanges } from './svgPlugin';
 import { QuizBlock, QuizContext, quizSource } from './QuizCard';
 import { SpeakBlock, speakSource } from './SpeakCard';
 import { SvgPreview } from './SvgPreview';
+import { actions, useApp } from '../app/store';
 
 export interface MarkdownProps {
   content: string;
@@ -32,7 +34,36 @@ function Pre(props: ComponentProps<'pre'> & ExtraProps) {
   return said === null ? <SvgPreview {...props} /> : <SpeakBlock {...props} source={said} />;
 }
 
-const components: Options['components'] = { pre: Pre };
+/** `#page:<id>` 링크는 하위 페이지로 연다 (ADR-075) */
+function Anchor({ node: _node, href, children, ...rest }: ComponentProps<'a'> & ExtraProps) {
+  const id = pageLinkId(href);
+  const exists = useApp((s) => (id ? !!s.sessions[id] : false));
+  if (!id)
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    );
+  return (
+    <a
+      {...rest}
+      href={href}
+      data-page-link={id}
+      aria-disabled={!exists || undefined}
+      title={exists ? '하위 페이지 열기' : '지워진 페이지'}
+      className={exists ? 'page-link' : 'page-link page-link-missing'}
+      onClick={(e) => {
+        e.preventDefault();
+        if (exists) actions().openSession(id, 'main');
+      }}
+    >
+      <FileText size={14} aria-hidden="true" className="page-link-icon" />
+      {children}
+    </a>
+  );
+}
+
+const components: Options['components'] = { pre: Pre, a: Anchor };
 
 /** 코드(펜스 블록·인라인 코드) 영역 마스크. 수식 구분자 변환에서 제외한다 */
 function codeMask(src: string): Uint8Array {

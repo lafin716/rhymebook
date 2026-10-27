@@ -9,6 +9,13 @@ const LOCAL = '/?platform=desktop';
 const MAIN = '[data-panel="main"]';
 const DOC = '# 어텐션 노트\n\n- 쿼리와 키를 비교한다\n- **가중합**으로 값을 섞는다\n\n소프트맥스로 정규화한다.';
 
+/** CodeMirror 편집기의 마크다운 원문 (실시간 렌더라 화면 글자와 다르다, ADR-075) */
+async function source(page: Page) {
+  return page
+    .locator(`${MAIN} [data-page-editor] .cm-content`)
+    .evaluate((el) => (el as unknown as { cmTile: { root: { view: { state: { doc: { toString(): string } } } } } }).cmTile.root.view.state.doc.toString());
+}
+
 function collectErrors(page: Page) {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -99,7 +106,8 @@ test('사이드바 새로 만들기 → 빈 화면에서 빈 페이지로 시작
 
   // 편집으로 돌아가면 원문이 그대로다
   await main.getByRole('button', { name: '편집' }).click();
-  await expect(main.getByLabel('페이지 본문 (마크다운)')).toHaveValue(DOC);
+  await expect(main.getByLabel('페이지 본문 (마크다운)')).toBeVisible();
+  expect(await source(page)).toBe(DOC);
   expect(errors).toEqual([]);
 });
 
@@ -121,7 +129,7 @@ test('/ 블록 넣기 — 검색·키보드로 고르고 Esc는 메뉴만 닫는
   await page.keyboard.press('Enter');
   await expect(menu).toHaveCount(0);
   await page.keyboard.type('어텐션 노트');
-  await expect(body).toHaveValue('## 어텐션 노트');
+  await expect.poll(() => source(page)).toBe('## 어텐션 노트');
 
   // 문단 뒤 /hr → 구분선은 빈 줄로 띄운다, 영문 검색어
   await page.keyboard.press('Enter');
@@ -134,9 +142,11 @@ test('/ 블록 넣기 — 검색·키보드로 고르고 Esc는 메뉴만 닫는
   await page.keyboard.type('/할');
   await menu.getByRole('option', { name: /할 일 목록/ }).click();
   await page.keyboard.type('복습하기');
-  await expect(body).toHaveValue('## 어텐션 노트\n본문 문장\n\n---\n- [ ] 복습하기');
+  await expect.poll(() => source(page)).toBe('## 어텐션 노트\n본문 문장\n\n---\n- [ ] 복습하기');
 
   // Esc는 메뉴만 닫고 편집을 이어간다. 같은 / 자리에선 다시 열리지 않는다
+  // (Enter는 목록을 이어 가고, 빈 항목에서 한 번 더 누르면 목록을 끝낸다)
+  await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/제');
   await expect(menu).toBeVisible();
@@ -145,7 +155,7 @@ test('/ 블록 넣기 — 검색·키보드로 고르고 Esc는 메뉴만 닫는
   await expect(body).toBeVisible();
   await page.keyboard.type('목'); // 여전히 맞는 검색어여도 닫힌 채다
   await expect(menu).toHaveCount(0);
-  await expect(body).toHaveValue(/\/제목$/);
+  await expect.poll(() => source(page)).toMatch(/\/제목$/);
   // 맞는 블록이 없으면 메뉴가 없고, 경로 같은 a/b에서는 열리지 않는다
   await page.keyboard.type(' /없는블록 a/b');
   await expect(menu).toHaveCount(0);
@@ -154,5 +164,75 @@ test('/ 블록 넣기 — 검색·키보드로 고르고 Esc는 메뉴만 닫는
   await expect(main.getByRole('heading', { level: 2, name: '어텐션 노트' })).toBeVisible();
   await expect(main.locator('hr')).toHaveCount(1);
   await expect(main.locator('input[type="checkbox"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test('실시간 렌더 — 커서가 없는 줄은 마크다운 기호를 숨기고 서식으로 보인다 (ADR-075)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  const editor = main.locator('[data-page-editor]');
+  await page.keyboard.type('## 제목 줄');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('**굵게** 그리고 `코드`');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('- [ ] 할 일');
+  // 목록은 Enter로 이어지고, 빈 항목에서 Enter를 한 번 더 누르면 끝난다
+  await page.keyboard.press('Enter');
+  await expect.poll(() => source(page)).toMatch(/- \[ \] 할 일\n- \[ \] $/);
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('마지막 줄');
+
+  // 제목 줄: 줄 서식이 붙고 # 기호는 숨긴다
+  const heading = editor.locator('.cm-line.cm-lp-h2');
+  await expect(heading).toHaveText('제목 줄');
+  await expect(editor.locator('.cm-lp-strong')).toHaveText('굵게');
+  await expect(editor.locator('.cm-lp-inline-code')).toHaveText('코드');
+  await expect(editor.locator('.cm-line', { hasText: '굵게' })).not.toContainText('**');
+  // 할 일 체크박스는 눌러서 원문을 바꾼다
+  await editor.locator('.cm-lp-check').click();
+  await expect.poll(() => source(page)).toContain('- [x] 할 일');
+
+  // 커서를 제목 줄로 옮기면 그 줄만 원문(## )이 드러난다
+  await heading.click();
+  await expect(editor.locator('.cm-line.cm-lp-h2')).toContainText('## ');
+  expect(await source(page)).toBe('## 제목 줄\n**굵게** 그리고 `코드`\n- [x] 할 일\n마지막 줄');
+  await page.screenshot({ path: `test-results/page-live-${test.info().project.name}.png` });
+  expect(errors).toEqual([]);
+});
+
+test('/하위 페이지 → 링크로 열고, 이름을 바꾸면 부모 링크도 바뀐다 (ADR-075)', async ({ page }, info) => {
+  test.skip(info.project.name === 'mobile', '모바일은 사이드바가 서랍이라 데스크톱에서 검증');
+  const errors = collectErrors(page);
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  const title = main.locator('[data-page-title]');
+  await page.keyboard.type('부모 본문');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/하위');
+  await main.getByRole('listbox', { name: '블록 넣기' }).getByRole('option', { name: /하위 페이지/ }).click();
+  await expect.poll(() => source(page)).toMatch(/^부모 본문\n\[새 페이지\]\(#page:[^)]+\)$/);
+  await main.getByRole('button', { name: '완료' }).click();
+  await title.click();
+  await main.getByRole('textbox').first().fill('부모 노트');
+  await page.keyboard.press('Enter');
+  await expect(title).toHaveText(/부모 노트/);
+
+  // 읽기 화면의 링크를 누르면 하위 페이지가 열린다
+  const link = main.locator('a.page-link', { hasText: '새 페이지' });
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(title).toHaveText(/새 페이지/);
+  await title.click();
+  await main.getByRole('textbox').first().fill('하위 노트');
+  await page.keyboard.press('Enter');
+  await expect(title).toHaveText(/하위 노트/);
+
+  // 부모로 돌아가면 링크 제목도 바뀌어 있다
+  await page.getByRole('navigation', { name: '학습 세션' }).getByText('부모 노트').first().click();
+  await expect(main.locator('a.page-link', { hasText: '하위 노트' })).toBeVisible();
+  await page.screenshot({ path: `test-results/page-sublink-${info.project.name}.png` });
   expect(errors).toEqual([]);
 });

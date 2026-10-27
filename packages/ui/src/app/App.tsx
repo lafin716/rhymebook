@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { SelectionMenu } from '../chat/SelectionMenu';
 import { MoveTurnHost } from '../chat/turnActions';
 import { ConfirmHost } from '../components/ConfirmDialog';
-import { SubSessionDialog } from '../session/SubSessionDialog';
 import { Toasts } from '../components/Toasts';
 import { TopBar } from '../components/TopBar';
 import { NotesModal } from '../notes/NotesModal';
@@ -62,7 +61,6 @@ export function App() {
       <NotesModal />
       <VaultOverlay />
       <SkillsPage />
-      <SubSessionDialog />
       <ConfirmHost />
       <MoveTurnHost />
       <Toasts />

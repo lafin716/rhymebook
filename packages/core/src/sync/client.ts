@@ -1,7 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
 import { NEW_PAGE_TITLE, NEW_SESSION_TITLE } from '../store';
-import { pageDoc } from '../page';
+import { isPage, pageDoc, renamePageLinks } from '../page';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, VaultNode, ViewState } from '../model';
 import { OP_FEATURE, opFeature, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
@@ -520,9 +520,18 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       const sessionId = id ?? newId('s');
       const docId = o?.docId ?? newId('m');
       const s = get();
-      if (s.sessions[sessionId] || sessionId === docId) return false;
+      const parent = o?.parentId ? s.sessions[o.parentId] : undefined;
+      if (s.sessions[sessionId] || sessionId === docId || (o?.parentId && !parent)) return false;
       const now = Date.now();
-      const session: Session = { id: sessionId, parentId: null, rootId: sessionId, title: NEW_PAGE_TITLE, kind: 'page', createdAt: now, updatedAt: now };
+      const session: Session = {
+        id: sessionId,
+        parentId: parent?.id ?? null,
+        rootId: parent ? parent.rootId : sessionId,
+        title: NEW_PAGE_TITLE,
+        kind: 'page',
+        createdAt: now,
+        updatedAt: now,
+      };
       const doc: Message = { id: docId, sessionId, role: 'assistant', content: '', createdAt: now, status: 'done' };
       apply({
         sessions: { ...s.sessions, [sessionId]: session },
@@ -530,7 +539,37 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         ...(o?.focus === false ? {} : { view: { ...s.view, mode: 'single', activeSessionId: sessionId } }),
       });
       markLoaded(sessionId);
-      return act({ kind: 'page.new', id: sessionId, docId }, () => removeSession(sessionId)) ? sessionId : false;
+      const op: SyncOp = parent
+        ? { kind: 'page.new', id: sessionId, docId, parentId: parent.id }
+        : { kind: 'page.new', id: sessionId, docId };
+      return act(op, () => removeSession(sessionId)) ? sessionId : false;
+    },
+
+    newSubSession(parentId, id, o) {
+      const s = get();
+      const parent = s.sessions[parentId];
+      if (!parent) return false;
+      const sessionId = id ?? newId('s');
+      if (s.sessions[sessionId]) return false;
+      const now = Date.now();
+      const session: Session = {
+        id: sessionId,
+        parentId: parent.id,
+        rootId: parent.rootId,
+        title: NEW_SESSION_TITLE,
+        ...(parent.providerId ? { providerId: parent.providerId } : {}),
+        ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+        ...(parent.webSearch === false ? { webSearch: false } : {}),
+        createdAt: now,
+        updatedAt: now,
+      };
+      apply({
+        sessions: { ...s.sessions, [sessionId]: session },
+        messages: { ...s.messages, [sessionId]: [] },
+        ...(o?.focus === false ? {} : { view: { ...s.view, mode: 'single', activeSessionId: sessionId } }),
+      });
+      markLoaded(sessionId);
+      return act({ kind: 'session.child', id: sessionId, parentId }, () => removeSession(sessionId)) ? sessionId : false;
     },
 
     updatePage(sessionId, content) {
@@ -678,10 +717,23 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       const session = s.sessions[sessionId];
       if (!t || !session) return;
       const before = session.title;
-      apply({ sessions: { ...s.sessions, [sessionId]: { ...session, title: t } } });
+      // 부모가 페이지면 본문의 이 세션 링크 글자도 낙관적으로 바꾼다 (호스트가 같은 규칙으로 바꾼다)
+      const parent = session.parentId ? s.sessions[session.parentId] : undefined;
+      const doc = parent && isPage(parent) ? pageDoc(s.messages[parent.id]) : undefined;
+      const linked = doc ? renamePageLinks(doc.content, sessionId, t) : undefined;
+      const setDoc = (from: string, to: string) => {
+        const cur = get().messages[parent!.id] ?? [];
+        if (!doc || !cur.some((m) => m.id === doc.id && m.content === from)) return;
+        apply({ messages: { ...get().messages, [parent!.id]: cur.map((m) => (m.id === doc.id ? { ...m, content: to } : m)) } });
+      };
+      apply({
+        sessions: { ...s.sessions, [sessionId]: { ...session, title: t } },
+        ...(doc && linked !== doc.content ? { messages: { ...s.messages, [parent!.id]: (s.messages[parent!.id] ?? []).map((m) => (m.id === doc.id ? { ...m, content: linked! } : m)) } } : {}),
+      });
       act({ kind: 'rename', sessionId, title: t }, () => {
         const cur = get().sessions[sessionId];
         if (cur && cur.title === t) apply({ sessions: { ...get().sessions, [sessionId]: { ...cur, title: before } } });
+        if (doc && linked !== doc.content) setDoc(linked!, doc.content);
       });
     },
 

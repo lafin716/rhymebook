@@ -1,8 +1,10 @@
-import { MAX_SPLIT, type ID } from '@branch/core';
-import { AppWindow, Columns2, Pencil, Rows2, Trash2 } from 'lucide-react';
+import { appendPageLink, MAX_SPLIT, NEW_PAGE_TITLE, pageDoc, type ID } from '@branch/core';
+import { AppWindow, Columns2, FileText, GitBranch, Pencil, Rows2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { desktop } from '../app/runtime';
+import { openBranch } from '../chat/open';
+import { flushPageDraft } from '../chat/PagePanel';
 import { actions } from '../app/store';
 import { pushNotice } from '../app/sync';
 import { useUi } from '../app/uiState';
@@ -173,5 +175,92 @@ export function RenameInput({ value, onDone, className }: { value: string; onDon
       onClick={(e) => e.stopPropagation()}
       className={cn('h-7 w-full min-w-0 rounded-md border border-accent bg-bg px-1.5 text-[13.5px] text-fg outline-none', className)}
     />
+  );
+}
+
+/**
+ * 세션 행 [+] 드롭다운: 빈 하위 페이지·빈 하위 세션을 바로 만든다 (ADR-075).
+ * 부모가 페이지면 본문 끝에 하위 페이지 링크도 붙인다.
+ */
+export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoint; parentId: ID; trigger?: HTMLElement | null; onClose(): void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !trigger?.contains(t)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+        trigger?.focus();
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const items = [...(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+        if (!items.length) return;
+        e.preventDefault();
+        const i = items.indexOf(document.activeElement as HTMLElement);
+        items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('blur', onClose);
+    window.addEventListener('resize', onClose);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('blur', onClose);
+      window.removeEventListener('resize', onClose);
+    };
+  }, [onClose, trigger]);
+
+  const done = () => {
+    onClose();
+    if (isMobileNow()) useUi.getState().setDrawer(false);
+  };
+  const addPage = () => {
+    flushPageDraft(parentId);
+    const a = actions();
+    const parent = a.sessions[parentId];
+    const id = a.newPage(undefined, { parentId });
+    if (!id) return done();
+    if (parent?.kind === 'page') a.updatePage(parentId, appendPageLink(pageDoc(a.messages[parentId])?.content ?? '', NEW_PAGE_TITLE, id));
+    done();
+  };
+  // 세션은 질문 없이 빈 대화로 만들어 가지 자리(팝업·분할·시트)에 연다
+  const addSession = () => {
+    const id = actions().newSubSession(parentId, undefined, { focus: false });
+    if (id) openBranch(id);
+    done();
+  };
+
+  const w = 168;
+  const h = 84;
+  const item = 'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-fg outline-none hover:bg-surface-2 focus:bg-surface-2';
+  return createPortal(
+    <div
+      ref={ref}
+      role="menu"
+      aria-label="하위 항목 만들기"
+      data-sub-create=""
+      // 포털이라도 React 이벤트는 세션 행까지 올라가므로 여기서 끊는다
+      onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      style={{ top: Math.min(at.y, window.innerHeight - h - 8), left: Math.max(8, Math.min(at.x, window.innerWidth - w - 8)), width: w }}
+      className="animate-pop-in fixed z-[90] rounded-lg border border-line bg-elev p-1 shadow-float"
+    >
+      <button type="button" role="menuitem" onClick={addPage} className={item}>
+        <FileText size={14} className="text-muted" /> 빈 페이지
+      </button>
+      <button type="button" role="menuitem" onClick={addSession} className={item}>
+        <GitBranch size={14} className="text-muted" /> 세션
+      </button>
+    </div>,
+    document.body,
   );
 }

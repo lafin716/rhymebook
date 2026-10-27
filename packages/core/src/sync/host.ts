@@ -387,7 +387,15 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         return idTaken(state, op.id) ? 'conflict' : null;
       case 'page.new':
         if (!SYNC_ID_RE.test(op.id) || !SYNC_ID_RE.test(op.docId) || op.id === op.docId) return 'invalid';
+        if (op.parentId !== undefined) {
+          if (!SYNC_ID_RE.test(op.parentId) || op.parentId === op.id) return 'invalid';
+          if (!has(op.parentId)) return 'not-found';
+        }
         return idTaken(state, op.id) || idTaken(state, op.docId) ? 'conflict' : null;
+      case 'session.child':
+        if (!SYNC_ID_RE.test(op.id) || !SYNC_ID_RE.test(op.parentId) || op.id === op.parentId) return 'invalid';
+        if (!has(op.parentId)) return 'not-found';
+        return idTaken(state, op.id) ? 'conflict' : null;
       case 'page.edit':
         if (op.content.length > SYNC_LIMITS.text) return 'invalid';
         if (!has(op.sessionId)) return 'not-found';
@@ -523,7 +531,14 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         }
         case 'page.new':
           peer.loaded.add(op.id);
-          if (!s.newPage(op.id, { focus: false, docId: op.docId })) {
+          if (!s.newPage(op.id, { focus: false, docId: op.docId, ...(op.parentId !== undefined ? { parentId: op.parentId } : {}) })) {
+            peer.loaded.delete(op.id);
+            return 'failed';
+          }
+          return null;
+        case 'session.child':
+          peer.loaded.add(op.id);
+          if (!s.newSubSession(op.parentId, op.id, { focus: false })) {
             peer.loaded.delete(op.id);
             return 'failed';
           }

@@ -58,11 +58,11 @@ import { chatTarget, defaultSkills, REORGANIZE_SKILL_ID, skillRef } from '../ski
 import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
 import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../tree';
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
-import { pageDoc } from '../page';
+import { NEW_PAGE_TITLE, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
 
 export const NEW_SESSION_TITLE = '새 학습';
-export const NEW_PAGE_TITLE = '새 페이지';
+export { NEW_PAGE_TITLE };
 
 /** 스트리밍 중 부분 응답 저장 간격(ms) */
 export const STREAM_SAVE_INTERVAL = 1000;
@@ -132,8 +132,13 @@ export interface AppState extends AppData {
 
   // 세션
   newRootSession(id?: ID, opts?: { focus?: boolean }): ID | false;
-  /** 빈 마크다운 페이지(루트)를 만든다. 본문은 문서 메시지(docId) 하나 (ADR-072) */
-  newPage(id?: ID, opts?: { focus?: boolean; docId?: ID }): ID | false;
+  /**
+   * 빈 마크다운 페이지를 만든다. 본문은 문서 메시지(docId) 하나 (ADR-072).
+   * parentId를 주면 그 세션의 하위 페이지(앵커 없음)로 만든다 — 링크는 부모 본문에 UI가 넣는다. 부모가 없으면 false
+   */
+  newPage(id?: ID, opts?: { focus?: boolean; docId?: ID; parentId?: ID }): ID | false;
+  /** 빈 하위 대화(앵커 없음, 메시지 없음)를 만든다. 제목은 기본값, 부모 설정(provider·모델·웹 검색)을 물려받는다. 부모가 없으면 false */
+  newSubSession(parentId: ID, id?: ID, opts?: { focus?: boolean }): ID | false;
   /** 페이지 본문을 바꾼다. 페이지가 아니거나 같은 내용이면 false */
   updatePage(sessionId: ID, content: string): boolean;
   deleteSession(id: ID): void;
@@ -339,6 +344,9 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
 
     const touch = (sessionId: ID) => patchSession(sessionId, { updatedAt: Date.now() });
 
+    /** 빈 대화에서 처음 보낸 세션 — 하위 대화도 이 첫 답변 뒤에 제목을 짓는다 */
+    const firstTurnUntitled = new Set<ID>();
+
     /** 대화로 제목을 지어, 그사이 제목이 expected에서 바뀌지 않았을 때만 바꾼다 */
     const aiTitle = async (sessionId: ID, expected: string) => {
       const providerId = effectiveProviderId(get(), sessionId);
@@ -358,8 +366,11 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
     };
 
     const maybeTitle = async (sessionId: ID) => {
+      const firstTurn = firstTurnUntitled.delete(sessionId);
       const s = get().sessions[sessionId];
-      if (!s || s.parentId !== null || s.title !== NEW_SESSION_TITLE) return;
+      if (!s || s.title !== NEW_SESSION_TITLE) return;
+      // 루트 대화는 기존처럼, 하위 대화는 빈 상태에서 처음 보낸 질문 뒤에만 짓는다
+      if (s.parentId !== null && !firstTurn) return;
       await aiTitle(sessionId, NEW_SESSION_TITLE);
     };
 
@@ -584,18 +595,56 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         return sessionId;
       },
 
-      newPage(id?: ID, opts?: { focus?: boolean; docId?: ID }) {
+      newPage(id?: ID, opts?: { focus?: boolean; docId?: ID; parentId?: ID }) {
         const sessionId = id ?? newId('s');
         const docId = opts?.docId ?? newId('m');
         const taken = (x: ID) => !!get().sessions[x] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === x));
         if (docId === sessionId || (id && taken(id)) || (opts?.docId && taken(opts.docId))) return false;
+        const parent = opts?.parentId ? get().sessions[opts.parentId] : undefined;
+        if (opts?.parentId && !parent) return false;
 
         const now = Date.now();
-        const s: Session = { id: sessionId, parentId: null, rootId: sessionId, title: NEW_PAGE_TITLE, kind: 'page', createdAt: now, updatedAt: now };
+        const s: Session = {
+          id: sessionId,
+          parentId: parent?.id ?? null,
+          rootId: parent ? parent.rootId : sessionId,
+          title: NEW_PAGE_TITLE,
+          kind: 'page',
+          createdAt: now,
+          updatedAt: now,
+        };
         const doc: Message = { id: docId, sessionId, role: 'assistant', content: '', createdAt: now, status: 'done' };
         set((st) => ({ sessions: { ...st.sessions, [sessionId]: s }, messages: { ...st.messages, [sessionId]: [doc] } }));
         repo.saveSession(s);
         repo.saveMessage(doc, 0);
+        if (parent) touch(parent.id);
+
+        if (opts?.focus !== false) setView(() => emptyView(sessionId));
+        return sessionId;
+      },
+
+      newSubSession(parentId, id?, opts?) {
+        const parent = get().sessions[parentId];
+        if (!parent) return false;
+        const sessionId = id ?? newId('s');
+        const taken = (x: ID) => !!get().sessions[x] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === x));
+        if (id && taken(id)) return false;
+
+        const now = Date.now();
+        const s: Session = {
+          id: sessionId,
+          parentId: parent.id,
+          rootId: parent.rootId,
+          title: NEW_SESSION_TITLE,
+          ...(parent.providerId ? { providerId: parent.providerId } : {}),
+          ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
+          ...(parent.webSearch === false ? { webSearch: false } : {}),
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((st) => ({ sessions: { ...st.sessions, [sessionId]: s }, messages: { ...st.messages, [sessionId]: [] } }));
+        repo.saveSession(s);
+        touch(parent.id);
 
         if (opts?.focus !== false) setView(() => emptyView(sessionId));
         return sessionId;
@@ -846,7 +895,16 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
 
       renameSession(id, title) {
         const t = title.trim();
-        if (t) patchSession(id, { title: t });
+        if (!t) return;
+        const cur = get().sessions[id];
+        patchSession(id, { title: t });
+        // 부모가 페이지면 그 본문의 이 세션 링크 글자도 새 제목으로
+        const parent = cur?.parentId ? get().sessions[cur.parentId] : undefined;
+        if (!parent || !isPage(parent)) return;
+        const doc = pageDoc(get().messages[parent.id]);
+        if (!doc) return;
+        const next = renamePageLinks(doc.content, id, t);
+        if (next !== doc.content) get().updatePage(parent.id, next);
       },
 
       setSessionProvider(id, providerId) {
@@ -904,6 +962,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         }
 
         const id = messageId ?? newId('m');
+        if (!get().messages[sessionId]?.length) firstTurnUntitled.add(sessionId);
         putMessage({
           id,
           sessionId,

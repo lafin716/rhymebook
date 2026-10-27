@@ -1,4 +1,6 @@
-import type { Message, Session } from './model';
+import type { ID, Message, Session } from './model';
+
+export const NEW_PAGE_TITLE = '새 페이지';
 
 /** 마크다운 페이지 세션인가 (ADR-072) */
 export const isPage = (s: Pick<Session, 'kind'> | undefined): boolean => s?.kind === 'page';
@@ -39,6 +41,11 @@ export const PAGE_BLOCKS: readonly PageBlock[] = [
   { id: 'divider', label: '구분선', hint: '---', keywords: ['divider', 'hr', 'line', '줄'], kind: 'block', text: '---' },
   { id: 'table', label: '표', hint: '| |', keywords: ['table', '테이블'], kind: 'block', text: TABLE, select: [2, 4] },
   { id: 'math', label: '수식', hint: '$$', keywords: ['math', 'latex', 'equation'], kind: 'block', text: '$$\n\n$$', select: [3, 3] },
+  /**
+   * 하위 페이지 링크. text는 비워 둔다 — UI가 새 페이지 id로 `pageLinkMarkdown(...)`을 만들어 넣은 블록을
+   * applyPageBlock에 넘긴다. text '' 는 "UI가 채운다"는 뜻이라 여기 값을 그대로 쓰면 안 된다.
+   */
+  { id: 'page', label: '하위 페이지', hint: '[ ]( )', keywords: ['page', 'subpage', 'link', '페이지', '링크'], kind: 'line', text: '' },
 ];
 
 const QUERY_MAX = 20;
@@ -113,3 +120,50 @@ export function applyPageBlock(
   const [s, e] = block.select ?? [end, end];
   return { text: before + block.text + after, selStart: before.length + s, selEnd: before.length + e };
 }
+
+/* ── 하위 페이지 링크 ── */
+
+/** 페이지 링크 주소 머리말 — `[제목](#page:세션id)` */
+export const PAGE_LINK_PREFIX = '#page:';
+
+const PAGE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** 정규식 특수문자 이스케이프 */
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** 페이지 세션 id로 링크 주소 */
+export const pageLinkHref = (id: ID): string => `${PAGE_LINK_PREFIX}${id}`;
+
+/** 링크 주소가 `#page:<id>` 꼴이면 id, 아니면 null */
+export function pageLinkId(href: string | undefined | null): ID | null {
+  if (!href?.startsWith(PAGE_LINK_PREFIX)) return null;
+  const id = href.slice(PAGE_LINK_PREFIX.length);
+  return PAGE_ID_RE.test(id) ? id : null;
+}
+
+/** 링크 글자: 줄바꿈·앞뒤 공백을 없애고 `\`·`[`·`]`를 이스케이프한다. 비면 기본 제목 */
+const linkText = (title: string): string => {
+  const t = title.replace(/\s+/g, ' ').trim();
+  return (t || NEW_PAGE_TITLE).replace(/[\\[\]]/g, (c) => `\\${c}`);
+};
+
+/** 하위 페이지로 가는 마크다운 링크 `[제목](#page:id)` */
+export const pageLinkMarkdown = (title: string, id: ID): string => `[${linkText(title)}](${pageLinkHref(id)})`;
+
+/**
+ * 본문 안의 `[…](#page:id)` 링크 글자를 새 제목으로 바꾼다. 그 id 링크만 건드린다.
+ * 맞는 링크가 없으면 같은 문자열을 돌려준다.
+ */
+export function renamePageLinks(content: string, id: ID, title: string): string {
+  const re = new RegExp(`\\[((?:\\\\.|[^\\[\\]\\\\\\n])*)\\]\\(${escapeRe(pageLinkHref(id))}\\)`, 'g');
+  const text = linkText(title);
+  return content.replace(re, () => `[${text}](${pageLinkHref(id)})`);
+}
+
+/** 본문 끝에 하위 페이지 링크를 따로 한 문단으로 붙인다 */
+export function appendPageLink(content: string, title: string, id: ID): string {
+  const link = pageLinkMarkdown(title, id);
+  const body = content.trimEnd();
+  return body ? `${body}\n\n${link}\n` : `${link}\n`;
+}
+
