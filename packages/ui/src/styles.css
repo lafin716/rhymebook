@@ -804,6 +804,11 @@ span.annot[data-note-end='true']::after {
 }
 .page-editor .cm-placeholder {
   color: var(--muted);
+  /* 여러 줄 안내가 첫 줄 높이를 늘려 커서가 길어지지 않게 흐름 밖에 둔다 */
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
 }
 .page-editor .cm-lp-h1,
 .page-editor .cm-lp-h2,

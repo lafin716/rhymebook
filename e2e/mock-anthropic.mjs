@@ -33,6 +33,12 @@ function reply(body) {
     const topic = content.match(/질문 대상: "([^"]+)"/)?.[1] ?? '?';
     return `요약[${topic}]: 쿼리와 키의 유사도로 값을 섞는다는 점을 이해했다.`;
   }
+  if (system.startsWith('너는 마크다운 학습 노트 편집을 돕는다')) {
+    // 페이지 AI (ADR-076): 채우기는 요청을 목록으로, 정리는 노트를 울타리로 감싸 "## 정리" 아래에 둔다
+    if (content.includes('[여기에 채우기]')) return `- 채운 항목: ${content.match(/## 요청\n([\s\S]*)$/)?.[1]?.trim() ?? ''}`;
+    const note = content.match(/## 노트\n([\s\S]*?)(?:\n## 추가 요청|$)/)?.[1]?.trim() ?? '';
+    return ['```markdown', '## 정리', '', note, '```'].join('\n');
+  }
   if (system.startsWith('너는 학습 채팅앱의 "스킬" 작성 도우미')) {
     // 새 스킬: 요청을 지시에 담는다. 고치기: 기존 이름·제목은 두고 지시 끝에 요청을 더한다
     const ask = content.match(/## 요청\n([\s\S]*)$/)?.[1]?.trim() ?? '';

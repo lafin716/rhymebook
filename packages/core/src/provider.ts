@@ -15,7 +15,7 @@ export interface StreamRequest {
   effort?: string;
   signal?: AbortSignal;
   /** 요청 목적. Mock/로깅용 힌트 */
-  purpose?: 'chat' | 'summary' | 'title' | 'skill';
+  purpose?: 'chat' | 'summary' | 'title' | 'skill' | 'page';
   /** 웹 검색·페이지 읽기 도구 허용 (일반 대화에서만 쓴다, ADR-070) */
   webSearch?: boolean;
 }

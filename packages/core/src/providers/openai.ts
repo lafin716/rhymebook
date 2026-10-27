@@ -37,7 +37,7 @@ export function createOpenAIProvider(opts: ApiProviderOptions): LLMProvider {
             model: req.model || opts.getModel?.() || OPENAI_DEFAULT_MODEL,
             messages,
             stream: true,
-            max_completion_tokens: opts.maxTokens ?? (req.purpose === 'chat' || req.purpose === 'skill' || !req.purpose ? 4096 : 1024),
+            max_completion_tokens: opts.maxTokens ?? (req.purpose === 'chat' || req.purpose === 'skill' || req.purpose === 'page' || !req.purpose ? 4096 : 1024),
           }),
           signal: req.signal,
         });

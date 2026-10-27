@@ -236,3 +236,56 @@ test('/하위 페이지 → 링크로 열고, 이름을 바꾸면 부모 링크�
   await page.screenshot({ path: `test-results/page-sublink-${info.project.name}.png` });
   expect(errors).toEqual([]);
 });
+
+test('빈 페이지 안내는 여러 줄이어도 커서는 한 줄 높이다', async ({ page }) => {
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  await expect(main.locator('.cm-placeholder')).toBeVisible();
+  // 커서(네이티브 캐럿)는 첫 줄 높이를 따른다 — 안내 글이 줄 높이를 늘리지 않아야 한다
+  const h = await main.locator('.cm-line').first().evaluate((el) => el.getBoundingClientRect().height);
+  expect(h).toBeGreaterThan(10);
+  expect(h).toBeLessThan(40);
+});
+
+test('우클릭 메뉴로 블록 넣기 · AI로 내용 채우기 · AI로 정리와 되돌리기 (ADR-076)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  const body = main.getByLabel('페이지 본문 (마크다운)');
+  await page.keyboard.type('어텐션 메모');
+  await expect.poll(() => source(page)).toBe('어텐션 메모');
+
+  // 우클릭 → 블록 넣기: 문단 중간이면 다음 줄에 제목을 연다
+  const menu = main.getByRole('menu', { name: '블록·AI 메뉴' });
+  await body.click({ button: 'right' });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: /제목 2/ }).click();
+  await expect(menu).toHaveCount(0);
+  await page.keyboard.type('장점');
+  await expect.poll(() => source(page)).toBe('어텐션 메모\n## 장점');
+
+  // Esc는 메뉴만 닫는다
+  await body.click({ button: 'right' });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+
+  // AI로 내용 채우기 — 요청을 적으면 커서 자리에 목록이 들어온다
+  await main.locator('.cm-line').last().click({ button: 'right', position: { x: 200, y: 5 } });
+  await menu.getByRole('menuitem', { name: 'AI로 내용 채우기' }).click();
+  await menu.getByLabel(/무엇을 채울까요/).fill('병렬 처리');
+  await menu.getByRole('button', { name: '채우기' }).click();
+  await expect.poll(() => source(page)).toBe('어텐션 메모\n## 장점\n\n- 채운 항목: 병렬 처리');
+
+  // AI로 정리 — 울타리를 걷고 바꾸며, 되돌리기로 돌아간다
+  await main.getByRole('button', { name: '완료' }).click();
+  await main.getByRole('button', { name: /AI로 정리/ }).click();
+  await expect(main.getByRole('heading', { level: 2, name: '정리' })).toBeVisible();
+  await expect(main.getByText('```')).toHaveCount(0);
+  await main.getByRole('button', { name: '되돌리기' }).click();
+  await expect(main.getByRole('heading', { level: 2, name: '정리' })).toHaveCount(0);
+  await expect(main.getByRole('heading', { level: 2, name: '장점' })).toBeVisible();
+  expect(errors).toEqual([]);
+});

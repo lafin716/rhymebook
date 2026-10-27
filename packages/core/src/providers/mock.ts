@@ -200,6 +200,11 @@ export function mockAnswer(req: StreamRequest): string {
       `<note>${cur ? '요청한 내용을 지시에 더했어요.' : '퀴즈 스킬을 만들었어요.'}</note>`,
     ].join('\n');
   }
+  if (req.purpose === 'page') {
+    if (user.includes('[여기에 채우기]')) return '- 핵심 개념을 한 줄로 정리한다\n- 예시를 하나 든다';
+    const note = /## 노트\n([\s\S]*?)(?:\n## 추가 요청|$)/.exec(user)?.[1]?.trim() ?? '';
+    return `## 정리\n\n${note}`;
+  }
   if (req.purpose === 'summary') {
     const target = /질문 대상: "([^"]+)"/.exec(user)?.[1] ?? '이 개념';
     const hit = CANNED.find((c) => c.keys.test(target));

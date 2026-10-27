@@ -70,7 +70,7 @@ export function createAnthropicProvider(opts: ApiProviderOptions): LLMProvider {
             headers: headers(key),
             body: JSON.stringify({
               model,
-              max_tokens: opts.maxTokens ?? (req.purpose === 'chat' || req.purpose === 'skill' || !req.purpose ? 4096 : 512),
+              max_tokens: opts.maxTokens ?? (req.purpose === 'chat' || req.purpose === 'skill' || req.purpose === 'page' || !req.purpose ? 4096 : 512),
               system: req.system,
               messages,
               ...(tools ? { tools } : {}),

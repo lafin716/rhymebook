@@ -8,13 +8,12 @@ import {
   resolveModelOptions,
   type ID,
   type ProviderError,
-  type AppState,
-  type ProviderId,
   type Skill,
   type SkillFields,
 } from '@branch/core';
 import { Square, Undo2, WandSparkles } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { pickProvider } from '../app/ai';
 import { appStore, caps, registry, useApp } from '../app/store';
 import { useSync } from '../app/sync';
 import { Button } from '../components/Button';
@@ -36,18 +35,6 @@ const EDIT_IDEAS = [
   { label: '출력 형식 분명히', text: '출력 형식(제목·목록·표·분량)을 더 분명하게 정해 줘.' },
   { label: '초보자 눈높이', text: '처음 배우는 사람 눈높이에 맞게 설명 수준을 낮추도록 고쳐 줘.' },
 ];
-
-/**
- * 이 스킬 작성에 쓸 provider.
- * - 웹·모바일: 채팅과 같이 PC로 보낸다(원격 Bridge). 에이전트·모델·노력치는 PC의 원격 설정이 정한다
- * - PC: 기본 provider, 준비되지 않았으면 대체 순서에서 준비된 것
- */
-function pickProvider({ settings, connections }: Pick<AppState, 'settings' | 'connections'>): ProviderId {
-  if (!caps.localCli) return 'remote-bridge';
-  const order = [settings.defaultProviderId, ...settings.fallbackOrder].filter((id) => caps.providers.includes(id) || id === 'mock');
-  const ready = order.find((id) => connections[id]?.enabled && connections[id]?.status === 'ready');
-  return ready ?? settings.defaultProviderId;
-}
 
 interface Props {
   draft: SkillFields & { id?: ID };
