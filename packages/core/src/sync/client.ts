@@ -1,6 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
-import { NEW_SESSION_TITLE } from '../store';
+import { NEW_PAGE_TITLE, NEW_SESSION_TITLE } from '../store';
+import { pageDoc } from '../page';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, VaultNode, ViewState } from '../model';
 import { OP_FEATURE, opFeature, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
@@ -512,11 +513,44 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       return act({ kind: 'newRoot', id: sessionId }, () => removeSession(sessionId)) ? sessionId : false;
     },
 
+    newPage(id, o) {
+      const sessionId = id ?? newId('s');
+      const docId = o?.docId ?? newId('m');
+      const s = get();
+      if (s.sessions[sessionId] || sessionId === docId) return false;
+      const now = Date.now();
+      const session: Session = { id: sessionId, parentId: null, rootId: sessionId, title: NEW_PAGE_TITLE, kind: 'page', createdAt: now, updatedAt: now };
+      const doc: Message = { id: docId, sessionId, role: 'assistant', content: '', createdAt: now, status: 'done' };
+      apply({
+        sessions: { ...s.sessions, [sessionId]: session },
+        messages: { ...s.messages, [sessionId]: [doc] },
+        ...(o?.focus === false ? {} : { view: { ...s.view, mode: 'single', activeSessionId: sessionId } }),
+      });
+      markLoaded(sessionId);
+      return act({ kind: 'page.new', id: sessionId, docId }, () => removeSession(sessionId)) ? sessionId : false;
+    },
+
+    updatePage(sessionId, content) {
+      const s = get();
+      if (s.sessions[sessionId]?.kind !== 'page') return false;
+      const list = s.messages[sessionId] ?? [];
+      const doc = pageDoc(list);
+      if (!doc || doc.content === content) return false;
+      const before = doc.content;
+      const swap = (from: string, to: string) => {
+        const cur = get().messages[sessionId] ?? [];
+        if (!cur.some((m) => m.id === doc.id && m.content === from)) return;
+        apply({ messages: { ...get().messages, [sessionId]: cur.map((m) => (m.id === doc.id ? { ...m, content: to } : m)) } });
+      };
+      swap(before, content);
+      return act({ kind: 'page.edit', sessionId, content }, () => swap(content, before));
+    },
+
     sendMessage(sessionId, text, messageId, extra) {
       const content = text.trim();
       const s = get();
       const attachments = extra?.attachments?.length ? extra.attachments : undefined;
-      if ((!content && !attachments) || !s.sessions[sessionId] || s.streaming[sessionId]) return false;
+      if ((!content && !attachments) || !s.sessions[sessionId] || s.sessions[sessionId]!.kind === 'page' || s.streaming[sessionId]) return false;
       const id = messageId ?? newId('m');
       const more = { ...(attachments ? { attachments } : {}), ...(extra?.skill ? { skill: extra.skill } : {}) };
       apply({ messages: { ...s.messages, [sessionId]: [...(s.messages[sessionId] ?? []), { ...userMessage(sessionId, id, content), ...more }] } });

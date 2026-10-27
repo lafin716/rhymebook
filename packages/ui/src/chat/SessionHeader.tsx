@@ -1,6 +1,6 @@
 import { breadcrumb, effectiveProviderId, excerptAround, type ID, type ProviderId } from '@branch/core';
 import { ChevronDown, ChevronRight, ChevronUp, Compass, CornerLeftUp, ListRestart, Quote, Sparkles } from 'lucide-react';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
@@ -10,6 +10,7 @@ import { IconButton } from '../components/Button';
 import { RemoteAgentPicker } from './RemoteAgentPicker';
 import { BookPdfButton } from '../book/BookPdfButton';
 import { cn } from '../lib/cn';
+import { RenameInput } from '../session/SessionMenu';
 import { PROVIDER_ORDER, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 import { revealAnchor } from './open';
 import { reorganizeSession } from './turnActions';
@@ -40,7 +41,17 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
   const answered = useApp((s) => !!s.messages[sessionId]?.some((m) => m.role === 'assistant' && m.content.trim()));
   const quoteCollapsed = useUi((s) => s.quoteCollapsed);
   const toggleQuote = useUi((s) => s.toggleQuote);
+  const [renaming, setRenaming] = useState(false);
+  // 다른 세션으로 바뀌면 이름 바꾸기를 접는다
+  const [shown, setShown] = useState(sessionId);
+  if (shown !== sessionId) {
+    setShown(sessionId);
+    setRenaming(false);
+  }
   if (!session) return null;
+
+  /** 페이지는 대화용 버튼(재정리·책·provider)을 숨기고 제목을 눌러 바꾼다 (ADR-072) */
+  const page = session.kind === 'page';
 
   const isBranch = !!session.parentId;
   const summaryButton = isBranch && !hasDraft;
@@ -77,9 +88,28 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
         </nav>
       )}
       <div className={cn('flex min-w-0 items-center gap-2', handleClassName)}>
-        <h1 className={cn('min-w-0 flex-1 truncate font-semibold text-fg', compact ? 'text-[15px]' : 'text-[17px]')}>
-          {session.title}
-        </h1>
+        {page && renaming ? (
+          <div className="min-w-0 flex-1">
+            <RenameInput
+              value={session.title}
+              className={compact ? 'text-[15px]' : 'h-8 text-[17px] font-semibold'}
+              onDone={(next) => {
+                setRenaming(false);
+                if (next) actions().renameSession(sessionId, next);
+              }}
+            />
+          </div>
+        ) : page ? (
+          <h1 className={cn('min-w-0 flex-1 truncate font-semibold text-fg', compact ? 'text-[15px]' : 'text-[17px]')}>
+            <button type="button" title="제목 바꾸기" data-page-title="" onClick={() => setRenaming(true)} className="max-w-full truncate rounded px-0.5 text-left hover:bg-surface-2">
+              {session.title}
+            </button>
+          </h1>
+        ) : (
+          <h1 className={cn('min-w-0 flex-1 truncate font-semibold text-fg', compact ? 'text-[15px]' : 'text-[17px]')}>
+            {session.title}
+          </h1>
+        )}
         {session.summary && (
           <Badge tone="anchor" className="hidden sm:inline-flex">
             <Sparkles size={11} /> 요약됨
@@ -90,13 +120,13 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
             <Sparkles size={14} className="text-anchor-line" />
           </IconButton>
         )}
-        {answered && (
+        {answered && !page && (
           <IconButton size="sm" label="세션 재정리" data-reorganize="" disabled={streaming} onClick={() => void reorganizeSession(sessionId)}>
             <ListRestart size={14} />
           </IconButton>
         )}
-        <BookPdfButton sessionId={sessionId} compact={compact} />
-        {!remoteMode && <ProviderSelect sessionId={sessionId} compact={compact} />}
+        {!page && <BookPdfButton sessionId={sessionId} compact={compact} />}
+        {!remoteMode && !page && <ProviderSelect sessionId={sessionId} compact={compact} />}
         {!remoteMode && <NavRestoreButton />}
         {collapsible && (
           <button
@@ -117,7 +147,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
             {quoteCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
           </button>
         )}
-        {remoteMode && <RemoteAgentPicker sessionId={sessionId} compact={compact} />}
+        {remoteMode && !page && <RemoteAgentPicker sessionId={sessionId} compact={compact} />}
         {remoteMode && <NavRestoreButton />}
         {extra}
       </div>

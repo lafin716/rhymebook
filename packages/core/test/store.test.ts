@@ -212,6 +212,41 @@ describe('app store', () => {
     expect(store.getState().sendMessage(id, '   ')).toBe(false);
   });
 
+  it('page: a markdown document session that branches like an answer (ADR-072)', async () => {
+    const store = makeStore();
+    const id = store.getState().newPage() as string;
+    const st = store.getState();
+    expect(st.sessions[id]).toMatchObject({ kind: 'page', title: '새 페이지', parentId: null, rootId: id });
+    expect(st.view.activeSessionId).toBe(id);
+    const doc = st.messages[id]![0]!;
+    expect(doc).toMatchObject({ role: 'assistant', content: '', status: 'done' });
+    // 대화 동작은 페이지에서 막힌다
+    expect(st.sendMessage(id, '질문')).toBe(false);
+    expect(st.retry(id)).toBe(false);
+    expect(st.reorganizeSession(id)).toBe(false);
+    expect(store.getState().updatePage(id, '# 메모\n\n어텐션은 가중합이다.')).toBe(true);
+    expect(store.getState().updatePage(id, '# 메모\n\n어텐션은 가중합이다.')).toBe(false);
+    expect(store.getState().updatePage(SEED_IDS.root, 'x')).toBe(false);
+    const content = store.getState().messages[id]![0]!.content;
+    const start = content.indexOf('가중합');
+    const branch = store.getState().createBranch(id, { messageId: doc.id, text: '가중합', startOffset: start, endOffset: start + 3 }, 'what') as string;
+    expect(branch).toBeTruthy();
+    expect(store.getState().sessions[branch]!.kind).toBeUndefined();
+    const sys = buildSystemPrompt({ sessions: store.getState().sessions, messages: store.getState().messages, sessionId: branch });
+    expect(sys).toContain('### 부모 문서');
+    expect(sys).toContain('어텐션은 가중합이다.');
+    expect(sys).not.toContain('### 부모 대화');
+    expect(sys).toContain('[가중합]');
+    // 본문을 고쳐 앵커 위치가 밀려도 문맥 발췌는 같은 글을 가리킨다
+    store.getState().updatePage(id, '# 메모\n\n앞에 문장을 더 썼다. 어텐션은 가중합이다.');
+    const moved = buildSystemPrompt({ sessions: store.getState().sessions, messages: store.getState().messages, sessionId: branch });
+    expect(moved).toContain('[가중합]');
+    await idle(store);
+    // 질문을 페이지로 옮기거나 id를 겹쳐 만들 수 없다
+    expect(store.getState().newPage(id)).toBe(false);
+    expect(store.getState().newPage(undefined, { docId: doc.id })).toBe(false);
+  });
+
   it('popups stack and dock into split', () => {
     const store = makeStore();
     store.getState().openSession(SEED_IDS.qkv, 'popup');

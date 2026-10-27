@@ -1,7 +1,7 @@
 import { excerptAround } from './anchor';
 import { withTextAttachments } from './attachments';
 import { withSkill } from './skills';
-import type { ID, Message, Session, SkillRef } from './model';
+import type { Anchor, ID, Message, Session, SkillRef } from './model';
 import type { ChatTurn, StreamRequest } from './provider';
 import { pathToRoot, type SessionMap } from './tree';
 
@@ -16,6 +16,7 @@ export const SUBSESSION_INSTRUCTION =
 
 export const DEFAULT_CONTEXT_WINDOW = 6;
 const MAX_MESSAGE_CHARS = 1500;
+const MAX_PAGE_CHARS = 6000;
 
 export type MessageMap = Record<ID, Message[]>;
 
@@ -25,6 +26,20 @@ function clip(text: string, max = MAX_MESSAGE_CHARS): string {
 
 function roleLabel(role: Message['role']): string {
   return role === 'user' ? '학습자' : '튜터';
+}
+
+/**
+ * 앵커의 원문 범위. 페이지처럼 본문을 고친 뒤면 저장된 위치가 어긋날 수 있어,
+ * 그 자리에 앵커 글이 없으면 가장 가까운 같은 글로 옮긴다 (ADR-072)
+ */
+function anchorRange(content: string, anchor: Anchor): [number, number] {
+  const { text, startOffset: s, endOffset: e } = anchor;
+  if (!text || content.slice(s, e) === text || content.slice(s, e).replace(/\*\*|__|`/g, '') === text) return [s, e];
+  let best = -1;
+  for (let i = content.indexOf(text); i >= 0; i = content.indexOf(text, i + 1)) {
+    if (best < 0 || Math.abs(i - s) < Math.abs(best - s)) best = i;
+  }
+  return best >= 0 ? [best, best + text.length] : [s, e];
 }
 
 export interface BranchContextOptions {
@@ -57,7 +72,8 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
     }
     const parentMsgs = messages[s.parentId] ?? [];
     const msg = parentMsgs.find((m) => m.id === s.anchor!.messageId);
-    const ex = msg ? excerptAround(msg.content, s.anchor.startOffset, s.anchor.endOffset) : null;
+    const range: [number, number] = sessions[s.parentId]?.kind === 'page' ? anchorRange(msg?.content ?? '', s.anchor) : [s.anchor.startOffset, s.anchor.endOffset];
+    const ex = msg ? excerptAround(msg.content, ...range) : null;
     const ctx = ex ? ` — 문맥: "${ex.before}[${ex.text}]${ex.after}"` : '';
     lines.push(`${i + 1}. "${s.anchor.text}"${ctx}`);
   });
@@ -69,7 +85,12 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
   // 직접 만든 하위 세션은 만든 시점까지의 부모 대화를 본다
   const scoped = anchor ? upto : upto.filter((m) => m.createdAt <= self.createdAt);
   const recent = scoped.filter((m) => m.content.trim() !== '').slice(-n);
-  if (recent.length) {
+  const parentPage = sessions[self.parentId]?.kind === 'page';
+  // 부모가 페이지면 대화 대신 문서 본문을 넣는다 (ADR-072)
+  const doc = parentPage ? parentMsgs.find((m) => m.role === 'assistant' && m.content.trim() !== '') : undefined;
+  if (doc) {
+    lines.push('', '### 부모 문서 (학습자가 쓴 페이지)', clip(doc.content, MAX_PAGE_CHARS));
+  } else if (!parentPage && recent.length) {
     const label = anchor ? '앵커 메시지까지' : '하위 세션을 만들 때까지';
     lines.push('', `### 부모 대화 (${label} 최근 ${recent.length}개)`);
     for (const m of recent) lines.push(`[${roleLabel(m.role)}] ${clip(m.content)}`);

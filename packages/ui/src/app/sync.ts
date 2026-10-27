@@ -240,6 +240,8 @@ export function setRemoteDeleteAllowed(on: boolean) {
 
 const OP_LABEL: Record<SyncOp['kind'], string> = {
   newRoot: '새 학습을 시작했어요',
+  'page.new': '새 페이지를 만들었어요',
+  'page.edit': '페이지를 고쳤어요',
   send: '질문을 보냈어요',
   stop: '응답을 멈췄어요',
   retry: '다시 답변을 요청했어요',

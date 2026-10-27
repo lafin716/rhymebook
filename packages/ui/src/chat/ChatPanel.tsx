@@ -6,6 +6,7 @@ import { ChatNav } from './ChatNav';
 import { Composer } from './Composer';
 import { EmptyChat } from './EmptyChat';
 import { MessageList } from './MessageList';
+import { PagePanel } from './PagePanel';
 import { SessionHeader } from './SessionHeader';
 import { SummaryDraftPanel } from './SummaryDraftPanel';
 
@@ -19,8 +20,13 @@ export interface ChatPanelProps {
   className?: string;
 }
 
-/** 하나의 세션을 보여주는 패널 (단일/분할/팝업/시트에서 공통 사용) */
-export function ChatPanel({ sessionId, variant = 'main', headerActions, handleClassName, className }: ChatPanelProps) {
+/** 하나의 세션을 보여주는 패널 (단일/분할/팝업/시트에서 공통 사용). 페이지 세션은 문서 패널로 (ADR-072) */
+export function ChatPanel(props: ChatPanelProps) {
+  const page = useApp((s) => s.sessions[props.sessionId]?.kind === 'page');
+  return page ? <PagePanel {...props} /> : <ConversationPanel {...props} />;
+}
+
+function ConversationPanel({ sessionId, variant = 'main', headerActions, handleClassName, className }: ChatPanelProps) {
   const exists = useApp((s) => !!s.sessions[sessionId]);
   const count = useApp((s) => s.messages[sessionId]?.length ?? 0);
   const lastLen = useApp((s) => {

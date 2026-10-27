@@ -49,7 +49,7 @@ export const MessageItem = memo(function MessageItem({ message, branches, isLast
   return <AssistantMessage message={message} branches={branches} isLast={isLast} />;
 });
 
-function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
+export function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [unlocated, setUnlocated] = useState<Set<string>>(new Set());
   const [noteOpen, setNoteOpen] = useState<{ id: string; rect: DOMRect } | null>(null);

@@ -1,6 +1,6 @@
 import { OctoGarden } from '../components/OctoMark';
 import type { ID } from '@branch/core';
-import { Laptop, Link2, List, RefreshCw, Sparkles } from 'lucide-react';
+import { FileText, Laptop, Link2, List, RefreshCw, Sparkles } from 'lucide-react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { syncClient, useRemoteHosts, useSync } from '../app/sync';
@@ -87,6 +87,14 @@ export function NoSessions() {
           }
         >
           새 학습 시작
+        </button>
+        <button
+          type="button"
+          onClick={() => actions().newPage()}
+          className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2"
+        >
+          <FileText size={16} />
+          빈 페이지
         </button>
       </div>
       {remoteMode && <RemoteHosts />}

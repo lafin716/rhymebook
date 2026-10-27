@@ -15,6 +15,10 @@ import { STUDY_LIMITS, validateStudyBundle, type StudyBundle } from '../study';
 /** 클라이언트가 호스트에 요청하는 조작. id는 클라이언트가 만든다(낙관적 표시 후 호스트 push가 덮어쓴다) */
 export type SyncOp =
   | { kind: 'newRoot'; id: ID }
+  /** 빈 마크다운 페이지 (ADR-072). docId는 본문 문서 메시지 id */
+  | { kind: 'page.new'; id: ID; docId: ID }
+  /** 페이지 본문 바꾸기 (전체 교체) */
+  | { kind: 'page.edit'; sessionId: ID; content: string }
   | { kind: 'send'; sessionId: ID; text: string; messageId: ID; attachments?: Attachment[]; skill?: SkillRef }
   | { kind: 'stop'; sessionId: ID }
   | { kind: 'retry'; sessionId: ID }
@@ -64,7 +68,7 @@ export type SyncOpKind = SyncOp['kind'];
  * 호스트가 sync.snapshot에 싣는 지원 기능. 목록이 없거나 빠진 기능은 옛 PC 앱이라 처리하지 못하므로
  * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
  */
-export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch'] as const;
+export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch', 'page'] as const;
 export type SyncFeature = (typeof SYNC_FEATURES)[number];
 export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   subsession: 'subsession',
@@ -74,6 +78,8 @@ export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   'turn.splitOut': 'turns',
   'turn.move': 'turns',
   'session.reorganize': 'turns',
+  'page.new': 'page',
+  'page.edit': 'page',
 };
 
 /** op에 필요한 호스트 기능. session.agent의 웹 검색 토글은 'websearch' (ADR-070) */
@@ -223,6 +229,27 @@ function validateOp(op: unknown): boolean {
       o.question.trim().length > 0 &&
       o.question.length <= SYNC_LIMITS.text &&
       Object.keys(o).every((k) => ['kind', 'id', 'parentId', 'question', 'messageId'].includes(k))
+    );
+  }
+  if (kind === 'page.new') {
+    return (
+      typeof o.id === 'string' &&
+      o.id.length <= SYNC_LIMITS.id &&
+      SYNC_ID_RE.test(o.id) &&
+      typeof o.docId === 'string' &&
+      o.docId.length <= SYNC_LIMITS.id &&
+      SYNC_ID_RE.test(o.docId) &&
+      o.id !== o.docId &&
+      Object.keys(o).every((k) => ['kind', 'id', 'docId'].includes(k))
+    );
+  }
+  if (kind === 'page.edit') {
+    return (
+      typeof o.sessionId === 'string' &&
+      SYNC_ID_RE.test(o.sessionId) &&
+      typeof o.content === 'string' &&
+      o.content.length <= SYNC_LIMITS.text &&
+      Object.keys(o).every((k) => ['kind', 'sessionId', 'content'].includes(k))
     );
   }
   if (kind === 'rename') {

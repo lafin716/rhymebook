@@ -52,6 +52,18 @@ describe('학습 꾸러미', () => {
     expect(b.messages.every((m) => b.sessions.some((s) => s.id === m.sessionId))).toBe(true);
   });
 
+  it('페이지는 질문·답변이 아니라 문서로 내보내고 kind를 지킨다 (ADR-072)', () => {
+    const store = makeStore(false);
+    const id = store.getState().newPage() as string;
+    store.getState().updatePage(id, '# 노트\n\n본문이다.');
+    const b = collectStudy(store.getState(), id, NOW)!;
+    const md = studyPackFiles(b).find((f) => f.path.endsWith('.md') && !f.path.endsWith('README.md'))!.content;
+    expect(md).toContain('## 문서');
+    expect(md).toContain('본문이다.');
+    expect(md).not.toContain('💬 답변');
+    expect(readStudyPack(buildStudyPack(b)).sessions[0]!.kind).toBe('page');
+  });
+
   it('zip: README·세션 Markdown·study.json, 읽으면 같은 꾸러미', () => {
     const b = seedBundle();
     const files = studyPackFiles(b);

@@ -11,7 +11,7 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { CheckCircle2, ChevronDown, X } from 'lucide-react';
+import { CheckCircle2, ChevronDown, FileText, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { actions, useApp } from '../app/store';
 import { syncClient } from '../app/sync';
@@ -48,6 +48,8 @@ function SessionNode({ data }: NodeProps<MindNode>) {
   const list = useApp((s) => s.messages[session.id]);
   const turns = useMemo(() => turnsOf(list), [list]);
   const label = expanded ? '질문 목록 접기' : '질문 목록 펼치기';
+  // 페이지는 질문이 없으니 문서 아이콘만 (ADR-072)
+  const page = session.kind === 'page';
   return (
     <div
       data-mind-node={session.id}
@@ -60,13 +62,14 @@ function SessionNode({ data }: NodeProps<MindNode>) {
     >
       <Handle type="target" position={vertical ? Position.Top : Position.Left} className="!h-1.5 !w-1.5 !border-0 !bg-line-strong" />
       <div className="flex items-start gap-1.5">
+        {page && <FileText size={14} aria-label="페이지" className="mt-0.5 shrink-0 text-muted" />}
         <span className="line-clamp-2 flex-1 text-[13.5px] leading-snug font-semibold text-fg">{session.title}</span>
         {session.summary && (
           <span title="요약 있음" className="mt-0.5 shrink-0 text-anchor-line">
             <CheckCircle2 size={14} />
           </span>
         )}
-        <button
+        {!page && <button
           type="button"
           aria-label={label}
           title={label}
@@ -80,16 +83,16 @@ function SessionNode({ data }: NodeProps<MindNode>) {
           className="nodrag -mt-0.5 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-fg"
         >
           <ChevronDown size={14} className={cn('transition-transform', expanded && 'rotate-180')} />
-        </button>
+        </button>}
       </div>
       {session.anchor ? (
         <div className="mt-1 truncate text-[11.5px] text-muted">
           <span className="rounded bg-anchor/70 px-1 text-fg-2">“{session.anchor.text}”</span>
         </div>
       ) : (
-        <div className="mt-1 text-[11.5px] text-muted">{session.parentId ? '각주 세션' : '루트 세션'}</div>
+        <div className="mt-1 text-[11.5px] text-muted">{session.parentId ? '각주 세션' : page ? '페이지' : '루트 세션'}</div>
       )}
-      {expanded && (
+      {expanded && !page && (
         <ul
           aria-label={`${session.title} 질문 목록`}
           style={{ maxHeight: TURN_MAX * TURN_H }}

@@ -25,6 +25,8 @@ export interface Session {
   modelPref?: ModelPref;
   /** 웹 검색·페이지 읽기 도구 허용. 없으면 켜짐, false면 꺼짐 (ADR-070) */
   webSearch?: boolean;
+  /** 세션 종류. 없으면 대화, 'page'면 마크다운 문서 페이지 — 본문은 문서 메시지 하나 (ADR-072) */
+  kind?: 'page';
   createdAt: number;
   updatedAt: number;
 }

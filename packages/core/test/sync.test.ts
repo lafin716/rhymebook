@@ -349,6 +349,31 @@ describe('sync host ↔ client', () => {
     expect(store.getState().messages[id]).toEqual(hostStore.getState().messages[id]);
   });
 
+  it('remote page: create and edit converge on the PC; chat ops on a page are refused', async () => {
+    const { store, client } = await connectClient();
+    const id = store.getState().newPage() as ID;
+    expect(store.getState().sessions[id]?.kind).toBe('page');
+    await until(() => !!hostStore.getState().sessions[id]);
+    expect(hostStore.getState().sessions[id]?.title).toBe('새 페이지');
+    expect(store.getState().updatePage(id, '# 제목\n\n본문')).toBe(true);
+    await until(() => hostStore.getState().messages[id]?.[0]?.content === '# 제목\n\n본문');
+    await settle();
+    expect(store.getState().messages[id]).toEqual(hostStore.getState().messages[id]);
+    expect(store.getState().sendMessage(id, '질문')).toBe(false);
+    expect(client.state.getState().lastFailure).toBeUndefined();
+  });
+
+  it('validates page.new / page.edit shapes', () => {
+    const ok = (op: object) => !!validateSyncClientMsg({ type: 'act', reqId: 'r1', op });
+    expect(ok({ kind: 'page.new', id: 's1', docId: 'm1' })).toBe(true);
+    expect(ok({ kind: 'page.new', id: 's1', docId: 's1' })).toBe(false);
+    expect(ok({ kind: 'page.new', id: 's1' })).toBe(false);
+    expect(ok({ kind: 'page.new', id: 's1', docId: 'm1', extra: 1 })).toBe(false);
+    expect(ok({ kind: 'page.edit', sessionId: 's1', content: '' })).toBe(true);
+    expect(ok({ kind: 'page.edit', sessionId: 's1', content: 'x'.repeat(SYNC_LIMITS.text + 1) })).toBe(false);
+    expect(ok({ kind: 'page.edit', sessionId: '../x', content: 'a' })).toBe(false);
+  });
+
   it('rejects a second send while streaming (busy) and rolls back', async () => {
     mockControl.firstTokenDelay = 200;
     const { store, client } = await connectClient();
@@ -536,6 +561,11 @@ describe('sync host ↔ client', () => {
     expect(result('dup')?.error).toBe('conflict');
     raw.receive('x', { type: 'act', reqId: 'nf', op: { kind: 'rename', sessionId: 's-nope', title: 'x' } });
     expect(result('nf')?.error).toBe('not-found');
+    // page.edit은 페이지 세션에만
+    raw.receive('x', { type: 'act', reqId: 'pg', op: { kind: 'page.edit', sessionId: SEED_IDS.root, content: 'x' } });
+    expect(result('pg')?.error).toBe('invalid');
+    raw.receive('x', { type: 'act', reqId: 'pgdup', op: { kind: 'page.new', id: 's-page', docId: SEED_IDS.cos } });
+    expect(result('pgdup')?.error).toBe('conflict');
 
     for (let i = 0; i < SYNC_LIMITS.actCount + 2; i++) {
       raw.receive('x', { type: 'act', reqId: `r${i}`, op: { kind: 'rename', sessionId: SEED_IDS.root, title: `t${i}` } });
@@ -893,7 +923,7 @@ describe('sync host ↔ client', () => {
   it('host features: new ops are blocked or explained as outdated on an older PC', async () => {
     const { store, client, peer } = await connectClient();
     const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
-    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns', 'websearch']);
+    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns', 'websearch', 'page']);
     const inject = (m: SyncServerMsg) => {
       for (const l of peer.state.listeners) l(m);
     };

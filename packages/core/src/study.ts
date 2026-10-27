@@ -151,7 +151,11 @@ function sessionMarkdown(node: StudyNode, byId: Map<ID, StudyNode>, children: St
   if (path.length) lines.push(`> 경로: ${path.map((p) => link(label(p), p.file)).join(' › ')} › ${oneLine(s.title)}`, '');
   if (s.anchor?.text) lines.push('**가지 친 원문**', '', quote(s.anchor.text.trim()), '');
   if (s.summary?.trim()) lines.push('## 내가 이해한 것', '', s.summary.trim(), '');
-  if (messages.length) {
+  if (s.kind === 'page') {
+    // 페이지는 질문·답변이 아니라 학습자가 쓴 문서다 (ADR-072)
+    const doc = messages.find((m) => m.role === 'assistant')?.content.trim();
+    if (doc) lines.push('## 문서', '', doc, '');
+  } else if (messages.length) {
     lines.push('## 대화', '');
     for (const m of messages) {
       lines.push(m.role === 'user' ? '### 🙋 질문' : '### 💬 답변', '');

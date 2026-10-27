@@ -374,18 +374,29 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
   const validateOp = (peerId: string, peer: PeerState, op: SyncOp): SyncActError | null => {
     const state = store.getState();
     const has = (id: ID) => !!state.sessions[id];
+    // 페이지는 대화 조작(보내기·턴 옮기기·재정리)을 받지 않는다 (ADR-072)
+    const isPage = (id: ID) => state.sessions[id]?.kind === 'page';
     switch (op.kind) {
       case 'newRoot':
         if (!SYNC_ID_RE.test(op.id)) return 'invalid';
         return idTaken(state, op.id) ? 'conflict' : null;
+      case 'page.new':
+        if (!SYNC_ID_RE.test(op.id) || !SYNC_ID_RE.test(op.docId) || op.id === op.docId) return 'invalid';
+        return idTaken(state, op.id) || idTaken(state, op.docId) ? 'conflict' : null;
+      case 'page.edit':
+        if (op.content.length > SYNC_LIMITS.text) return 'invalid';
+        if (!has(op.sessionId)) return 'not-found';
+        return state.sessions[op.sessionId]!.kind === 'page' ? null : 'invalid';
       case 'send':
         if (!SYNC_ID_RE.test(op.messageId) || (!op.text.trim() && !op.attachments?.length) || op.text.length > SYNC_LIMITS.text) return 'invalid';
         if (!has(op.sessionId)) return 'not-found';
+        if (isPage(op.sessionId)) return 'invalid';
         if (idTaken(state, op.messageId)) return 'conflict';
         if (state.streaming[op.sessionId] || peerBusy(peer)) return 'busy';
         return null;
       case 'retry':
         if (!has(op.sessionId)) return 'not-found';
+        if (isPage(op.sessionId)) return 'invalid';
         if (state.streaming[op.sessionId] || peerBusy(peer)) return 'busy';
         return null;
       case 'branch': {
@@ -422,23 +433,27 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         return allowDelete(peerId) ? null : 'forbidden';
       case 'turn.split':
         if (!has(op.sessionId)) return 'not-found';
+        if (isPage(op.sessionId)) return 'invalid';
         if (!canDeleteTurn(state.messages[op.sessionId] ?? [], op.questionId)) return 'invalid';
         if (idTaken(state, op.id)) return 'conflict';
         if (state.streaming[op.sessionId]) return 'busy';
         return null;
       case 'turn.splitOut':
         if (!has(op.sessionId)) return 'not-found';
+        if (isPage(op.sessionId)) return 'invalid';
         if (!canDeleteTurn(state.messages[op.sessionId] ?? [], op.questionId)) return 'invalid';
         if (idTaken(state, op.id)) return 'conflict';
         if (state.streaming[op.sessionId]) return 'busy';
         return null;
       case 'turn.move':
         if (!has(op.sessionId) || !has(op.targetId)) return 'not-found';
+        if (isPage(op.sessionId) || isPage(op.targetId)) return 'invalid';
         if (!planTurnMove(state.sessions, state.messages[op.sessionId] ?? [], op.sessionId, op.questionId, op.targetId)) return 'invalid';
         if (state.streaming[op.sessionId] || state.streaming[op.targetId]) return 'busy';
         return null;
       case 'session.reorganize':
         if (!has(op.sessionId)) return 'not-found';
+        if (isPage(op.sessionId)) return 'invalid';
         if (state.streaming[op.sessionId] || peerBusy(peer)) return 'busy';
         // 옛 질문·답변을 지우고 바꾸므로 삭제 허용 설정을 따른다
         return allowDelete(peerId) ? null : 'forbidden';
@@ -501,6 +516,17 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
           if (providerId) store.getState().setSessionProvider(op.id, providerId);
           return null;
         }
+        case 'page.new':
+          peer.loaded.add(op.id);
+          if (!s.newPage(op.id, { focus: false, docId: op.docId })) {
+            peer.loaded.delete(op.id);
+            return 'failed';
+          }
+          return null;
+        case 'page.edit':
+          // 같은 내용이면 바꿀 것이 없을 뿐 실패가 아니다
+          s.updatePage(op.sessionId, op.content);
+          return null;
         case 'send': {
           let skill = op.skill;
           if (skill?.options && !isCliId(skill.options.providerId) && !anySkillProvider(peerId)) {

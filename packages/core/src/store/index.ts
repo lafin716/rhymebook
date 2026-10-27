@@ -58,9 +58,11 @@ import { chatTarget, defaultSkills, REORGANIZE_SKILL_ID, skillRef } from '../ski
 import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
 import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../tree';
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
+import { pageDoc } from '../page';
 import { vaultDescendants } from '../vault';
 
 export const NEW_SESSION_TITLE = '새 학습';
+export const NEW_PAGE_TITLE = '새 페이지';
 
 /** 스트리밍 중 부분 응답 저장 간격(ms) */
 export const STREAM_SAVE_INTERVAL = 1000;
@@ -130,6 +132,10 @@ export interface AppState extends AppData {
 
   // 세션
   newRootSession(id?: ID, opts?: { focus?: boolean }): ID | false;
+  /** 빈 마크다운 페이지(루트)를 만든다. 본문은 문서 메시지(docId) 하나 (ADR-072) */
+  newPage(id?: ID, opts?: { focus?: boolean; docId?: ID }): ID | false;
+  /** 페이지 본문을 바꾼다. 페이지가 아니거나 같은 내용이면 false */
+  updatePage(sessionId: ID, content: string): boolean;
   deleteSession(id: ID): void;
   /**
    * 학습 꾸러미 가져오기 (ADR-043). 세션별로 더 최근에 바뀐 쪽을 남기고, 이 기기에만 있는 가지는 둔다.
@@ -578,6 +584,38 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         return sessionId;
       },
 
+      newPage(id?: ID, opts?: { focus?: boolean; docId?: ID }) {
+        const sessionId = id ?? newId('s');
+        const docId = opts?.docId ?? newId('m');
+        const taken = (x: ID) => !!get().sessions[x] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === x));
+        if (docId === sessionId || (id && taken(id)) || (opts?.docId && taken(opts.docId))) return false;
+
+        const now = Date.now();
+        const s: Session = { id: sessionId, parentId: null, rootId: sessionId, title: NEW_PAGE_TITLE, kind: 'page', createdAt: now, updatedAt: now };
+        const doc: Message = { id: docId, sessionId, role: 'assistant', content: '', createdAt: now, status: 'done' };
+        set((st) => ({ sessions: { ...st.sessions, [sessionId]: s }, messages: { ...st.messages, [sessionId]: [doc] } }));
+        repo.saveSession(s);
+        repo.saveMessage(doc, 0);
+
+        if (opts?.focus !== false) setView(() => emptyView(sessionId));
+        return sessionId;
+      },
+
+      updatePage(sessionId, content) {
+        if (get().sessions[sessionId]?.kind !== 'page') return false;
+        const doc = pageDoc(get().messages[sessionId]);
+        if (!doc) {
+          const now = Date.now();
+          putMessage({ id: newId('m'), sessionId, role: 'assistant', content, createdAt: now, status: 'done' });
+        } else if (doc.content === content) {
+          return false;
+        } else {
+          putMessage({ ...doc, content });
+        }
+        touch(sessionId);
+        return true;
+      },
+
       importStudy(bundle) {
         const st = get();
         const { apply, ...result } = planStudyImport(st, bundle, st.streaming);
@@ -686,7 +724,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       splitTurn(sessionId, questionId, newSessionId, opts) {
         const st = get();
         const src = st.sessions[sessionId];
-        if (!src || st.streaming[sessionId]) return false;
+        if (!src || src.kind === 'page' || st.streaming[sessionId]) return false;
         const list = st.messages[sessionId] ?? [];
         const plan = planTurnSplit(st.sessions, list, sessionId, questionId);
         if (!plan) return false;
@@ -714,6 +752,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       moveTurn(sessionId, questionId, targetId) {
         const st = get();
         if (!st.sessions[sessionId] || st.streaming[sessionId] || st.streaming[targetId]) return false;
+        if (st.sessions[sessionId]!.kind === 'page' || st.sessions[targetId]?.kind === 'page') return false;
         const list = st.messages[sessionId] ?? [];
         const plan = planTurnMove(st.sessions, list, sessionId, questionId, targetId);
         if (!plan) return false;
@@ -729,7 +768,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
 
       reorganizeSession(sessionId, skill) {
         const st = get();
-        if (!st.sessions[sessionId] || st.streaming[sessionId]) return false;
+        if (!st.sessions[sessionId] || st.sessions[sessionId]!.kind === 'page' || st.streaming[sessionId]) return false;
         const old = st.messages[sessionId] ?? [];
         const firstQ = old.find((m) => m.role === 'user');
         if (!firstQ || !old.some((m) => m.role === 'assistant' && m.content.trim())) return false;
@@ -856,7 +895,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       sendMessage(sessionId, text, messageId?: ID, extra?: SendExtra) {
         const content = text.trim();
         const attachments = extra?.attachments?.length ? extra.attachments : undefined;
-        if ((!content && !attachments) || !get().sessions[sessionId] || get().streaming[sessionId]) return false;
+        const sess = get().sessions[sessionId];
+        if ((!content && !attachments) || !sess || sess.kind === 'page' || get().streaming[sessionId]) return false;
 
         // messageId 충돌 확인
         if (messageId && (get().sessions[messageId] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === messageId)))) {
@@ -883,7 +923,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       },
 
       retry(sessionId, providerId) {
-        if (get().streaming[sessionId]) return false;
+        if (get().streaming[sessionId] || get().sessions[sessionId]?.kind === 'page') return false;
         if (providerId) get().setSessionProvider(sessionId, providerId);
         const list = get().messages[sessionId] ?? [];
         const last = list[list.length - 1];
