@@ -35,7 +35,7 @@ export function draftSessionIds(sessions: SessionMap, messages: MessageMap): Set
   const parents = new Set(Object.values(sessions).map((s) => s.parentId));
   const out = new Set<ID>();
   for (const s of Object.values(sessions)) {
-    if (s.parentId === null && s.kind !== 'page' && messages[s.id]?.length === 0 && !parents.has(s.id)) out.add(s.id);
+    if (s.parentId === null && !s.kind && messages[s.id]?.length === 0 && !parents.has(s.id)) out.add(s.id);
   }
   return out;
 }

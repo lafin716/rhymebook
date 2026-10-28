@@ -1,5 +1,5 @@
-import { appendPageLink, MAX_SPLIT, NEW_PAGE_TITLE, pageDoc, type ID } from '@branch/core';
-import { AppWindow, Columns2, FileText, GitBranch, Pencil, Rows2, Trash2 } from 'lucide-react';
+import { appendPageLink, MAX_SPLIT, NEW_CANVAS_TITLE, NEW_PAGE_TITLE, pageDoc, type ID } from '@branch/core';
+import { AppWindow, Columns2, FileText, GitBranch, PenLine, Pencil, Rows2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { desktop } from '../app/runtime';
@@ -229,6 +229,15 @@ export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoin
     if (parent?.kind === 'page') a.updatePage(parentId, appendPageLink(pageDoc(a.messages[parentId])?.content ?? '', NEW_PAGE_TITLE, id));
     done();
   };
+  const addCanvas = () => {
+    flushPageDraft(parentId);
+    const a = actions();
+    const parent = a.sessions[parentId];
+    const id = a.newPage(undefined, { parentId, kind: 'canvas' });
+    if (!id) return done();
+    if (parent?.kind === 'page') a.updatePage(parentId, appendPageLink(pageDoc(a.messages[parentId])?.content ?? '', NEW_CANVAS_TITLE, id));
+    done();
+  };
   // 세션은 질문 없이 빈 대화로 만들어 가지 자리(팝업·분할·시트)에 연다
   const addSession = () => {
     const id = actions().newSubSession(parentId, undefined, { focus: false });
@@ -237,7 +246,7 @@ export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoin
   };
 
   const w = 168;
-  const h = 84;
+  const h = 120;
   const item = 'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] text-fg outline-none hover:bg-surface-2 focus:bg-surface-2';
   return createPortal(
     <div
@@ -256,6 +265,9 @@ export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoin
     >
       <button type="button" role="menuitem" onClick={addPage} className={item}>
         <FileText size={14} className="text-muted" /> 빈 페이지
+      </button>
+      <button type="button" role="menuitem" onClick={addCanvas} className={item}>
+        <PenLine size={14} className="text-muted" /> 캔버스
       </button>
       <button type="button" role="menuitem" onClick={addSession} className={item}>
         <GitBranch size={14} className="text-muted" /> 세션

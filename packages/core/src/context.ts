@@ -1,5 +1,7 @@
 import { excerptAround } from './anchor';
 import { withTextAttachments } from './attachments';
+import { canvasText, parseCanvas } from './canvas';
+import { isDocSession } from './page';
 import { stripEmbeds } from './pageFormat';
 import { withSkill } from './skills';
 import type { Anchor, ID, Message, Session, SkillRef } from './model';
@@ -88,10 +90,14 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
   // 직접 만든 하위 세션은 만든 시점까지의 부모 대화를 본다
   const scoped = anchor ? upto : upto.filter((m) => m.createdAt <= self.createdAt);
   const recent = scoped.filter((m) => m.content.trim() !== '').slice(-n);
-  const parentPage = sessions[self.parentId]?.kind === 'page';
-  // 부모가 페이지면 대화 대신 문서 본문을 넣는다 (ADR-072)
+  const parentSession = sessions[self.parentId];
+  const parentPage = isDocSession(parentSession);
+  // 부모가 페이지·캔버스면 대화 대신 문서 본문을 넣는다 (ADR-072, ADR-079)
   const doc = parentPage ? parentMsgs.find((m) => m.role === 'assistant' && m.content.trim() !== '') : undefined;
-  if (doc) {
+  if (doc && parentSession?.kind === 'canvas') {
+    const text = canvasText(parseCanvas(doc.content), MAX_PAGE_CHARS);
+    if (text) lines.push('', '### 부모 캔버스 (학습자가 모은 자료와 필기)', text);
+  } else if (doc) {
     lines.push('', '### 부모 문서 (학습자가 쓴 페이지)', clip(doc.content, MAX_PAGE_CHARS));
   } else if (!parentPage && recent.length) {
     const label = anchor ? '앵커 메시지까지' : '하위 세션을 만들 때까지';
@@ -140,7 +146,9 @@ export const SUMMARY_SYSTEM =
   '다음은 학습자가 하나의 개념을 묻고 이해한 대화다. 학습자가 이해한 핵심을 한국어 1~2문장으로 요약하라. 서두 없이 요약문만 출력하라.';
 
 export function buildSummaryRequest(session: Session, msgs: Message[]): StreamRequest {
-  const transcript = toTurns(msgs)
+  // 캔버스는 JSON 대신 카드 글로 요약한다 (ADR-079)
+  const src = session.kind === 'canvas' ? msgs.map((m) => ({ ...m, content: canvasText(parseCanvas(m.content), 2000) })) : msgs;
+  const transcript = toTurns(src)
     .map((t) => `[${roleLabel(t.role)}] ${clip(t.content, 2000)}`)
     .join('\n');
   return {

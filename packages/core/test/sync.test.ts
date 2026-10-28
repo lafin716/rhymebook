@@ -370,7 +370,7 @@ describe('sync host ↔ client', () => {
     expect(ok({ kind: 'page.new', id: 's1' })).toBe(false);
     expect(ok({ kind: 'page.new', id: 's1', docId: 'm1', extra: 1 })).toBe(false);
     expect(ok({ kind: 'page.edit', sessionId: 's1', content: '' })).toBe(true);
-    expect(ok({ kind: 'page.edit', sessionId: 's1', content: 'x'.repeat(SYNC_LIMITS.text + 1) })).toBe(false);
+    expect(ok({ kind: 'page.edit', sessionId: 's1', content: 'x'.repeat(SYNC_LIMITS.doc + 1) })).toBe(false);
     expect(ok({ kind: 'page.edit', sessionId: '../x', content: 'a' })).toBe(false);
   });
 
@@ -409,6 +409,26 @@ describe('sync host ↔ client', () => {
     store.getState().renameSession(child, '새 이름');
     expect(store.getState().messages[parent]?.[0]?.content).toBe(`[새 이름](#page:${child})`);
     await until(() => hostStore.getState().messages[parent]?.[0]?.content === `[새 이름](#page:${child})`);
+  });
+
+  it('validates canvas page.new and big page.edit bodies (ADR-079)', () => {
+    const ok = (op: object) => !!validateSyncClientMsg({ type: 'act', reqId: 'r1', op });
+    expect(ok({ kind: 'page.new', id: 's1', docId: 'm1', pageKind: 'canvas' })).toBe(true);
+    expect(ok({ kind: 'page.new', id: 's1', docId: 'm1', pageKind: 'page' })).toBe(false);
+    expect(opFeature({ kind: 'page.new', id: 's1', docId: 'm1', pageKind: 'canvas' })).toBe('canvas');
+    expect(opFeature({ kind: 'page.new', id: 's1', docId: 'm1', parentId: 's0', pageKind: 'canvas' })).toBe('canvas');
+    expect(ok({ kind: 'page.edit', sessionId: 's1', content: 'x'.repeat(SYNC_LIMITS.text + 1) })).toBe(true);
+  });
+
+  it('remote canvas: created and edited on the PC, chat ops refused', async () => {
+    const { store } = await connectClient();
+    const id = store.getState().newPage(undefined, { kind: 'canvas' }) as ID;
+    expect(store.getState().sessions[id]).toMatchObject({ kind: 'canvas', title: '새 캔버스' });
+    await until(() => hostStore.getState().sessions[id]?.kind === 'canvas');
+    const body = JSON.stringify({ v: 1, items: [], strokes: [{ id: 'k1', tool: 'pen', color: '#112233', size: 3, points: [0, 0, 0.5] }] });
+    expect(store.getState().updatePage(id, body)).toBe(true);
+    await until(() => hostStore.getState().messages[id]?.[0]?.content === body);
+    expect(store.getState().sendMessage(id, '질문')).toBe(false);
   });
 
   it('subpage ops roll back when the PC does not answer', async () => {
@@ -1016,7 +1036,7 @@ describe('sync host ↔ client', () => {
   it('host features: new ops are blocked or explained as outdated on an older PC', async () => {
     const { store, client, peer } = await connectClient();
     const snap = peer.state.received.find((m) => m.type === 'sync.snapshot');
-    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns', 'websearch', 'page', 'subpage']);
+    expect(snap && 'features' in snap && snap.features).toEqual(['subsession', 'vault', 'split', 'turns', 'websearch', 'page', 'subpage', 'canvas']);
     const inject = (m: SyncServerMsg) => {
       for (const l of peer.state.listeners) l(m);
     };

@@ -5,6 +5,9 @@ export const NEW_PAGE_TITLE = '새 페이지';
 /** 마크다운 페이지 세션인가 (ADR-072) */
 export const isPage = (s: Pick<Session, 'kind'> | undefined): boolean => s?.kind === 'page';
 
+/** 문서 세션(페이지·캔버스)인가 — 대화 조작(보내기·턴 옮기기·재정리)을 받지 않는다 (ADR-079) */
+export const isDocSession = (s: Pick<Session, 'kind'> | undefined): boolean => s?.kind === 'page' || s?.kind === 'canvas';
+
 /** 페이지 본문 문서 메시지 — 페이지 세션의 첫 번째 assistant 메시지 */
 export const pageDoc = (messages: readonly Message[] | undefined): Message | undefined =>
   messages?.find((m) => m.role === 'assistant');

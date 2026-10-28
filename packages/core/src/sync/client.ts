@@ -1,7 +1,8 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { AppState, AppStore } from '../store';
 import { NEW_PAGE_TITLE, NEW_SESSION_TITLE } from '../store';
-import { isPage, pageDoc, renamePageLinks } from '../page';
+import { NEW_CANVAS_TITLE } from '../canvas';
+import { isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, VaultNode, ViewState } from '../model';
 import { OP_FEATURE, opFeature, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
 import type { SyncLink } from '../bridge/remote';
@@ -527,8 +528,8 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         id: sessionId,
         parentId: parent?.id ?? null,
         rootId: parent ? parent.rootId : sessionId,
-        title: NEW_PAGE_TITLE,
-        kind: 'page',
+        title: o?.kind === 'canvas' ? NEW_CANVAS_TITLE : NEW_PAGE_TITLE,
+        kind: o?.kind ?? 'page',
         createdAt: now,
         updatedAt: now,
       };
@@ -539,9 +540,13 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         ...(o?.focus === false ? {} : { view: { ...s.view, mode: 'single', activeSessionId: sessionId } }),
       });
       markLoaded(sessionId);
-      const op: SyncOp = parent
-        ? { kind: 'page.new', id: sessionId, docId, parentId: parent.id }
-        : { kind: 'page.new', id: sessionId, docId };
+      const op: SyncOp = {
+        kind: 'page.new',
+        id: sessionId,
+        docId,
+        ...(parent ? { parentId: parent.id } : {}),
+        ...(o?.kind ? { pageKind: o.kind } : {}),
+      };
       return act(op, () => removeSession(sessionId)) ? sessionId : false;
     },
 
@@ -574,7 +579,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
 
     updatePage(sessionId, content) {
       const s = get();
-      if (s.sessions[sessionId]?.kind !== 'page') return false;
+      if (!isDocSession(s.sessions[sessionId])) return false;
       const list = s.messages[sessionId] ?? [];
       const doc = pageDoc(list);
       if (!doc || doc.content === content) return false;
@@ -592,7 +597,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       const content = text.trim();
       const s = get();
       const attachments = extra?.attachments?.length ? extra.attachments : undefined;
-      if ((!content && !attachments) || !s.sessions[sessionId] || s.sessions[sessionId]!.kind === 'page' || s.streaming[sessionId]) return false;
+      if ((!content && !attachments) || !s.sessions[sessionId] || isDocSession(s.sessions[sessionId]) || s.streaming[sessionId]) return false;
       const id = messageId ?? newId('m');
       const more = { ...(attachments ? { attachments } : {}), ...(extra?.skill ? { skill: extra.skill } : {}) };
       apply({ messages: { ...s.messages, [sessionId]: [...(s.messages[sessionId] ?? []), { ...userMessage(sessionId, id, content), ...more }] } });

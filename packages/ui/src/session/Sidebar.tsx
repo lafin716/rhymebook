@@ -1,6 +1,6 @@
 import { OctoMark } from '../components/OctoMark';
 import { childrenOf, listedRootSessions, type ID } from '@branch/core';
-import { ChevronRight, FileText, GitBranch, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronRight, FileText, GitBranch, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
@@ -212,7 +212,7 @@ function useRemoveSession(id: ID) {
     if (!s) return;
     const kids = childrenOf(st.sessions, id).length;
     const ok = await confirm({
-      title: s.parentId ? '가지를 삭제할까요?' : s.kind === 'page' ? '페이지를 삭제할까요?' : '학습을 삭제할까요?',
+      title: s.parentId ? '가지를 삭제할까요?' : s.kind === 'page' ? '페이지를 삭제할까요?' : s.kind === 'canvas' ? '캔버스를 삭제할까요?' : '학습을 삭제할까요?',
       message: (
         <>
           <b className="font-medium text-fg-2">“{s.title}”</b>
@@ -282,6 +282,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
           >
             <div className="truncate text-[14px] font-medium text-fg">
               {s.kind === 'page' && <FileText size={14} aria-label="페이지" className="mr-1.5 inline-block align-[-2px] text-muted" />}
+              {s.kind === 'canvas' && <PenLine size={14} aria-label="캔버스" className="mr-1.5 inline-block align-[-2px] text-muted" />}
               {s.title}
             </div>
             <div className="text-[11.5px] text-muted">
@@ -333,7 +334,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
     <li>
       {renaming ? (
         <div className="flex items-center gap-1.5 py-1 pr-2 pl-[22px]">
-          {s.kind === 'page' ? <FileText size={12} className="shrink-0 text-muted" /> : <GitBranch size={12} className="shrink-0 text-muted" />}
+          {s.kind === 'page' ? <FileText size={12} className="shrink-0 text-muted" /> : s.kind === 'canvas' ? <PenLine size={12} className="shrink-0 text-muted" /> : <GitBranch size={12} className="shrink-0 text-muted" />}
           <RenameInput
             value={s.title}
             className="h-6 text-[13px]"
@@ -372,7 +373,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
               active ? 'bg-accent-soft font-medium text-fg' : 'text-fg-2 hover:bg-surface-2/70',
             )}
           >
-            {s.kind === 'page' ? <FileText size={12} className="shrink-0 text-muted" /> : <GitBranch size={12} className="shrink-0 text-muted" />}
+            {s.kind === 'page' ? <FileText size={12} className="shrink-0 text-muted" /> : s.kind === 'canvas' ? <PenLine size={12} className="shrink-0 text-muted" /> : <GitBranch size={12} className="shrink-0 text-muted" />}
             <span className="truncate">{s.title}</span>
             {hasKids && !open && <span className="shrink-0 text-[11px] text-muted">+{kidCount}</span>}
             {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}

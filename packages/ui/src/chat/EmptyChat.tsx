@@ -1,6 +1,6 @@
 import { OctoGarden } from '../components/OctoMark';
 import { listedRootSessions, type ID } from '@branch/core';
-import { FileText, Laptop, Link2, List, RefreshCw, Sparkles } from 'lucide-react';
+import { FileText, Laptop, Link2, List, PenLine, RefreshCw, Sparkles } from 'lucide-react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { syncClient, useRemoteHosts, useSync } from '../app/sync';
@@ -51,6 +51,16 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
           >
             <FileText size={14} />
             빈 페이지로 시작
+          </button>
+          또는
+          <button
+            type="button"
+            disabled={!online}
+            onClick={() => actions().newPage(undefined, { kind: 'canvas' })}
+            className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
+          >
+            <PenLine size={14} />
+            캔버스로 시작
           </button>
         </p>
       )}
@@ -112,6 +122,14 @@ export function NoSessions() {
         >
           <FileText size={16} />
           빈 페이지
+        </button>
+        <button
+          type="button"
+          onClick={() => actions().newPage(undefined, { kind: 'canvas' })}
+          className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2"
+        >
+          <PenLine size={16} />
+          캔버스
         </button>
       </div>
       {remoteMode && <RemoteHosts />}

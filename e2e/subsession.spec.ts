@@ -13,7 +13,7 @@ test('하위 세션: 사이드바 + → 세션 → 부모 각주와 내비게이
   await nav.getByRole('button', { name: '하위 항목 만들기' }).first().click({ force: true });
   // 질문 입력 팝업 없이 드롭다운에서 고른다
   const menu = page.getByRole('menu', { name: '하위 항목 만들기' });
-  await expect(menu.getByRole('menuitem')).toHaveText([/빈 페이지/, /세션/]);
+  await expect(menu.getByRole('menuitem')).toHaveText([/빈 페이지/, /캔버스/, /세션/]);
   await menu.getByRole('menuitem', { name: '세션' }).click();
   await expect(menu).toHaveCount(0);
   await expect(page.getByRole('dialog', { name: '하위 세션 만들기' })).toHaveCount(0);

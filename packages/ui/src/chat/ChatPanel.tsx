@@ -6,6 +6,7 @@ import { ChatNav } from './ChatNav';
 import { Composer } from './Composer';
 import { EmptyChat } from './EmptyChat';
 import { MessageList } from './MessageList';
+import { CanvasPanel } from '../canvas/CanvasPanel';
 import { PagePanel } from './PagePanel';
 import { SessionHeader } from './SessionHeader';
 import { SummaryDraftPanel } from './SummaryDraftPanel';
@@ -20,10 +21,12 @@ export interface ChatPanelProps {
   className?: string;
 }
 
-/** 하나의 세션을 보여주는 패널 (단일/분할/팝업/시트에서 공통 사용). 페이지 세션은 문서 패널로 (ADR-072) */
+/** 하나의 세션을 보여주는 패널 (단일/분할/팝업/시트에서 공통 사용). 페이지는 문서 패널로 (ADR-072), 캔버스는 필기 패널로 (ADR-079) */
 export function ChatPanel(props: ChatPanelProps) {
-  const page = useApp((s) => s.sessions[props.sessionId]?.kind === 'page');
-  return page ? <PagePanel {...props} /> : <ConversationPanel {...props} />;
+  const kind = useApp((s) => s.sessions[props.sessionId]?.kind);
+  if (kind === 'page') return <PagePanel {...props} />;
+  if (kind === 'canvas') return <CanvasPanel {...props} />;
+  return <ConversationPanel {...props} />;
 }
 
 function ConversationPanel({ sessionId, variant = 'main', headerActions, handleClassName, className }: ChatPanelProps) {

@@ -58,7 +58,8 @@ import { chatTarget, defaultSkills, REORGANIZE_SKILL_ID, skillRef } from '../ski
 import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
 import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../tree';
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
-import { NEW_PAGE_TITLE, isPage, pageDoc, renamePageLinks } from '../page';
+import { NEW_CANVAS_TITLE } from '../canvas';
+import { NEW_PAGE_TITLE, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
 
 export const NEW_SESSION_TITLE = '새 학습';
@@ -136,7 +137,7 @@ export interface AppState extends AppData {
    * 빈 마크다운 페이지를 만든다. 본문은 문서 메시지(docId) 하나 (ADR-072).
    * parentId를 주면 그 세션의 하위 페이지(앵커 없음)로 만든다 — 링크는 부모 본문에 UI가 넣는다. 부모가 없으면 false
    */
-  newPage(id?: ID, opts?: { focus?: boolean; docId?: ID; parentId?: ID }): ID | false;
+  newPage(id?: ID, opts?: { focus?: boolean; docId?: ID; parentId?: ID; kind?: 'canvas' }): ID | false;
   /** 빈 하위 대화(앵커 없음, 메시지 없음)를 만든다. 제목은 기본값, 부모 설정(provider·모델·웹 검색)을 물려받는다. 부모가 없으면 false */
   newSubSession(parentId: ID, id?: ID, opts?: { focus?: boolean }): ID | false;
   /** 페이지 본문을 바꾼다. 페이지가 아니거나 같은 내용이면 false */
@@ -595,7 +596,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         return sessionId;
       },
 
-      newPage(id?: ID, opts?: { focus?: boolean; docId?: ID; parentId?: ID }) {
+      newPage(id?: ID, opts?: { focus?: boolean; docId?: ID; parentId?: ID; kind?: 'canvas' }) {
         const sessionId = id ?? newId('s');
         const docId = opts?.docId ?? newId('m');
         const taken = (x: ID) => !!get().sessions[x] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === x));
@@ -608,8 +609,8 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           id: sessionId,
           parentId: parent?.id ?? null,
           rootId: parent ? parent.rootId : sessionId,
-          title: NEW_PAGE_TITLE,
-          kind: 'page',
+          title: opts?.kind === 'canvas' ? NEW_CANVAS_TITLE : NEW_PAGE_TITLE,
+          kind: opts?.kind ?? 'page',
           createdAt: now,
           updatedAt: now,
         };
@@ -651,7 +652,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       },
 
       updatePage(sessionId, content) {
-        if (get().sessions[sessionId]?.kind !== 'page') return false;
+        if (!isDocSession(get().sessions[sessionId])) return false;
         const doc = pageDoc(get().messages[sessionId]);
         if (!doc) {
           const now = Date.now();
@@ -773,7 +774,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       splitTurn(sessionId, questionId, newSessionId, opts) {
         const st = get();
         const src = st.sessions[sessionId];
-        if (!src || src.kind === 'page' || st.streaming[sessionId]) return false;
+        if (!src || isDocSession(src) || st.streaming[sessionId]) return false;
         const list = st.messages[sessionId] ?? [];
         const plan = planTurnSplit(st.sessions, list, sessionId, questionId);
         if (!plan) return false;
@@ -801,7 +802,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       moveTurn(sessionId, questionId, targetId) {
         const st = get();
         if (!st.sessions[sessionId] || st.streaming[sessionId] || st.streaming[targetId]) return false;
-        if (st.sessions[sessionId]!.kind === 'page' || st.sessions[targetId]?.kind === 'page') return false;
+        if (isDocSession(st.sessions[sessionId]) || isDocSession(st.sessions[targetId])) return false;
         const list = st.messages[sessionId] ?? [];
         const plan = planTurnMove(st.sessions, list, sessionId, questionId, targetId);
         if (!plan) return false;
@@ -817,7 +818,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
 
       reorganizeSession(sessionId, skill) {
         const st = get();
-        if (!st.sessions[sessionId] || st.sessions[sessionId]!.kind === 'page' || st.streaming[sessionId]) return false;
+        if (!st.sessions[sessionId] || isDocSession(st.sessions[sessionId]) || st.streaming[sessionId]) return false;
         const old = st.messages[sessionId] ?? [];
         const firstQ = old.find((m) => m.role === 'user');
         if (!firstQ || !old.some((m) => m.role === 'assistant' && m.content.trim())) return false;
@@ -954,7 +955,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         const content = text.trim();
         const attachments = extra?.attachments?.length ? extra.attachments : undefined;
         const sess = get().sessions[sessionId];
-        if ((!content && !attachments) || !sess || sess.kind === 'page' || get().streaming[sessionId]) return false;
+        if ((!content && !attachments) || !sess || isDocSession(sess) || get().streaming[sessionId]) return false;
 
         // messageId 충돌 확인
         if (messageId && (get().sessions[messageId] || Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === messageId)))) {
@@ -982,7 +983,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       },
 
       retry(sessionId, providerId) {
-        if (get().streaming[sessionId] || get().sessions[sessionId]?.kind === 'page') return false;
+        if (get().streaming[sessionId] || isDocSession(get().sessions[sessionId])) return false;
         if (providerId) get().setSessionProvider(sessionId, providerId);
         const list = get().messages[sessionId] ?? [];
         const last = list[list.length - 1];

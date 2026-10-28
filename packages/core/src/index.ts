@@ -12,6 +12,7 @@ export * from './cli-options';
 export * from './context';
 export * from './turns';
 export * from './page';
+export * from './canvas';
 export * from './pageAssist';
 export * from './pageFormat';
 export * from './id';

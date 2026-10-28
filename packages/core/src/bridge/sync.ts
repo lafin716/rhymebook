@@ -19,7 +19,7 @@ export type SyncOp =
    * 빈 마크다운 페이지 (ADR-072). docId는 본문 문서 메시지 id.
    * parentId가 있으면 그 세션의 하위 페이지 (기능 'subpage')
    */
-  | { kind: 'page.new'; id: ID; docId: ID; parentId?: ID }
+  | { kind: 'page.new'; id: ID; docId: ID; parentId?: ID; pageKind?: 'canvas' }
   /** 앵커 없는 빈 하위 대화 (기능 'subpage') — 첫 질문은 따로 보낸다 */
   | { kind: 'session.child'; id: ID; parentId: ID }
   /** 페이지 본문 바꾸기 (전체 교체) */
@@ -73,7 +73,7 @@ export type SyncOpKind = SyncOp['kind'];
  * 호스트가 sync.snapshot에 싣는 지원 기능. 목록이 없거나 빠진 기능은 옛 PC 앱이라 처리하지 못하므로
  * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
  */
-export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch', 'page', 'subpage'] as const;
+export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch', 'page', 'subpage', 'canvas'] as const;
 export type SyncFeature = (typeof SYNC_FEATURES)[number];
 export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   subsession: 'subsession',
@@ -91,6 +91,7 @@ export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
 /** op에 필요한 호스트 기능. session.agent의 웹 검색 토글은 'websearch' (ADR-070), 하위 페이지는 'subpage' */
 export function opFeature(op: SyncOp): SyncFeature | undefined {
   if (op.kind === 'session.agent' && 'webSearch' in op) return 'websearch';
+  if (op.kind === 'page.new' && op.pageKind === 'canvas') return 'canvas';
   if (op.kind === 'page.new' && op.parentId !== undefined) return 'subpage';
   return OP_FEATURE[op.kind];
 }
@@ -148,6 +149,8 @@ export const SYNC_LIMITS = {
   id: 64,
   title: 200,
   text: 100_000,
+  /** 문서(페이지·캔버스) 본문 — 첨부 이미지가 base64로 들어간다 (ADR-079) */
+  doc: 8_000_000,
   anchorText: 10_000,
   /** sync.messages 한 페이지 바이트 예산 (JSON 길이 기준) */
   pageBytes: 1_000_000,
@@ -250,7 +253,8 @@ function validateOp(op: unknown): boolean {
       SYNC_ID_RE.test(o.docId) &&
       o.id !== o.docId &&
       (o.parentId === undefined || (typeof o.parentId === 'string' && SYNC_ID_RE.test(o.parentId) && o.parentId !== o.id)) &&
-      Object.keys(o).every((k) => ['kind', 'id', 'docId', 'parentId'].includes(k))
+      (o.pageKind === undefined || o.pageKind === 'canvas') &&
+      Object.keys(o).every((k) => ['kind', 'id', 'docId', 'parentId', 'pageKind'].includes(k))
     );
   }
   if (kind === 'session.child') {
@@ -268,7 +272,7 @@ function validateOp(op: unknown): boolean {
       typeof o.sessionId === 'string' &&
       SYNC_ID_RE.test(o.sessionId) &&
       typeof o.content === 'string' &&
-      o.content.length <= SYNC_LIMITS.text &&
+      o.content.length <= SYNC_LIMITS.doc &&
       Object.keys(o).every((k) => ['kind', 'sessionId', 'content'].includes(k))
     );
   }

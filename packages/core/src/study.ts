@@ -1,6 +1,7 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { isAttachmentList } from './attachments';
 import { isAnnotation, isMessage, isSession } from './backup/snapshot';
+import { canvasText, parseCanvas } from './canvas';
 import type { MessageMap } from './context';
 import type { Annotation, ID, Message, Session } from './model';
 import { collectStudyCards } from './notes';
@@ -151,10 +152,11 @@ function sessionMarkdown(node: StudyNode, byId: Map<ID, StudyNode>, children: St
   if (path.length) lines.push(`> 경로: ${path.map((p) => link(label(p), p.file)).join(' › ')} › ${oneLine(s.title)}`, '');
   if (s.anchor?.text) lines.push('**가지 친 원문**', '', quote(s.anchor.text.trim()), '');
   if (s.summary?.trim()) lines.push('## 내가 이해한 것', '', s.summary.trim(), '');
-  if (s.kind === 'page') {
-    // 페이지는 질문·답변이 아니라 학습자가 쓴 문서다 (ADR-072)
-    const doc = messages.find((m) => m.role === 'assistant')?.content.trim();
-    if (doc) lines.push('## 문서', '', doc, '');
+  if (s.kind === 'page' || s.kind === 'canvas') {
+    // 페이지는 질문·답변이 아니라 학습자가 쓴 문서다 (ADR-072). 캔버스는 카드 글만 옮긴다 (ADR-079)
+    const raw = messages.find((m) => m.role === 'assistant')?.content.trim();
+    const doc = raw && s.kind === 'canvas' ? canvasText(parseCanvas(raw), Infinity) : raw;
+    if (doc) lines.push(s.kind === 'canvas' ? '## 캔버스' : '## 문서', '', doc, '');
   } else if (messages.length) {
     lines.push('## 대화', '');
     for (const m of messages) {

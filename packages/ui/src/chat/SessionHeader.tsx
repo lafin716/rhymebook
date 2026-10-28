@@ -52,7 +52,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
   if (!session) return null;
 
   /** 페이지는 대화용 버튼(재정리·책·provider)을 숨기고 제목을 눌러 바꾼다 (ADR-072) */
-  const page = session.kind === 'page';
+  const page = session.kind === 'page' || session.kind === 'canvas';
 
   const isBranch = !!session.parentId;
   const summaryButton = isBranch && !hasDraft;

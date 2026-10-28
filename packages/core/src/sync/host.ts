@@ -2,6 +2,7 @@ import type { AppState, AppStore } from '../store';
 import { isCliId } from '../cli-options';
 import { canDeleteTurn, planTurnMove } from '../turns';
 import { draftSessionIds } from '../tree';
+import { isDocSession } from '../page';
 import type { ID, Message, ProviderId, Skill, VaultNode } from '../model';
 import { wouldCreateCycle } from '../vault';
 import { SKILL_LIMITS } from '../skills';
@@ -380,7 +381,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     const state = store.getState();
     const has = (id: ID) => !!state.sessions[id];
     // 페이지는 대화 조작(보내기·턴 옮기기·재정리)을 받지 않는다 (ADR-072)
-    const isPage = (id: ID) => state.sessions[id]?.kind === 'page';
+    const isPage = (id: ID) => isDocSession(state.sessions[id]);
     switch (op.kind) {
       case 'newRoot':
         if (!SYNC_ID_RE.test(op.id)) return 'invalid';
@@ -397,9 +398,9 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         if (!has(op.parentId)) return 'not-found';
         return idTaken(state, op.id) ? 'conflict' : null;
       case 'page.edit':
-        if (op.content.length > SYNC_LIMITS.text) return 'invalid';
+        if (op.content.length > SYNC_LIMITS.doc) return 'invalid';
         if (!has(op.sessionId)) return 'not-found';
-        return state.sessions[op.sessionId]!.kind === 'page' ? null : 'invalid';
+        return isPage(op.sessionId) ? null : 'invalid';
       case 'send':
         if (!SYNC_ID_RE.test(op.messageId) || (!op.text.trim() && !op.attachments?.length) || op.text.length > SYNC_LIMITS.text) return 'invalid';
         if (!has(op.sessionId)) return 'not-found';
@@ -531,7 +532,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         }
         case 'page.new':
           peer.loaded.add(op.id);
-          if (!s.newPage(op.id, { focus: false, docId: op.docId, ...(op.parentId !== undefined ? { parentId: op.parentId } : {}) })) {
+          if (!s.newPage(op.id, { focus: false, docId: op.docId, ...(op.parentId !== undefined ? { parentId: op.parentId } : {}), ...(op.pageKind ? { kind: op.pageKind } : {}) })) {
             peer.loaded.delete(op.id);
             return 'failed';
           }

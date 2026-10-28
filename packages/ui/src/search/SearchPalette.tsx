@@ -1,4 +1,4 @@
-import { breadcrumb, draftSessionIds, type ID } from '@branch/core';
+import { breadcrumb, docText, draftSessionIds, type ID } from '@branch/core';
 import { GitBranch, MessageSquare, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { actions, useApp } from '../app/store';
@@ -27,6 +27,17 @@ function snippetOf(text: string, q: string) {
 }
 
 /** Cmd/Ctrl+K 세션 검색 (제목 + 메시지 본문) */
+/** 캔버스 JSON 해석은 메시지 객체마다 한 번만 한다 — 메시지는 고칠 때 새 객체로 바뀐다 */
+const textCache = new WeakMap<object, string>();
+function searchText(s: Parameters<typeof docText>[0], m: { content: string }): string {
+  let t = textCache.get(m);
+  if (t === undefined) {
+    t = docText(s, m.content);
+    textCache.set(m, t);
+  }
+  return t;
+}
+
 export function SearchPalette() {
   const open = useApp((s) => s.overlay === 'search');
   const close = () => actions().setOverlay('none');
@@ -66,8 +77,9 @@ function PaletteBody({ onClose }: { onClose(): void }) {
         out.push(base);
         continue;
       }
-      const m = (messages[s.id] ?? []).find((x) => x.content.toLowerCase().includes(query.toLowerCase()));
-      if (m) out.push({ ...base, snippet: snippetOf(m.content, query) });
+      // 캔버스는 JSON 본문 대신 카드 글에서 찾는다 (ADR-079)
+      const hit = (messages[s.id] ?? []).map((x) => searchText(s, x)).find((t) => t.toLowerCase().includes(query.toLowerCase()));
+      if (hit) out.push({ ...base, snippet: snippetOf(hit, query) });
     }
     return out.slice(0, query ? 30 : 8);
   }, [q, sessions, messages]);
