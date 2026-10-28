@@ -22,6 +22,7 @@ import {
   type CanvasItem,
   type CanvasFlow,
   type CanvasLayout,
+  type CanvasPenNib,
   type ID,
 } from '@branch/core';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react';
@@ -38,7 +39,16 @@ import { confirm } from '../components/ConfirmDialog';
 import { CanvasToolbar, INK_COLORS, type CanvasToolId } from './CanvasToolbar';
 import { pictureFromFile, type CanvasPicture } from './canvasImage';
 import { pdfFromFile } from './canvasPdf';
-import { loadFavoriteInks, loadStrokeSizes, MAX_FAVORITE_INKS, saveFavoriteInks, saveStrokeSizes, type StrokeKind } from './canvasPrefs';
+import {
+  loadFavoriteInks,
+  loadPenNib,
+  loadStrokeSizes,
+  MAX_FAVORITE_INKS,
+  saveFavoriteInks,
+  savePenNib,
+  saveStrokeSizes,
+  type StrokeKind,
+} from './canvasPrefs';
 import { centerView, fitView, toWorld, type CanvasView } from './view';
 
 const SAVE_DELAY = 500;
@@ -111,6 +121,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const [tool, setTool] = useState<CanvasToolId>('pen');
   const [color, setColor] = useState<string>(INK_COLORS[0]?.hex ?? '#1f2937');
   const [sizes, setSizes] = useState(loadStrokeSizes);
+  const [nib, setNib] = useState(loadPenNib);
   const [favorites, setFavorites] = useState(loadFavoriteInks);
   const [selectedId, setSelectedId] = useState<ID | null>(null);
   const [dialog, setDialog] = useState<'menu' | 'settings' | Exclude<ImportSource, 'image' | 'pdf'> | null>(null);
@@ -349,6 +360,11 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     });
   };
 
+  const changeNib = (n: CanvasPenNib) => {
+    setNib(n);
+    savePenNib(n);
+  };
+
   const toggleFavorite = (hex: string) => {
     setFavorites((list) => {
       const next = list.includes(hex) ? list.filter((h) => h !== hex) : [...list, hex].slice(0, MAX_FAVORITE_INKS);
@@ -496,6 +512,8 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         onColor={setColor}
         sizes={sizes}
         onSize={changeSize}
+        nib={nib}
+        onNib={changeNib}
         favorites={favorites}
         onToggleFavorite={toggleFavorite}
         canUndo={hist.current.past.length > 0}
@@ -517,6 +535,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           tool={tool}
           color={color}
           size={size}
+          nib={nib}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onCommit={commit}

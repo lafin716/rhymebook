@@ -83,6 +83,23 @@ describe('canvas doc', () => {
     expect(doc.strokes.map((s) => s.id)).toEqual(['d']);
   });
 
+  it('펜 종류는 펜 획에만 남고, 만년필(기본)·모르는 값은 버린다', () => {
+    const raw = JSON.stringify({
+      v: 1,
+      items: [],
+      strokes: [
+        { id: 'a', tool: 'pen', color: '#000000', size: 2, points: [0, 0, 1], nib: 'brush' },
+        { id: 'b', tool: 'pen', color: '#000000', size: 2, points: [0, 0, 1], nib: 'fountain' },
+        { id: 'c', tool: 'pen', color: '#000000', size: 2, points: [0, 0, 1], nib: 'crayon' },
+        { id: 'd', tool: 'marker', color: '#ffee00', size: 20, points: [0, 0, 1], nib: 'pencil' },
+      ],
+    });
+    const doc = parseCanvas(raw);
+    expect(doc.strokes.map((s) => s.nib)).toEqual(['brush', undefined, undefined, undefined]);
+    expect(doc.strokes[1]).not.toHaveProperty('nib');
+    expect(parseCanvas(serializeCanvas(doc))).toEqual(doc);
+  });
+
   it('compactPoints thins close points, keeps the last one and defaults pressure', () => {
     expect(compactPoints([0, 0, 0, 0.2, 0.2, 0.5, 5, 5, 0.333, 5.04, 5.04, 0.5])).toEqual([0, 0, 0.5, 5, 5, 0.33]);
     expect(compactPoints([0, 0, 0.5, 0.3, 0, 0.5, 0.6, 0, 0.5])).toEqual([0, 0, 0.5, 0.6, 0, 0.5]);
@@ -225,6 +242,12 @@ describe('canvas layout (쪽 나눔)', () => {
   it('A4 가로: 1600×1131 쪽으로 나뉜다', () => {
     const a4 = setCanvasLayout(emptyCanvas(), 'a4-landscape');
     expect(canvasPageRect('a4-landscape', 0)).toEqual({ x: -800, y: -565.5, w: 1600, h: 1131 });
+    expect(parseCanvas(serializeCanvas(addCanvasPage(a4)))).toEqual(addCanvasPage(a4));
+  });
+
+  it('A4 세로: 1131×1600 쪽으로 나뉜다', () => {
+    const a4 = setCanvasLayout(emptyCanvas(), 'a4-portrait');
+    expect(canvasPageRect('a4-portrait', 0)).toEqual({ x: -565.5, y: -800, w: 1131, h: 1600 });
     expect(parseCanvas(serializeCanvas(addCanvasPage(a4)))).toEqual(addCanvasPage(a4));
   });
 });

@@ -1,7 +1,9 @@
-import { Eraser, Highlighter, Import, MousePointer2, Maximize, Pen, Redo2, Settings2, Star, Trash2, Undo2 } from 'lucide-react';
+import type { CanvasPenNib } from '@branch/core';
+import { Brush, Eraser, Highlighter, Import, MousePointer2, Maximize, Pen, Pencil, PenTool, Redo2, Settings2, Star, Trash2, Undo2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
+import { strokeOpacity, strokePath } from './strokePath';
 import { clampStroke, isHex, MAX_FAVORITE_INKS, STROKE_RANGE, type StrokeKind } from './canvasPrefs';
 
 export type CanvasToolId = 'select' | 'pen' | 'marker' | 'eraser';
@@ -16,9 +18,16 @@ export const INK_COLORS: { label: string; hex: string }[] = [
   { label: '보라', hex: '#7c3aed' },
 ];
 
+export const PEN_NIBS: { nib: CanvasPenNib; label: string; hint: string; icon: (size: number) => ReactNode }[] = [
+  { nib: 'fountain', label: '만년필', hint: '누르는 힘에 따라 굵기가 변해요', icon: (n) => <PenTool size={n} /> },
+  { nib: 'ballpoint', label: '볼펜', hint: '고른 굵기로 또박또박', icon: (n) => <Pen size={n} /> },
+  { nib: 'brush', label: '붓펜', hint: '굵기가 크게 변하고 끝이 가늘어요', icon: (n) => <Brush size={n} /> },
+  { nib: 'pencil', label: '연필', hint: '가늘고 조금 흐리게', icon: (n) => <Pencil size={n} /> },
+];
+
 const TOOLS: { id: CanvasToolId; label: string; icon: ReactNode }[] = [
   { id: 'select', label: '선택/이동', icon: <MousePointer2 size={18} /> },
-  { id: 'pen', label: '펜', icon: <Pen size={18} /> },
+  { id: 'pen', label: '펜', icon: <PenTool size={18} /> },
   { id: 'marker', label: '형광펜', icon: <Highlighter size={18} /> },
   { id: 'eraser', label: '지우개', icon: <Eraser size={18} /> },
 ];
@@ -35,6 +44,9 @@ export interface CanvasToolbarProps {
   /** 펜·형광펜 굵기 (캔버스 px) */
   sizes: Record<StrokeKind, number>;
   onSize(kind: StrokeKind, size: number): void;
+  /** 펜 종류 */
+  nib: CanvasPenNib;
+  onNib(nib: CanvasPenNib): void;
   favorites: string[];
   onToggleFavorite(hex: string): void;
   canUndo: boolean;
@@ -57,12 +69,16 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
   const [pop, setPop] = useState<Pop | null>(null);
   const known = INK_COLORS.some((c) => c.hex === p.color) || p.favorites.includes(p.color);
 
-  /** 펜·형광펜을 누르면 고르면서 굵기 창을 연다. 이미 고른 도구를 다시 누르면 창을 열고 닫는다 */
+  const penNib = PEN_NIBS.find((n) => n.nib === p.nib) ?? PEN_NIBS[0]!;
+
+  /** 처음 누르면 도구만 고른다. 이미 고른 펜·형광펜을 다시 누르면 세부 조정 창을 열고 닫는다 */
   const pickTool = (id: CanvasToolId, el: HTMLElement) => {
-    if (id === 'pen' || id === 'marker') {
+    if ((id === 'pen' || id === 'marker') && p.tool === id) {
       const open = pop?.kind === 'size' && pop.tool === id;
-      setPop(p.tool === id && open ? null : { kind: 'size', tool: id, el });
-    } else setPop(null);
+      setPop(open ? null : { kind: 'size', tool: id, el });
+      return;
+    }
+    setPop(null);
     p.onTool(id);
   };
 
@@ -75,11 +91,15 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           aria-label={t.label}
           aria-pressed={p.tool === t.id}
           aria-haspopup={t.id === 'pen' || t.id === 'marker' ? 'dialog' : undefined}
-          title={t.id === 'pen' || t.id === 'marker' ? `${t.label} · 굵기` : t.label}
+          title={
+            t.id === 'pen' ? `펜 (${penNib.label}) · 다시 누르면 종류·굵기` : t.id === 'marker' ? '형광펜 · 다시 누르면 굵기' : t.label
+          }
           onClick={(e) => pickTool(t.id, e.currentTarget)}
           className={cn(BTN, 'relative', p.tool === t.id && 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent')}
+          data-canvas-tool={t.id}
+          data-canvas-nib={t.id === 'pen' ? p.nib : undefined}
         >
-          {t.icon}
+          {t.id === 'pen' ? penNib.icon(18) : t.icon}
           {(t.id === 'pen' || t.id === 'marker') && (
             <span className="absolute right-1 bottom-1 text-[9px] leading-none tabular-nums opacity-70" aria-hidden>
               {p.sizes[t.id]}
@@ -144,8 +164,9 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         가져오기
       </button>
       {pop?.kind === 'size' && (
-        <Popover anchor={pop.el} label={pop.tool === 'pen' ? '펜 굵기' : '형광펜 굵기'} onClose={() => setPop(null)}>
-          <SizeEditor kind={pop.tool} size={p.sizes[pop.tool]} color={p.color} onSize={(n) => p.onSize(pop.tool, n)} />
+        <Popover anchor={pop.el} label={pop.tool === 'pen' ? '펜 설정' : '형광펜 굵기'} onClose={() => setPop(null)}>
+          {pop.tool === 'pen' && <NibPicker nib={p.nib} onNib={p.onNib} />}
+          <SizeEditor kind={pop.tool} size={p.sizes[pop.tool]} color={p.color} nib={pop.tool === 'pen' ? p.nib : undefined} onSize={(n) => p.onSize(pop.tool, n)} />
         </Popover>
       )}
       {pop?.kind === 'color' && (
@@ -169,8 +190,40 @@ function Swatch({ hex, label, active, onClick, favorite }: { hex: string; label:
   );
 }
 
-/** 굵기 창: 끌개 + 숫자 + 미리보기 */
-function SizeEditor({ kind, size, color, onSize }: { kind: StrokeKind; size: number; color: string; onSize(n: number): void }) {
+/** 미리보기 획: 완만한 물결, 가운데로 갈수록 세게 누른다 */
+const PREVIEW_POINTS = Array.from({ length: 41 }, (_, i) => {
+  const t = i / 40;
+  return [20 + t * 160, 32 + Math.sin(t * Math.PI * 2) * 12, Math.round((0.25 + Math.sin(t * Math.PI) * 0.65) * 100) / 100];
+}).flat();
+
+/** 펜 종류 고르기 */
+function NibPicker({ nib, onNib }: { nib: CanvasPenNib; onNib(nib: CanvasPenNib): void }) {
+  return (
+    <div role="radiogroup" aria-label="펜 종류" className="mb-3 grid w-60 grid-cols-4 gap-1" data-canvas-nib-picker="">
+      {PEN_NIBS.map((n) => (
+        <button
+          key={n.nib}
+          type="button"
+          role="radio"
+          aria-checked={nib === n.nib}
+          title={n.hint}
+          onClick={() => onNib(n.nib)}
+          className={cn(
+            'flex h-14 flex-col items-center justify-center gap-1 rounded-lg text-[12px] text-fg-2 hover:bg-surface-2 hover:text-fg',
+            nib === n.nib && 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent',
+          )}
+          data-canvas-nib-option={n.nib}
+        >
+          {n.icon(18)}
+          {n.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 굵기 창: 끌개 + 숫자 + 미리보기 (펜은 고른 종류의 획 모양으로) */
+function SizeEditor({ kind, size, color, nib, onSize }: { kind: StrokeKind; size: number; color: string; nib?: CanvasPenNib; onSize(n: number): void }) {
   const r = STROKE_RANGE[kind];
   return (
     <div className="flex w-60 flex-col gap-3" data-canvas-size-editor={kind}>
@@ -200,10 +253,15 @@ function SizeEditor({ kind, size, color, onSize }: { kind: StrokeKind; size: num
         className="h-8 w-full accent-[var(--accent)]"
       />
       <div className="grid h-16 place-items-center rounded-lg border border-line bg-[#fbf9f4]" aria-hidden>
-        <span
-          className="w-40 rounded-full"
-          style={{ height: Math.min(size, 60), backgroundColor: color, opacity: kind === 'marker' ? 0.35 : 1, boxShadow: color === '#ffffff' ? '0 0 0 1px #0002' : undefined }}
-        />
+        <svg width={200} height={64} viewBox="0 0 200 64" className="overflow-visible">
+          <path
+            d={strokePath({ tool: kind, nib, size: Math.min(size, 48), points: PREVIEW_POINTS })}
+            fill={color}
+            opacity={strokeOpacity({ tool: kind, nib })}
+            stroke={color === '#ffffff' ? '#0003' : undefined}
+            strokeWidth={color === '#ffffff' ? 1 : undefined}
+          />
+        </svg>
       </div>
     </div>
   );

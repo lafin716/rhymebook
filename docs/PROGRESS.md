@@ -197,7 +197,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP27-T1 | IMP-27 | core `order`·`placeVaultNode`·`vaultChildren` 정렬·검증 + 테스트, ui 트리 놓을 자리(앞/뒤/안으로) 선 표시, e2e vault 순서 바꾸기 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 399, e2e vault desktop·mobile |
 
 ## Active Work
-- 없음 (ADR-081 캔버스 PDF 모드·바탕·색 즐겨찾기·굵기 창 완료)
+- 없음 (ADR-083 펜 세부 조정 두 번째 누름·펜 종류 완료)
 - 확인 필요: `e2e/skill-sync-split.spec.ts` '웹(원격): 스킬 관리에 PC 스킬 동기화 버튼…'이 HEAD(v0.30.0)에서도 실패 — `[data-skill-row="curriculum"]` 행이 없어 기다리다 시간 초과. 테스트가 오래된 것으로 보임, 미수정
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
@@ -211,6 +211,8 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 
 ## Latest Integration Result
 - 2026-10-28 · 캔버스 수정 7건(ADR-081): 긴 카드 스크롤(휠·터치), 흰색·직접 고른 색·즐겨찾기(기기별), 굵기 단계 삭제 → 펜 다시 누르면 굵기 창, 가져오기 아이콘 `Import`, PDF 가져오기 → PDF 모드(쪽마다 한 장, pdf.js 지연 로드·자산 플러그인), A4 가로, 바탕 색·바둑판(촘촘/느슨)·줄공책. core `CanvasDoc.pdf`/`bg`/`canvasPageRects` + 테스트. e2e 캔버스 2건 추가, 기존 위아래 넘김 측정을 poll로(병렬 실행 시 간헐 실패). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 512·ui 64·bridge 66·relay 9·server 10 PASS, `pnpm e2e` 136 passed · 2 failed(skill-sync-split, HEAD에서도 실패).
+- 2026-10-28 · 캔버스 수정(ADR-082): 판 크기에 A4 세로(1131×1600). 펜 도구로 긴 글 카드 위 필기가 안 되던 문제(카드 스크롤 상자가 판의 touch-action을 끊음) → 카드 본문 `touch-none`, 스크롤은 선택 도구에서만(휠·터치·막대). core 테스트·e2e(펜 도구에서 카드 위 필기·휠 무시) 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e 캔버스 8 passed.
+- 2026-10-28 · 캔버스 펜(ADR-083): 펜·형광펜은 처음 누르면 고르기만, 다시 누르면 세부 조정 창. 펜 종류 만년필·볼펜·붓펜·연필(core `CanvasStroke.nib`, 기기 설정 저장, 미리보기·단추 아이콘 반영). core 테스트·e2e(두 번째 누름 창, 붓펜 획, 새로고침 후 유지) 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e 캔버스 8 passed.
 - 2026-10-28 · 캔버스 쪽 넘김 방향(ADR-080 추가): 설정에 옆으로/위아래로, core `CanvasDoc.flow`·`setCanvasFlow`·`canvasPageRect(…, flow)` + 테스트 1, 위아래면 세로로 밀어 쪽 넘김·새 쪽, 쪽 넘김 막대 위·아래 화살표. e2e 쪽 나눔 테스트에 위아래 넘김 추가. typecheck·lint·test·`e2e/canvas.spec.ts` 4 passed.
 - 2026-10-28 · 캔버스 설정(ADR-080): 도구막대 [캔버스 설정] → 판 크기 자유·가로형 16:9·세로형 9:16. core `CanvasDoc.layout`/`pages`(파싱·`setCanvasLayout`·`addCanvasPage`·`canvasPageRect` + 테스트 3), ui 쪽 배경·쪽 맞춤, 화면 이동 끝에 옆으로 밀면 쪽 넘김(마지막 쪽 다음은 새 쪽), 아래 쪽 넘김 막대, 펜류 고르면 항목 선택 해제, 가져온 직후 선택 도구. e2e `canvas` 갱신 + 쪽 나눔 테스트(desktop·mobile). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 506·ui 64·bridge 66·relay 9·server 10 PASS, `pnpm e2e e2e/canvas.spec.ts` 4 passed.
 - 2026-10-28 · 캔버스 필기·가져오기(ADR-079): 새로 만들기·사이드바 +·빈 화면에서 `kind:'canvas'` 문서 세션, core `canvas.ts`(CanvasDoc 파싱·직렬화·획·항목·`canvasText`/`docText`, 이미지 data URL만 + 테스트), 맥락·요약·검색·학습 내보내기는 평문, 동기화 `page.new.pageKind:'canvas'`(feature `canvas`)·`SYNC_LIMITS.doc`; ui `canvas/`(perfect-freehand 펜·형광펜·지우개·선택/이동, 펜 우선 손바닥 무시, rAF 그리기, 실행 취소/다시 실행, 전체 보기, 0.5초 지연 저장 + pagehide 저장, 이미지 파일(1600px 축소·25MB)·세션·페이지·보관함 가져오기, 모바일 도구막대 한 줄 가로 스크롤), 검색 본문 WeakMap 캐시. 독립 리뷰 지적 5건 반영·2건 알려진 한계. e2e `canvas`(필기·페이지 가져오기·그 위에 쓰기·실행 취소·새로고침 유지) desktop·mobile, `subsession` 메뉴 기대값에 캔버스 추가. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 503·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 130 passed·14 skipped, skill-sync-split 2건 실패(기존). 패키지 데스크톱 앱 재빌드·실행.

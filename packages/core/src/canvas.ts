@@ -46,6 +46,10 @@ export type CanvasItem = CanvasImageItem | CanvasTextItem;
 
 export type CanvasTool = 'pen' | 'marker';
 
+/** 펜 종류: 만년필(필압 따라 굵기 변함, 기본), 볼펜(일정한 굵기), 붓펜(끝이 가늘어짐), 연필(얇고 흐림) */
+export type CanvasPenNib = 'fountain' | 'ballpoint' | 'brush' | 'pencil';
+export const CANVAS_PEN_NIBS: readonly CanvasPenNib[] = ['fountain', 'ballpoint', 'brush', 'pencil'];
+
 export interface CanvasStroke {
   id: ID;
   tool: CanvasTool;
@@ -55,10 +59,12 @@ export interface CanvasStroke {
   size: number;
   /** [x, y, 필압(0~1)] 반복. 소수 1자리(필압 2자리)로 반올림 */
   points: number[];
+  /** 펜 종류. 펜 획에만 있고, 없으면 만년필 */
+  nib?: CanvasPenNib;
 }
 
-/** 판 모양: 자유(끝없는 판), 가로형 16:9, 세로형 9:16, A4 가로 쪽 나눔, PDF(쪽마다 PDF 한 장) */
-export type CanvasLayout = 'free' | 'landscape' | 'portrait' | 'a4-landscape' | 'pdf';
+/** 판 모양: 자유(끝없는 판), 가로형 16:9, 세로형 9:16, A4 가로·세로 쪽 나눔, PDF(쪽마다 PDF 한 장) */
+export type CanvasLayout = 'free' | 'landscape' | 'portrait' | 'a4-landscape' | 'a4-portrait' | 'pdf';
 /** 크기가 정해진 쪽 나눔 판 */
 export type CanvasFixedLayout = Exclude<CanvasLayout, 'free' | 'pdf'>;
 /** 쪽이 이어지는 방향: 옆으로(오른쪽) 또는 위아래로(아래쪽) */
@@ -116,6 +122,7 @@ export const CANVAS_PAGE_SIZE: Record<CanvasFixedLayout, { w: number; h: number 
   landscape: { w: 1600, h: 900 },
   portrait: { w: 900, h: 1600 },
   'a4-landscape': { w: 1600, h: 1131 },
+  'a4-portrait': { w: 1131, h: 1600 },
 };
 /** 쪽 사이 간격 (캔버스 px) */
 export const CANVAS_PAGE_GAP = 80;
@@ -270,7 +277,9 @@ function parseStroke(v: unknown): CanvasStroke | null {
   if (!str(o.id, 64) || !o.id || (o.tool !== 'pen' && o.tool !== 'marker')) return null;
   if (typeof o.color !== 'string' || !COLOR_RE.test(o.color) || !num(o.size) || o.size <= 0 || o.size > 200) return null;
   if (!Array.isArray(o.points) || o.points.length < 3 || o.points.length % 3 !== 0 || !o.points.every(num)) return null;
-  return { id: o.id, tool: o.tool, color: o.color, size: o.size, points: o.points as number[] };
+  const stroke: CanvasStroke = { id: o.id, tool: o.tool, color: o.color, size: o.size, points: o.points as number[] };
+  if (o.tool === 'pen' && o.nib !== 'fountain' && CANVAS_PEN_NIBS.includes(o.nib as CanvasPenNib)) stroke.nib = o.nib as CanvasPenNib;
+  return stroke;
 }
 
 /** 문서 메시지 content → 캔버스. 비었거나 깨졌으면 빈 캔버스, 잘못된 항목·획은 버린다 */
@@ -293,7 +302,11 @@ export function parseCanvas(content: string | undefined): CanvasDoc {
     doc.pages = pdf.pages.length;
     doc.pdf = pdf;
     if (o.flow === 'vertical') doc.flow = 'vertical';
-  } else if (o.layout === 'landscape' || o.layout === 'portrait' || o.layout === 'a4-landscape') {
+  } else if (
+    o.layout === 'landscape' || o.layout === 'portrait' ||
+    o.layout === 'a4-landscape' ||
+    o.layout === 'a4-portrait'
+  ) {
     doc.layout = o.layout;
     doc.pages = num(o.pages) ? Math.min(CANVAS_MAX_PAGES, Math.max(1, Math.floor(o.pages))) : 1;
     if (o.flow === 'vertical') doc.flow = 'vertical';

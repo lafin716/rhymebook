@@ -1,7 +1,10 @@
-/** 캔버스 도구 설정 (기기별, localStorage): 즐겨찾기 잉크 색과 펜·형광펜 굵기 */
+import { CANVAS_PEN_NIBS, type CanvasPenNib } from '@branch/core';
+
+/** 캔버스 도구 설정 (기기별, localStorage): 즐겨찾기 잉크 색, 펜·형광펜 굵기, 펜 종류 */
 
 const FAVORITES_KEY = 'octobooks.canvas.favoriteInks';
 const SIZES_KEY = 'octobooks.canvas.strokeSizes';
+const NIB_KEY = 'octobooks.canvas.penNib';
 
 /** 즐겨찾기 잉크 색은 최대 이만큼 */
 export const MAX_FAVORITE_INKS = 8;
@@ -54,3 +57,10 @@ export function loadStrokeSizes(): Record<StrokeKind, number> {
 }
 
 export const saveStrokeSizes = (s: Record<StrokeKind, number>) => save(SIZES_KEY, s);
+
+export function loadPenNib(): CanvasPenNib {
+  const v = load(NIB_KEY);
+  return CANVAS_PEN_NIBS.includes(v as CanvasPenNib) ? (v as CanvasPenNib) : 'fountain';
+}
+
+export const savePenNib = (nib: CanvasPenNib) => save(NIB_KEY, nib);

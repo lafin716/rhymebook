@@ -215,7 +215,7 @@ async function newCanvas(page: Page, mobile: boolean) {
   return board;
 }
 
-test('캔버스 도구: 흰색 · 직접 고른 색 즐겨찾기 · 펜 굵기 창 · 긴 글 카드 스크롤', async ({ page }, info) => {
+test('캔버스 도구: 흰색 · 직접 고른 색 즐겨찾기 · 펜 굵기 창 · 긴 글 카드 스크롤(선택 도구만) · 카드 위 필기', async ({ page }, info) => {
   const errors = collectErrors(page);
   const mobile = info.project.name === 'mobile';
   await onboard(page);
@@ -274,10 +274,67 @@ test('캔버스 도구: 흰색 · 직접 고른 색 즐겨찾기 · 펜 굵기 �
   await page.mouse.wheel(0, 200);
   await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
+  // 다른 도구에서 펜을 누르면 고르기만 하고, 한 번 더 누르면 세부 조정 창(펜 종류·굵기)이 뜬다
+  await pen.click();
+  await expect(pen).toHaveAttribute('aria-pressed', 'true');
+  await expect(sizeEditor).toHaveCount(0);
+  await pen.click();
+  await expect(sizeEditor).toBeVisible();
+  const nibs = page.getByRole('radiogroup', { name: '펜 종류' });
+  await expect(nibs.getByRole('radio', { name: '만년필' })).toHaveAttribute('aria-checked', 'true');
+  await nibs.getByRole('radio', { name: '붓펜' }).click();
+  await expect(nibs.getByRole('radio', { name: '붓펜' })).toHaveAttribute('aria-checked', 'true');
+  await expect(pen).toHaveAttribute('data-canvas-nib', 'brush');
+  await page.keyboard.press('Escape');
+  await expect(sizeEditor).toHaveCount(0);
+
+  // 펜 도구에서는 카드가 스크롤되지 않고, 카드 위에 그대로 필기된다
+  const scrolled = await body.evaluate((el) => el.scrollTop);
+  await page.mouse.move(br.x + br.width / 2, br.y + br.height / 2);
+  await page.mouse.wheel(0, 200);
+  await page.waitForTimeout(200);
+  expect(await body.evaluate((el) => el.scrollTop)).toBe(scrolled);
+  await expect(body).toHaveCSS('touch-action', 'none');
+  const before = await board.locator('svg path').count();
+  await page.mouse.move(br.x + br.width * 0.3, br.y + br.height * 0.4);
+  await page.mouse.down();
+  await page.mouse.move(br.x + br.width * 0.5, br.y + br.height * 0.5, { steps: 5 });
+  await page.mouse.move(br.x + br.width * 0.7, br.y + br.height * 0.6, { steps: 5 });
+  await page.mouse.up();
+  await expect(board.locator('svg path')).toHaveCount(before + 1);
+  await expect(board.locator('svg path[data-canvas-nib="brush"]')).toHaveCount(1);
+
+  // 형광펜도 카드 위에 그어지고 카드는 스크롤되지 않는다 (처음 누르면 창 없이 고르기만)
+  const marker = page.getByRole('button', { name: '형광펜', exact: true });
+  await marker.click();
+  await expect(page.locator('[data-canvas-size-editor="marker"]')).toHaveCount(0);
+  await marker.click();
+  await expect(page.locator('[data-canvas-size-editor="marker"]')).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: '펜 종류' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.mouse.move(br.x + br.width * 0.3, br.y + br.height * 0.7);
+  await page.mouse.down();
+  await page.mouse.move(br.x + br.width * 0.5, br.y + br.height * 0.75, { steps: 5 });
+  await page.mouse.move(br.x + br.width * 0.7, br.y + br.height * 0.8, { steps: 5 });
+  await page.mouse.up();
+  await expect(board.locator('svg path')).toHaveCount(before + 2);
+  expect(await body.evaluate((el) => el.scrollTop)).toBe(scrolled);
+
+  // 지우개로 카드 위의 획을 지운다
+  await page.getByRole('button', { name: '지우개', exact: true }).click();
+  await page.mouse.move(br.x + br.width * 0.25, br.y + br.height * 0.55);
+  await page.mouse.down();
+  await page.mouse.move(br.x + br.width * 0.5, br.y + br.height * 0.5, { steps: 10 });
+  await page.mouse.move(br.x + br.width * 0.75, br.y + br.height * 0.6, { steps: 10 });
+  await page.mouse.up();
+  await expect(board.locator('svg path')).toHaveCount(before + 1);
+  expect(await body.evaluate((el) => el.scrollTop)).toBe(scrolled);
+
   // 즐겨찾기 색과 굵기는 새로고침 뒤에도 남는다
   await page.reload();
   await expect(page.getByRole('button', { name: '즐겨찾는 색 #ff8800' })).toBeVisible();
   await expect(page.getByRole('button', { name: '펜', exact: true })).toContainText('12');
+  await expect(page.getByRole('button', { name: '펜', exact: true })).toHaveAttribute('data-canvas-nib', 'brush');
   expect(errors).toEqual([]);
 });
 

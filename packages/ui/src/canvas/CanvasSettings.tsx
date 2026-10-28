@@ -36,6 +36,12 @@ const LAYOUTS: {
     hint: "A4 종이를 눕힌 쪽 · 넘겨서 새 쪽",
     box: { w: 32, h: 23 },
   },
+  {
+    layout: "a4-portrait",
+    label: "A4 세로",
+    hint: "A4 종이를 세운 쪽 · 넘겨서 새 쪽",
+    box: { w: 23, h: 32 },
+  },
 ];
 
 const PATTERNS: { pattern: CanvasPattern | undefined; label: string }[] = [
@@ -63,7 +69,7 @@ const FLOWS: { flow: CanvasFlow; label: string; hint: string; icon: ReactNode }[
 const OPTION =
   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-fg hover:bg-surface-2 md:min-h-9";
 
-/** 캔버스 설정: 판 크기(자유·16:9·9:16·A4 가로, PDF 모드 표시), 쪽 넘김 방향, 바탕(색·무늬) */
+/** 캔버스 설정: 판 크기(자유·16:9·9:16·A4 가로·세로, PDF 모드 표시), 쪽 넘김 방향, 바탕(색·무늬) */
 export function CanvasSettings({
   layout,
   onLayout,

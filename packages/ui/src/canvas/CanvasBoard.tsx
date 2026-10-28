@@ -7,6 +7,7 @@ import {
   updateCanvasItem,
   type CanvasDoc,
   type CanvasItem,
+  type CanvasPenNib,
   type CanvasRect,
   type CanvasTool,
   type ID,
@@ -16,13 +17,12 @@ import { Markdown } from '../chat/Markdown';
 import { cn } from '../lib/cn';
 import type { CanvasToolId } from './CanvasToolbar';
 import { backgroundStyle } from './canvasBackground';
-import { strokePath } from './strokePath';
+import { strokeOpacity, strokePath } from './strokePath';
 import { clampZoom, toWorld, zoomAt, type CanvasView } from './view';
 
 /** 지우개 반경 (캔버스 px) */
 const ERASER_RADIUS = 12;
-/** 항목 크기 조절 최소·형광펜 색 투명도 */
-const MARKER_OPACITY = 0.35;
+/** 항목 크기 조절 최소 */
 /** 휠·트랙패드 스크롤이 멈추고 이만큼 지나면 쪽에 맞춘다 (ms) */
 const WHEEL_SETTLE_MS = 160;
 
@@ -31,7 +31,7 @@ const WHEEL_SETTLE_MS = 160;
  * 펜·지우개·항목 이동을 한 동작마다 실행 취소 한 칸으로 묶는다.
  */
 type Gesture =
-  | { kind: 'draw'; pointerId: number; origin: CanvasDoc; tool: CanvasTool; color: string; size: number; points: number[] }
+  | { kind: 'draw'; pointerId: number; origin: CanvasDoc; tool: CanvasTool; nib: CanvasPenNib; color: string; size: number; points: number[] }
   | { kind: 'erase'; pointerId: number; origin: CanvasDoc; doc: CanvasDoc }
   | { kind: 'move' | 'resize'; pointerId: number; origin: CanvasDoc; doc: CanvasDoc; item: CanvasItem; startX: number; startY: number }
   | { kind: 'pan'; pointerId: number; lastX: number; lastY: number }
@@ -40,6 +40,7 @@ type Gesture =
 
 interface Live {
   tool: CanvasTool;
+  nib: CanvasPenNib;
   color: string;
   size: number;
   points: number[];
@@ -53,6 +54,8 @@ export interface CanvasBoardProps {
   color: string;
   /** 현재 굵기 (펜·형광펜 단계에 따른 px) */
   size: number;
+  /** 펜 종류 (형광펜에는 쓰지 않는다) */
+  nib: CanvasPenNib;
   selectedId: ID | null;
   onSelect(id: ID | null): void;
   onCommit(next: CanvasDoc): void;
@@ -88,7 +91,7 @@ const coalesced = (e: PointerEvent<HTMLDivElement>): globalThis.PointerEvent[] =
  * 캔버스 판. 펜·형광펜·지우개·선택(이동·크기·앞으로)·화면 이동·확대를 포인터 이벤트로 처리한다.
  * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 뒤에는 터치가 화면을 옮긴다.
  */
-export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate }: CanvasBoardProps) {
+export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate }: CanvasBoardProps) {
   const [preview, setPreview] = useState<CanvasDoc | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
@@ -109,8 +112,10 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
   };
   useEffect(() => () => cancelAnimationFrame(liveFrame.current), []);
   const settleRef = useRef(onSettle);
+  const toolRef = useRef(tool);
   useEffect(() => {
     settleRef.current = onSettle;
+    toolRef.current = tool;
   });
 
   // 휠: 그냥 굴리면 화면 이동, Ctrl/⌘+휠(트랙패드 핀치 포함)은 확대·축소. 브라우저 확대는 막는다
@@ -119,8 +124,9 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
     if (!el) return;
     let settle: ReturnType<typeof setTimeout> | undefined;
     const onWheel = (e: WheelEvent) => {
-      // 긴 글 카드 위에서는 카드 안을 스크롤한다 (끝까지 가면 판을 움직인다)
-      const sc = !(e.ctrlKey || e.metaKey) && Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? scrollableAt(e.target) : null;
+      // 선택 도구일 때 긴 글 카드 위에서는 카드 안을 스크롤한다 (끝까지 가면 판을 움직인다)
+      const sc =
+        toolRef.current === 'select' && !(e.ctrlKey || e.metaKey) && Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? scrollableAt(e.target) : null;
       if (sc) {
         const atEnd = e.deltaY > 0 ? sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1 : sc.scrollTop <= 0;
         if (!atEnd) return;
@@ -162,7 +168,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.button !== 1) return;
     // 마우스로 카드 스크롤 막대를 잡으면 브라우저에 맡긴다
-    const bar = e.pointerType === 'mouse' ? scrollableAt(e.target) : null;
+    const bar = e.pointerType === 'mouse' && tool === 'select' ? scrollableAt(e.target) : null;
     if (bar && e.target === bar && e.nativeEvent.offsetX > bar.clientWidth) return;
     if (e.pointerType === 'pen') {
       penSeen.current = true;
@@ -191,8 +197,8 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
 
     const w = toWorld(view, p.x, p.y);
     const panHere = e.button === 1 || (e.pointerType === 'touch' && penSeen.current && tool !== 'select');
-    // 손가락·펜으로 긴 글 카드 본문을 끌면 카드 안을 스크롤한다 (제목줄을 끌면 옮긴다)
-    const sc = e.pointerType !== 'mouse' && (panHere || tool === 'select') ? scrollableAt(e.target) : null;
+    // 선택 도구에서 손가락·펜으로 긴 글 카드 본문을 끌면 카드 안을 스크롤한다 (제목줄을 끌면 옮긴다)
+    const sc = e.pointerType !== 'mouse' && tool === 'select' ? scrollableAt(e.target) : null;
     if (sc) {
       const id = sc.closest<HTMLElement>('[data-canvas-item]')?.dataset.canvasItem;
       if (tool === 'select' && id) onSelect(id);
@@ -236,8 +242,8 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
       return;
     }
 
-    setLive({ tool, color, size, points: [w.x, w.y, e.pressure || 0.5] });
-    setG({ kind: 'draw', pointerId: e.pointerId, origin: doc, tool, color, size, points: [w.x, w.y, e.pressure || 0.5] });
+    setLive({ tool, nib, color, size, points: [w.x, w.y, e.pressure || 0.5] });
+    setG({ kind: 'draw', pointerId: e.pointerId, origin: doc, tool, nib, color, size, points: [w.x, w.y, e.pressure || 0.5] });
   };
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -284,7 +290,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
         liveFrame.current = requestAnimationFrame(() => {
           liveFrame.current = 0;
           const cur = gestureRef.current;
-          if (cur?.kind === 'draw') setLive({ tool: cur.tool, color: cur.color, size: cur.size, points: cur.points.slice() });
+          if (cur?.kind === 'draw') setLive({ tool: cur.tool, nib: cur.nib, color: cur.color, size: cur.size, points: cur.points.slice() });
         });
       }
     } else if (g.kind === 'erase') {
@@ -338,7 +344,16 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
     if (g.kind === 'scroll') return;
     if (g.kind === 'draw') {
       if (g.points.length >= 6) {
-        onCommit(addStroke(g.origin, { id: newId('s'), tool: g.tool, color: g.color, size: g.size, points: compactPoints(g.points) }));
+        onCommit(
+          addStroke(g.origin, {
+            id: newId('s'),
+            tool: g.tool,
+            color: g.color,
+            size: g.size,
+            points: compactPoints(g.points),
+            ...(g.tool === 'pen' && g.nib !== 'fountain' ? { nib: g.nib } : {}),
+          }),
+        );
       }
       return;
     }
@@ -354,7 +369,8 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
           key={s.id}
           d={strokePath(s)}
           fill={s.color}
-          opacity={s.tool === 'marker' ? MARKER_OPACITY : 1}
+          opacity={strokeOpacity(s)}
+          data-canvas-nib={s.tool === 'pen' ? (s.nib ?? 'fountain') : undefined}
           style={s.tool === 'marker' ? { mixBlendMode: 'multiply' } : undefined}
         />
       )),
@@ -401,9 +417,9 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
           {strokeNodes}
           {live && (
             <path
-              d={strokePath({ tool: live.tool, size: live.size, points: live.points })}
+              d={strokePath(live)}
               fill={live.color}
-              opacity={live.tool === 'marker' ? MARKER_OPACITY : 1}
+              opacity={strokeOpacity(live)}
               style={live.tool === 'marker' ? { mixBlendMode: 'multiply' } : undefined}
             />
           )}
@@ -438,7 +454,11 @@ const ItemView = memo(function ItemView({ item, selected, movable, k }: { item: 
     <div data-canvas-item={item.id} data-selected={selected || undefined} role="article" aria-label={item.title} className={frame} style={box}>
       <div className="flex size-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <div className="shrink-0 truncate border-b border-line px-3 py-1.5 text-[13px] font-semibold">{item.title}</div>
-        <div data-canvas-scroll="" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 text-[14px]">
+        {/* 스크롤은 선택 도구에서만. 터치·펜 스크롤은 판이 직접 처리한다 — 브라우저 스크롤이 펜 획을 가로채지 않게 touch-none */}
+        <div
+          data-canvas-scroll=""
+          className={cn('min-h-0 flex-1 touch-none overscroll-contain px-3 py-2 text-[14px]', movable ? 'overflow-y-auto' : 'overflow-hidden')}
+        >
           <Markdown content={item.text} />
         </div>
       </div>
