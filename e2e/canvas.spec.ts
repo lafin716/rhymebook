@@ -151,10 +151,14 @@ test('캔버스 설정: 가로형 쪽 나눔 · 새 쪽 · 옆으로/위아래�
   await expect(settings.getByRole('radio', { name: /위아래로/ })).toHaveAttribute('aria-checked', 'true');
   await page.keyboard.press('Escape');
   await expect(settings).toHaveCount(0);
-  const b0 = (await pages.nth(0).boundingBox())!;
-  const b1 = (await pages.nth(1).boundingBox())!;
-  expect(Math.abs(b0.x - b1.x)).toBeLessThan(1);
-  expect(b1.y).toBeGreaterThan(b0.y + b0.height);
+  // 화면이 새 배치로 미끄러져 가는 중일 수 있어 자리 잡을 때까지 다시 잰다
+  await expect
+    .poll(async () => {
+      const b0 = (await pages.nth(0).boundingBox())!;
+      const b1 = (await pages.nth(1).boundingBox())!;
+      return Math.abs(b0.x - b1.x) < 1 && b1.y > b0.y + b0.height;
+    })
+    .toBe(true);
   const swipeV = async (from: number, to: number) => {
     const r = (await board.boundingBox())!;
     const x = r.x + r.width * 0.5;
@@ -174,5 +178,166 @@ test('캔버스 설정: 가로형 쪽 나눔 · 새 쪽 · 옆으로/위아래�
   await expect(after.locator('[data-canvas-page]')).toHaveCount(4);
   await expect(page.getByRole('navigation', { name: '쪽 넘김' })).toContainText('1 / 4');
   await expect(page.getByRole('button', { name: '다음 쪽' }).locator('svg')).toHaveClass(/chevron-down/);
+  expect(errors).toEqual([]);
+});
+
+/** 쪽마다 글 한 줄이 있는 작은 PDF (가로 842 × 세로 595pt) */
+function tinyPdf(pages: number): Buffer {
+  const objs: string[] = [];
+  const kids = Array.from({ length: pages }, (_, i) => `${4 + i * 2} 0 R`).join(' ');
+  objs.push('<< /Type /Catalog /Pages 2 0 R >>');
+  objs.push(`<< /Type /Pages /Kids [${kids}] /Count ${pages} >>`);
+  objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  for (let i = 0; i < pages; i++) {
+    const text = `BT /F1 48 Tf 80 300 Td (Page ${i + 1}) Tj ET`;
+    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 3 0 R >> >> /Contents ${5 + i * 2} 0 R >>`);
+    objs.push(`<< /Length ${text.length} >>\nstream\n${text}\nendstream`);
+  }
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objs.forEach((o, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((n) => `${String(n).padStart(10, '0')} 00000 n \n`).join('')}`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, 'latin1');
+}
+
+async function newCanvas(page: Page, mobile: boolean) {
+  const main = page.locator(MAIN);
+  if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
+  await page.getByRole('button', { name: '새로 만들기' }).click();
+  await main.getByRole('button', { name: '캔버스로 시작' }).click();
+  const board = page.getByLabel('캔버스 그림판');
+  await expect(board).toBeVisible();
+  return board;
+}
+
+test('캔버스 도구: 흰색 · 직접 고른 색 즐겨찾기 · 펜 굵기 창 · 긴 글 카드 스크롤', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  const mobile = info.project.name === 'mobile';
+  await onboard(page);
+  const main = page.locator(MAIN);
+
+  // 긴 페이지를 먼저 만든다
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const lines = Array.from({ length: 40 }, (_, i) => `${i + 1}번째 줄입니다.`).join('\n\n');
+  await main.getByLabel('페이지 본문 (마크다운)').fill(`# 긴 노트\n\n${lines}`);
+  await main.getByRole('button', { name: '완료' }).click();
+  await expect(main.getByRole('heading', { name: '긴 노트' })).toBeVisible();
+
+  const board = await newCanvas(page, mobile);
+  const pen = page.getByRole('button', { name: '펜', exact: true });
+
+  // 흰색으로 한 획
+  await page.getByRole('button', { name: '흰색 색' }).click();
+  await stroke(page, board, 0.3, 0.2);
+  await expect(board.locator('svg path[fill="#ffffff"]')).toHaveCount(1);
+
+  // 펜을 누르면 굵기 창: 숫자로 바꾸면 펜 단추에 보이고, 다시 누르면 닫힌다
+  await pen.click();
+  const sizeEditor = page.locator('[data-canvas-size-editor="pen"]');
+  await expect(sizeEditor).toBeVisible();
+  await sizeEditor.getByLabel('굵기 숫자').fill('12');
+  await expect(pen).toContainText('12');
+  await expect(sizeEditor.getByLabel('굵기', { exact: true })).toHaveValue('12');
+  await pen.click();
+  await expect(sizeEditor).toHaveCount(0);
+
+  // 색 직접 고르기 → 즐겨찾기에 넣으면 색 줄에 남는다
+  await page.locator('[data-canvas-color-custom]').click();
+  const colorEditor = page.locator('[data-canvas-color-editor]');
+  const code = colorEditor.getByLabel('색 코드');
+  await code.fill('#ff8800');
+  await code.press('Enter');
+  await colorEditor.locator('[data-canvas-favorite]').click();
+  await expect(colorEditor.locator('[data-canvas-favorite]')).toContainText('즐겨찾기에서 빼기');
+  await page.keyboard.press('Escape');
+  await expect(colorEditor).toHaveCount(0);
+  const fav = page.getByRole('button', { name: '즐겨찾는 색 #ff8800' });
+  await expect(fav).toHaveAttribute('aria-pressed', 'true');
+  await stroke(page, board, 0.3, 0.35);
+  await expect(board.locator('svg path[fill="#ff8800"]')).toHaveCount(1);
+
+  // 긴 페이지를 글 카드로 가져오면 카드 안에서 스크롤된다
+  await page.getByRole('button', { name: '가져오기' }).click();
+  await page.locator('[data-canvas-import-source="page"]').click();
+  const picker = page.getByRole('dialog', { name: '페이지 내용 가져오기' });
+  await picker.locator('[data-canvas-import-picker] button').first().click();
+  const body = board.locator('[data-canvas-item] [data-canvas-scroll]');
+  await expect(body).toHaveCount(1);
+  expect(await body.evaluate((el) => el.scrollHeight > el.clientHeight + 20)).toBe(true);
+  const br = (await body.boundingBox())!;
+  await page.mouse.move(br.x + br.width / 2, br.y + br.height / 2);
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+
+  // 즐겨찾기 색과 굵기는 새로고침 뒤에도 남는다
+  await page.reload();
+  await expect(page.getByRole('button', { name: '즐겨찾는 색 #ff8800' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '펜', exact: true })).toContainText('12');
+  expect(errors).toEqual([]);
+});
+
+test('캔버스: PDF 가져오기 → PDF 모드 · A4 가로로 바꾸기 · 바탕색과 줄공책', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  const mobile = info.project.name === 'mobile';
+  await onboard(page);
+  const board = await newCanvas(page, mobile);
+
+  // PDF를 가져오면 쪽마다 PDF 한 장
+  await page.getByRole('button', { name: '가져오기' }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('[data-canvas-import-source="pdf"]').click();
+  await (await chooser).setFiles({ name: '강의자료.pdf', mimeType: 'application/pdf', buffer: tinyPdf(2) });
+  const pdfPages = board.locator('[data-canvas-pdf-page]');
+  await expect(pdfPages).toHaveCount(2, { timeout: 20_000 });
+  const pr = (await board.locator('[data-canvas-page]').first().boundingBox())!;
+  expect(Math.abs(pr.width / pr.height - 842 / 595)).toBeLessThan(0.02);
+  const nav = page.getByRole('navigation', { name: '쪽 넘김' });
+  await expect(nav).toContainText('1 / 2');
+  await nav.getByRole('button', { name: '다음 쪽' }).click();
+  await expect(nav).toContainText('2 / 2');
+  // PDF 판의 마지막 쪽에서는 새 쪽을 만들지 않는다
+  await expect(nav.getByRole('button', { name: '다음 쪽' })).toBeDisabled();
+
+  // 위에 필기
+  await stroke(page, board, 0.4, 0.4);
+  await expect(board.locator('svg path')).toHaveCount(1);
+
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(page.getByLabel('캔버스 그림판').locator('[data-canvas-pdf-page]')).toHaveCount(2);
+
+  // 설정에 PDF 모드가 보이고, A4 가로로 바꾸면 확인 뒤 PDF가 빠진다
+  await page.getByRole('button', { name: '캔버스 설정' }).click();
+  const settings = page.getByRole('dialog', { name: '캔버스 설정' });
+  await expect(settings.locator('[data-canvas-pdf-mode]')).toContainText('강의자료');
+  await settings.getByRole('radio', { name: /A4 가로/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '바꾸기' }).click();
+  const after = page.getByLabel('캔버스 그림판');
+  await expect(after.locator('[data-canvas-pdf-page]')).toHaveCount(0);
+  const pages = after.locator('[data-canvas-page]');
+  await expect(pages).toHaveCount(1);
+  const ar = (await pages.first().boundingBox())!;
+  expect(Math.abs(ar.width / ar.height - 1600 / 1131)).toBeLessThan(0.02);
+  await expect(after.locator('svg path')).toHaveCount(1);
+
+  // 바탕: 칠판색 + 줄공책
+  await page.getByRole('button', { name: '캔버스 설정' }).click();
+  await settings.locator('[data-canvas-bg-color="#24332b"]').click();
+  await settings.locator('[data-canvas-bg-pattern="lines"]').click();
+  await expect(settings.locator('[data-canvas-bg-pattern="lines"]')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await expect(pages.first()).toHaveCSS('background-color', 'rgb(36, 51, 43)');
+  await expect(pages.first()).toHaveCSS('background-image', /linear-gradient/);
+
+  await page.waitForTimeout(1200);
+  await page.reload();
+  const last = page.getByLabel('캔버스 그림판').locator('[data-canvas-page]').first();
+  await expect(last).toHaveCSS('background-color', 'rgb(36, 51, 43)');
+  await expect(last).toHaveCSS('background-image', /linear-gradient/);
   expect(errors).toEqual([]);
 });

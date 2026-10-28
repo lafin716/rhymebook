@@ -8,7 +8,7 @@ import {
   type VaultItem,
   type VaultNode,
 } from '@branch/core';
-import { Archive, FileText, ImagePlus, MessageSquare, X } from 'lucide-react';
+import { Archive, FileText, FileType2, ImagePlus, MessageSquare, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { actions, useApp } from '../app/store';
 import { syncClient } from '../app/sync';
@@ -18,7 +18,7 @@ import { cn } from '../lib/cn';
 import { pictureFromAttachment } from './canvasImage';
 
 /** 캔버스로 가져올 수 있는 것 */
-export type ImportSource = 'image' | 'session' | 'page' | 'vault';
+export type ImportSource = 'image' | 'pdf' | 'session' | 'page' | 'vault';
 
 /** 가져온 한 덩이: 글 카드 또는 그림 */
 export type ImportEntry =
@@ -71,6 +71,7 @@ export function ImportDialog({ label, title, onClose, children }: { label: strin
 
 const SOURCES: { source: ImportSource; label: string; hint: string; icon: ReactNode }[] = [
   { source: 'image', label: '이미지', hint: 'PNG·JPG·GIF·WebP 파일', icon: <ImagePlus size={18} /> },
+  { source: 'pdf', label: 'PDF', hint: '쪽마다 한 장씩 · 캔버스가 PDF 모드로 바뀌어요', icon: <FileType2 size={18} /> },
   { source: 'session', label: '세션 내용', hint: '대화 한 개를 글 카드로', icon: <MessageSquare size={18} /> },
   { source: 'page', label: '페이지 내용', hint: '페이지 한 장을 글 카드로', icon: <FileText size={18} /> },
   { source: 'vault', label: '보관함', hint: '보관한 글이나 그림 고르기', icon: <Archive size={18} /> },
@@ -110,7 +111,7 @@ interface PickRowData {
 }
 
 /** 세션·페이지·보관함 항목 고르기. 고르면 글 카드나 그림으로 바꿔 넘긴다 */
-export function ImportPicker({ source, onPick, onClose }: { source: Exclude<ImportSource, 'image'>; onPick(entry: ImportEntry): void; onClose(): void }) {
+export function ImportPicker({ source, onPick, onClose }: { source: Exclude<ImportSource, 'image' | 'pdf'>; onPick(entry: ImportEntry): void; onClose(): void }) {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState<ID | null>(null);
   const [error, setError] = useState('');

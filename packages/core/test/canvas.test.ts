@@ -9,6 +9,11 @@ import {
   canvasLayout,
   canvasPageCount,
   canvasPageRect,
+  canvasPageRects,
+  CANVAS_PAPER,
+  keepCanvasSettings,
+  setCanvasBackground,
+  setCanvasPdf,
   canvasBounds,
   canvasText,
   compactPoints,
@@ -215,5 +220,65 @@ describe('canvas layout (쪽 나눔)', () => {
     expect(setCanvasLayout(port, 'free')).not.toHaveProperty('flow');
     expect(setCanvasFlow(vert, 'horizontal')).not.toHaveProperty('flow');
     expect(parseCanvas(JSON.stringify({ v: 1, items: [], strokes: [], layout: 'landscape', flow: 'diag' }))).not.toHaveProperty('flow');
+  });
+
+  it('A4 가로: 1600×1131 쪽으로 나뉜다', () => {
+    const a4 = setCanvasLayout(emptyCanvas(), 'a4-landscape');
+    expect(canvasPageRect('a4-landscape', 0)).toEqual({ x: -800, y: -565.5, w: 1600, h: 1131 });
+    expect(parseCanvas(serializeCanvas(addCanvasPage(a4)))).toEqual(addCanvasPage(a4));
+  });
+});
+
+describe('캔버스 PDF 판', () => {
+  const pdf = { name: '강의.pdf', pages: [{ src: PNG, w: 1190, h: 1684 }, { src: PNG, w: 1684, h: 1190 }] };
+
+  it('쪽마다 PDF 한 장, 쪽 크기는 PDF 쪽을 따라 쪽 방향으로 이어진다', () => {
+    const doc = setCanvasPdf(addStroke(emptyCanvas(), { id: 's', tool: 'pen', color: '#000000', size: 2, points: [0, 0, 0.5] }), pdf);
+    expect(canvasLayout(doc)).toBe('pdf');
+    expect(canvasPageCount(doc)).toBe(2);
+    expect(doc.strokes).toHaveLength(1);
+    expect(canvasPageRects(doc)).toEqual([
+      { x: -595, y: -842, w: 1190, h: 1684 },
+      { x: 595 + CANVAS_PAGE_GAP, y: -595, w: 1684, h: 1190 },
+    ]);
+    const vert = setCanvasFlow(doc, 'vertical');
+    expect(canvasPageRects(vert)[1]).toEqual({ x: -842, y: 842 + CANVAS_PAGE_GAP, w: 1684, h: 1190 });
+    expect(addCanvasPage(doc)).toBe(doc);
+    expect(canvasText(doc)).toContain('[PDF: 강의.pdf]');
+    expect(parseCanvas(serializeCanvas(vert))).toEqual(vert);
+  });
+
+  it('다른 판으로 바꾸면 PDF를 빼고, 깨진 PDF는 자유 판으로 읽는다', () => {
+    const doc = setCanvasPdf(emptyCanvas(), pdf);
+    const land = setCanvasLayout(doc, 'landscape');
+    expect(land).not.toHaveProperty('pdf');
+    expect(canvasPageCount(land)).toBe(1);
+    expect(setCanvasLayout(doc, 'pdf')).toBe(doc);
+    expect(setCanvasPdf(emptyCanvas(), { name: 'x', pages: [] })).toEqual(emptyCanvas());
+    const bad = { ...doc, pdf: { name: 'x', pages: [{ src: 'javascript:1', w: 10, h: 10 }] } };
+    expect(canvasLayout(parseCanvas(JSON.stringify(bad)))).toBe('free');
+  });
+});
+
+describe('캔버스 바탕', () => {
+  it('색·무늬를 저장하고 기본 종이·민무늬는 빼며 잘못된 값은 버린다', () => {
+    const d = setCanvasBackground(emptyCanvas(), { color: '#FFFFFF', pattern: 'lines' });
+    expect(d.bg).toEqual({ color: '#ffffff', pattern: 'lines' });
+    expect(parseCanvas(serializeCanvas(d))).toEqual(d);
+    expect(setCanvasBackground(d, { color: '#ffffff', pattern: 'lines' })).toBe(d);
+    expect(setCanvasBackground(d, { color: CANVAS_PAPER })).not.toHaveProperty('bg');
+    expect(parseCanvas(JSON.stringify({ v: 1, items: [], strokes: [], bg: { color: 'red', pattern: 'dots' } }))).not.toHaveProperty('bg');
+    expect(parseCanvas(JSON.stringify({ v: 1, items: [], strokes: [], bg: { pattern: 'grid-fine' } })).bg).toEqual({ pattern: 'grid-fine' });
+  });
+
+  it('실행 취소로 되돌려도 설정(판·PDF·바탕)은 지금 값을 지킨다', () => {
+    const old = addStroke(emptyCanvas(), { id: 's', tool: 'pen', color: '#000000', size: 2, points: [0, 0, 0.5] });
+    const cur = setCanvasBackground(setCanvasPdf(emptyCanvas(), { name: 'a', pages: [{ src: PNG, w: 10, h: 10 }] }), { pattern: 'grid-wide' });
+    const kept = keepCanvasSettings(old, cur);
+    expect(kept.strokes).toHaveLength(1);
+    expect(kept.layout).toBe('pdf');
+    expect(kept.pdf).toBe(cur.pdf);
+    expect(kept.bg).toEqual({ pattern: 'grid-wide' });
+    expect(keepCanvasSettings(cur, emptyCanvas())).toEqual(emptyCanvas());
   });
 });

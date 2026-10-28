@@ -1,19 +1,14 @@
-import { Eraser, Highlighter, ImagePlus, MousePointer2, Maximize, Pen, Redo2, Settings2, Trash2, Undo2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Eraser, Highlighter, Import, MousePointer2, Maximize, Pen, Redo2, Settings2, Star, Trash2, Undo2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
+import { clampStroke, isHex, MAX_FAVORITE_INKS, STROKE_RANGE, type StrokeKind } from './canvasPrefs';
 
 export type CanvasToolId = 'select' | 'pen' | 'marker' | 'eraser';
-export type StrokeSizeKey = 'S' | 'M' | 'L';
-
-/** 굵기 단계 — 펜은 가늘게, 형광펜은 굵게 (캔버스 px) */
-export const STROKE_SIZES: Record<StrokeSizeKey, { label: string; pen: number; marker: number }> = {
-  S: { label: '가늘게', pen: 2, marker: 10 },
-  M: { label: '보통', pen: 4, marker: 18 },
-  L: { label: '굵게', pen: 8, marker: 30 },
-};
 
 export const INK_COLORS: { label: string; hex: string }[] = [
   { label: '검정', hex: '#1f2937' },
+  { label: '흰색', hex: '#ffffff' },
   { label: '빨강', hex: '#dc2626' },
   { label: '파랑', hex: '#2563eb' },
   { label: '초록', hex: '#16a34a' },
@@ -30,14 +25,18 @@ const TOOLS: { id: CanvasToolId; label: string; icon: ReactNode }[] = [
 
 /** 터치 기준 44px, 태블릿 이상은 36px */
 const BTN = 'grid size-11 shrink-0 place-items-center rounded-lg text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 md:size-9';
+const SMALL_BTN = 'h-11 rounded-lg px-3 text-[13px] md:h-8';
 
 export interface CanvasToolbarProps {
   tool: CanvasToolId;
   onTool(tool: CanvasToolId): void;
   color: string;
   onColor(hex: string): void;
-  size: StrokeSizeKey;
-  onSize(size: StrokeSizeKey): void;
+  /** 펜·형광펜 굵기 (캔버스 px) */
+  sizes: Record<StrokeKind, number>;
+  onSize(kind: StrokeKind, size: number): void;
+  favorites: string[];
+  onToggleFavorite(hex: string): void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo(): void;
@@ -51,8 +50,22 @@ export interface CanvasToolbarProps {
   onDeleteSelected(): void;
 }
 
+type Pop = { kind: 'size'; tool: StrokeKind; el: HTMLElement } | { kind: 'color'; el: HTMLElement };
+
 export function CanvasToolbar(p: CanvasToolbarProps) {
   const drawing = p.tool === 'pen' || p.tool === 'marker';
+  const [pop, setPop] = useState<Pop | null>(null);
+  const known = INK_COLORS.some((c) => c.hex === p.color) || p.favorites.includes(p.color);
+
+  /** 펜·형광펜을 누르면 고르면서 굵기 창을 연다. 이미 고른 도구를 다시 누르면 창을 열고 닫는다 */
+  const pickTool = (id: CanvasToolId, el: HTMLElement) => {
+    if (id === 'pen' || id === 'marker') {
+      const open = pop?.kind === 'size' && pop.tool === id;
+      setPop(p.tool === id && open ? null : { kind: 'size', tool: id, el });
+    } else setPop(null);
+    p.onTool(id);
+  };
+
   return (
     <div role="toolbar" aria-label="캔버스 도구" className="flex items-center gap-0.5 overflow-x-auto border-b border-line bg-surface px-2 py-1 [scrollbar-width:none] md:flex-wrap md:overflow-visible [&>*]:shrink-0">
       {TOOLS.map((t) => (
@@ -61,46 +74,46 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           type="button"
           aria-label={t.label}
           aria-pressed={p.tool === t.id}
-          title={t.label}
-          onClick={() => p.onTool(t.id)}
-          className={cn(BTN, p.tool === t.id && 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent')}
+          aria-haspopup={t.id === 'pen' || t.id === 'marker' ? 'dialog' : undefined}
+          title={t.id === 'pen' || t.id === 'marker' ? `${t.label} · 굵기` : t.label}
+          onClick={(e) => pickTool(t.id, e.currentTarget)}
+          className={cn(BTN, 'relative', p.tool === t.id && 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent')}
         >
           {t.icon}
+          {(t.id === 'pen' || t.id === 'marker') && (
+            <span className="absolute right-1 bottom-1 text-[9px] leading-none tabular-nums opacity-70" aria-hidden>
+              {p.sizes[t.id]}
+            </span>
+          )}
         </button>
       ))}
       <span className="mx-1 h-6 w-px bg-line" aria-hidden />
       <div className={cn('flex items-center gap-0.5', !drawing && 'opacity-40')} role="group" aria-label="색">
         {INK_COLORS.map((c) => (
-          <button
-            key={c.hex}
-            type="button"
-            aria-label={`${c.label} 색`}
-            aria-pressed={p.color === c.hex}
-            title={c.label}
-            onClick={() => p.onColor(c.hex)}
-            className="grid size-11 shrink-0 place-items-center md:size-8"
-          >
-            <span
-              className={cn('size-5 rounded-full border border-black/10', p.color === c.hex && 'ring-2 ring-accent ring-offset-2 ring-offset-surface')}
-              style={{ backgroundColor: c.hex }}
-            />
-          </button>
+          <Swatch key={c.hex} hex={c.hex} label={`${c.label} 색`} active={p.color === c.hex} onClick={() => p.onColor(c.hex)} />
         ))}
-      </div>
-      <span className="mx-1 h-6 w-px bg-line" aria-hidden />
-      <div className="flex items-center gap-0.5" role="group" aria-label="굵기">
-        {(Object.keys(STROKE_SIZES) as StrokeSizeKey[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            aria-label={STROKE_SIZES[k].label}
-            aria-pressed={p.size === k}
-            onClick={() => p.onSize(k)}
-            className={cn('h-11 rounded-lg px-2.5 text-[13px] text-fg-2 hover:bg-surface-2 md:h-9', p.size === k && 'bg-accent-soft text-accent')}
-          >
-            {STROKE_SIZES[k].label}
-          </button>
-        ))}
+        {p.favorites
+          .filter((hex) => !INK_COLORS.some((c) => c.hex === hex))
+          .map((hex) => (
+            <Swatch key={hex} hex={hex} label={`즐겨찾는 색 ${hex}`} active={p.color === hex} onClick={() => p.onColor(hex)} favorite />
+          ))}
+        <button
+          type="button"
+          aria-label="색 직접 고르기"
+          title="색 직접 고르기 · 즐겨찾기"
+          aria-haspopup="dialog"
+          aria-expanded={pop?.kind === 'color'}
+          onClick={(e) => setPop(pop?.kind === 'color' ? null : { kind: 'color', el: e.currentTarget })}
+          className="grid size-11 shrink-0 place-items-center md:size-8"
+          data-canvas-color-custom=""
+        >
+          <span
+            className={cn('size-5 rounded-full border border-black/10', !known && 'ring-2 ring-accent ring-offset-2 ring-offset-surface')}
+            style={{
+              background: known ? 'conic-gradient(#ef4444, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #ef4444)' : p.color,
+            }}
+          />
+        </button>
       </div>
       <span className="mx-1 h-6 w-px bg-line" aria-hidden />
       <button type="button" aria-label="실행 취소" title="실행 취소 (⌘Z)" disabled={!p.canUndo} onClick={p.onUndo} className={BTN}>
@@ -127,10 +140,184 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         className="sticky right-0 inline-flex h-11 items-center gap-1.5 rounded-lg bg-surface px-2.5 text-[13px] text-fg-2 shadow-[-8px_0_8px_-4px_var(--color-surface)] hover:bg-surface-2 hover:text-fg md:static md:h-9 md:shadow-none"
         data-canvas-import=""
       >
-        <ImagePlus size={17} />
+        <Import size={17} />
         가져오기
+      </button>
+      {pop?.kind === 'size' && (
+        <Popover anchor={pop.el} label={pop.tool === 'pen' ? '펜 굵기' : '형광펜 굵기'} onClose={() => setPop(null)}>
+          <SizeEditor kind={pop.tool} size={p.sizes[pop.tool]} color={p.color} onSize={(n) => p.onSize(pop.tool, n)} />
+        </Popover>
+      )}
+      {pop?.kind === 'color' && (
+        <Popover anchor={pop.el} label="색 고르기" onClose={() => setPop(null)}>
+          <ColorEditor color={p.color} onColor={p.onColor} favorites={p.favorites} onToggleFavorite={p.onToggleFavorite} />
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+function Swatch({ hex, label, active, onClick, favorite }: { hex: string; label: string; active: boolean; onClick(): void; favorite?: boolean }) {
+  return (
+    <button type="button" aria-label={label} aria-pressed={active} title={label} onClick={onClick} className="relative grid size-11 shrink-0 place-items-center md:size-8" data-canvas-ink={hex}>
+      <span
+        className={cn('size-5 rounded-full border border-black/15', active && 'ring-2 ring-accent ring-offset-2 ring-offset-surface')}
+        style={{ backgroundColor: hex }}
+      />
+      {favorite && <Star size={8} className="absolute top-1.5 right-1.5 fill-current text-amber-500 md:top-0.5 md:right-0.5" aria-hidden />}
+    </button>
+  );
+}
+
+/** 굵기 창: 끌개 + 숫자 + 미리보기 */
+function SizeEditor({ kind, size, color, onSize }: { kind: StrokeKind; size: number; color: string; onSize(n: number): void }) {
+  const r = STROKE_RANGE[kind];
+  return (
+    <div className="flex w-60 flex-col gap-3" data-canvas-size-editor={kind}>
+      <div className="flex items-center justify-between text-[13px] text-fg-2">
+        <span>{kind === 'pen' ? '펜 굵기' : '형광펜 굵기'}</span>
+        <label className="flex items-center gap-1">
+          <input
+            type="number"
+            min={r.min}
+            max={r.max}
+            value={size}
+            aria-label="굵기 숫자"
+            onChange={(e) => onSize(clampStroke(kind, e.target.valueAsNumber))}
+            className="h-8 w-14 rounded-md border border-line bg-bg px-1.5 text-right text-[13px] text-fg tabular-nums"
+          />
+          px
+        </label>
+      </div>
+      <input
+        type="range"
+        min={r.min}
+        max={r.max}
+        step={1}
+        value={size}
+        aria-label="굵기"
+        onChange={(e) => onSize(clampStroke(kind, e.target.valueAsNumber))}
+        className="h-8 w-full accent-[var(--accent)]"
+      />
+      <div className="grid h-16 place-items-center rounded-lg border border-line bg-[#fbf9f4]" aria-hidden>
+        <span
+          className="w-40 rounded-full"
+          style={{ height: Math.min(size, 60), backgroundColor: color, opacity: kind === 'marker' ? 0.35 : 1, boxShadow: color === '#ffffff' ? '0 0 0 1px #0002' : undefined }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** 색 창: 아무 색이나 고르고, 즐겨찾기에 넣거나 뺀다 */
+function ColorEditor({ color, onColor, favorites, onToggleFavorite }: { color: string; onColor(hex: string): void; favorites: string[]; onToggleFavorite(hex: string): void }) {
+  const [hex, setHex] = useState(color);
+  useEffect(() => setHex(color), [color]);
+  const fav = favorites.includes(color);
+  const preset = INK_COLORS.some((c) => c.hex === color);
+  const full = !fav && favorites.length >= MAX_FAVORITE_INKS;
+  const commitHex = (v: string) => {
+    const t = v.trim().toLowerCase();
+    const h = t.startsWith('#') ? t : `#${t}`;
+    if (isHex(h)) onColor(h);
+    else setHex(color);
+  };
+  return (
+    <div className="flex w-60 flex-col gap-3" data-canvas-color-editor="">
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={color}
+          aria-label="색 고르기"
+          onChange={(e) => onColor(e.target.value.toLowerCase())}
+          className="h-11 w-14 cursor-pointer rounded-md border border-line bg-bg p-0.5 md:h-9"
+        />
+        <input
+          type="text"
+          value={hex}
+          aria-label="색 코드"
+          maxLength={7}
+          spellCheck={false}
+          onChange={(e) => setHex(e.target.value)}
+          onBlur={(e) => commitHex(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && commitHex(e.currentTarget.value)}
+          className="h-11 min-w-0 flex-1 rounded-md border border-line bg-bg px-2 font-mono text-[13px] text-fg md:h-9"
+        />
+      </div>
+      {favorites.length > 0 && (
+        <div className="flex flex-wrap gap-1" role="group" aria-label="즐겨찾는 색">
+          {favorites.map((h) => (
+            <button
+              key={h}
+              type="button"
+              aria-label={`즐겨찾는 색 ${h} 쓰기`}
+              title={h}
+              onClick={() => onColor(h)}
+              className={cn('size-7 rounded-full border border-black/15', h === color && 'ring-2 ring-accent ring-offset-1 ring-offset-surface')}
+              style={{ backgroundColor: h }}
+            />
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        disabled={preset || full}
+        onClick={() => onToggleFavorite(color)}
+        className={cn(SMALL_BTN, 'inline-flex items-center justify-center gap-1.5 border border-line text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40')}
+        data-canvas-favorite=""
+      >
+        <Star size={14} className={cn(fav && 'fill-current text-amber-500')} />
+        {preset ? '기본 색이에요' : fav ? '즐겨찾기에서 빼기' : full ? `즐겨찾기는 ${MAX_FAVORITE_INKS}개까지` : '즐겨찾기에 넣기'}
       </button>
     </div>
   );
 }
 
+/** 도구 막대 아래 떠 있는 작은 창. 도구 막대가 가로로 스크롤되어도 잘리지 않게 body에 띄운다 */
+function Popover({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose(): void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const place = () => {
+      const r = anchor.getBoundingClientRect();
+      const w = ref.current?.offsetWidth ?? 264;
+      setPos({ left: Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)), top: r.bottom + 6 });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [anchor]);
+
+  useEffect(() => {
+    const down = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !anchor.contains(t)) closeRef.current();
+    };
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('keydown', key);
+    };
+  }, [anchor]);
+
+  return createPortal(
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={label}
+      style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden', left: 0, top: 0 }}
+      className="fixed z-50 rounded-xl border border-line bg-surface p-3 shadow-lg"
+      data-canvas-popover=""
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}

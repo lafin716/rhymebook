@@ -15,6 +15,7 @@ import { memo, useEffect, useMemo, useRef, useState, type PointerEvent, type Ref
 import { Markdown } from '../chat/Markdown';
 import { cn } from '../lib/cn';
 import type { CanvasToolId } from './CanvasToolbar';
+import { backgroundStyle } from './canvasBackground';
 import { strokePath } from './strokePath';
 import { clampZoom, toWorld, zoomAt, type CanvasView } from './view';
 
@@ -34,6 +35,7 @@ type Gesture =
   | { kind: 'erase'; pointerId: number; origin: CanvasDoc; doc: CanvasDoc }
   | { kind: 'move' | 'resize'; pointerId: number; origin: CanvasDoc; doc: CanvasDoc; item: CanvasItem; startX: number; startY: number }
   | { kind: 'pan'; pointerId: number; lastX: number; lastY: number }
+  | { kind: 'scroll'; pointerId: number; el: HTMLElement; lastY: number }
   | { kind: 'pinch'; startView: CanvasView; startDist: number; startMid: { x: number; y: number } };
 
 interface Live {
@@ -64,6 +66,12 @@ export interface CanvasBoardProps {
 }
 
 const CURSOR: Record<CanvasToolId, string> = { select: 'cursor-default', pen: 'cursor-crosshair', marker: 'cursor-crosshair', eraser: 'cursor-cell' };
+
+/** 글 카드 본문 중 아직 넘칠 만큼 긴 것 — 여기서는 끌거나 휠을 굴리면 카드 안을 스크롤한다 */
+const scrollableAt = (target: EventTarget | null): HTMLElement | null => {
+  const el = (target as HTMLElement | null)?.closest?.<HTMLElement>('[data-canvas-scroll]');
+  return el && el.scrollHeight > el.clientHeight + 1 ? el : null;
+};
 
 const local = (el: HTMLDivElement | null, clientX: number, clientY: number) => {
   const r = el?.getBoundingClientRect();
@@ -111,6 +119,12 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
     if (!el) return;
     let settle: ReturnType<typeof setTimeout> | undefined;
     const onWheel = (e: WheelEvent) => {
+      // 긴 글 카드 위에서는 카드 안을 스크롤한다 (끝까지 가면 판을 움직인다)
+      const sc = !(e.ctrlKey || e.metaKey) && Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? scrollableAt(e.target) : null;
+      if (sc) {
+        const atEnd = e.deltaY > 0 ? sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 1 : sc.scrollTop <= 0;
+        if (!atEnd) return;
+      }
       e.preventDefault();
       const r = el.getBoundingClientRect();
       const sx = e.clientX - r.left;
@@ -147,6 +161,9 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
 
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.button !== 1) return;
+    // 마우스로 카드 스크롤 막대를 잡으면 브라우저에 맡긴다
+    const bar = e.pointerType === 'mouse' ? scrollableAt(e.target) : null;
+    if (bar && e.target === bar && e.nativeEvent.offsetX > bar.clientWidth) return;
     if (e.pointerType === 'pen') {
       penSeen.current = true;
       // 펜보다 먼저 닿은 손바닥의 획·확대는 버리고 펜이 이어받는다
@@ -174,6 +191,14 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
 
     const w = toWorld(view, p.x, p.y);
     const panHere = e.button === 1 || (e.pointerType === 'touch' && penSeen.current && tool !== 'select');
+    // 손가락·펜으로 긴 글 카드 본문을 끌면 카드 안을 스크롤한다 (제목줄을 끌면 옮긴다)
+    const sc = e.pointerType !== 'mouse' && (panHere || tool === 'select') ? scrollableAt(e.target) : null;
+    if (sc) {
+      const id = sc.closest<HTMLElement>('[data-canvas-item]')?.dataset.canvasItem;
+      if (tool === 'select' && id) onSelect(id);
+      setG({ kind: 'scroll', pointerId: e.pointerId, el: sc, lastY: p.y });
+      return;
+    }
     if (panHere) {
       setG({ kind: 'pan', pointerId: e.pointerId, lastX: p.x, lastY: p.y });
       return;
@@ -243,6 +268,10 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
       g.lastX = p.x;
       g.lastY = p.y;
       onView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+    } else if (g.kind === 'scroll') {
+      // 카드는 확대된 좌표계 안이라 화면 이동량을 배율로 나눈다
+      g.el.scrollTop -= (p.y - g.lastY) / view.k;
+      g.lastY = p.y;
     } else if (g.kind === 'draw') {
       for (const ev of coalesced(e)) {
         const r = boardRef.current?.getBoundingClientRect();
@@ -306,6 +335,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
       onSettle?.();
       return;
     }
+    if (g.kind === 'scroll') return;
     if (g.kind === 'draw') {
       if (g.points.length >= 6) {
         onCommit(addStroke(g.origin, { id: newId('s'), tool: g.tool, color: g.color, size: g.size, points: compactPoints(g.points) }));
@@ -316,6 +346,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
   };
 
   const cursor = CURSOR[tool];
+  const pageBg = useMemo(() => backgroundStyle(doc.bg), [doc.bg]);
   const strokeNodes = useMemo(
     () =>
       shown.strokes.map((s) => (
@@ -338,7 +369,8 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
       role="application"
       aria-label="캔버스 그림판"
       data-paged={pages.length ? '' : undefined}
-      className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', pages.length ? 'bg-[#e6e2d9]' : 'bg-[#fbf9f4]', cursor)}
+      className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', pages.length && 'bg-[#e6e2d9]', cursor)}
+      style={pages.length ? undefined : backgroundStyle(doc.bg, view.k, view.x, view.y)}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
@@ -348,15 +380,20 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
         className={cn('absolute top-0 left-0 origin-top-left', animate && 'transition-transform duration-200 ease-out')}
         style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}
       >
-        {pages.map((r, i) => (
-          <div
-            key={i}
-            data-canvas-page={i}
-            aria-hidden
-            className="absolute bg-[#fbf9f4] shadow-[0_1px_6px_rgba(0,0,0,0.18)]"
-            style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
-          />
-        ))}
+        {pages.map((r, i) => {
+          const pdfPage = doc.pdf?.pages[i];
+          return (
+            <div
+              key={i}
+              data-canvas-page={i}
+              aria-hidden
+              className={cn('absolute shadow-[0_1px_6px_rgba(0,0,0,0.18)]', pdfPage && 'bg-white')}
+              style={{ left: r.x, top: r.y, width: r.w, height: r.h, ...(pdfPage ? {} : pageBg) }}
+            >
+              {pdfPage && <img src={pdfPage.src} alt="" draggable={false} className="pointer-events-none size-full" data-canvas-pdf-page={i} />}
+            </div>
+          );
+        })}
         {shown.items.map((item) => (
           <ItemView key={item.id} item={item} selected={item.id === selectedId} movable={tool === 'select'} k={view.k} />
         ))}
@@ -401,7 +438,7 @@ const ItemView = memo(function ItemView({ item, selected, movable, k }: { item: 
     <div data-canvas-item={item.id} data-selected={selected || undefined} role="article" aria-label={item.title} className={frame} style={box}>
       <div className="flex size-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <div className="shrink-0 truncate border-b border-line px-3 py-1.5 text-[13px] font-semibold">{item.title}</div>
-        <div className="min-h-0 flex-1 overflow-hidden px-3 py-2 text-[14px]">
+        <div data-canvas-scroll="" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 text-[14px]">
           <Markdown content={item.text} />
         </div>
       </div>

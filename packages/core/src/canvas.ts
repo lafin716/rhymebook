@@ -57,10 +57,40 @@ export interface CanvasStroke {
   points: number[];
 }
 
-/** 판 모양: 자유(끝없는 판), 가로형 16:9, 세로형 9:16 쪽 나눔 */
-export type CanvasLayout = 'free' | 'landscape' | 'portrait';
+/** 판 모양: 자유(끝없는 판), 가로형 16:9, 세로형 9:16, A4 가로 쪽 나눔, PDF(쪽마다 PDF 한 장) */
+export type CanvasLayout = 'free' | 'landscape' | 'portrait' | 'a4-landscape' | 'pdf';
+/** 크기가 정해진 쪽 나눔 판 */
+export type CanvasFixedLayout = Exclude<CanvasLayout, 'free' | 'pdf'>;
 /** 쪽이 이어지는 방향: 옆으로(오른쪽) 또는 위아래로(아래쪽) */
 export type CanvasFlow = 'horizontal' | 'vertical';
+
+/** PDF 한 쪽: 그림으로 바꾼 쪽과 그 쪽의 캔버스 크기 */
+export interface CanvasPdfPage {
+  /** data:image/(png|jpeg|webp);base64,… */
+  src: string;
+  w: number;
+  h: number;
+}
+
+export interface CanvasPdf {
+  name: string;
+  pages: CanvasPdfPage[];
+}
+
+/** 바탕 무늬: 바둑판 촘촘하게·느슨하게, 줄공책 */
+export type CanvasPattern = 'grid-fine' | 'grid-wide' | 'lines';
+
+export interface CanvasBackground {
+  /** #rrggbb. 없으면 기본 종이색 */
+  color?: string;
+  /** 없으면 민무늬 */
+  pattern?: CanvasPattern;
+}
+
+/** 기본 종이색 */
+export const CANVAS_PAPER = '#fbf9f4';
+/** 무늬 칸 간격 (캔버스 px) */
+export const CANVAS_PATTERN_STEP: Record<CanvasPattern, number> = { 'grid-fine': 20, 'grid-wide': 48, lines: 36 };
 
 export interface CanvasDoc {
   v: 1;
@@ -73,44 +103,100 @@ export interface CanvasDoc {
   pages?: number;
   /** 쪽 나눔 판의 쪽 방향. 없으면 'horizontal' */
   flow?: CanvasFlow;
+  /** layout이 'pdf'일 때 쪽마다 깔리는 PDF */
+  pdf?: CanvasPdf;
+  /** 바탕색·무늬. 없으면 민무늬 종이 */
+  bg?: CanvasBackground;
 }
 
 export const emptyCanvas = (): CanvasDoc => ({ v: 1, items: [], strokes: [] });
 
 /** 쪽 크기 (캔버스 px) */
-export const CANVAS_PAGE_SIZE: Record<Exclude<CanvasLayout, 'free'>, { w: number; h: number }> = {
+export const CANVAS_PAGE_SIZE: Record<CanvasFixedLayout, { w: number; h: number }> = {
   landscape: { w: 1600, h: 900 },
   portrait: { w: 900, h: 1600 },
+  'a4-landscape': { w: 1600, h: 1131 },
 };
 /** 쪽 사이 간격 (캔버스 px) */
 export const CANVAS_PAGE_GAP = 80;
 export const CANVAS_MAX_PAGES = 200;
+const PDF_PAGE_MAX_SIDE = 4000;
 
 export const canvasLayout = (doc: Pick<CanvasDoc, 'layout'>): CanvasLayout => doc.layout ?? 'free';
 
 export const canvasFlow = (doc: Pick<CanvasDoc, 'flow'>): CanvasFlow => doc.flow ?? 'horizontal';
 
-export const canvasPageCount = (doc: Pick<CanvasDoc, 'layout' | 'pages'>): number =>
-  canvasLayout(doc) === 'free' ? 0 : Math.max(1, doc.pages ?? 1);
+export const canvasPageCount = (doc: Pick<CanvasDoc, 'layout' | 'pages' | 'pdf'>): number => {
+  const layout = canvasLayout(doc);
+  if (layout === 'free') return 0;
+  if (layout === 'pdf') return doc.pdf?.pages.length ?? 0;
+  return Math.max(1, doc.pages ?? 1);
+};
 
 /**
  * i번째 쪽(0부터)의 사각형. 쪽은 오른쪽(위아래 방향이면 아래쪽)으로 이어지고, 첫 쪽의 가운데가 캔버스 원점이다
  * (자유 판에서 원점 둘레에 쓴 내용이 첫 쪽에 들어온다). 자유 판이면 null.
  */
 export function canvasPageRect(layout: CanvasLayout, i: number, flow: CanvasFlow = 'horizontal'): CanvasRect | null {
-  if (layout === 'free') return null;
+  if (layout === 'free' || layout === 'pdf') return null;
   const { w, h } = CANVAS_PAGE_SIZE[layout];
   return flow === 'vertical'
     ? { x: -w / 2, y: i * (h + CANVAS_PAGE_GAP) - h / 2, w, h }
     : { x: i * (w + CANVAS_PAGE_GAP) - w / 2, y: -h / 2, w, h };
 }
 
-/** 판 모양 바꾸기. 내용은 그대로 두고, 쪽 나눔이면 쪽 수·쪽 방향을 지킨다 */
+/**
+ * 모든 쪽 사각형. 정해진 크기 판은 canvasPageRect와 같고, PDF 판은 쪽마다 크기가 달라
+ * 쪽 방향으로 이어 놓고 가로지르는 축은 가운데에 맞춘다(첫 쪽 가운데가 원점). 자유 판이면 빈 배열.
+ */
+export function canvasPageRects(doc: Pick<CanvasDoc, 'layout' | 'pages' | 'flow' | 'pdf'>): CanvasRect[] {
+  const layout = canvasLayout(doc);
+  const flow = canvasFlow(doc);
+  const n = canvasPageCount(doc);
+  if (layout !== 'pdf') return Array.from({ length: n }, (_, i) => canvasPageRect(layout, i, flow)!);
+  const pages = doc.pdf?.pages ?? [];
+  const out: CanvasRect[] = [];
+  const first = pages[0];
+  if (!first) return out;
+  // 첫 쪽의 앞 가장자리에서 시작해 쪽 방향으로 쌓는다
+  let at = flow === 'vertical' ? -first.h / 2 : -first.w / 2;
+  for (const p of pages) {
+    out.push(flow === 'vertical' ? { x: -p.w / 2, y: at, w: p.w, h: p.h } : { x: at, y: -p.h / 2, w: p.w, h: p.h });
+    at += (flow === 'vertical' ? p.h : p.w) + CANVAS_PAGE_GAP;
+  }
+  return out;
+}
+
+/** 판 모양 바꾸기. 내용은 그대로 두고, 쪽 나눔이면 쪽 수·쪽 방향을 지킨다. PDF 판은 setCanvasPdf로만 만들고, 다른 판으로 바꾸면 PDF를 뺀다 */
 export function setCanvasLayout(doc: CanvasDoc, layout: CanvasLayout): CanvasDoc {
-  if (layout === canvasLayout(doc)) return doc;
-  const { layout: _l, pages: _p, flow, ...rest } = doc;
+  if (layout === canvasLayout(doc) || layout === 'pdf') return doc;
+  const { layout: _l, pages: _p, flow, pdf: _pdf, ...rest } = doc;
   if (layout === 'free') return rest;
-  return { ...rest, layout, pages: Math.max(1, doc.pages ?? 1), ...(flow === 'vertical' ? { flow } : {}) };
+  const pages = doc.pdf ? 1 : Math.max(1, doc.pages ?? 1);
+  return { ...rest, layout, pages, ...(flow === 'vertical' ? { flow } : {}) };
+}
+
+/** PDF 판으로 바꾼다: 쪽마다 PDF 한 장. 내용과 쪽 방향은 지킨다. 쪽이 없으면 그대로 */
+export function setCanvasPdf(doc: CanvasDoc, pdf: CanvasPdf): CanvasDoc {
+  if (!pdf.pages.length) return doc;
+  const { layout: _l, pages: _p, pdf: _pdf, ...rest } = doc;
+  return { ...rest, layout: 'pdf', pages: Math.min(CANVAS_MAX_PAGES, pdf.pages.length), pdf: { ...pdf, pages: pdf.pages.slice(0, CANVAS_MAX_PAGES) } };
+}
+
+/** 바탕 바꾸기. 기본 종이색·민무늬는 저장하지 않는다 */
+export function setCanvasBackground(doc: CanvasDoc, bg: CanvasBackground): CanvasDoc {
+  const color = bg.color && bg.color.toLowerCase() !== CANVAS_PAPER ? bg.color.toLowerCase() : undefined;
+  const next: CanvasBackground = { ...(color ? { color } : {}), ...(bg.pattern ? { pattern: bg.pattern } : {}) };
+  const { bg: _bg, ...rest } = doc;
+  if (doc.bg?.color === next.color && doc.bg?.pattern === next.pattern) return doc;
+  return next.color || next.pattern ? { ...rest, bg: next } : rest;
+}
+
+/** 실행 취소 기록에 넣지 않는 설정(판 모양·쪽 수·쪽 방향·PDF·바탕)은 cur 값을 지킨다 */
+export function keepCanvasSettings(d: CanvasDoc, cur: CanvasDoc): CanvasDoc {
+  const { layout: _l, pages: _p, flow: _f, pdf: _pdf, bg: _bg, ...rest } = d;
+  const { layout, pages, flow, pdf, bg } = cur;
+  return { ...rest, ...(layout ? { layout } : {}), ...(pages ? { pages } : {}), ...(flow ? { flow } : {}), ...(pdf ? { pdf } : {}), ...(bg ? { bg } : {}) };
 }
 
 /** 쪽 방향 바꾸기. 자유 판에서는 그대로 */
@@ -123,7 +209,7 @@ export function setCanvasFlow(doc: CanvasDoc, flow: CanvasFlow): CanvasDoc {
 /** 쪽 나눔 판에 빈 쪽을 하나 더한다 (상한이면 그대로) */
 export function addCanvasPage(doc: CanvasDoc): CanvasDoc {
   const n = canvasPageCount(doc);
-  if (!n || n >= CANVAS_MAX_PAGES) return doc;
+  if (!n || n >= CANVAS_MAX_PAGES || canvasLayout(doc) === 'pdf') return doc;
   return { ...doc, pages: n + 1 };
 }
 
@@ -152,6 +238,32 @@ function parseItem(v: unknown): CanvasItem | null {
   return null;
 }
 
+const PDF_SRC_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+const PATTERNS: readonly string[] = ['grid-fine', 'grid-wide', 'lines'] satisfies CanvasPattern[];
+
+function parsePdf(v: unknown): CanvasPdf | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  if (!Array.isArray(o.pages)) return null;
+  const pages: CanvasPdfPage[] = [];
+  for (const p of o.pages.slice(0, CANVAS_MAX_PAGES) as unknown[]) {
+    const q = (p ?? {}) as Record<string, unknown>;
+    if (typeof q.src !== 'string' || !PDF_SRC_RE.test(q.src) || !num(q.w) || !num(q.h)) return null;
+    if (q.w <= 0 || q.h <= 0 || q.w > PDF_PAGE_MAX_SIDE || q.h > PDF_PAGE_MAX_SIDE) return null;
+    pages.push({ src: q.src, w: q.w, h: q.h });
+  }
+  if (!pages.length) return null;
+  return { name: str(o.name, 300) ? o.name : 'PDF', pages };
+}
+
+function parseBackground(v: unknown): CanvasBackground | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const color = typeof o.color === 'string' && COLOR_RE.test(o.color) ? o.color.toLowerCase() : undefined;
+  const pattern = typeof o.pattern === 'string' && PATTERNS.includes(o.pattern) ? (o.pattern as CanvasPattern) : undefined;
+  return color || pattern ? { ...(color ? { color } : {}), ...(pattern ? { pattern } : {}) } : null;
+}
+
 function parseStroke(v: unknown): CanvasStroke | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
@@ -175,11 +287,19 @@ export function parseCanvas(content: string | undefined): CanvasDoc {
   const items = Array.isArray(o.items) ? o.items.map(parseItem).filter((x): x is CanvasItem => !!x) : [];
   const strokes = Array.isArray(o.strokes) ? o.strokes.map(parseStroke).filter((x): x is CanvasStroke => !!x) : [];
   const doc: CanvasDoc = { v: 1, items, strokes };
-  if (o.layout === 'landscape' || o.layout === 'portrait') {
+  const pdf = o.layout === 'pdf' ? parsePdf(o.pdf) : null;
+  if (pdf) {
+    doc.layout = 'pdf';
+    doc.pages = pdf.pages.length;
+    doc.pdf = pdf;
+    if (o.flow === 'vertical') doc.flow = 'vertical';
+  } else if (o.layout === 'landscape' || o.layout === 'portrait' || o.layout === 'a4-landscape') {
     doc.layout = o.layout;
     doc.pages = num(o.pages) ? Math.min(CANVAS_MAX_PAGES, Math.max(1, Math.floor(o.pages))) : 1;
     if (o.flow === 'vertical') doc.flow = 'vertical';
   }
+  const bg = parseBackground(o.bg);
+  if (bg) doc.bg = bg;
   return doc;
 }
 
@@ -323,6 +443,7 @@ export const pageCardText = (content: string, max = CARD_MAX_CHARS): string => c
 /** 맥락·검색·내보내기용 캔버스 글: 글 카드 제목과 내용, 이미지·필기 개수 */
 export function canvasText(doc: CanvasDoc, max = 6000): string {
   const out: string[] = [];
+  if (doc.pdf) out.push(`[PDF: ${doc.pdf.name}]`, '');
   for (const it of doc.items) {
     if (it.type === 'text') out.push(`## ${it.title}`, it.text.trim(), '');
     else out.push(`[이미지${it.name ? `: ${it.name}` : ''}]`, '');
