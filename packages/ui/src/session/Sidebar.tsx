@@ -89,7 +89,12 @@ function SidebarResizer() {
     setActive(true);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    const onMove = (ev: PointerEvent) => useUi.getState().setSidebarWidth(startW + ev.clientX - startX, false);
+    // pointercancel의 clientX는 0일 수 있어 마지막으로 움직인 위치를 쓴다
+    let lastX = startX;
+    const onMove = (ev: PointerEvent) => {
+      lastX = ev.clientX;
+      useUi.getState().setSidebarWidth(startW + lastX - startX, false);
+    };
     const onUp = (ev: PointerEvent) => {
       el.removeEventListener('pointermove', onMove);
       el.removeEventListener('pointerup', onUp);
@@ -97,7 +102,8 @@ function SidebarResizer() {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       setActive(false);
-      useUi.getState().setSidebarWidth(startW + ev.clientX - startX);
+      if (ev.type === 'pointerup') lastX = ev.clientX;
+      useUi.getState().setSidebarWidth(startW + lastX - startX);
     };
     el.addEventListener('pointermove', onMove);
     el.addEventListener('pointerup', onUp);
@@ -123,7 +129,8 @@ function SidebarResizer() {
         else return;
         e.preventDefault();
       }}
-      className="group absolute inset-y-0 -right-1.5 z-20 w-3 cursor-col-resize outline-none"
+      // touch-none: 없으면 태블릿 브라우저가 손가락 끌기를 스크롤·뒤로 가기 몸짓으로 가로채 pointercancel로 끊는다
+      className="group absolute inset-y-0 -right-1.5 z-20 w-3 cursor-col-resize touch-none outline-none pointer-coarse:-right-3 pointer-coarse:w-6"
     >
       <span
         className={cn(

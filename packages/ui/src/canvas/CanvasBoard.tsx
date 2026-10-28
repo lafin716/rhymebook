@@ -1,5 +1,7 @@
 import {
   addStroke,
+  canvasPageAt,
+  clipStrokePoints,
   compactPoints,
   eraseStrokesAt,
   newId,
@@ -31,7 +33,7 @@ const WHEEL_SETTLE_MS = 160;
  * 펜·지우개·항목 이동을 한 동작마다 실행 취소 한 칸으로 묶는다.
  */
 type Gesture =
-  | { kind: 'draw'; pointerId: number; origin: CanvasDoc; tool: CanvasTool; nib: CanvasPenNib; color: string; size: number; points: number[] }
+  | { kind: 'draw'; pointerId: number; origin: CanvasDoc; tool: CanvasTool; nib: CanvasPenNib; color: string; size: number; points: number[]; page: CanvasRect | null }
   | { kind: 'erase'; pointerId: number; origin: CanvasDoc; doc: CanvasDoc }
   | { kind: 'move' | 'resize'; pointerId: number; origin: CanvasDoc; doc: CanvasDoc; item: CanvasItem; startX: number; startY: number }
   | { kind: 'pan'; pointerId: number; lastX: number; lastY: number }
@@ -43,8 +45,12 @@ interface Live {
   nib: CanvasPenNib;
   color: string;
   size: number;
-  points: number[];
+  /** 쪽 나눔 판은 쪽 밖을 잘라 여러 조각이 될 수 있다 */
+  parts: number[][];
 }
+
+/** 그리는 중인 점들 → 남길 조각들. 쪽 나눔 판이면 획을 시작한 쪽 안만 남긴다 */
+const strokeParts = (points: number[], page: CanvasRect | null): number[][] => (page ? clipStrokePoints(points, page) : [points]);
 
 export interface CanvasBoardProps {
   doc: CanvasDoc;
@@ -242,8 +248,16 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       return;
     }
 
-    setLive({ tool, nib, color, size, points: [w.x, w.y, e.pressure || 0.5] });
-    setG({ kind: 'draw', pointerId: e.pointerId, origin: doc, tool, nib, color, size, points: [w.x, w.y, e.pressure || 0.5] });
+    // 쪽 나눔 판에서는 쪽 밖에 쓰지 않는다 — 쪽 밖에서 시작하면 화면을 옮긴다
+    const pageIdx = pages.length ? canvasPageAt(pages, w.x, w.y) : -1;
+    if (pages.length && pageIdx < 0) {
+      setG({ kind: 'pan', pointerId: e.pointerId, lastX: p.x, lastY: p.y });
+      return;
+    }
+    const page = pages[pageIdx] ?? null;
+    const points = [w.x, w.y, e.pressure || 0.5];
+    setLive({ tool, nib, color, size, parts: [points.slice()] });
+    setG({ kind: 'draw', pointerId: e.pointerId, origin: doc, tool, nib, color, size, points, page });
   };
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -290,7 +304,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
         liveFrame.current = requestAnimationFrame(() => {
           liveFrame.current = 0;
           const cur = gestureRef.current;
-          if (cur?.kind === 'draw') setLive({ tool: cur.tool, nib: cur.nib, color: cur.color, size: cur.size, points: cur.points.slice() });
+          if (cur?.kind === 'draw') setLive({ tool: cur.tool, nib: cur.nib, color: cur.color, size: cur.size, parts: strokeParts(cur.points, cur.page) });
         });
       }
     } else if (g.kind === 'erase') {
@@ -343,18 +357,20 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     }
     if (g.kind === 'scroll') return;
     if (g.kind === 'draw') {
-      if (g.points.length >= 6) {
-        onCommit(
-          addStroke(g.origin, {
-            id: newId('s'),
-            tool: g.tool,
-            color: g.color,
-            size: g.size,
-            points: compactPoints(g.points),
-            ...(g.tool === 'pen' && g.nib !== 'fountain' ? { nib: g.nib } : {}),
-          }),
-        );
+      if (g.points.length < 6) return;
+      let next = g.origin;
+      for (const part of strokeParts(g.points, g.page)) {
+        if (part.length < 6) continue;
+        next = addStroke(next, {
+          id: newId('s'),
+          tool: g.tool,
+          color: g.color,
+          size: g.size,
+          points: compactPoints(part),
+          ...(g.tool === 'pen' && g.nib !== 'fountain' ? { nib: g.nib } : {}),
+        });
       }
+      if (next !== g.origin) onCommit(next);
       return;
     }
     if (g.doc !== g.origin) onCommit(g.doc);
@@ -415,14 +431,15 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
         ))}
         <svg aria-hidden className="pointer-events-none absolute top-0 left-0 overflow-visible" width={1} height={1}>
           {strokeNodes}
-          {live && (
+          {live?.parts.map((points, i) => (
             <path
-              d={strokePath(live)}
+              key={i}
+              d={strokePath({ ...live, points })}
               fill={live.color}
               opacity={strokeOpacity(live)}
               style={live.tool === 'marker' ? { mixBlendMode: 'multiply' } : undefined}
             />
-          )}
+          ))}
         </svg>
       </div>
       {gesture?.kind === 'pinch' && <span className="sr-only">확대·이동 중</span>}

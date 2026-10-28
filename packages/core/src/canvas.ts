@@ -342,6 +342,74 @@ export function compactPoints(points: readonly number[], minDist = 1): number[] 
   return out;
 }
 
+const inRect = (r: CanvasRect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+/** (x, y)가 들어 있는 쪽 번호. 어느 쪽에도 없으면 -1 */
+export const canvasPageAt = (rects: readonly CanvasRect[], x: number, y: number): number => rects.findIndex((r) => inRect(r, x, y));
+
+/** 선분 a→b 중 사각형 안에 드는 구간 [t0, t1] (0~1). 겹치지 않으면 null (Liang–Barsky) */
+function clipSegment(r: CanvasRect, ax: number, ay: number, bx: number, by: number): [number, number] | null {
+  const dx = bx - ax;
+  const dy = by - ay;
+  let t0 = 0;
+  let t1 = 1;
+  const edges: [number, number][] = [
+    [-dx, ax - r.x],
+    [dx, r.x + r.w - ax],
+    [-dy, ay - r.y],
+    [dy, r.y + r.h - ay],
+  ];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return null;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+    if (t0 > t1) return null;
+  }
+  return [t0, t1];
+}
+
+/**
+ * 획 점([x, y, p] 반복)을 사각형(쪽) 안 부분만 남겨 조각들로 나눈다. 쪽 밖으로 나갔다 들어오면 조각이 갈라지고,
+ * 경계를 지나는 곳에는 경계 위 점을 넣어 획이 쪽 가장자리까지 닿게 한다. 점 하나뿐인 조각(톡 찍기)도 남긴다.
+ */
+export function clipStrokePoints(points: readonly number[], rect: CanvasRect): number[][] {
+  const n = Math.floor(points.length / 3);
+  const out: number[][] = [];
+  let cur: number[] | null = null;
+  const push = (x: number, y: number, p: number) => {
+    if (!cur) {
+      cur = [];
+      out.push(cur);
+    }
+    const last = cur.length - 3;
+    if (last >= 0 && cur[last] === x && cur[last + 1] === y) return;
+    cur.push(x, y, p);
+  };
+  if (n === 1 && inRect(rect, points[0]!, points[1]!)) return [points.slice(0, 3)];
+  for (let i = 0; i + 1 < n; i++) {
+    const [ax, ay, ap] = [points[i * 3]!, points[i * 3 + 1]!, points[i * 3 + 2]!];
+    const [bx, by, bp] = [points[i * 3 + 3]!, points[i * 3 + 4]!, points[i * 3 + 5]!];
+    const seg = clipSegment(rect, ax, ay, bx, by);
+    if (!seg) {
+      cur = null;
+      continue;
+    }
+    const [t0, t1] = seg;
+    const at = (t: number) => [ax + (bx - ax) * t, ay + (by - ay) * t, ap + (bp - ap) * t] as const;
+    // 들어오는 선분이면 새 조각을 연다
+    if (t0 > 0) cur = null;
+    push(...at(t0));
+    push(...at(t1));
+    // 나가는 선분이면 조각을 닫는다
+    if (t1 < 1) cur = null;
+  }
+  return out;
+}
+
 /** 점 (px, py)에서 선분 (ax,ay)-(bx,by)까지 거리 */
 function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax;

@@ -25,7 +25,7 @@ import {
   type CanvasPenNib,
   type ID,
 } from '@branch/core';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react';
+import { Archive, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { PanelVariant } from '../chat/ChatPanel';
 import { SessionHeader } from '../chat/SessionHeader';
@@ -39,7 +39,9 @@ import { CanvasSettings } from './CanvasSettings';
 import { confirm } from '../components/ConfirmDialog';
 import { CanvasToolbar, INK_COLORS, type CanvasToolId } from './CanvasToolbar';
 import { pictureFromFile, type CanvasPicture } from './canvasImage';
+import { canvasPageAttachment } from './canvasPageImage';
 import { pdfFromFile } from './canvasPdf';
+import { saveToVault } from '../vault/save';
 import {
   loadFavoriteInks,
   loadPenNib,
@@ -291,6 +293,23 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   };
 
   /** i쪽으로 넘긴다. 마지막 쪽 다음이면 빈 쪽을 하나 더한다 */
+  const title = useApp((s) => s.sessions[sessionId]?.title ?? '');
+  const [savingPage, setSavingPage] = useState(false);
+  /** 지금 쪽을 그림으로 만들어 보관함에 담는다 */
+  const savePage = async () => {
+    const rect = pageRects[page];
+    if (!rect || savingPage) return;
+    setSavingPage(true);
+    try {
+      const attachment = await canvasPageAttachment(doc, rect, page, title);
+      saveToVault({ type: 'image', attachment }, undefined, `${title.trim() || '캔버스'} ${page + 1}쪽`);
+    } catch (e) {
+      pushNotice(e instanceof Error ? e.message : '쪽을 보관함에 담지 못했어요.');
+    } finally {
+      setSavingPage(false);
+    }
+  };
+
   const goPage = (i: number) => {
     let d = docRef.current;
     const n = canvasPageCount(d);
@@ -555,7 +574,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           onSettle={settle}
           animate={animate}
         />
-        {pageCount > 0 && <PageNav page={page} count={pageCount} vertical={flow === 'vertical'} canAdd={layout !== 'pdf'} onGo={goPage} />}
+        {pageCount > 0 && <PageNav page={page} count={pageCount} vertical={flow === 'vertical'} canAdd={layout !== 'pdf'} onGo={goPage} saving={savingPage} onSave={() => void savePage()} />}
       </div>
       <input
         ref={fileRef}
@@ -597,7 +616,23 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
 const NAV_BTN = 'grid size-11 place-items-center rounded-full text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 md:size-9';
 
 /** 쪽 나눔 판 아래의 쪽 넘김: 이전 · n / 전체 · 다음(마지막 쪽이면 새 쪽, PDF 판은 끝) */
-function PageNav({ page, count, vertical, canAdd, onGo }: { page: number; count: number; vertical: boolean; canAdd: boolean; onGo(i: number): void }) {
+function PageNav({
+  page,
+  count,
+  vertical,
+  canAdd,
+  saving,
+  onGo,
+  onSave,
+}: {
+  page: number;
+  count: number;
+  vertical: boolean;
+  canAdd: boolean;
+  saving: boolean;
+  onGo(i: number): void;
+  onSave(): void;
+}) {
   const end = page >= count - 1;
   const last = end && canAdd;
   return (
@@ -611,6 +646,10 @@ function PageNav({ page, count, vertical, canAdd, onGo }: { page: number; count:
         </span>
         <button type="button" aria-label={last ? '새 쪽' : '다음 쪽'} title={last ? '새 쪽' : '다음 쪽'} disabled={end && !canAdd} onClick={() => onGo(page + 1)} className={NAV_BTN}>
           {last ? <Plus size={18} /> : vertical ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        </button>
+        <span aria-hidden className="mx-0.5 h-5 w-px bg-line" />
+        <button type="button" aria-label="이 쪽 보관함에 담기" title="이 쪽 보관함에 담기" disabled={saving} onClick={onSave} className={NAV_BTN}>
+          <Archive size={17} />
         </button>
       </nav>
     </div>

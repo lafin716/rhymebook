@@ -398,3 +398,51 @@ test('캔버스: PDF 가져오기 → PDF 모드 · A4 가로로 바꾸기 · �
   await expect(last).toHaveCSS('background-image', /linear-gradient/);
   expect(errors).toEqual([]);
 });
+
+test('캔버스 쪽: 쪽 밖에서는 펜이 안 써지고 쪽 끝에서 잘린다 · 쪽을 보관함에 담기', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  const board = await newCanvas(page, info.project.name === 'mobile');
+  await page.getByRole('button', { name: '캔버스 설정' }).click();
+  await page.getByRole('dialog', { name: '캔버스 설정' }).getByRole('radio', { name: /가로형 16:9/ }).click();
+  const pageEl = board.locator('[data-canvas-page]').first();
+  await expect(pageEl).toBeVisible();
+  await page.waitForTimeout(400);
+  const br = (await board.boundingBox())!;
+  const pr = (await pageEl.boundingBox())!;
+  const strokes = board.locator('svg path');
+
+  // 쪽 밖 빈 곳(위 또는 왼쪽 여백)에서 시작한 펜 획은 남지 않는다
+  const top = pr.y - br.y;
+  const left = pr.x - br.x;
+  const out = top >= left ? { x: pr.x + pr.width / 2, y: br.y + top / 2 } : { x: br.x + left / 2, y: pr.y + pr.height / 2 };
+  expect(Math.max(top, left)).toBeGreaterThan(6);
+  await page.mouse.move(out.x, out.y);
+  await page.mouse.down();
+  await page.mouse.move(out.x + 3, out.y + 3, { steps: 3 });
+  await page.mouse.up();
+  await expect(strokes).toHaveCount(0);
+
+  // 쪽 안에서 시작해 쪽 위쪽 밖으로 나간 획은 쪽 끝에서 잘린다
+  const cur = (await pageEl.boundingBox())!;
+  const sx = cur.x + cur.width * 0.4;
+  await page.mouse.move(sx, cur.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(sx + 20, cur.y + 10, { steps: 4 });
+  await page.mouse.move(sx + 40, cur.y - 30, { steps: 4 });
+  await page.mouse.up();
+  await expect(strokes).toHaveCount(1);
+  const sb = (await strokes.first().boundingBox())!;
+  const pb = (await pageEl.boundingBox())!;
+  expect(sb.y).toBeGreaterThan(pb.y - 6);
+
+  // [이 쪽 보관함에 담기] → 보관함에 그림 하나
+  await page.getByRole('navigation', { name: '쪽 넘김' }).getByRole('button', { name: '이 쪽 보관함에 담기' }).click();
+  await expect(page.getByText('보관함에 담았어요.')).toBeVisible();
+  await page.getByRole('button', { name: '보관함', exact: true }).click();
+  const vault = page.getByRole('dialog', { name: '보관함' });
+  const item = vault.locator('[data-vault-node][data-kind="item"]');
+  await expect(item).toHaveCount(1);
+  await expect(item).toContainText('1쪽');
+  expect(errors).toEqual([]);
+});

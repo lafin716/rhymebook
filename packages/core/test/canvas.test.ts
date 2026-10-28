@@ -9,7 +9,9 @@ import {
   canvasLayout,
   canvasPageCount,
   canvasPageRect,
+  canvasPageAt,
   canvasPageRects,
+  clipStrokePoints,
   CANVAS_PAPER,
   keepCanvasSettings,
   setCanvasBackground,
@@ -303,5 +305,45 @@ describe('캔버스 바탕', () => {
     expect(kept.pdf).toBe(cur.pdf);
     expect(kept.bg).toEqual({ pattern: 'grid-wide' });
     expect(keepCanvasSettings(cur, emptyCanvas())).toEqual(emptyCanvas());
+  });
+});
+
+describe('쪽 밖 필기 막기', () => {
+  const rect = { x: 0, y: 0, w: 100, h: 100 };
+
+  it('canvasPageAt: 점이 든 쪽 번호, 없으면 -1', () => {
+    const rects = [rect, { x: 180, y: 0, w: 100, h: 100 }];
+    expect(canvasPageAt(rects, 50, 50)).toBe(0);
+    expect(canvasPageAt(rects, 200, 10)).toBe(1);
+    expect(canvasPageAt(rects, 140, 50)).toBe(-1);
+  });
+
+  it('쪽 안 획은 그대로 남는다', () => {
+    expect(clipStrokePoints([10, 10, 0.5, 20, 20, 0.5, 30, 10, 0.5], rect)).toEqual([[10, 10, 0.5, 20, 20, 0.5, 30, 10, 0.5]]);
+  });
+
+  it('점 하나(톡 찍기)도 쪽 안이면 남고, 밖이면 버린다', () => {
+    expect(clipStrokePoints([5, 5, 0.5], rect)).toEqual([[5, 5, 0.5]]);
+    expect(clipStrokePoints([-5, 5, 0.5], rect)).toEqual([]);
+  });
+
+  it('쪽 밖으로 나간 부분은 잘리고 경계까지 이어진다', () => {
+    expect(clipStrokePoints([50, 50, 0.2, 150, 50, 0.6], rect)).toEqual([[50, 50, 0.2, 100, 50, 0.4]]);
+  });
+
+  it('나갔다 다시 들어오면 두 조각으로 나뉜다', () => {
+    const parts = clipStrokePoints([50, 50, 0.5, 150, 50, 0.5, 150, 80, 0.5, 50, 80, 0.5], rect);
+    expect(parts).toEqual([
+      [50, 50, 0.5, 100, 50, 0.5],
+      [100, 80, 0.5, 50, 80, 0.5],
+    ]);
+  });
+
+  it('쪽을 스치고 지나가는 선분은 안쪽 구간만 남는다', () => {
+    expect(clipStrokePoints([-50, 50, 0.5, 150, 50, 0.5], rect)).toEqual([[0, 50, 0.5, 100, 50, 0.5]]);
+  });
+
+  it('완전히 밖이면 아무것도 없다', () => {
+    expect(clipStrokePoints([-50, -50, 0.5, -10, -20, 0.5], rect)).toEqual([]);
   });
 });
