@@ -270,3 +270,66 @@ export function excerptAround(
     after: strip(content.slice(e, a)) + (a < content.length && content[a] !== '\n' ? '…' : ''),
   };
 }
+
+/** 마크다운 기호·공백 — 원문과 화면 글자를 견줄 때 양쪽에서 똑같이 뺀다 */
+const MARKUP = /[\s*_~`#>\-+[\]|\\]/;
+/** 링크·이미지의 주소 부분 `](주소 "제목")` — 화면에 보이지 않으므로 원문에서 건너뛴다 */
+const LINK_TARGET = /\]\([^)\s]*(?:\s+"[^"]*")?\)/g;
+
+function stripWithIndex(text: string, skipLinks: boolean): { norm: string; index: number[] } {
+  const skip = new Uint8Array(text.length);
+  if (skipLinks) {
+    for (const m of text.matchAll(LINK_TARGET)) skip.fill(1, m.index, m.index + m[0].length);
+  }
+  let norm = '';
+  const index: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (skip[i] || MARKUP.test(ch)) continue;
+    norm += ch;
+    index.push(i);
+  }
+  return { norm, index };
+}
+
+/**
+ * 마크다운 원문 위에서 앵커 범위를 찾는다 (페이지 편집기 표시용, ADR-086).
+ * 마크다운 기호·공백을 양쪽에서 빼고 견주므로 읽기 화면에서 만든 앵커(렌더 글자)도,
+ * 편집기에서 만든 앵커(원문 글자)도 찾는다. 저장된 위치가 그대로 맞으면 그 위치를,
+ * 아니면 startOffset에 가장 가까운 출현을 돌려준다. 못 찾으면 null.
+ */
+export function locateSourceAnchor(
+  source: string,
+  anchor: Pick<Anchor, 'text' | 'startOffset' | 'endOffset'>,
+): RenderRange | null {
+  const needle = stripWithIndex(anchor.text, false).norm;
+  if (!needle) return null;
+  const { startOffset: s, endOffset: e } = anchor;
+  if (s >= 0 && e > s && e <= source.length && stripWithIndex(source.slice(s, e), true).norm === needle) {
+    return { start: s, end: e };
+  }
+  const { norm, index } = stripWithIndex(source, true);
+  let best: RenderRange | null = null;
+  let bestDist = Infinity;
+  for (let i = norm.indexOf(needle); i >= 0; i = norm.indexOf(needle, i + 1)) {
+    const start = index[i]!;
+    const dist = Math.abs(start - s);
+    if (dist < bestDist) {
+      best = { start, end: index[i + needle.length - 1]! + 1 };
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+/** 마크다운 조각을 화면에 보이는 글로 — 편집기에서 고른 원문을 앵커 글·질문 인용으로 쓸 때 */
+export function markdownPlainText(md: string): string {
+  return md
+    .split('\n')
+    .map((line) => line.replace(/^\s*(?:#{1,6}\s+|>\s?)*(?:(?:[-*+]|\d+[.)])\s+)?(?:\[[ xX]\]\s+)?/, ''))
+    .join('\n')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*|__|~~|`/g, '')
+    .replace(/(^|[^\w*])\*(?=\S)|(?<=\S)\*(?=$|[^\w*])/g, '$1')
+    .trim();
+}

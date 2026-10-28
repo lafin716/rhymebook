@@ -115,7 +115,7 @@ export function rehypeMathSource() {
 }
 
 /** 겹친 어노테이션 서식을 합친다 (나중에 수정한 것이 이긴다) → span 속성 */
-function annotationProps(annots: Annotation[]): Record<string, string | undefined> {
+export function annotationProps(annots: Annotation[]): Record<string, string | undefined> {
   const m: AnnotationStyle = {};
   for (const a of [...annots].sort((x, y) => x.updatedAt - y.updatedAt)) {
     if (a.highlight) m.highlight = a.highlight;

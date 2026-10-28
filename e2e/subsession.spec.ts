@@ -69,7 +69,7 @@ test('하위 페이지: 사이드바 + → 빈 페이지 → 부모 페이지에
   await page.getByRole('button', { name: '새로 만들기' }).click();
   await main.getByRole('button', { name: '빈 페이지로 시작' }).click();
   await page.keyboard.type('부모 페이지 본문');
-  await main.getByRole('button', { name: '완료' }).click();
+  await page.keyboard.press('Escape');
   await expect(main).toContainText('부모 페이지 본문');
 
   await main.locator('[data-page-title]').click();
@@ -87,6 +87,6 @@ test('하위 페이지: 사이드바 + → 빈 페이지 → 부모 페이지에
 
   // 부모 페이지 본문 끝에 링크가 붙는다
   await row.click();
-  await expect(main.locator('a.page-link', { hasText: '새 페이지' })).toBeVisible();
+  await expect(main.locator('a.cm-lp-pagelink', { hasText: '새 페이지' })).toBeVisible();
   await expect(main).toContainText('부모 페이지 본문');
 });

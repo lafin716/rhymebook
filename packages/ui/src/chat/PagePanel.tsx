@@ -1,16 +1,27 @@
-import { buildPageFillRequest, buildPageOrganizeRequest, cleanPageAssist, pageDoc, restoreEmbeds, stashEmbeds, taskItemOffsets, toggleTaskAt, type ID, type Session } from '@branch/core';
-import { Check, FileText, Pencil, Sparkles, Square, Undo2, X } from 'lucide-react';
+import {
+  annotationsForMessage,
+  buildPageFillRequest,
+  buildPageOrganizeRequest,
+  cleanPageAssist,
+  locateSourceAnchor,
+  pageDoc,
+  restoreEmbeds,
+  stashEmbeds,
+  type ID,
+  type Session,
+} from '@branch/core';
+import { Sparkles, Square, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
 import { PanelFullToggle } from '../components/PanelFullToggle';
 import { cn } from '../lib/cn';
 import type { PanelVariant } from './ChatPanel';
+import { AnnotationPopover } from './AnnotationPopover';
 import { FootnoteList } from './Footnotes';
-import { TaskToggleContext } from './Markdown';
-import { AssistantMessage } from './MessageItem';
 import { PageEditor } from './PageEditor';
 import { SessionHeader } from './SessionHeader';
+import { BranchChips, SummaryCard } from './SummaryCard';
 import { usePageAi } from './usePageAi';
 
 const SAVE_DELAY = 500;
@@ -37,14 +48,13 @@ export interface PagePanelProps {
 
 /**
  * 마크다운 페이지 세션 (ADR-072). 본문은 문서 메시지 하나라 대화 답변과 똑같이
- * 글을 골라 묻기·하이라이트·메모가 되고, 편집 모드에서는 마크다운 원문을 고친다.
+ * 글을 골라 묻기·하이라이트·메모가 된다. 편집 모드가 따로 없이 늘 고칠 수 있고 쓰는 대로 저장된다 (ADR-086).
  */
 export function PagePanel({ sessionId, variant = 'main', headerActions, handleClassName, className }: PagePanelProps) {
   const doc = useApp((s) => pageDoc(s.messages[sessionId]));
   const sessions = useApp((s) => s.sessions);
   const compact = variant !== 'main';
   const content = doc?.content ?? '';
-  const [editing, setEditing] = useState(() => !content.trim());
   const [draft, setDraft] = useState(content);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pending = useRef<string | null>(null);
@@ -69,16 +79,15 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
     };
   }, [flush, sessionId]);
 
-  // 편집 중이 아니면 바깥(원격·다른 창) 변경을 그대로 따른다
+  // 저장 대기 글이 없으면 바깥(원격·다른 창·AI) 변경을 그대로 따른다
   useEffect(() => {
-    if (!editing) setDraft(content);
-  }, [content, editing]);
+    if (pending.current === null) setDraft(content);
+  }, [content]);
 
   // 다른 페이지로 바뀌면 그 페이지 상태로 다시 시작
   const [shown, setShown] = useState(sessionId);
   if (shown !== sessionId) {
     setShown(sessionId);
-    setEditing(!content.trim());
     setDraft(content);
     setUndo(null);
     ai.clearError();
@@ -94,14 +103,6 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
     pending.current = next;
     clearTimeout(timer.current);
     timer.current = setTimeout(flush, SAVE_DELAY);
-  };
-  const startEdit = () => {
-    setDraft(content);
-    setEditing(true);
-  };
-  const finish = () => {
-    flush();
-    setEditing(false);
   };
 
   const title = () => actions().sessions[sessionId]?.title ?? '';
@@ -146,31 +147,18 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
         .sort((a, b) => a.anchor!.startOffset - b.anchor!.startOffset || a.createdAt - b.createdAt),
     [sessions, sessionId, doc?.id],
   );
-  /** 읽기 모드 체크박스 — 문서 속 n번째 체크박스를 원문 n번째 할 일 항목에 저장한다 (ADR-077) */
-  const readRef = useRef<HTMLDivElement>(null);
-  const toggleTask = useCallback(
-    (box: HTMLInputElement, checked: boolean) => {
-      const boxes = [...(readRef.current?.querySelectorAll<HTMLInputElement>('input[data-task-toggle]') ?? [])];
-      const at = taskItemOffsets(content)[boxes.indexOf(box)];
-      const next = at === undefined || ai.busy ? null : toggleTaskAt(content, at, checked);
-      if (next && next !== content) actions().updatePage(sessionId, next);
-      else box.checked = !checked; // 저장 못 하면 되돌린다
-    },
-    [content, sessionId, ai.busy],
+  const allAnnotations = useApp((s) => s.annotations);
+  const annotations = useMemo(() => (doc ? annotationsForMessage(allAnnotations, doc.id) : []), [allAnnotations, doc]);
+  const [noteOpen, setNoteOpen] = useState<{ id: string; rect: DOMRect } | null>(null);
+  /** 본문에서 더는 찾을 수 없는 가지 — 칩에 표시한다 */
+  const unlocated = useMemo(
+    () => new Set(branches.filter((b) => !locateSourceAnchor(draft, b.anchor!)).map((b) => b.id)),
+    [branches, draft],
   );
+  const summaries = branches.filter((b) => b.summary);
   const notes = useMemo(
     () => Object.values(sessions).filter((s) => s.parentId === sessionId && !s.anchor && s.kind !== 'page').sort((a, b) => a.createdAt - b.createdAt),
     [sessions, sessionId],
-  );
-
-  const toggle = editing ? (
-    <Button size="sm" variant="primary" icon={<Check size={14} />} data-page-done="" onClick={finish}>
-      완료
-    </Button>
-  ) : (
-    <Button size="sm" icon={<Pencil size={14} />} data-page-edit="" onClick={startEdit}>
-      편집
-    </Button>
   );
 
   return (
@@ -195,14 +183,13 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
                 variant="ghost"
                 icon={<Sparkles size={14} />}
                 data-page-ai-organize=""
-                disabled={!!ai.busy || !(editing ? draft : content).trim()}
+                disabled={!!ai.busy || !draft.trim()}
                 onClick={() => void organize()}
                 title="AI로 노트 내용을 읽기 좋게 정리해요"
               >
                 {compact ? 'AI 정리' : 'AI로 정리'}
               </Button>
             )}
-            {toggle}
             {variant === 'main' && <PanelFullToggle />}
             {headerActions}
           </>
@@ -226,37 +213,34 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
         )}
       >
         <div className="relative mx-auto max-w-3xl">
-          {editing ? (
-            <PageEditor
-              key={sessionId}
-              sessionId={sessionId}
-              initial={draft}
-              content={content}
-              hasPending={hasPending}
-              onChange={onChange}
-              onBlur={flush}
-              onFinish={finish}
-              locked={!!ai.busy}
-              filling={ai.busy === 'fill'}
-              onFill={fill}
-              onStopFill={ai.stop}
-            />
-          ) : content.trim() && doc ? (
-            <div ref={readRef} className="space-y-6">
-              <TaskToggleContext.Provider value={toggleTask}>
-                <AssistantMessage message={doc} branches={branches} isLast={false} />
-              </TaskToggleContext.Provider>
+          <PageEditor
+            key={sessionId}
+            sessionId={sessionId}
+            initial={draft}
+            content={content}
+            hasPending={hasPending}
+            onChange={onChange}
+            onBlur={flush}
+            messageId={doc?.id}
+            branches={branches}
+            annotations={annotations}
+            onNote={(a, rect) => setNoteOpen({ id: a.id, rect })}
+            locked={!!ai.busy}
+            filling={ai.busy === 'fill'}
+            onFill={fill}
+            onStopFill={ai.stop}
+          />
+          {(summaries.length > 0 || branches.length > 0 || notes.length > 0) && (
+            <div className="mt-6 space-y-3">
+              {summaries.map((b) => (
+                <SummaryCard key={b.id} session={b} />
+              ))}
+              <BranchChips branches={branches} unlocated={unlocated} />
               <FootnoteList notes={notes} />
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={startEdit}
-              className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-line py-16 text-[14px] text-muted hover:bg-surface-2/60"
-            >
-              <FileText size={22} />
-              빈 페이지예요. 눌러서 쓰기 시작
-            </button>
+          )}
+          {noteOpen && allAnnotations[noteOpen.id] && (
+            <AnnotationPopover annotation={allAnnotations[noteOpen.id]!} rect={noteOpen.rect} onClose={() => setNoteOpen(null)} />
           )}
         </div>
       </div>

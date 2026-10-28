@@ -1,4 +1,7 @@
-import { selectionToAnchor, type Anchor, type ID } from '@branch/core';
+import { markdownPlainText, pageDoc, selectionToAnchor, type Anchor, type ID } from '@branch/core';
+import { EditorView } from '@codemirror/view';
+import { actions } from '../app/store';
+import { flushPageDraft } from './PagePanel';
 import { getSegmentMap } from './segmentRegistry';
 
 /** 선택 영역의 화면 좌표 (top = 첫 줄 위, bottom = 전체 아래) */
@@ -13,6 +16,8 @@ export interface PendingBranch {
   sessionId: ID;
   anchor: Anchor;
   rect: SelectionRect;
+  /** 페이지 편집기 안의 선택 — 앵커는 원문 범위이고, 서식 버튼으로 마크다운을 넣을 수 있다 (ADR-086) */
+  editor?: EditorView;
 }
 
 /** 메뉴와 선택 영역 사이 간격 */
@@ -80,6 +85,9 @@ export function readSelection(): PendingBranch | null {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
   const range = sel.getRangeAt(0);
+  const editorHost = (range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement)
+    ?.closest<HTMLElement>('[data-page-editor]');
+  if (editorHost) return readEditorSelection(editorHost, range);
   const startEl = (range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement)
     ?.closest<HTMLElement>('[data-anchorable]');
   if (!startEl) return null;
@@ -103,6 +111,39 @@ export function readSelection(): PendingBranch | null {
     sessionId,
     anchor,
     rect: { top: first.top, left: box.left, bottom: box.bottom, width: box.width },
+  };
+}
+
+/**
+ * 페이지 편집기 안의 선택을 앵커로 바꾼다. 편집기 원문이 곧 문서 content라
+ * 선택 범위가 그대로 원문 offset이 된다 (쓰던 글은 먼저 저장해 저장본과 맞춘다).
+ */
+function readEditorSelection(host: HTMLElement, range: Range): PendingBranch | null {
+  const sessionId = host.dataset.sessionId;
+  const cm = host.querySelector<HTMLElement>('.cm-editor');
+  const view = cm ? EditorView.findFromDOM(cm) : null;
+  if (!sessionId || !view) return null;
+  const { state } = view;
+  let { from, to } = state.selection.main;
+  const doc = state.doc;
+  while (from < to && /\s/.test(doc.sliceString(from, from + 1))) from++;
+  while (to > from && /\s/.test(doc.sliceString(to - 1, to))) to--;
+  if (from >= to) return null;
+  const slice = doc.sliceString(from, to);
+  flushPageDraft(sessionId);
+  // 첫 저장에서 문서 메시지가 생기므로 저장 뒤에 id를 읽는다
+  const messageId = pageDoc(actions().messages[sessionId])?.id;
+  if (!messageId) return null;
+  const anchor: Anchor = { messageId, text: markdownPlainText(slice) || slice, startOffset: from, endOffset: to };
+  const start = view.coordsAtPos(from, 1);
+  const end = view.coordsAtPos(to, -1);
+  const box = range.getBoundingClientRect();
+  const top = start?.top ?? box.top;
+  return {
+    sessionId,
+    anchor,
+    rect: { top, left: box.width ? box.left : (start?.left ?? 0), bottom: Math.max(end?.bottom ?? box.bottom, top), width: box.width },
+    editor: view,
   };
 }
 

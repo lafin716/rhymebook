@@ -44,8 +44,8 @@ test('캔버스: 펜 필기 · 페이지 내용 가져오기 · 그 위에 쓰�
   // 가져올 페이지를 먼저 만든다
   await page.getByRole('button', { name: '빈 페이지' }).click();
   await main.getByLabel('페이지 본문 (마크다운)').fill('# 어텐션 노트\n\n쿼리와 키를 비교한다.');
-  await main.getByRole('button', { name: '완료' }).click();
-  await expect(main.getByRole('heading', { name: '어텐션 노트' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(main.locator('.cm-line.cm-lp-h1')).toHaveText('어텐션 노트');
 
   // 새로 만들기 → 캔버스로 시작
   if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
@@ -225,8 +225,8 @@ test('캔버스 도구: 흰색 · 직접 고른 색 즐겨찾기 · 펜 굵기 �
   await page.getByRole('button', { name: '빈 페이지' }).click();
   const lines = Array.from({ length: 40 }, (_, i) => `${i + 1}번째 줄입니다.`).join('\n\n');
   await main.getByLabel('페이지 본문 (마크다운)').fill(`# 긴 노트\n\n${lines}`);
-  await main.getByRole('button', { name: '완료' }).click();
-  await expect(main.getByRole('heading', { name: '긴 노트' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(main.locator('.cm-line.cm-lp-h1')).toHaveText('긴 노트');
 
   const board = await newCanvas(page, mobile);
   const pen = page.getByRole('button', { name: '펜', exact: true });

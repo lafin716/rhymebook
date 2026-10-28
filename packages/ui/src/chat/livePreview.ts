@@ -487,6 +487,38 @@ function dropOverlaps(ranges: Range<Decoration>[]): Range<Decoration>[] {
 }
 
 /** 실시간 미리보기 확장 */
+/** 누른 자리의 링크를 연다: 하위 페이지는 페이지로, 첨부(data:)는 내려받기, http(s)는 새 창 */
+function openLinkAt(view: EditorView, e: MouseEvent, opts: LivePreviewOptions): boolean {
+  const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+  if (pos === null) return false;
+  for (let node: SyntaxNode | null = syntaxTree(view.state).resolveInner(pos, 1); node; node = node.parent) {
+    if (node.name !== 'Link') continue;
+    const urlNode = node.getChild('URL');
+    if (!urlNode) return false;
+    const url = view.state.sliceDoc(urlNode.from, urlNode.to);
+    const id = pageLinkId(url);
+    if (id) {
+      if (opts.pageExists(id)) opts.openPage(id);
+      return true;
+    }
+    const a = document.createElement('a');
+    if (/^data:/i.test(url)) {
+      // 실행될 수 있는 형식은 열지 않는다 (읽기 화면과 같은 기준)
+      if (/^data:(?:text\/html|image\/svg|application\/xhtml|text\/xml|application\/xml)/i.test(url)) return true;
+      const t = node.getChild('LinkTitle');
+      const title = t ? view.state.sliceDoc(t.from + 1, t.to - 1) : '';
+      a.download = title || 'file';
+    } else if (/^https?:\/\//i.test(url)) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    } else return false;
+    a.href = url;
+    a.click();
+    return true;
+  }
+  return false;
+}
+
 export function livePreview(opts: LivePreviewOptions): Extension {
   const field = StateField.define<DecorationSet>({
     create: (state) => build(state, opts),
@@ -507,6 +539,11 @@ export function livePreview(opts: LivePreviewOptions): Extension {
     EditorView.domEventHandlers({
       mousedown: (e, view) => {
         if (e.button === 0 && !e.shiftKey && !e.metaKey && !e.ctrlKey) view.dispatch({ effects: setDrag.of(true) });
+        // ⌘/Ctrl+클릭은 링크를 연다 — 보기 화면이 따로 없어 여기서 연다 (ADR-086)
+        if (e.button === 0 && (e.metaKey || e.ctrlKey) && openLinkAt(view, e, opts)) {
+          e.preventDefault();
+          return true;
+        }
         return false;
       },
     }),

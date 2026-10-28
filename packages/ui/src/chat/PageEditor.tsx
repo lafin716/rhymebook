@@ -8,25 +8,24 @@ import {
   pageImageMarkdown,
   pageLinkMarkdown,
   pageSlashQuery,
+  locateSourceAnchor,
   toggleInlineFormat,
+  type Annotation as TextAnnotation,
   type ID,
   type InlineFormat,
   type PageBlock,
+  type Session,
 } from '@branch/core';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { Annotation, EditorState, Prec, StateEffect, StateField, Transaction } from '@codemirror/state';
-import { EditorView, keymap, placeholder } from '@codemirror/view';
+import { Annotation, EditorState, Prec, StateEffect, StateField, Transaction, type Range } from '@codemirror/state';
+import { Decoration, EditorView, WidgetType, keymap, placeholder, type DecorationSet } from '@codemirror/view';
 import {
-  Bold,
-  Code,
   FileText,
   Heading1,
   Heading2,
   Heading3,
   Image as ImageIcon,
-  Italic,
-  Link as LinkIcon,
   List,
   ListOrdered,
   ListTodo,
@@ -37,7 +36,6 @@ import {
   Sparkles,
   Square,
   SquareCode,
-  Strikethrough,
   Table,
   type LucideIcon,
 } from 'lucide-react';
@@ -45,8 +43,11 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 import { actions } from '../app/store';
 import { pushNotice } from '../app/sync';
 import { cn } from '../lib/cn';
+import { annotationProps } from './anchorPlugin';
 import { pageEmbed } from './attach';
-import { isDragging, livePreview } from './livePreview';
+import { livePreview } from './livePreview';
+import { openBranch } from './open';
+import { registerPageEditor } from './pageEditorBridge';
 
 const MENU_H = 320;
 const CTX_W = 240;
@@ -79,15 +80,6 @@ const BLOCK_ICONS: Record<string, LucideIcon> = {
   page: FileText,
 };
 
-/** 글을 고르면 위에 뜨는 서식 버튼 (ADR-077) */
-const FORMATS: { kind: InlineFormat; label: string; key: string; Icon: LucideIcon }[] = [
-  { kind: 'bold', label: '굵게', key: '⌘B', Icon: Bold },
-  { kind: 'italic', label: '기울임', key: '⌘I', Icon: Italic },
-  { kind: 'strike', label: '취소선', key: '⌘⇧X', Icon: Strikethrough },
-  { kind: 'code', label: '코드', key: '⌘E', Icon: Code },
-  { kind: 'link', label: '링크', key: '⌘K', Icon: LinkIcon },
-];
-
 const EMPTY_ITEM = /^(\s*)(?:[-*+]|\d+[.)]) (?:\[[ xX]\] ?)?\s*$/;
 
 /** 노션처럼 빈 목록·할 일 항목에서 Enter는 목록을 끝낸다 (기본은 느슨한 목록으로 이어 간다) */
@@ -104,7 +96,111 @@ function exitEmptyItem(view: EditorView): boolean {
 }
 
 const PLACEHOLDER =
-  '마크다운으로 자유롭게 적어 보세요. / 를 누르거나 우클릭하면 블록·하위 페이지·AI 채우기를 넣어요.\n\n# 제목\n- 목록\n**굵게**, `코드`\n\n다 쓰면 완료를 누르고, 글을 골라 물어보거나 표시할 수 있어요.';
+  '마크다운으로 자유롭게 적어 보세요. 쓰는 대로 저장돼요. / 를 누르거나 우클릭하면 블록·하위 페이지·AI 채우기를 넣어요.\n\n# 제목\n- 목록\n**굵게**, `코드`\n\n글을 고르면 물어보거나 서식·메모를 넣을 수 있어요.';
+
+/** 본문 위에 그릴 가지·서식 표시 (ADR-086) */
+interface Marks {
+  branches: { id: ID; anchor: NonNullable<Session['anchor']>; hasSummary: boolean }[];
+  annotations: TextAnnotation[];
+}
+const setMarks = StateEffect.define<Marks>();
+const marksField = StateField.define<Marks>({
+  create: () => ({ branches: [], annotations: [] }),
+  update: (v, tr) => tr.effects.reduce((acc, e) => (e.is(setMarks) ? e.value : acc), v),
+});
+
+/** 가지 끝 아이콘 — 누르면 가지를 연다 */
+class BranchWidget extends WidgetType {
+  constructor(readonly id: ID) {
+    super();
+  }
+  eq(other: BranchWidget) {
+    return other.id === this.id;
+  }
+  toDOM() {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cm-anchor-open';
+    b.dataset.branchOpen = this.id;
+    b.setAttribute('aria-label', '가지 열기');
+    b.title = '가지 열기';
+    b.contentEditable = 'false';
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      openBranch(this.id);
+    });
+    return b;
+  }
+}
+
+/** 메모 끝 아이콘 — 누르면 메모를 보여 준다 */
+class NoteWidget extends WidgetType {
+  constructor(
+    readonly annotation: TextAnnotation,
+    readonly open: (a: TextAnnotation, rect: DOMRect) => void,
+  ) {
+    super();
+  }
+  eq(other: NoteWidget) {
+    return other.annotation === this.annotation;
+  }
+  toDOM() {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cm-note-open';
+    b.dataset.noteOpen = this.annotation.id;
+    b.setAttribute('aria-label', '메모 보기');
+    b.title = '메모 보기';
+    b.contentEditable = 'false';
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.open(this.annotation, b.getBoundingClientRect());
+    });
+    return b;
+  }
+}
+
+/** data-* 이름 (dataHl → data-hl) */
+const dataAttr = (k: string) => (k === 'style' ? k : k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+
+/** 가지·서식 범위를 원문에서 다시 찾아 그린다. 본문을 고치면 위치를 따라 옮기고, 표시가 바뀌면 새로 찾는다 */
+function marksDecorations(openNote: (a: TextAnnotation, rect: DOMRect) => void) {
+  const build = (state: EditorState): DecorationSet => {
+    const { branches, annotations } = state.field(marksField);
+    if (!branches.length && !annotations.length) return Decoration.none;
+    const source = state.doc.toString();
+    const out: Range<Decoration>[] = [];
+    for (const b of branches) {
+      const r = locateSourceAnchor(source, b.anchor);
+      if (!r) continue;
+      out.push(
+        Decoration.mark({
+          tagName: 'mark',
+          class: 'anchor',
+          attributes: { 'data-session-id': b.id, 'data-session-ids': b.id, 'data-has-summary': String(b.hasSummary) },
+        }).range(r.start, r.end),
+        Decoration.widget({ widget: new BranchWidget(b.id), side: 1 }).range(r.end),
+      );
+    }
+    for (const a of annotations) {
+      const r = locateSourceAnchor(source, a.anchor);
+      if (!r) continue;
+      const attributes: Record<string, string> = { 'data-annot-ids': a.id };
+      for (const [k, v] of Object.entries(annotationProps([a]))) if (v) attributes[dataAttr(k)] = v;
+      if (a.note) attributes['data-note'] = 'true';
+      out.push(Decoration.mark({ class: 'annot', attributes }).range(r.start, r.end));
+      if (a.note) out.push(Decoration.widget({ widget: new NoteWidget(a, openNote), side: 2 }).range(r.end));
+    }
+    return Decoration.set(out, true);
+  };
+  return StateField.define<DecorationSet>({
+    create: build,
+    update: (deco, tr) => (tr.effects.some((e) => e.is(setMarks)) ? build(tr.state) : tr.docChanged ? deco.map(tr.changes) : deco),
+    provide: (f) => EditorView.decorations.from(f),
+  });
+}
 
 /** 바뀐 가운데만 고쳐 커서·되돌리기 기록을 지킨다 */
 function minimalChange(before: string, after: string) {
@@ -133,8 +229,14 @@ export interface PageEditorProps {
   hasPending: () => boolean;
   onChange: (text: string) => void;
   onBlur: () => void;
-  /** Esc·⌘Enter — 편집을 마친다 */
-  onFinish: () => void;
+  /** 페이지 문서 메시지 id — 있으면 고른 글로 가지·서식을 만들 수 있다 */
+  messageId?: ID;
+  /** 이 문서에 앵커를 둔 가지 — 본문에 표시하고 끝 아이콘으로 연다 */
+  branches?: Session[];
+  /** 이 문서의 서식·메모 */
+  annotations?: TextAnnotation[];
+  /** 메모 아이콘을 누름 */
+  onNote?: (annotation: TextAnnotation, rect: DOMRect) => void;
   /** AI가 본문을 고치는 중 — 손으로 고치지 못하게 막는다 */
   locked?: boolean;
   /** AI로 채우는 중 */
@@ -142,13 +244,6 @@ export interface PageEditorProps {
   /** 커서 자리(before|after)에 AI로 채울 글. 받는 동안 onDelta, 끝나면 최종 글(멈췄거나 실패면 null) */
   onFill?: (input: { before: string; after: string; request?: string }, onDelta: (text: string) => void) => Promise<string | null>;
   onStopFill?: () => void;
-}
-
-/** 선택 서식 팝업 위치 — 선택 첫 줄 위(공간이 없으면 마지막 줄 아래) */
-interface Fmt {
-  left: number;
-  top: number;
-  below: boolean;
 }
 
 /** 우클릭 메뉴 — pos는 넣을 자리 */
@@ -162,6 +257,7 @@ interface Ctx {
 /**
  * 페이지 편집기 (ADR-075). CodeMirror 위에 실시간 미리보기를 얹어, 커서가 없는 곳은 렌더된 모습으로
  * 보이고 원문은 그대로 저장된다. `/`로 블록이나 하위 페이지 링크를 넣는다 (ADR-073).
+ * 따로 보기 화면 없이 늘 고칠 수 있고, 가지·서식도 이 위에 그린다 (ADR-086).
  */
 export function PageEditor({
   sessionId,
@@ -170,7 +266,10 @@ export function PageEditor({
   hasPending,
   onChange,
   onBlur,
-  onFinish,
+  messageId,
+  branches,
+  annotations,
+  onNote,
   locked = false,
   filling = false,
   onFill,
@@ -182,7 +281,6 @@ export function PageEditor({
   const [ask, setAsk] = useState('');
   const [slash, setSlash] = useState<Slash | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
-  const [fmt, setFmt] = useState<Fmt | null>(null);
   /** 이미지·파일 고르기 — 고른 파일을 넣을 자리 */
   const fileInput = useRef<HTMLInputElement>(null);
   const embedAt = useRef<{ pos: number; block: PageBlock } | null>(null);
@@ -192,8 +290,8 @@ export function PageEditor({
   const slashOpen = items.length > 0;
 
   // CodeMirror 확장은 한 번 만들고, 최신 콜백·상태는 ref로 읽는다
-  const latest = useRef({ onChange, onBlur, onFinish, slash, slashOpen, items, slashIndex, locked });
-  latest.current = { onChange, onBlur, onFinish, slash, slashOpen, items, slashIndex, locked };
+  const latest = useRef({ onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked });
+  latest.current = { onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked };
 
   /** 커서 앞이 `/검색어`면 그 아래(공간이 없으면 위)에 블록 메뉴를 연다 */
   const syncSlash = (v: EditorView) => {
@@ -222,22 +320,6 @@ export function PageEditor({
   };
   const syncRef = useRef(syncSlash);
   syncRef.current = syncSlash;
-
-  /** 글을 골랐으면(끄는 중이 아니면) 그 위에 서식 팝업을 띄운다 */
-  const syncFmt = (v: EditorView) => {
-    const sel = v.state.selection.main;
-    if (sel.empty || !v.hasFocus || isDragging(v.state) || latest.current.locked || !v.state.sliceDoc(sel.from, sel.to).trim()) return setFmt(null);
-    const box = host.current?.getBoundingClientRect();
-    const a = v.coordsAtPos(sel.from, 1);
-    const b = v.coordsAtPos(sel.to, -1);
-    if (!box || !a || !b) return setFmt(null);
-    const scroll = host.current?.closest('[data-scroll]')?.getBoundingClientRect();
-    const below = a.top - 48 < Math.max(scroll?.top ?? 0, 0);
-    const left = a.top === b.top ? (a.left + b.left) / 2 : a.left;
-    setFmt({ left: Math.max(0, Math.min(left - box.left, box.width)), top: (below ? b.bottom : a.top) - box.top, below });
-  };
-  const fmtRef = useRef(syncFmt);
-  fmtRef.current = syncFmt;
 
   const applyFormat = (kind: InlineFormat) => {
     const v = view.current;
@@ -395,7 +477,8 @@ export function PageEditor({
                     return true;
                   }
                   if (ed.composing) return false;
-                  l.onFinish();
+                  // 편집 모드가 따로 없으니 포커스만 놓는다 (쓰던 글은 저장된다)
+                  ed.contentDOM.blur();
                   return true;
                 },
               },
@@ -406,8 +489,8 @@ export function PageEditor({
               { key: 'Mod-k', run: () => formatRef.current('link') },
               {
                 key: 'Mod-Enter',
-                run: () => {
-                  latest.current.onFinish();
+                run: (ed) => {
+                  ed.contentDOM.blur();
                   return true;
                 },
               },
@@ -419,6 +502,8 @@ export function PageEditor({
           EditorView.lineWrapping,
           placeholder(placeholderEl),
           lockField,
+          marksField,
+          marksDecorations((a, rect) => latest.current.onNote?.(a, rect)),
           EditorView.contentAttributes.of({ 'aria-label': '페이지 본문 (마크다운)', spellcheck: 'false', 'aria-multiline': 'true' }),
           livePreview({
             openPage: (id) => actions().openSession(id, 'main'),
@@ -427,17 +512,19 @@ export function PageEditor({
           EditorView.updateListener.of((u) => {
             if (u.docChanged && !u.transactions.some((t) => t.annotation(external))) latest.current.onChange(u.state.doc.toString());
             if (u.docChanged || u.selectionSet || u.focusChanged) syncRef.current(u.view);
-            if (u.docChanged || u.selectionSet || u.focusChanged || u.geometryChanged || isDragging(u.startState) !== isDragging(u.state)) fmtRef.current(u.view);
           }),
           EditorView.domEventHandlers({
             blur: () => {
               setSlash(null);
-              setFmt(null);
               latest.current.onBlur();
             },
             // 우클릭은 블록·AI 채우기 메뉴. Shift+우클릭은 기본 메뉴(복사·붙여넣기)
+            // 고른 글 위 우클릭은 선택 메뉴(가지·서식)나 기본 메뉴에 맡긴다 (ADR-086)
             contextmenu: (e, ed) => {
               if (e.shiftKey) return false;
+              const { main } = ed.state.selection;
+              const at = ed.posAtCoords({ x: e.clientX, y: e.clientY });
+              if (!main.empty && at !== null && at >= main.from && at <= main.to) return false;
               e.preventDefault();
               ctxRef.current(e, ed);
               return true;
@@ -447,9 +534,8 @@ export function PageEditor({
       }),
     });
     view.current = v;
-    v.focus();
-    const end = v.state.doc.length;
-    v.dispatch({ selection: { anchor: end } });
+    // 빈 페이지만 바로 쓰기 시작한다. 쓴 글이 있으면 읽다가 누른 곳부터 고친다
+    if (!initial.trim()) v.focus();
     return () => {
       v.destroy();
       view.current = null;
@@ -480,15 +566,30 @@ export function PageEditor({
     if (before !== content) v.dispatch({ changes: minimalChange(before, content), annotations: [external.of(true), Transaction.addToHistory.of(false)] });
   }, [content, hasPending]);
 
+  // 가지·서식 표시를 새로 그린다
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    const marks: Marks = {
+      branches: (branches ?? []).flatMap((b) => (b.anchor ? [{ id: b.id, anchor: b.anchor, hasSummary: !!b.summary }] : [])),
+      annotations: annotations ?? [],
+    };
+    v.dispatch({ effects: setMarks.of(marks) });
+  }, [branches, annotations]);
+
+  // 선택 메뉴가 이 편집기의 선택에 서식을 넣는다
+  useEffect(() => {
+    const v = view.current;
+    if (!v) return;
+    return registerPageEditor(v, (kind) => formatRef.current(kind));
+  }, []);
+
   // AI가 고치는 동안은 읽기 전용
   useEffect(() => {
     const v = view.current;
     // 설정을 갈아 끼우지 않고 값만 바꾼다 — reconfigure는 실시간 렌더의 포커스 상태를 흐트러뜨린다
     if (v && v.state.field(lockField) !== locked) v.dispatch({ effects: setLock.of(locked) });
-    if (locked) {
-      setCtx(null);
-      setFmt(null);
-    }
+    if (locked) setCtx(null);
   }, [locked]);
 
   // 메뉴 밖을 누르거나 스크롤하면 닫는다
@@ -556,7 +657,7 @@ export function PageEditor({
 
   return (
     <div className="relative">
-      <div ref={host} data-page-editor="" className="page-editor min-h-[50vh]" />
+      <div ref={host} data-page-editor="" data-session-id={sessionId} data-message-id={messageId} className="page-editor min-h-[50vh]" />
       <input
         ref={fileInput}
         type="file"
@@ -568,34 +669,6 @@ export function PageEditor({
           else embedAt.current = null;
         }}
       />
-      {fmt && !ctx && !slashOpen && (
-        <div
-          role="toolbar"
-          aria-label="선택 서식"
-          data-page-format=""
-          // 눌러도 본문 선택을 잃지 않게
-          onMouseDown={(e) => e.preventDefault()}
-          style={{ left: fmt.left, top: fmt.top }}
-          className={cn(
-            'animate-pop-in absolute z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-line bg-elev p-0.5 shadow-float',
-            fmt.below ? 'mt-1.5' : '-mt-1.5 -translate-y-full',
-          )}
-        >
-          {FORMATS.map(({ kind, label, key, Icon }) => (
-            <button
-              key={kind}
-              type="button"
-              aria-label={label}
-              title={`${label} (${key})`}
-              data-format={kind}
-              onClick={() => applyFormat(kind)}
-              className="grid size-8 place-items-center rounded-md text-fg-2 hover:bg-surface-2 hover:text-fg"
-            >
-              <Icon size={15} />
-            </button>
-          ))}
-        </div>
-      )}
       {filling && (
         <div className="sticky bottom-3 z-20 mt-3 flex justify-center">
           <button

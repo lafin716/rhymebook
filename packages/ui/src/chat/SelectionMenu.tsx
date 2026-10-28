@@ -5,6 +5,7 @@ import {
   MAX_NOTE_LENGTH,
   type AnnotationPatch,
   type AnnotationStyle,
+  type InlineFormat,
   type MarkColor,
   type MarkFont,
 } from '@branch/core';
@@ -13,18 +14,21 @@ import {
   Bold,
   Check,
   ChevronDown,
+  Code,
   Copy,
   CornerDownRight,
   Eraser,
   Highlighter,
   HelpCircle,
   Italic,
+  Link as LinkIcon,
   MessageSquarePlus,
   Pencil,
   RotateCcw,
   Send,
   Square,
   StickyNote,
+  Strikethrough,
   TextQuote,
   Type,
   Underline,
@@ -53,6 +57,7 @@ import { speak, stopSpeaking, useSpeech } from '../voice/speak';
 import { ColorPalette, COLOR_KIND_LABELS, colorLabel, swatchCss, type ColorKind } from './ColorPalette';
 import { hasComposer, quoteToComposer, toQuote } from './composerBridge';
 import { openBranch } from './open';
+import { formatPage } from './pageEditorBridge';
 import { MENU_GAP, placeMenu, readSelection, type PendingBranch } from './selection';
 
 /**
@@ -304,6 +309,8 @@ export function SelectionMenu() {
         if (!mobile && !frozenRef.current) {
           const next = readSelection();
           if (next) setPending(next);
+          // 페이지 편집기는 포커스가 남아 있으니, 그 사이 선택이 접혔으면 닫는다 (ADR-086)
+          else if (document.activeElement?.closest('[data-page-editor]')) setPending(null);
         }
       }, 600);
     },
@@ -511,9 +518,20 @@ export function SelectionMenu() {
           </ToolButton>
         </>
       )}
-      <ToolButton label="선택한 글 고치기" pressed={edited !== null} onClick={startEdit}>
-        <Pencil size={15} />
-      </ToolButton>
+      {pending.editor ? (
+        <>
+          {PAGE_FORMATS.map(({ kind, label, Icon }) => (
+            <ToolButton key={kind} label={label} format={kind} onClick={() => pending.editor && formatPage(pending.editor, kind)}>
+              <Icon size={15} />
+            </ToolButton>
+          ))}
+          <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
+        </>
+      ) : (
+        <ToolButton label="선택한 글 고치기" pressed={edited !== null} onClick={startEdit}>
+          <Pencil size={15} />
+        </ToolButton>
+      )}
       <ToolButton label={exact?.note ? '메모 수정' : '메모'} pressed={!!exact?.note} onClick={() => setMemo(exact?.note ?? '')}>
         <StickyNote size={15} />
       </ToolButton>
@@ -699,6 +717,15 @@ function MenuButton({
 /** 고친 선택 글 최대 길이 (sync 앵커 글 한도와 같게) */
 const SELECTION_MAX = 10_000;
 
+/** 페이지 편집기에서 고른 글에 넣는 마크다운 서식 (ADR-086) */
+const PAGE_FORMATS: { kind: InlineFormat; label: string; Icon: typeof Bold }[] = [
+  { kind: 'bold', label: '굵게', Icon: Bold },
+  { kind: 'italic', label: '기울임', Icon: Italic },
+  { kind: 'strike', label: '취소선', Icon: Strikethrough },
+  { kind: 'code', label: '코드', Icon: Code },
+  { kind: 'link', label: '링크', Icon: LinkIcon },
+];
+
 const COLOR_KINDS: { kind: ColorKind; Icon: typeof Highlighter }[] = [
   { kind: 'highlight', Icon: Highlighter },
   { kind: 'underline', Icon: Underline },
@@ -708,11 +735,14 @@ const COLOR_KINDS: { kind: ColorKind; Icon: typeof Highlighter }[] = [
 function ToolButton({
   label,
   pressed,
+  format,
   onClick,
   children,
 }: {
   label: string;
   pressed?: boolean;
+  /** 페이지 서식 버튼 표시 (data-format) */
+  format?: string;
   onClick(): void;
   children: ReactNode;
 }) {
@@ -722,6 +752,7 @@ function ToolButton({
       aria-label={label}
       aria-pressed={pressed}
       title={label}
+      data-format={format}
       onClick={onClick}
       className={cn(
         'inline-flex size-8 items-center justify-center rounded-lg text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg',

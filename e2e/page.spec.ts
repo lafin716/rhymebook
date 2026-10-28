@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 /**
  * 마크다운 페이지 세션 (ADR-072): 새로 만들기 → 빈 페이지 → 마크다운 작성 → 렌더 → 글을 골라 가지 → 새로고침 후 유지.
+ * 편집 모드가 따로 없이 늘 편집기이고 쓰는 대로 저장된다 (ADR-086).
  * 가지 응답은 e2e/mock-anthropic.mjs가 "마지막 문장 [대상]."으로 돌려준다.
  */
 const KEY = 'sk-ant-e2e-ok';
@@ -14,6 +15,18 @@ async function source(page: Page) {
   return page
     .locator(`${MAIN} [data-page-editor] .cm-content`)
     .evaluate((el) => (el as unknown as { cmTile: { root: { view: { state: { doc: { toString(): string } } } } } }).cmTile.root.view.state.doc.toString());
+}
+
+/** 편집기에서 글을 골라 선택 메뉴를 띄운다 */
+async function selectInEditor(page: Page, text: string) {
+  await page.locator(`${MAIN} [data-page-editor] .cm-content`).evaluate((el, t) => {
+    const v = (el as unknown as { cmTile: { root: { view: { state: { doc: { toString(): string } }; dispatch(s: unknown): void; focus(): void } } } }).cmTile.root.view;
+    const i = v.state.doc.toString().indexOf(t);
+    if (i < 0) throw new Error('선택할 텍스트 없음');
+    v.focus();
+    v.dispatch({ selection: { anchor: i, head: i + t.length } });
+  }, text);
+  await page.evaluate(() => document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
 }
 
 function collectErrors(page: Page) {
@@ -39,10 +52,11 @@ async function writePage(page: Page) {
   // 대화 입력창은 없다
   await expect(main.getByLabel('메시지 입력')).toHaveCount(0);
   await body.fill(DOC);
-  await main.getByRole('button', { name: '완료' }).click();
-  await expect(main.getByRole('heading', { name: '어텐션 노트' })).toBeVisible();
-  await expect(main.locator('li').filter({ hasText: '쿼리와 키를 비교한다' })).toBeVisible();
-  await expect(main.locator('strong', { hasText: '가중합' })).toBeVisible();
+  // 완료 버튼 없이 Esc로 편집기를 벗어나면 서식으로 보인다
+  await expect(main.getByRole('button', { name: '완료' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(main.locator('.cm-line.cm-lp-h1')).toHaveText('어텐션 노트');
+  await expect(main.locator('.cm-lp-strong', { hasText: '가중합' })).toBeVisible();
 }
 
 test('빈 페이지 작성 → 글을 골라 가지 → 새로고침 후 본문·앵커 유지', async ({ page }) => {
@@ -54,24 +68,7 @@ test('빈 페이지 작성 → 글을 골라 가지 → 새로고침 후 본문�
   // 페이지 글을 골라 묻기
   const ask = page.getByRole('button', { name: '이게 뭐야?' });
   await expect(async () => {
-    await page.evaluate((sel) => {
-      const root = document.querySelector(`${sel} [data-anchorable]`)!;
-      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      for (let n = w.nextNode(); n; n = w.nextNode()) {
-        const t = n as Text;
-        const i = t.data.indexOf('소프트맥스');
-        if (i < 0) continue;
-        const r = document.createRange();
-        r.setStart(t, i);
-        r.setEnd(t, i + '소프트맥스'.length);
-        const s = getSelection()!;
-        s.removeAllRanges();
-        s.addRange(r);
-        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        return;
-      }
-      throw new Error('선택할 텍스트 없음');
-    }, MAIN);
+    await selectInEditor(page, '소프트맥스');
     await expect(ask).toBeVisible({ timeout: 500 });
   }).toPass();
   await ask.click();
@@ -79,8 +76,11 @@ test('빈 페이지 작성 → 글을 골라 가지 → 새로고침 후 본문�
 
   await page.reload();
   const main = page.locator(MAIN);
-  await expect(main.getByRole('heading', { name: '어텐션 노트' })).toBeVisible();
-  await expect(main.locator('mark.anchor').first()).toBeAttached();
+  await expect(main.locator('.cm-line.cm-lp-h1')).toHaveText('어텐션 노트');
+  expect(await source(page)).toBe(DOC);
+  // 편집기 위에도 가지 앵커와 여는 단추가 보인다
+  await expect(main.locator('[data-page-editor] .anchor', { hasText: '소프트맥스' })).toBeVisible();
+  await expect(main.locator('[data-page-editor] [data-branch-open]')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
@@ -104,9 +104,7 @@ test('사이드바 새로 만들기 → 빈 화면에서 빈 페이지로 시작
   await rename.press('Enter');
   await expect(main.locator('[data-page-title]')).toHaveText(/어텐션 정리/);
 
-  // 편집으로 돌아가면 원문이 그대로다
-  await main.getByRole('button', { name: '편집' }).click();
-  await expect(main.getByLabel('페이지 본문 (마크다운)')).toBeVisible();
+  // 원문이 그대로다
   expect(await source(page)).toBe(DOC);
   expect(errors).toEqual([]);
 });
@@ -160,10 +158,10 @@ test('/ 블록 넣기 — 검색·키보드로 고르고 Esc는 메뉴만 닫는
   await page.keyboard.type(' /없는블록 a/b');
   await expect(menu).toHaveCount(0);
 
-  await main.getByRole('button', { name: '완료' }).click();
-  await expect(main.getByRole('heading', { level: 2, name: '어텐션 노트' })).toBeVisible();
-  await expect(main.locator('hr')).toHaveCount(1);
-  await expect(main.locator('input[type="checkbox"]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(main.locator('.cm-line.cm-lp-h2')).toHaveText('어텐션 노트');
+  await expect(main.locator('.cm-lp-hr')).toHaveCount(1);
+  await expect(main.locator('.cm-lp-check')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
@@ -214,14 +212,13 @@ test('/하위 페이지 → 링크로 열고, 이름을 바꾸면 부모 링크�
   await page.keyboard.type('/하위');
   await main.getByRole('listbox', { name: '블록 넣기' }).getByRole('option', { name: /하위 페이지/ }).click();
   await expect.poll(() => source(page)).toMatch(/^부모 본문\n\[새 페이지\]\(#page:[^)]+\)$/);
-  await main.getByRole('button', { name: '완료' }).click();
   await title.click();
   await main.getByRole('textbox').first().fill('부모 노트');
   await page.keyboard.press('Enter');
   await expect(title).toHaveText(/부모 노트/);
 
-  // 읽기 화면의 링크를 누르면 하위 페이지가 열린다
-  const link = main.locator('a.page-link', { hasText: '새 페이지' });
+  // 편집기의 링크를 누르면 하위 페이지가 열린다
+  const link = main.locator('a.cm-lp-pagelink', { hasText: '새 페이지' });
   await expect(link).toBeVisible();
   await link.click();
   await expect(title).toHaveText(/새 페이지/);
@@ -232,7 +229,7 @@ test('/하위 페이지 → 링크로 열고, 이름을 바꾸면 부모 링크�
 
   // 부모로 돌아가면 링크 제목도 바뀌어 있다
   await page.getByRole('navigation', { name: '학습 세션' }).getByText('부모 노트').first().click();
-  await expect(main.locator('a.page-link', { hasText: '하위 노트' })).toBeVisible();
+  await expect(main.locator('a.cm-lp-pagelink', { hasText: '하위 노트' })).toBeVisible();
   await page.screenshot({ path: `test-results/page-sublink-${info.project.name}.png` });
   expect(errors).toEqual([]);
 });
@@ -280,22 +277,22 @@ test('우클릭 메뉴로 블록 넣기 · AI로 내용 채우기 · AI로 정�
   await expect.poll(() => source(page)).toBe('어텐션 메모\n## 장점\n\n- 채운 항목: 병렬 처리');
 
   // AI로 정리 — 울타리를 걷고 바꾸며, 되돌리기로 돌아간다
-  await main.getByRole('button', { name: '완료' }).click();
   await main.getByRole('button', { name: /AI로 정리/ }).click();
-  await expect(main.getByRole('heading', { level: 2, name: '정리' })).toBeVisible();
-  await expect(main.getByText('```')).toHaveCount(0);
+  await expect.poll(() => source(page)).toMatch(/^## 정리/m);
+  expect(await source(page)).not.toContain('```');
   await main.getByRole('button', { name: '되돌리기' }).click();
-  await expect(main.getByRole('heading', { level: 2, name: '정리' })).toHaveCount(0);
-  await expect(main.getByRole('heading', { level: 2, name: '장점' })).toBeVisible();
+  await expect.poll(() => source(page)).toBe('어텐션 메모\n## 장점\n\n- 채운 항목: 병렬 처리');
   expect(errors).toEqual([]);
 });
 
-test('편집 중 글을 끌어 고르면 서식 팝업이 뜨고, 버튼·단축키로 감싸고 벗긴다 (ADR-077)', async ({ page }) => {
+test('글을 끌어 고르면 선택 메뉴에 서식이 뜨고, 버튼·단축키로 감싸고 벗긴다 (ADR-077·086)', async ({ page }, info) => {
+  test.skip(info.project.name === 'mobile', '모바일은 하단 액션바라 데스크톱에서 검증');
   const errors = collectErrors(page);
   await onboard(page);
   await page.getByRole('button', { name: '빈 페이지' }).click();
   const main = page.locator(MAIN);
-  const pop = main.getByRole('toolbar', { name: '선택 서식' });
+  const pop = page.locator('[data-selection-menu]');
+  const bold = pop.locator('[data-format="bold"]');
   await page.keyboard.type('가나 다라 마바');
   await page.keyboard.press('Enter');
   await page.keyboard.type('**굵은** 둘째 줄 글');
@@ -307,16 +304,17 @@ test('편집 중 글을 끌어 고르면 서식 팝업이 뜨고, 버튼·단축
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft');
   for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowLeft');
   await expect(pop).toBeVisible();
-  await pop.getByRole('button', { name: '굵게' }).click();
+  await bold.click();
   await expect.poll(() => source(page)).toBe('가나 **다라** 마바\n**굵은** 둘째 줄 글');
   // 선택이 그대로라 다시 누르면 벗긴다, 단축키도 같다
-  await pop.getByRole('button', { name: '굵게' }).click();
+  await bold.click();
   await expect.poll(() => source(page)).toBe('가나 다라 마바\n**굵은** 둘째 줄 글');
   await page.keyboard.press('ControlOrMeta+i');
   await expect.poll(() => source(page)).toBe('가나 *다라* 마바\n**굵은** 둘째 줄 글');
 
   // 서식이 있는 줄을 마우스로 끌어 고른다 — 끄는 동안 줄 모양이 바뀌지 않아 선택이 끝까지 이어진다
   await page.keyboard.press('ArrowDown');
+  await expect(pop).toHaveCount(0); // 선택이 접히면 메뉴가 닫힌다
   const line = main.locator('.cm-line').nth(1);
   const box = (await line.boundingBox())!;
   const text = (await line.evaluate((el) => {
@@ -340,60 +338,34 @@ test('편집 중 글을 끌어 고르면 서식 팝업이 뜨고, 버튼·단축
       return v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to);
     });
   expect(picked.length).toBeGreaterThan(8);
-  await pop.getByRole('button', { name: '취소선' }).click();
+  await pop.locator('[data-format="strike"]').click();
   await expect.poll(() => source(page)).toContain('~~');
   expect(errors).toEqual([]);
 });
 
-test('읽기 모드 — 체크박스를 눌러 저장하고, 글을 골라도 글자 효과는 없다 (ADR-077)', async ({ page }) => {
+test('체크박스를 눌러 바로 저장되고, 새로고침해도 유지된다 (ADR-086)', async ({ page }) => {
   const errors = collectErrors(page);
   await onboard(page);
   await page.getByRole('button', { name: '빈 페이지' }).click();
   const main = page.locator(MAIN);
   await main.getByLabel('페이지 본문 (마크다운)').fill('할 일\n\n- [ ] 하나\n- [x] 둘\n\n```\n- [ ] 코드\n```\n- [ ] 셋');
-  await main.getByRole('button', { name: '완료' }).click();
-  const boxes = main.locator('input[data-task-toggle]');
+  await page.keyboard.press('Escape');
+  const boxes = main.locator('.cm-lp-check');
   await expect(boxes).toHaveCount(3);
   await boxes.nth(2).click();
   await boxes.nth(1).click();
-  await expect(boxes.nth(2)).toBeChecked();
-  await expect(boxes.nth(1)).not.toBeChecked();
+  const want = '할 일\n\n- [ ] 하나\n- [ ] 둘\n\n```\n- [ ] 코드\n```\n- [x] 셋';
+  await expect.poll(() => source(page)).toBe(want);
 
+  // 저장 지연(0.5초)이 지나면 새로고침해도 그대로다
+  await page.waitForTimeout(800);
   await page.reload();
-  await expect(main.locator('input[data-task-toggle]').nth(2)).toBeChecked();
-  await expect(main.locator('input[data-task-toggle]').nth(1)).not.toBeChecked();
-  await main.getByRole('button', { name: '편집' }).click();
-  await expect.poll(() => source(page)).toBe('할 일\n\n- [ ] 하나\n- [ ] 둘\n\n```\n- [ ] 코드\n```\n- [x] 셋');
-  await main.getByRole('button', { name: '완료' }).click();
-
-  // 글을 고르면 묻기 메뉴는 뜨지만 글자 효과(굵게·색)는 없다
-  const ask = page.getByRole('button', { name: '이게 뭐야?' });
-  await expect(async () => {
-    await page.evaluate((sel) => {
-      const root = document.querySelector(`${sel} [data-anchorable]`)!;
-      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      for (let n = w.nextNode(); n; n = w.nextNode()) {
-        const t = n as Text;
-        const i = t.data.indexOf('할 일');
-        if (i < 0) continue;
-        const r = document.createRange();
-        r.setStart(t, i);
-        r.setEnd(t, i + 3);
-        const s = getSelection()!;
-        s.removeAllRanges();
-        s.addRange(r);
-        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        return;
-      }
-      throw new Error('선택할 텍스트 없음');
-    }, MAIN);
-    await expect(ask).toBeVisible({ timeout: 500 });
-  }).toPass();
-  await expect(page.locator('[data-selection-menu]').getByRole('button', { name: '굵게' })).toHaveCount(0);
+  await expect.poll(() => source(page)).toBe(want);
   expect(errors).toEqual([]);
 });
 
-test('/이미지 · /파일 — 고른 파일을 본문에 넣고 읽기 모드에서 그림·내려받기로 보인다 (ADR-077)', async ({ page }) => {
+test('/이미지 · /파일 — 고른 파일을 본문에 넣고 그림으로 보이며, ⌘/Ctrl+클릭으로 내려받는다 (ADR-077·086)', async ({ page }, info) => {
+  test.skip(info.project.name === 'mobile', '⌘/Ctrl+클릭은 데스크톱에서 검증');
   const errors = collectErrors(page);
   await onboard(page);
   await page.getByRole('button', { name: '빈 페이지' }).click();
@@ -417,10 +389,12 @@ test('/이미지 · /파일 — 고른 파일을 본문에 넣고 읽기 모드�
   await expect.poll(() => source(page)).toMatch(/\[📎 notes\.txt\]\(data:text\/plain;base64,[A-Za-z0-9+/=]+ "notes\.txt"\)/);
   expect(await source(page)).not.toContain('/파일');
 
-  await main.getByRole('button', { name: '완료' }).click();
-  await expect(main.locator('img[alt="dot.png"]')).toBeVisible();
-  expect(await main.locator('img[alt="dot.png"]').evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(1);
-  const link = main.getByRole('link', { name: /notes\.txt/ });
-  await expect(link).toHaveAttribute('download', 'notes.txt');
+  await page.keyboard.press('Escape');
+  const img = main.locator('.cm-lp-image img');
+  await expect(img).toBeVisible();
+  expect(await img.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(1);
+  const download = page.waitForEvent('download');
+  await main.locator('.cm-line', { hasText: 'notes.txt' }).getByText('notes.txt').click({ modifiers: ['ControlOrMeta'] });
+  expect((await download).suggestedFilename()).toBe('notes.txt');
   expect(errors).toEqual([]);
 });

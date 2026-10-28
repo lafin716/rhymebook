@@ -197,7 +197,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP27-T1 | IMP-27 | core `order`·`placeVaultNode`·`vaultChildren` 정렬·검증 + 테스트, ui 트리 놓을 자리(앞/뒤/안으로) 선 표시, e2e vault 순서 바꾸기 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 399, e2e vault desktop·mobile |
 
 ## Active Work
-- 없음 (ADR-085 사이드바 터치 끌기 · 쪽 밖 필기 막기 · 쪽 보관함 담기 완료)
+- 없음 (ADR-086 마크다운 페이지 편집 모드 없애고 실시간 저장 완료)
 - 확인 필요: `e2e/skill-sync-split.spec.ts` '웹(원격): 스킬 관리에 PC 스킬 동기화 버튼…'이 HEAD(v0.30.0)에서도 실패 — `[data-skill-row="curriculum"]` 행이 없어 기다리다 시간 초과. 테스트가 오래된 것으로 보임, 미수정
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
@@ -210,6 +210,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-28 · ADR-086: 페이지 편집/완료 전환 제거 — 늘 실시간 렌더 편집기, 쓰는 대로 저장. 가지 앵커·하이라이트·메모를 편집기 장식으로(core `locateSourceAnchor`·`markdownPlainText` + 테스트), 편집기 선택 → 전역 선택 메뉴 + 서식 단추(`pageEditorBridge`), ⌘/Ctrl+클릭 링크·첨부 열기, 체크박스 즉시 저장. e2e page·canvas·subsession 갱신. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS.
 - 2026-10-28 · ADR-085: 안드로이드 태블릿 사이드바 경계 끌기 움찔(손잡이 `touch-action` 없음 → pointercancel) 수정, 쪽 나눔 판에서 쪽 밖 필기 막기·쪽 경계에서 획 자르기(core `canvasPageAt`·`clipStrokePoints` + 테스트 7), 쪽 넘김 막대 [이 쪽 보관함에 담기](`canvasPageImage.ts`). e2e 캔버스 1건 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e canvas·vault 12 passed.
 - 2026-10-28 · 캔버스·페이지 전체 화면(ADR-084): 헤더 우측 버튼으로 상단 바·사이드바 숨김/복원(`useUi.panelFull`, 다른 세션 종류·보기로 가면 해제). e2e `panel-full`(desktop·mobile) 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e panel-full·canvas·page 30 passed.
 - 2026-10-28 · 캔버스 수정 7건(ADR-081): 긴 카드 스크롤(휠·터치), 흰색·직접 고른 색·즐겨찾기(기기별), 굵기 단계 삭제 → 펜 다시 누르면 굵기 창, 가져오기 아이콘 `Import`, PDF 가져오기 → PDF 모드(쪽마다 한 장, pdf.js 지연 로드·자산 플러그인), A4 가로, 바탕 색·바둑판(촘촘/느슨)·줄공책. core `CanvasDoc.pdf`/`bg`/`canvasPageRects` + 테스트. e2e 캔버스 2건 추가, 기존 위아래 넘김 측정을 poll로(병렬 실행 시 간헐 실패). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 512·ui 64·bridge 66·relay 9·server 10 PASS, `pnpm e2e` 136 passed · 2 failed(skill-sync-split, HEAD에서도 실패).
