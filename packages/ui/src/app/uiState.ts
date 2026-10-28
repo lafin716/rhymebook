@@ -10,6 +10,10 @@ const FAVORITES_KEY = 'branch.favoriteColors';
 const TTS_KEY = 'branch.tts';
 const AUTO_SKILL_KEY = 'branch.autoSkill';
 const VAULT_FULL_KEY = 'branch.vaultFull';
+const TREE_OPEN_KEY = 'branch.treeOpen';
+
+/** 사이드바 트리 펼침 기록은 최근 이만큼만 남긴다 */
+const MAX_TREE_OPEN = 1000;
 
 /** 텍스트를 드래그했을 때 가지·서식 메뉴를 띄우는 방식 (PC·웹. 모바일은 항상 자동) */
 export type SelectionTrigger = 'auto' | 'contextmenu';
@@ -52,6 +56,9 @@ interface UiState {
   /** 태블릿·데스크톱에서 보관함을 전체 화면으로 (기기별, ADR-058) */
   vaultFull: boolean;
   toggleVaultFull(): void;
+  /** 사이드바 세션 트리 펼침·접힘 (세션 id별, 기기별, ADR-078). 기록이 없으면 각 행의 기본값을 쓴다 */
+  treeOpen: Record<string, boolean>;
+  setTreeOpen(id: string, open: boolean): void;
   /** 딥링크로 받은 페어링 링크. 설정 › 원격 Bridge 폼이 가져가면 비운다 */
   pairLink: string | null;
   /** 사이드바에서 끌고 있는 세션 (분할 놓기 영역 표시용) */
@@ -97,6 +104,16 @@ function loadFavorites(): MarkColor[] {
     return Array.isArray(v) ? v.filter(isMarkColor).slice(0, MAX_FAVORITE_COLORS) : [];
   } catch {
     return [];
+  }
+}
+
+function loadTreeOpen(): Record<string, boolean> {
+  try {
+    const v: unknown = JSON.parse(load(TREE_OPEN_KEY) ?? '{}');
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+    return Object.fromEntries(Object.entries(v).filter((e): e is [string, boolean] => typeof e[1] === 'boolean'));
+  } catch {
+    return {};
   }
 }
 
@@ -155,6 +172,16 @@ export const useUi = create<UiState>((set, get) => ({
     const sidebarWidth = clampSidebarWidth(w);
     set({ sidebarWidth });
     if (persist) save(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
+  },
+  treeOpen: loadTreeOpen(),
+  setTreeOpen: (id, open) => {
+    const cur = get().treeOpen;
+    if (cur[id] === open) return;
+    // 바꾼 항목을 맨 뒤로 보내 오래된 기록부터 버린다
+    const { [id]: _, ...rest } = cur;
+    const treeOpen = Object.fromEntries([...Object.entries(rest), [id, open] as const].slice(-MAX_TREE_OPEN));
+    set({ treeOpen });
+    save(TREE_OPEN_KEY, JSON.stringify(treeOpen));
   },
   pairLink: null,
   dragSessionId: null,

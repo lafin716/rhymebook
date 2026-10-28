@@ -1,7 +1,7 @@
 import { OctoMark } from '../components/OctoMark';
 import { childrenOf, listedRootSessions, type ID } from '@branch/core';
 import { ChevronRight, FileText, GitBranch, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
 import { useSync } from '../app/sync';
@@ -27,6 +27,7 @@ export function Sidebar() {
   const collapsed = useUi((s) => s.sidebarCollapsed);
   const width = useUi((s) => s.sidebarWidth);
   const fixed = bp === 'desktop';
+  useRevealActive();
 
   useEffect(() => {
     if (fixed) setDrawer(false);
@@ -50,6 +51,27 @@ export function Sidebar() {
       </aside>
     </div>
   );
+}
+
+/**
+ * 열린 세션이 바뀌면 그 세션까지의 트리를 펼친다. 사이드바가 닫혀 있어도 돌도록 항상 마운트된 Sidebar에서 쓰고,
+ * 처음 값은 건너뛴다 — 사이드바를 다시 열거나 새로고침해도 사용자가 접어 둔 상태를 덮지 않는다 (ADR-078)
+ */
+function useRevealActive() {
+  const activeId = useApp((st) => st.view.activeSessionId);
+  const seen = useRef(activeId);
+  useEffect(() => {
+    if (seen.current === activeId) return;
+    seen.current = activeId;
+    const { sessions } = appStore.getState();
+    const s = activeId ? sessions[activeId] : undefined;
+    if (!s) return;
+    const ui = useUi.getState();
+    ui.setTreeOpen(s.rootId, true);
+    for (let cur = s.parentId ? sessions[s.parentId] : undefined; cur; cur = cur.parentId ? sessions[cur.parentId] : undefined) {
+      ui.setTreeOpen(cur.id, true);
+    }
+  }, [activeId]);
 }
 
 /** 사이드바 오른쪽 경계선: 끌어서 너비 조절, 두 번 눌러 기본 너비, 키보드 ←→ */
@@ -212,14 +234,13 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   });
   const isActiveRoot = activeRoot === id;
   const childCount = useApp((st) => childrenOf(st.sessions, id).length);
-  const [open, setOpen] = useState(isActiveRoot);
+  // 펼침 상태는 기기별 스토어에 둔다 — 사이드바를 닫았다 열어도(언마운트) 유지 (ADR-078)
+  const open = useUi((u) => u.treeOpen[id] ?? isActiveRoot);
+  const setOpen = (v: boolean) => useUi.getState().setTreeOpen(id, v);
   const [menu, setMenu] = useState<MenuPoint | null>(null);
   const [renaming, setRenaming] = useState(false);
   const closeMenu = useCallback(() => setMenu(null), []);
   const remove = useRemoveSession(id);
-  useEffect(() => {
-    if (isActiveRoot) setOpen(true);
-  }, [isActiveRoot]);
   if (!s) return null;
   return (
     <div className="mb-0.5">
@@ -301,23 +322,12 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
   const active = useApp((st) => st.view.activeSessionId === id);
   const kidCount = useApp((st) => childrenOf(st.sessions, id).length);
   const hasKids = kidCount > 0;
-  /** 열린 세션이 이 가지 아래에 있으면 접혀 있어도 펼친다 */
-  const holdsActive = useApp((st) => {
-    let cur = st.view.activeSessionId ? st.sessions[st.view.activeSessionId] : undefined;
-    while (cur?.parentId) {
-      if (cur.parentId === id) return true;
-      cur = st.sessions[cur.parentId];
-    }
-    return false;
-  });
-  const [open, setOpen] = useState(true);
+  const open = useUi((u) => u.treeOpen[id] ?? true);
+  const setOpen = (v: boolean) => useUi.getState().setTreeOpen(id, v);
   const [menu, setMenu] = useState<MenuPoint | null>(null);
   const [renaming, setRenaming] = useState(false);
   const closeMenu = useCallback(() => setMenu(null), []);
   const remove = useRemoveSession(id);
-  useEffect(() => {
-    if (holdsActive) setOpen(true);
-  }, [holdsActive]);
   if (!s) return null;
   return (
     <li>
