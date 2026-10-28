@@ -1,7 +1,7 @@
 import { pageLinkId, type ID } from '@branch/core';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
+import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import katex from 'katex';
 
@@ -22,6 +22,81 @@ const focusField = StateField.define<boolean>({
   create: () => false,
   update: (v, tr) => tr.effects.reduce((acc, e) => (e.is(setFocus) ? e.value : acc), v),
 });
+
+/**
+ * 마우스로 끌어 고르는 중 (ADR-077). 그동안은 장식을 다시 만들지 않는다 — 선택이 기호에 닿을 때마다 원문이
+ * 드러나 글자가 밀리면 끄는 자리가 어긋난다. 버튼을 떼면 한 번에 다시 그린다.
+ */
+const setDrag = StateEffect.define<boolean>();
+const dragField = StateField.define<boolean>({
+  create: () => false,
+  update: (v, tr) => tr.effects.reduce((acc, e) => (e.is(setDrag) ? e.value : acc), v),
+});
+/** 마우스로 고르는 중인가 — 선택 서식 팝업은 뗀 뒤에 띄운다 */
+export const isDragging = (state: EditorState): boolean => state.field(dragField, false) ?? false;
+
+const dragWatch = ViewPlugin.fromClass(
+  class {
+    private up: () => void;
+    constructor(view: EditorView) {
+      this.up = () => {
+        if (isDragging(view.state)) view.dispatch({ effects: setDrag.of(false) });
+      };
+      window.addEventListener('mouseup', this.up, true);
+      window.addEventListener('blur', this.up);
+    }
+    destroy() {
+      window.removeEventListener('mouseup', this.up, true);
+      window.removeEventListener('blur', this.up);
+    }
+  },
+);
+
+/** 본문에 넣은 첨부 data URL — 편집 중에도 긴 base64를 접어 보인다 */
+const DATA_URL = /^data:([\w.+/-]+)[^,]*,/;
+
+class DataUrlWidget extends WidgetType {
+  constructor(
+    readonly mime: string,
+    readonly size: number,
+  ) {
+    super();
+  }
+  eq(o: DataUrlWidget) {
+    return o.mime === this.mime && o.size === this.size;
+  }
+  toDOM() {
+    const el = document.createElement('span');
+    el.className = 'cm-lp-dataurl';
+    const kb = this.size * 0.75 / 1024;
+    el.textContent = `${this.mime} · ${kb >= 1024 ? `${(kb / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(kb))}KB`}`;
+    el.title = '첨부 데이터';
+    return el;
+  }
+}
+
+class ImageWidget extends WidgetType {
+  constructor(
+    readonly src: string,
+    readonly alt: string,
+  ) {
+    super();
+  }
+  eq(o: ImageWidget) {
+    return o.src === this.src && o.alt === this.alt;
+  }
+  toDOM() {
+    const wrap = document.createElement('span');
+    wrap.className = 'cm-lp-image';
+    const img = document.createElement('img');
+    img.alt = this.alt;
+    img.draggable = false;
+    // 본문에 넣은 이미지(data:)와 http(s) 이미지만 그린다
+    if (/^data:image\/(?:png|jpeg|gif|webp);/i.test(this.src) || /^https?:\/\//i.test(this.src)) img.src = this.src;
+    wrap.appendChild(img);
+    return wrap;
+  }
+}
 
 const FILE_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>';
@@ -186,7 +261,8 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
   const tree = ensureSyntaxTree(state, state.doc.length, 50) ?? syntaxTree(state);
   const doc = state.doc;
   const focused = state.field(focusField);
-  const sel = focused ? state.selection.ranges : [];
+  // 커서가 있는 곳만 원문을 드러낸다 — 글을 고른 동안은 렌더된 모습 그대로 (ADR-077)
+  const sel = focused ? state.selection.ranges.filter((r) => r.empty) : [];
   const touches = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
   const lineTouched = (pos: number) => {
     const l = doc.lineAt(pos);
@@ -281,6 +357,8 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
         }
         case 'Link':
           return link(n.node);
+        case 'Image':
+          return image(n.node);
         case 'HorizontalRule':
           if (!lineTouched(n.from)) out.push(Decoration.replace({ widget: new HrWidget() }).range(n.from, n.to));
           return;
@@ -313,6 +391,26 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
     },
   });
 
+  /** 긴 data URL은 원문을 드러낼 때도 짧은 표시로 접는다 */
+  function foldData(url: SyntaxNode | null) {
+    if (!url || url.to - url.from < 64) return;
+    const m = DATA_URL.exec(doc.sliceString(url.from, Math.min(url.to, url.from + 120)));
+    if (m) out.push(Decoration.replace({ widget: new DataUrlWidget(m[1]!, url.to - url.from - m[0].length) }).range(url.from, url.to));
+  }
+
+  function image(node: SyntaxNode) {
+    const marks = node.getChildren('LinkMark');
+    const url = node.getChild('URL');
+    if (marks.length < 2 || !url) return false;
+    if (touches(node.from, node.to)) {
+      foldData(url);
+      return false;
+    }
+    const alt = doc.sliceString(marks[0]!.to, marks[1]!.from).replace(/\\([\\[\]])/g, '$1');
+    out.push(Decoration.replace({ widget: new ImageWidget(doc.sliceString(url.from, url.to), alt) }).range(node.from, node.to));
+    return false;
+  }
+
   function link(node: SyntaxNode) {
     const marks = node.getChildren('LinkMark');
     const url = node.getChild('URL');
@@ -322,6 +420,7 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
     const id = pageLinkId(url ? doc.sliceString(url.from, url.to) : null);
     if (touches(node.from, node.to)) {
       out.push(mark('cm-lp-link').range(textFrom, textTo));
+      foldData(url);
       return false;
     }
     if (id) {
@@ -392,15 +491,25 @@ export function livePreview(opts: LivePreviewOptions): Extension {
   const field = StateField.define<DecorationSet>({
     create: (state) => build(state, opts),
     update(deco, tr) {
-      if (tr.docChanged || tr.selection || tr.effects.some((e) => e.is(setFocus)) || syntaxTree(tr.startState) !== syntaxTree(tr.state))
-        return build(tr.state, opts);
+      const effect = tr.effects.some((e) => e.is(setFocus) || e.is(setDrag));
+      const parsed = syntaxTree(tr.startState) !== syntaxTree(tr.state);
+      // 끄는 동안 선택만 바뀐 건 다시 그리지 않는다
+      if (tr.docChanged || effect || parsed || (tr.selection && !isDragging(tr.state))) return build(tr.state, opts);
       return deco;
     },
     provide: (f) => EditorView.decorations.from(f),
   });
   return [
     focusField,
+    dragField,
+    dragWatch,
     EditorView.focusChangeEffect.of((_, focusing) => setFocus.of(focusing)),
+    EditorView.domEventHandlers({
+      mousedown: (e, view) => {
+        if (e.button === 0 && !e.shiftKey && !e.metaKey && !e.ctrlKey) view.dispatch({ effects: setDrag.of(true) });
+        return false;
+      },
+    }),
     field,
   ];
 }

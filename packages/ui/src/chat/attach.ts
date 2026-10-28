@@ -1,4 +1,4 @@
-import { attachmentKindOf, canAddAttachment, formatBytes, newId, ATTACHMENT_LIMITS, type Attachment } from '@branch/core';
+import { attachmentKindOf, canAddAttachment, formatBytes, newId, ATTACHMENT_LIMITS, PAGE_EMBED_MAX_BYTES, type Attachment } from '@branch/core';
 
 /** 이미지 긴 변 최대 픽셀 (모델이 내부에서 줄이는 크기와 비슷하게, 전송량 절약) */
 const IMAGE_MAX_SIDE = 1600;
@@ -100,3 +100,27 @@ export function pastedTextAttachment(text: string, current: readonly Attachment[
 }
 
 export const dataUrl = (a: Attachment) => `data:${a.mime};base64,${a.data}`;
+
+const PAGE_IMAGE = /^image\/(?:png|jpeg|gif|webp)$/;
+/** 브라우저가 열면 스크립트가 도는 형식은 내려받기 전용으로 */
+const UNSAFE_MIME = /^(?:text\/html|image\/svg\+xml|application\/(?:xhtml\+)?xml|text\/xml)$/i;
+
+/**
+ * 페이지 본문에 바로 넣을 첨부 (ADR-077). 이미지는 줄여서, 파일은 그대로 data URL로.
+ * 실패하면 사용자에게 보일 문구.
+ */
+export async function pageEmbed(file: File, kind: 'image' | 'file'): Promise<{ name: string; url: string } | string> {
+  const name = file.name || (kind === 'image' ? '이미지' : '파일');
+  try {
+    let blob: Blob = file;
+    let mime = file.type.toLowerCase();
+    if (kind === 'image') {
+      if (!PAGE_IMAGE.test(mime)) return `“${name}”은(는) 넣을 수 없는 그림 형식이에요. PNG·JPEG·GIF·WebP를 넣을 수 있어요.`;
+      ({ blob, mime } = await prepareImage(file, mime));
+    } else if (!/^[\w.+-]+\/[\w.+-]+$/.test(mime) || UNSAFE_MIME.test(mime)) mime = 'application/octet-stream';
+    if (blob.size > PAGE_EMBED_MAX_BYTES) return `페이지에는 ${formatBytes(PAGE_EMBED_MAX_BYTES)}까지의 파일만 넣을 수 있어요.`;
+    return { name, url: `data:${mime};base64,${await readAsBase64(blob)}` };
+  } catch (e) {
+    return e instanceof Error ? e.message : `“${name}”을(를) 읽지 못했어요.`;
+  }
+}

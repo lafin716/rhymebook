@@ -1,4 +1,4 @@
-import { buildPageFillRequest, buildPageOrganizeRequest, cleanPageAssist, pageDoc, type ID, type Session } from '@branch/core';
+import { buildPageFillRequest, buildPageOrganizeRequest, cleanPageAssist, pageDoc, restoreEmbeds, stashEmbeds, taskItemOffsets, toggleTaskAt, type ID, type Session } from '@branch/core';
 import { Check, FileText, Pencil, Sparkles, Square, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { actions, useApp } from '../app/store';
@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
 import type { PanelVariant } from './ChatPanel';
 import { FootnoteList } from './Footnotes';
+import { TaskToggleContext } from './Markdown';
 import { AssistantMessage } from './MessageItem';
 import { PageEditor } from './PageEditor';
 import { SessionHeader } from './SessionHeader';
@@ -108,8 +109,10 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
     flush();
     const before = pageDoc(actions().messages[sessionId])?.content ?? '';
     if (!before.trim()) return;
-    const raw = await ai.run('organize', buildPageOrganizeRequest({ title: title(), content: before }));
-    const next = raw === null ? '' : cleanPageAssist(raw);
+    // 첨부(data URL)는 자리표시로 보내고 받은 글에서 되돌린다 (ADR-077)
+    const stash = stashEmbeds(before);
+    const raw = await ai.run('organize', buildPageOrganizeRequest({ title: title(), content: stash.text }));
+    const next = raw === null ? '' : restoreEmbeds(cleanPageAssist(raw), stash.embeds);
     if (!next) return;
     // 기다리는 동안 다른 곳(원격)에서 바뀌었으면 덮어쓰지 않는다
     if ((pageDoc(actions().messages[sessionId])?.content ?? '') !== before) return;
@@ -122,10 +125,17 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
     setUndo(null);
   };
   /** 편집기 커서 자리에 채울 글 — 받는 동안 onDelta로 흘려 보낸다 */
-  const fill = (input: { before: string; after: string; request?: string }, onDelta: (text: string) => void) =>
-    ai.run('fill', buildPageFillRequest({ title: title(), ...input }), (t) => onDelta(cleanPageAssist(t, true))).then((raw) =>
-      raw === null ? null : cleanPageAssist(raw),
-    );
+  const fill = (input: { before: string; after: string; request?: string }, onDelta: (text: string) => void) => {
+    const before = stashEmbeds(input.before);
+    const after = stashEmbeds(input.after);
+    const embeds = [...before.embeds, ...after.embeds];
+    // 뒤쪽 자리표시 번호는 앞쪽 개수만큼 밀어 하나의 목록으로 되돌린다
+    const afterText = after.text.replace(/\]\(embed:(\d+)/g, (_, n: string) => `](embed:${Number(n) + before.embeds.length}`);
+    const clean = (t: string, partial: boolean) => restoreEmbeds(cleanPageAssist(t, partial), embeds);
+    return ai
+      .run('fill', buildPageFillRequest({ title: title(), ...input, before: before.text, after: afterText }), (t) => onDelta(clean(t, true)))
+      .then((raw) => (raw === null ? null : clean(raw, false)));
+  };
 
   // 이 문서에 앵커를 둔 가지 (위치 → 생성 순)와 직접 만든 하위 세션(각주)
   const branches = useMemo(
@@ -134,6 +144,18 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
         .filter((s): s is Session => s.parentId === sessionId && !!s.anchor && s.anchor.messageId === doc?.id)
         .sort((a, b) => a.anchor!.startOffset - b.anchor!.startOffset || a.createdAt - b.createdAt),
     [sessions, sessionId, doc?.id],
+  );
+  /** 읽기 모드 체크박스 — 문서 속 n번째 체크박스를 원문 n번째 할 일 항목에 저장한다 (ADR-077) */
+  const readRef = useRef<HTMLDivElement>(null);
+  const toggleTask = useCallback(
+    (box: HTMLInputElement, checked: boolean) => {
+      const boxes = [...(readRef.current?.querySelectorAll<HTMLInputElement>('input[data-task-toggle]') ?? [])];
+      const at = taskItemOffsets(content)[boxes.indexOf(box)];
+      const next = at === undefined || ai.busy ? null : toggleTaskAt(content, at, checked);
+      if (next && next !== content) actions().updatePage(sessionId, next);
+      else box.checked = !checked; // 저장 못 하면 되돌린다
+    },
+    [content, sessionId, ai.busy],
   );
   const notes = useMemo(
     () => Object.values(sessions).filter((s) => s.parentId === sessionId && !s.anchor && s.kind !== 'page').sort((a, b) => a.createdAt - b.createdAt),
@@ -218,8 +240,10 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
               onStopFill={ai.stop}
             />
           ) : content.trim() && doc ? (
-            <div className="space-y-6">
-              <AssistantMessage message={doc} branches={branches} isLast={false} />
+            <div ref={readRef} className="space-y-6">
+              <TaskToggleContext.Provider value={toggleTask}>
+                <AssistantMessage message={doc} branches={branches} isLast={false} />
+              </TaskToggleContext.Provider>
               <FootnoteList notes={notes} />
             </div>
           ) : (

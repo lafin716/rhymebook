@@ -4,9 +4,13 @@ import {
   applyPageBlock,
   filterPageBlocks,
   joinPageFill,
+  pageFileMarkdown,
+  pageImageMarkdown,
   pageLinkMarkdown,
   pageSlashQuery,
+  toggleInlineFormat,
   type ID,
+  type InlineFormat,
   type PageBlock,
 } from '@branch/core';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -14,26 +18,35 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { Annotation, EditorState, Prec, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { EditorView, keymap, placeholder } from '@codemirror/view';
 import {
+  Bold,
+  Code,
   FileText,
   Heading1,
   Heading2,
   Heading3,
+  Image as ImageIcon,
+  Italic,
+  Link as LinkIcon,
   List,
   ListOrdered,
   ListTodo,
   Minus,
+  Paperclip,
   Quote,
   Sigma,
   Sparkles,
   Square,
   SquareCode,
+  Strikethrough,
   Table,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { actions } from '../app/store';
+import { pushNotice } from '../app/sync';
 import { cn } from '../lib/cn';
-import { livePreview } from './livePreview';
+import { pageEmbed } from './attach';
+import { isDragging, livePreview } from './livePreview';
 
 const MENU_H = 320;
 const CTX_W = 240;
@@ -61,8 +74,19 @@ const BLOCK_ICONS: Record<string, LucideIcon> = {
   divider: Minus,
   table: Table,
   math: Sigma,
+  image: ImageIcon,
+  file: Paperclip,
   page: FileText,
 };
+
+/** 글을 고르면 위에 뜨는 서식 버튼 (ADR-077) */
+const FORMATS: { kind: InlineFormat; label: string; key: string; Icon: LucideIcon }[] = [
+  { kind: 'bold', label: '굵게', key: '⌘B', Icon: Bold },
+  { kind: 'italic', label: '기울임', key: '⌘I', Icon: Italic },
+  { kind: 'strike', label: '취소선', key: '⌘⇧X', Icon: Strikethrough },
+  { kind: 'code', label: '코드', key: '⌘E', Icon: Code },
+  { kind: 'link', label: '링크', key: '⌘K', Icon: LinkIcon },
+];
 
 const EMPTY_ITEM = /^(\s*)(?:[-*+]|\d+[.)]) (?:\[[ xX]\] ?)?\s*$/;
 
@@ -120,6 +144,13 @@ export interface PageEditorProps {
   onStopFill?: () => void;
 }
 
+/** 선택 서식 팝업 위치 — 선택 첫 줄 위(공간이 없으면 마지막 줄 아래) */
+interface Fmt {
+  left: number;
+  top: number;
+  below: boolean;
+}
+
 /** 우클릭 메뉴 — pos는 넣을 자리 */
 interface Ctx {
   pos: number;
@@ -151,6 +182,10 @@ export function PageEditor({
   const [ask, setAsk] = useState('');
   const [slash, setSlash] = useState<Slash | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [fmt, setFmt] = useState<Fmt | null>(null);
+  /** 이미지·파일 고르기 — 고른 파일을 넣을 자리 */
+  const fileInput = useRef<HTMLInputElement>(null);
+  const embedAt = useRef<{ pos: number; block: PageBlock } | null>(null);
   /** Esc로 닫은 `/` 위치 — 그 자리에선 다시 열지 않는다 */
   const closedAt = useRef<number | null>(null);
   const items = useMemo(() => (slash ? filterPageBlocks(slash.query) : []), [slash]);
@@ -188,6 +223,57 @@ export function PageEditor({
   const syncRef = useRef(syncSlash);
   syncRef.current = syncSlash;
 
+  /** 글을 골랐으면(끄는 중이 아니면) 그 위에 서식 팝업을 띄운다 */
+  const syncFmt = (v: EditorView) => {
+    const sel = v.state.selection.main;
+    if (sel.empty || !v.hasFocus || isDragging(v.state) || latest.current.locked || !v.state.sliceDoc(sel.from, sel.to).trim()) return setFmt(null);
+    const box = host.current?.getBoundingClientRect();
+    const a = v.coordsAtPos(sel.from, 1);
+    const b = v.coordsAtPos(sel.to, -1);
+    if (!box || !a || !b) return setFmt(null);
+    const scroll = host.current?.closest('[data-scroll]')?.getBoundingClientRect();
+    const below = a.top - 48 < Math.max(scroll?.top ?? 0, 0);
+    const left = a.top === b.top ? (a.left + b.left) / 2 : a.left;
+    setFmt({ left: Math.max(0, Math.min(left - box.left, box.width)), top: (below ? b.bottom : a.top) - box.top, below });
+  };
+  const fmtRef = useRef(syncFmt);
+  fmtRef.current = syncFmt;
+
+  const applyFormat = (kind: InlineFormat) => {
+    const v = view.current;
+    if (!v || latest.current.locked) return false;
+    const sel = v.state.selection.main;
+    const before = v.state.doc.toString();
+    const r = toggleInlineFormat(before, sel.from, sel.to, kind);
+    if (!r) return false;
+    v.dispatch({ changes: minimalChange(before, r.text), selection: { anchor: r.selStart, head: r.selEnd }, userEvent: 'input.format' });
+    v.focus();
+    return true;
+  };
+  const formatRef = useRef(applyFormat);
+  formatRef.current = applyFormat;
+
+  /** 고른 이미지·파일을 본문에 data URL로 넣는다 */
+  const insertEmbed = async (file: File) => {
+    const target = embedAt.current;
+    embedAt.current = null;
+    if (!target || !view.current) return;
+    const kind = target.block.id === 'image' ? 'image' : 'file';
+    const got = await pageEmbed(file, kind);
+    const cur = view.current;
+    if (!cur) return;
+    if (typeof got === 'string') {
+      pushNotice(got);
+      return;
+    }
+    const md = kind === 'image' ? pageImageMarkdown(got.name, got.url) : pageFileMarkdown(got.name, got.url);
+    const before = cur.state.doc.toString();
+    const pos = Math.min(target.pos, before.length);
+    const r = applyPageBlock(before, pos, pos, { ...target.block, text: md });
+    cur.dispatch({ changes: minimalChange(before, r.text), selection: { anchor: r.selStart }, scrollIntoView: true });
+    cur.focus();
+  };
+
   const pickBlock = (block: PageBlock, at?: number) => {
     const v = view.current;
     const s = latest.current.slash;
@@ -195,6 +281,20 @@ export function PageEditor({
     const start = at ?? s!.start;
     const caret = at ?? v.state.selection.main.head;
     let b = block;
+    if (block.id === 'image' || block.id === 'file') {
+      // `/검색어`를 지우고 파일을 고르게 한다. 고르면 그 자리에 넣는다
+      setSlash(null);
+      setCtx(null);
+      if (caret > start) v.dispatch({ changes: { from: start, to: caret }, selection: { anchor: start } });
+      embedAt.current = { pos: start, block };
+      const input = fileInput.current;
+      if (input) {
+        input.accept = block.id === 'image' ? 'image/png,image/jpeg,image/gif,image/webp' : '';
+        input.value = '';
+        input.click();
+      }
+      return;
+    }
     if (block.id === 'page') {
       // 하위 페이지를 만들고 그 링크를 넣는다. 지금 페이지에 머문다
       const id = actions().newPage(undefined, { parentId: sessionId, focus: false });
@@ -299,6 +399,11 @@ export function PageEditor({
                   return true;
                 },
               },
+              { key: 'Mod-b', run: () => formatRef.current('bold') },
+              { key: 'Mod-i', run: () => formatRef.current('italic') },
+              { key: 'Mod-Shift-x', run: () => formatRef.current('strike') },
+              { key: 'Mod-e', run: () => formatRef.current('code') },
+              { key: 'Mod-k', run: () => formatRef.current('link') },
               {
                 key: 'Mod-Enter',
                 run: () => {
@@ -322,10 +427,12 @@ export function PageEditor({
           EditorView.updateListener.of((u) => {
             if (u.docChanged && !u.transactions.some((t) => t.annotation(external))) latest.current.onChange(u.state.doc.toString());
             if (u.docChanged || u.selectionSet || u.focusChanged) syncRef.current(u.view);
+            if (u.docChanged || u.selectionSet || u.focusChanged || u.geometryChanged || isDragging(u.startState) !== isDragging(u.state)) fmtRef.current(u.view);
           }),
           EditorView.domEventHandlers({
             blur: () => {
               setSlash(null);
+              setFmt(null);
               latest.current.onBlur();
             },
             // 우클릭은 블록·AI 채우기 메뉴. Shift+우클릭은 기본 메뉴(복사·붙여넣기)
@@ -378,7 +485,10 @@ export function PageEditor({
     const v = view.current;
     // 설정을 갈아 끼우지 않고 값만 바꾼다 — reconfigure는 실시간 렌더의 포커스 상태를 흐트러뜨린다
     if (v && v.state.field(lockField) !== locked) v.dispatch({ effects: setLock.of(locked) });
-    if (locked) setCtx(null);
+    if (locked) {
+      setCtx(null);
+      setFmt(null);
+    }
   }, [locked]);
 
   // 메뉴 밖을 누르거나 스크롤하면 닫는다
@@ -447,6 +557,45 @@ export function PageEditor({
   return (
     <div className="relative">
       <div ref={host} data-page-editor="" className="page-editor min-h-[50vh]" />
+      <input
+        ref={fileInput}
+        type="file"
+        hidden
+        data-page-embed-input=""
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void insertEmbed(f);
+          else embedAt.current = null;
+        }}
+      />
+      {fmt && !ctx && !slashOpen && (
+        <div
+          role="toolbar"
+          aria-label="선택 서식"
+          data-page-format=""
+          // 눌러도 본문 선택을 잃지 않게
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ left: fmt.left, top: fmt.top }}
+          className={cn(
+            'animate-pop-in absolute z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-line bg-elev p-0.5 shadow-float',
+            fmt.below ? 'mt-1.5' : '-mt-1.5 -translate-y-full',
+          )}
+        >
+          {FORMATS.map(({ kind, label, key, Icon }) => (
+            <button
+              key={kind}
+              type="button"
+              aria-label={label}
+              title={`${label} (${key})`}
+              data-format={kind}
+              onClick={() => applyFormat(kind)}
+              className="grid size-8 place-items-center rounded-md text-fg-2 hover:bg-surface-2 hover:text-fg"
+            >
+              <Icon size={15} />
+            </button>
+          ))}
+        </div>
+      )}
       {filling && (
         <div className="sticky bottom-3 z-20 mt-3 flex justify-center">
           <button

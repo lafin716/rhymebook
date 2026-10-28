@@ -45,6 +45,9 @@ export const PAGE_BLOCKS: readonly PageBlock[] = [
    * 하위 페이지 링크. text는 비워 둔다 — UI가 새 페이지 id로 `pageLinkMarkdown(...)`을 만들어 넣은 블록을
    * applyPageBlock에 넘긴다. text '' 는 "UI가 채운다"는 뜻이라 여기 값을 그대로 쓰면 안 된다.
    */
+  /** 이미지·파일 첨부도 text를 UI가 채운다 — 고른 파일을 data URL로 넣은 `![이름](…)`·`[📎 이름](…)` (ADR-077) */
+  { id: 'image', label: '이미지', hint: '![ ]( )', keywords: ['image', 'img', 'picture', 'photo', '사진', '그림', '첨부'], kind: 'block', text: '' },
+  { id: 'file', label: '파일', hint: '📎', keywords: ['file', 'attach', 'upload', '첨부'], kind: 'line', text: '' },
   { id: 'page', label: '하위 페이지', hint: '[ ]( )', keywords: ['page', 'subpage', 'link', '페이지', '링크'], kind: 'line', text: '' },
 ];
 

@@ -289,3 +289,138 @@ test('우클릭 메뉴로 블록 넣기 · AI로 내용 채우기 · AI로 정�
   await expect(main.getByRole('heading', { level: 2, name: '장점' })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('편집 중 글을 끌어 고르면 서식 팝업이 뜨고, 버튼·단축키로 감싸고 벗긴다 (ADR-077)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  const pop = main.getByRole('toolbar', { name: '선택 서식' });
+  await page.keyboard.type('가나 다라 마바');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('**굵은** 둘째 줄 글');
+  await expect.poll(() => source(page)).toBe('가나 다라 마바\n**굵은** 둘째 줄 글');
+
+  // 키보드로 고르기 → 팝업 → 굵게
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('End');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await expect(pop).toBeVisible();
+  await pop.getByRole('button', { name: '굵게' }).click();
+  await expect.poll(() => source(page)).toBe('가나 **다라** 마바\n**굵은** 둘째 줄 글');
+  // 선택이 그대로라 다시 누르면 벗긴다, 단축키도 같다
+  await pop.getByRole('button', { name: '굵게' }).click();
+  await expect.poll(() => source(page)).toBe('가나 다라 마바\n**굵은** 둘째 줄 글');
+  await page.keyboard.press('ControlOrMeta+i');
+  await expect.poll(() => source(page)).toBe('가나 *다라* 마바\n**굵은** 둘째 줄 글');
+
+  // 서식이 있는 줄을 마우스로 끌어 고른다 — 끄는 동안 줄 모양이 바뀌지 않아 선택이 끝까지 이어진다
+  await page.keyboard.press('ArrowDown');
+  const line = main.locator('.cm-line').nth(1);
+  const box = (await line.boundingBox())!;
+  const text = (await line.evaluate((el) => {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    return r.getBoundingClientRect().right;
+  }))!;
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  const before = await line.evaluate((el) => el.textContent);
+  await page.mouse.move((box.x + text) / 2, box.y + box.height / 2, { steps: 5 });
+  expect(await line.evaluate((el) => el.textContent)).toBe(before);
+  await expect(pop).toHaveCount(0); // 끄는 중에는 팝업을 띄우지 않는다
+  await page.mouse.move(text - 1, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(pop).toBeVisible();
+  const picked = await main
+    .locator('[data-page-editor] .cm-content')
+    .evaluate((el) => {
+      const v = (el as unknown as { cmTile: { root: { view: { state: { selection: { main: { from: number; to: number } }; sliceDoc(a: number, b: number): string } } } } }).cmTile.root.view;
+      return v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to);
+    });
+  expect(picked.length).toBeGreaterThan(8);
+  await pop.getByRole('button', { name: '취소선' }).click();
+  await expect.poll(() => source(page)).toContain('~~');
+  expect(errors).toEqual([]);
+});
+
+test('읽기 모드 — 체크박스를 눌러 저장하고, 글을 골라도 글자 효과는 없다 (ADR-077)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  await main.getByLabel('페이지 본문 (마크다운)').fill('할 일\n\n- [ ] 하나\n- [x] 둘\n\n```\n- [ ] 코드\n```\n- [ ] 셋');
+  await main.getByRole('button', { name: '완료' }).click();
+  const boxes = main.locator('input[data-task-toggle]');
+  await expect(boxes).toHaveCount(3);
+  await boxes.nth(2).click();
+  await boxes.nth(1).click();
+  await expect(boxes.nth(2)).toBeChecked();
+  await expect(boxes.nth(1)).not.toBeChecked();
+
+  await page.reload();
+  await expect(main.locator('input[data-task-toggle]').nth(2)).toBeChecked();
+  await expect(main.locator('input[data-task-toggle]').nth(1)).not.toBeChecked();
+  await main.getByRole('button', { name: '편집' }).click();
+  await expect.poll(() => source(page)).toBe('할 일\n\n- [ ] 하나\n- [ ] 둘\n\n```\n- [ ] 코드\n```\n- [x] 셋');
+  await main.getByRole('button', { name: '완료' }).click();
+
+  // 글을 고르면 묻기 메뉴는 뜨지만 글자 효과(굵게·색)는 없다
+  const ask = page.getByRole('button', { name: '이게 뭐야?' });
+  await expect(async () => {
+    await page.evaluate((sel) => {
+      const root = document.querySelector(`${sel} [data-anchorable]`)!;
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        const t = n as Text;
+        const i = t.data.indexOf('할 일');
+        if (i < 0) continue;
+        const r = document.createRange();
+        r.setStart(t, i);
+        r.setEnd(t, i + 3);
+        const s = getSelection()!;
+        s.removeAllRanges();
+        s.addRange(r);
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        return;
+      }
+      throw new Error('선택할 텍스트 없음');
+    }, MAIN);
+    await expect(ask).toBeVisible({ timeout: 500 });
+  }).toPass();
+  await expect(page.locator('[data-selection-menu]').getByRole('button', { name: '굵게' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('/이미지 · /파일 — 고른 파일을 본문에 넣고 읽기 모드에서 그림·내려받기로 보인다 (ADR-077)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await page.getByRole('button', { name: '빈 페이지' }).click();
+  const main = page.locator(MAIN);
+  const menu = main.getByRole('listbox', { name: '블록 넣기' });
+  // 1x1 png
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+  await page.keyboard.type('/이미지');
+  const imgChooser = page.waitForEvent('filechooser');
+  await menu.getByRole('option', { name: /이미지/ }).click();
+  await (await imgChooser).setFiles({ name: 'dot.png', mimeType: 'image/png', buffer: png });
+  await expect.poll(() => source(page)).toMatch(/^!\[dot\.png\]\(data:image\/png;base64,[A-Za-z0-9+/=]+\)/);
+  await expect(main.locator('.cm-lp-image img')).toBeVisible();
+
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/파일');
+  const fileChooser = page.waitForEvent('filechooser');
+  await menu.getByRole('option', { name: /파일/ }).first().click();
+  await (await fileChooser).setFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('안녕') });
+  await expect.poll(() => source(page)).toMatch(/\[📎 notes\.txt\]\(data:text\/plain;base64,[A-Za-z0-9+/=]+ "notes\.txt"\)/);
+  expect(await source(page)).not.toContain('/파일');
+
+  await main.getByRole('button', { name: '완료' }).click();
+  await expect(main.locator('img[alt="dot.png"]')).toBeVisible();
+  expect(await main.locator('img[alt="dot.png"]').evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(1);
+  const link = main.getByRole('link', { name: /notes\.txt/ });
+  await expect(link).toHaveAttribute('download', 'notes.txt');
+  expect(errors).toEqual([]);
+});

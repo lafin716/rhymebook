@@ -853,6 +853,22 @@ span.annot[data-note-end='true']::after {
   color: var(--accent);
   text-decoration: underline;
 }
+.page-editor .cm-lp-image img {
+  display: inline-block;
+  max-width: 100%;
+  max-height: 480px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  vertical-align: bottom;
+}
+.page-editor .cm-lp-dataurl {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 0 0.35em;
+}
 .page-editor .cm-lp-pagelink {
   display: inline-flex;
   align-items: center;
@@ -968,4 +984,10 @@ span.annot[data-note-end='true']::after {
   color: var(--muted);
   text-decoration: line-through;
   cursor: default;
+}
+
+/* 읽기 모드 페이지의 할 일 체크박스 — 눌러서 바꾼다 (ADR-077) */
+input[data-task-toggle] {
+  cursor: pointer;
+  accent-color: var(--accent);
 }

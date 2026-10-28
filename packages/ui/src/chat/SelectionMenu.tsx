@@ -78,6 +78,8 @@ export function SelectionMenu() {
   /** 선택 글 고치는 중의 입력값 (null = 고치는 중 아님) */
   const [draft, setDraft] = useState<string | null>(null);
   const annotations = useApp((s) => s.annotations);
+  // 페이지 읽기 화면에서는 글자 효과(색·굵게·기울임·글꼴)를 숨긴다 — 서식은 편집기에서 마크다운으로 (ADR-077)
+  const onPage = useApp((s) => (pending ? s.sessions[pending.sessionId]?.kind === 'page' : false));
   const speaking = useSpeech((s) => s.status !== 'idle');
   const dragging = useRef(false);
   const touchingMenu = useRef(false);
@@ -466,45 +468,49 @@ export function SelectionMenu() {
 
   const toolbar = (
     <div className={cn('flex flex-wrap items-center gap-0.5', mobile && 'justify-between')} aria-label="서식">
-      {COLOR_KINDS.map(({ kind, Icon }) => {
-        const cur = exact?.[kind];
-        return (
-          <button
-            key={kind}
-            type="button"
-            aria-label={`${COLOR_KIND_LABELS[kind]} 색상표${cur ? ` (현재 ${colorLabel(cur)})` : ''}`}
-            aria-haspopup="true"
-            aria-expanded={palette === kind}
-            title={COLOR_KIND_LABELS[kind]}
-            onClick={() => setPalette(kind)}
-            className={cn(
-              'inline-flex h-8 items-center gap-0.5 rounded-lg pr-1 pl-1.5 text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg',
-              cur && 'text-fg',
-            )}
-          >
-            <span className="flex flex-col items-center gap-[2px]">
-              <Icon size={15} />
-              <span
-                className="block h-[3px] w-4 rounded-full"
-                style={{ background: cur ? swatchCss(cur, kind) : 'var(--border-strong)' }}
-              />
-            </span>
-            <ChevronDown size={11} className="text-muted" />
-          </button>
-        );
-      })}
-      <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
-      <ToolButton label="굵게" pressed={!!exact?.bold} onClick={() => applyStyle({ bold: true })}>
-        <Bold size={15} />
-      </ToolButton>
-      <ToolButton label="기울임" pressed={!!exact?.italic} onClick={() => applyStyle({ italic: true })}>
-        <Italic size={15} />
-      </ToolButton>
-      {fontBtn('serif', '명조체', '가')}
-      {fontBtn('mono', '고정폭', 'Aa')}
-      <ToolButton label="서식 지우기" onClick={clearStyle}>
-        <Eraser size={15} />
-      </ToolButton>
+      {!onPage && (
+        <>
+          {COLOR_KINDS.map(({ kind, Icon }) => {
+            const cur = exact?.[kind];
+            return (
+              <button
+                key={kind}
+                type="button"
+                aria-label={`${COLOR_KIND_LABELS[kind]} 색상표${cur ? ` (현재 ${colorLabel(cur)})` : ''}`}
+                aria-haspopup="true"
+                aria-expanded={palette === kind}
+                title={COLOR_KIND_LABELS[kind]}
+                onClick={() => setPalette(kind)}
+                className={cn(
+                  'inline-flex h-8 items-center gap-0.5 rounded-lg pr-1 pl-1.5 text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg',
+                  cur && 'text-fg',
+                )}
+              >
+                <span className="flex flex-col items-center gap-[2px]">
+                  <Icon size={15} />
+                  <span
+                    className="block h-[3px] w-4 rounded-full"
+                    style={{ background: cur ? swatchCss(cur, kind) : 'var(--border-strong)' }}
+                  />
+                </span>
+                <ChevronDown size={11} className="text-muted" />
+              </button>
+            );
+          })}
+          <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
+          <ToolButton label="굵게" pressed={!!exact?.bold} onClick={() => applyStyle({ bold: true })}>
+            <Bold size={15} />
+          </ToolButton>
+          <ToolButton label="기울임" pressed={!!exact?.italic} onClick={() => applyStyle({ italic: true })}>
+            <Italic size={15} />
+          </ToolButton>
+          {fontBtn('serif', '명조체', '가')}
+          {fontBtn('mono', '고정폭', 'Aa')}
+          <ToolButton label="서식 지우기" onClick={clearStyle}>
+            <Eraser size={15} />
+          </ToolButton>
+        </>
+      )}
       <ToolButton label="선택한 글 고치기" pressed={edited !== null} onClick={startEdit}>
         <Pencil size={15} />
       </ToolButton>

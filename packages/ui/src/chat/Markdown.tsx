@@ -1,8 +1,8 @@
 import { pageLinkId, type ID, type SegmentMap, type Annotation } from '@branch/core';
 import 'katex/dist/katex.min.css';
 import { FileText } from 'lucide-react';
-import { memo, useMemo, type ComponentProps } from 'react';
-import ReactMarkdown, { type ExtraProps, type Options } from 'react-markdown';
+import { createContext, memo, useContext, useMemo, type ComponentProps } from 'react';
+import ReactMarkdown, { defaultUrlTransform, type ExtraProps, type Options, type UrlTransform } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
 import remarkCjkFriendly from 'remark-cjk-friendly';
@@ -34,12 +34,47 @@ function Pre(props: ComponentProps<'pre'> & ExtraProps) {
   return said === null ? <SvgPreview {...props} /> : <SpeakBlock {...props} source={said} />;
 }
 
-/** `#page:<id>` 링크는 하위 페이지로 연다 (ADR-075) */
+/**
+ * 페이지에 넣은 첨부(data URL)는 살린다 — 이미지는 png·jpeg·gif·webp만, 링크는 html·svg처럼 문서로 열리는 형식 빼고.
+ * 나머지는 기본 규칙 (ADR-077)
+ */
+const urlTransform: UrlTransform = (url, key) => {
+  if (!url.startsWith('data:')) return defaultUrlTransform(url);
+  if (key === 'src') return /^data:image\/(?:png|jpeg|gif|webp)[;,]/i.test(url) ? url : '';
+  if (key === 'href') return /^data:(?:text\/html|image\/svg|application\/xhtml|text\/xml|application\/xml)/i.test(url) ? '' : url;
+  return '';
+};
+
+/**
+ * 읽기 모드 페이지의 할 일 체크박스 — 값이 있으면 체크박스를 눌러 바꿀 수 있다.
+ * 받는 값은 누른 체크박스와 바뀔 상태 (ADR-077)
+ */
+export const TaskToggleContext = createContext<((box: HTMLInputElement, checked: boolean) => void) | null>(null);
+
+function Input({ node: _node, ...rest }: ComponentProps<'input'> & ExtraProps) {
+  const toggle = useContext(TaskToggleContext);
+  if (rest.type !== 'checkbox' || !toggle) return <input {...rest} />;
+  return (
+    <input
+      {...rest}
+      disabled={false}
+      data-task-toggle=""
+      aria-label={rest.checked ? '완료 취소' : '완료'}
+      onChange={(e) => toggle(e.currentTarget, e.currentTarget.checked)}
+    />
+  );
+}
+
+/** `#page:<id>` 링크는 하위 페이지로 연다 (ADR-075). data URL 첨부는 내려받는다 */
 function Anchor({ node: _node, href, children, ...rest }: ComponentProps<'a'> & ExtraProps) {
   const id = pageLinkId(href);
   const exists = useApp((s) => (id ? !!s.sessions[id] : false));
   if (!id)
-    return (
+    return href?.startsWith('data:') ? (
+      <a href={href} {...rest} download={rest.title || true}>
+        {children}
+      </a>
+    ) : (
       <a href={href} {...rest}>
         {children}
       </a>
@@ -63,7 +98,7 @@ function Anchor({ node: _node, href, children, ...rest }: ComponentProps<'a'> & 
   );
 }
 
-const components: Options['components'] = { pre: Pre, a: Anchor };
+const components: Options['components'] = { pre: Pre, a: Anchor, input: Input };
 
 /** 코드(펜스 블록·인라인 코드) 영역 마스크. 수식 구분자 변환에서 제외한다 */
 function codeMask(src: string): Uint8Array {
@@ -184,7 +219,7 @@ export const Markdown = memo(function Markdown({
   const quiz = useMemo(() => ({ messageId, streaming }), [messageId, streaming]);
   return (
     <QuizContext.Provider value={quiz}>
-      <ReactMarkdown components={components} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
+      <ReactMarkdown components={components} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} urlTransform={urlTransform}>
         {source}
       </ReactMarkdown>
     </QuizContext.Provider>
