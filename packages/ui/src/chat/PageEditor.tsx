@@ -51,8 +51,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { mobile } from '../app/runtime';
 import { actions } from '../app/store';
 import { pushNotice } from '../app/sync';
+import { useBreakpoint } from '../app/useBreakpoint';
 import { cn } from '../lib/cn';
 import { annotationProps } from './anchorPlugin';
 import { pageEmbed } from './attach';
@@ -304,6 +306,8 @@ export function PageEditor({
   /** 핸들이 쓰는 편집기와 다시 잴 때를 알리는 값 */
   const [editor, setEditor] = useState<EditorView | null>(null);
   const [layoutTick, setLayoutTick] = useState(0);
+  /** 모바일: 핸들 없이 블록을 길게 눌러 옮긴다 (ADR-091) */
+  const touchBlocks = useBreakpoint() === 'mobile' || !!mobile;
   const [ask, setAsk] = useState('');
   const [slash, setSlash] = useState<Slash | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -664,7 +668,7 @@ export function PageEditor({
             },
             // 우클릭은 블록·AI 채우기 메뉴. Shift+우클릭은 기본 메뉴(복사·붙여넣기)
             // 고른 글 위 우클릭은 선택 메뉴(가지·서식)나 기본 메뉴에 맡긴다 (ADR-086)
-            // P10: 터치에서는 Ctx를 열지 않음 (블록 메뉴는 핸들로 접근)
+            // P10: 터치에서는 Ctx를 열지 않음 (블록 메뉴는 핸들·길게 누르기로 연다)
             contextmenu: (e, ed) => {
               if (e.shiftKey) return false;
               if (isTouchInput()) return false;
@@ -873,12 +877,13 @@ export function PageEditor({
 
   return (
     <div ref={wrap} className="relative">
-      <div ref={host} data-page-editor="" data-session-id={sessionId} data-message-id={messageId} className="page-editor min-h-[50vh] pl-6" />
+      <div ref={host} data-page-editor="" data-session-id={sessionId} data-message-id={messageId} className={cn('page-editor min-h-[50vh]', touchBlocks ? 'pl-1' : 'pl-6')} />
       <PageBlockHandles
         view={editor}
         wrap={wrap}
         tick={layoutTick}
         locked={locked}
+        touch={touchBlocks}
         onMenu={(index, b, at) => showCtx({ pos: b.to, ask: false, block: { index, kind: b.kind } }, at.x, at.y)}
       />
       <input

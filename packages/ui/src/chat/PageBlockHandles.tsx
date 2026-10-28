@@ -26,10 +26,26 @@ export interface PageBlockHandlesProps {
   locked: boolean;
   /** 핸들을 눌렀다 떼면(끌지 않으면) 그 블록의 메뉴를 연다 */
   onMenu: (index: number, block: MarkdownBlock, at: { x: number; y: number }) => void;
+  /** 터치(모바일 앱) — 핸들 대신 블록을 길게 눌러 든다 */
+  touch?: boolean;
 }
 
 /** 블록 옆 가장자리 이만큼(너비 비율)에 놓으면 나란히 배치 */
 const SIDE = 0.25;
+/** 이만큼 누르고 있으면 블록이 들린다 */
+const LIFT_MS = 450;
+/** 들리기 전에 이만큼 움직이면 스크롤로 본다 */
+const SLOP = 8;
+/** 든 채로 화면 위아래 가장자리 이만큼 안에 오면 스크롤 */
+const EDGE = 56;
+
+function scrollParent(el: HTMLElement | null): HTMLElement | null {
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    const y = getComputedStyle(n).overflowY;
+    if ((y === 'auto' || y === 'scroll') && n.scrollHeight > n.clientHeight) return n;
+  }
+  return null;
+}
 
 function measure(view: EditorView): Box[] {
   const top = view.documentTop;
@@ -94,12 +110,16 @@ export function applyDrop(view: EditorView, index: number, drop: BlockDrop): boo
 /**
  * 블록 핸들 (ADR-087 P7·P8). 블록마다 앞에 손잡이를 두고, 끌어서 위아래로 옮기거나
  * 다른 블록 좌우 가장자리에 놓아 나란히(칸) 배치한다. 누르기만 하면 블록 메뉴.
+ * 터치(ADR-091)는 핸들 없이 커서가 없는 블록을 길게 눌러 들고, 끌지 않고 떼면 블록 메뉴.
+ * 커서가 있는 블록을 길게 누르면 평소처럼 글자 선택이다.
  */
-export function PageBlockHandles({ view, wrap, tick, locked, onMenu }: PageBlockHandlesProps) {
+export function PageBlockHandles({ view, wrap, tick, locked, onMenu, touch = false }: PageBlockHandlesProps) {
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [hover, setHover] = useState(-1);
   const [drag, setDrag] = useState<{ index: number; drop: BlockDrop | null } | null>(null);
   const press = useRef<{ index: number; x: number; y: number; id: number; moved: boolean } | null>(null);
+  const menu = useRef(onMenu);
+  menu.current = onMenu;
 
   useEffect(() => {
     if (!view) return;
@@ -125,6 +145,131 @@ export function PageBlockHandles({ view, wrap, tick, locked, onMenu }: PageBlock
       el.removeEventListener('pointerleave', leave);
     };
   }, [wrap, view]);
+
+  // 터치: 길게 눌러 들고 끌어 놓기
+  useEffect(() => {
+    const root = wrap.current;
+    if (!touch || locked || !view || !root) return;
+    const el = view.contentDOM;
+    let t: {
+      index: number;
+      x: number;
+      y: number;
+      /** 누른 자리, 들린 뒤에는 들린 자리 — 여기서 SLOP 넘게 움직이면 스크롤(들리기 전)·끌기(들린 뒤) */
+      lx: number;
+      ly: number;
+      timer: number;
+      lifted: boolean;
+      moved: boolean;
+      drop: BlockDrop | null;
+    } | null = null;
+    let frame = 0;
+    let scroller: HTMLElement | null = null;
+
+    const reset = () => {
+      if (t) clearTimeout(t.timer);
+      t = null;
+      cancelAnimationFrame(frame);
+      root.removeAttribute('data-page-lift');
+      setDrag(null);
+    };
+    const update = () => {
+      if (!t?.lifted) return;
+      const list = measure(view);
+      const content = el.getBoundingClientRect();
+      t.drop = t.moved ? dropAt(list, t.index, t.x, t.y, content.left, content.right) : null;
+      setBoxes(list);
+      setDrag({ index: t.index, drop: t.drop });
+    };
+    // 든 채로 가장자리에 머물면 계속 스크롤
+    const tickScroll = () => {
+      frame = requestAnimationFrame(tickScroll);
+      if (!t?.lifted || !scroller) return;
+      const r = scroller.getBoundingClientRect();
+      const top = Math.max(r.top, 0);
+      const bottom = Math.min(r.bottom, window.innerHeight);
+      const dy = t.y < top + EDGE ? -(top + EDGE - t.y) / 4 : t.y > bottom - EDGE ? (t.y - bottom + EDGE) / 4 : 0;
+      if (!dy) return;
+      scroller.scrollTop += dy;
+      update();
+    };
+
+    const start = (e: TouchEvent) => {
+      reset();
+      const p = e.touches[0];
+      if (e.touches.length !== 1 || !p) return;
+      const list = measure(view);
+      const index = list.findIndex((b) => p.clientY >= b.top && p.clientY <= b.bottom);
+      const block = list[index]?.block;
+      if (!block) return;
+      // 커서가 있는 블록은 길게 눌러 글자를 고른다
+      const sel = view.state.selection.main;
+      if (view.hasFocus && sel.to >= block.from && sel.from <= block.to) return;
+      root.setAttribute('data-page-lift', 'armed');
+      const timer = window.setTimeout(() => {
+        if (!t) return;
+        t.lifted = true;
+        t.lx = t.x;
+        t.ly = t.y;
+        root.setAttribute('data-page-lift', 'lifted');
+        scroller = scrollParent(root);
+        navigator.vibrate?.(10);
+        update();
+        frame = requestAnimationFrame(tickScroll);
+      }, LIFT_MS);
+      t = { index, x: p.clientX, y: p.clientY, lx: p.clientX, ly: p.clientY, timer, lifted: false, moved: false, drop: null };
+    };
+    const move = (e: TouchEvent) => {
+      const p = e.touches[0];
+      if (!t || !p) return;
+      t.x = p.clientX;
+      t.y = p.clientY;
+      if (!t.lifted) {
+        if (Math.hypot(t.x - t.lx, t.y - t.ly) > SLOP) reset();
+        return;
+      }
+      e.preventDefault();
+      if (!t.moved && Math.hypot(t.x - t.lx, t.y - t.ly) < SLOP) return;
+      t.moved = true;
+      update();
+    };
+    const end = (e: TouchEvent) => {
+      const cur = t;
+      if (!cur?.lifted) {
+        reset();
+        return;
+      }
+      // 손을 뗀 뒤 커서가 생기거나 키보드가 뜨지 않게
+      if (e.cancelable) e.preventDefault();
+      reset();
+      if (e.type === 'touchcancel') return;
+      if (cur.moved) {
+        if (cur.drop) applyDrop(view, cur.index, cur.drop);
+        return;
+      }
+      const b = measure(view)[cur.index];
+      if (b) menu.current(cur.index, b.block, { x: cur.x, y: cur.y });
+    };
+    // 누르고 있는 동안 기본 길게 누르기(글자 선택·메뉴)를 막는다
+    const block = (e: Event) => {
+      if (t) e.preventDefault();
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', end);
+    el.addEventListener('contextmenu', block, true);
+    el.addEventListener('selectstart', block);
+    return () => {
+      reset();
+      el.removeEventListener('touchstart', start);
+      el.removeEventListener('touchmove', move);
+      el.removeEventListener('touchend', end);
+      el.removeEventListener('touchcancel', end);
+      el.removeEventListener('contextmenu', block, true);
+      el.removeEventListener('selectstart', block);
+    };
+  }, [touch, locked, view, wrap]);
 
   if (!view) return null;
   const origin = wrap.current?.getBoundingClientRect();
@@ -185,9 +330,25 @@ export function PageBlockHandles({ view, wrap, tick, locked, onMenu }: PageBlock
     }
   }
 
+  const lifted = touch && drag ? boxes[drag.index] : undefined;
+  const liftedBox = lifted && view.contentDOM.getBoundingClientRect();
+
   return (
     <>
-      {boxes.map((b, i) => (
+      {lifted && liftedBox && (
+        <div
+          data-page-lifted={drag?.index}
+          aria-hidden
+          style={{
+            left: liftedBox.left - origin.left - 4,
+            top: lifted.top - origin.top - 2,
+            width: liftedBox.width + 8,
+            height: Math.max(lifted.bottom - lifted.top, 20) + 4,
+          }}
+          className="pointer-events-none absolute z-10 rounded-lg bg-accent/10 ring-2 ring-accent"
+        />
+      )}
+      {!touch && boxes.map((b, i) => (
         <button
           key={`${i}-${b.block.from}`}
           type="button"

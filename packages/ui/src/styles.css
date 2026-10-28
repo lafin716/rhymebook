@@ -918,9 +918,15 @@ span.annot[data-note-end='true']::after {
   padding: 0 4px;
   font-size: 0.9em;
 }
+/* 칸 묶음 표시 줄은 글자 없이 — 여닫는 줄은 얇은 틈, 칸 나눔은 점선 (ADR-091) */
 .page-editor .cm-lp-colmark {
-  color: var(--muted);
-  font-size: 12px;
+  height: 6px;
+  margin-left: 2px;
+  border-left: 2px solid var(--accent-soft);
+}
+.page-editor .cm-lp-colmark-break {
+  height: 13px;
+  background: repeating-linear-gradient(90deg, var(--border) 0 6px, transparent 6px 10px) left 10px center / calc(100% - 10px) 1px no-repeat;
 }
 .page-editor .cm-lp-colsrc {
   border-left: 2px solid var(--accent-soft);
@@ -945,6 +951,12 @@ span.annot[data-note-end='true']::after {
   .page-handle {
     opacity: 0.45;
   }
+}
+/* 블록을 길게 눌러 드는 동안 글자 선택·확대경·기본 메뉴가 끼어들지 않게 (ADR-091) */
+[data-page-lift] .cm-content {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 .page-editor .cm-lp-image {
   position: relative;

@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * 페이지 편집 엔진 (ADR-087): 콜론 이모지 미리보기, 번호 목록 당겨 매기기, 이미지 선택·통째 지우기,
  * 블록 핸들로 옮기기·좌우 나란히 배치, 핸들 메뉴.
+ * 모바일은 핸들 없이 길게 눌러 옮기기, 칸 묶음 표시 줄은 글자로 보이지 않기 (ADR-091).
  */
 const MAIN = '[data-panel="main"]';
 const CONTENT = `${MAIN} [data-page-editor] .cm-content`;
@@ -132,7 +133,8 @@ test('이미지: 누르면 선택 표시, 지우기 버튼·Backspace로 통째�
   expect(errors).toEqual([]);
 });
 
-test('블록 핸들: 끌어서 위아래로 옮기고, 옆 가장자리에 놓으면 좌우로 나란히 배치·메뉴로 풀기', async ({ page }) => {
+test('블록 핸들: 끌어서 위아래로 옮기고, 옆 가장자리에 놓으면 좌우로 나란히 배치·메뉴로 풀기', async ({ page }, info) => {
+  test.skip(info.project.name === 'mobile', '모바일은 핸들 대신 길게 누르기');
   const errors = collectErrors(page);
   await blankPage(page);
   await setDoc(page, '# 제목\n\n첫째 문단\n\n둘째 문단', 0);
@@ -209,5 +211,90 @@ test('블록 핸들: 끌어서 위아래로 옮기고, 옆 가장자리에 놓�
   await handles.nth(2).click();
   await menu.getByRole('menuitem', { name: '블록 지우기' }).click();
   await expect.poll(() => source(page)).toBe('첫째 문단\n\n둘째 문단\n\n');
+  expect(errors).toEqual([]);
+});
+
+test('칸 묶음 안을 고칠 때 표시 줄(<!-- column -->)은 글자로 보이지 않고 입력·지우기로 깨지지 않는다', async ({ page }) => {
+  const errors = collectErrors(page);
+  await blankPage(page);
+  const doc = '<!-- columns -->\n왼쪽\n<!-- column -->\n오른쪽\n<!-- /columns -->\n\n아래';
+  // 커서를 왼쪽 칸 끝에
+  await setDoc(page, doc, doc.indexOf('왼쪽') + 2);
+  const content = page.locator(CONTENT);
+  await expect(content.locator('[data-page-colmark]')).toHaveCount(3);
+  await expect(content).not.toContainText('<!--');
+  await expect(content).toContainText('왼쪽');
+
+  // 왼쪽 칸 끝에서 입력 → 칸 안에 들어가고, 지우기로 표시 줄을 넘어가지 않는다
+  await page.keyboard.type('!');
+  expect(await source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
+  await page.keyboard.press('Delete');
+  await page.keyboard.press('Delete');
+  expect(await source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
+
+  // 오른쪽 칸 맨 앞에서 Backspace도 칸 나눔을 지우지 않는다
+  const right = (await source(page)).indexOf('오른쪽');
+  await select(page, right, right);
+  await page.keyboard.press('Backspace');
+  expect(await source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
+
+  // 아래 화살표로 칸 나눔 줄을 건너뛰고, 위로 가도 표시 줄에 서지 않는다
+  await select(page, doc.indexOf('왼쪽'), doc.indexOf('왼쪽'));
+  await page.keyboard.press('ArrowDown');
+  const head = () =>
+    page.locator(CONTENT).evaluate((el) => (el as unknown as { cmTile: { root: { view: { state: { selection: { main: { head: number } } } } } } }).cmTile.root.view.state.selection.main.head);
+  const src = await source(page);
+  const h = await head();
+  expect(h).toBeGreaterThanOrEqual(src.indexOf('오른쪽'));
+  expect(h).toBeLessThanOrEqual(src.indexOf('오른쪽') + 3);
+  expect(errors).toEqual([]);
+});
+
+test('모바일: 핸들 없이 길게 눌러 블록을 옮기고, 커서가 있는 블록은 길게 눌러도 들리지 않는다', async ({ page }, info) => {
+  test.skip(info.project.name !== 'mobile', '모바일 전용');
+  const errors = collectErrors(page);
+  await blankPage(page);
+  await setDoc(page, '첫째 문단\n\n둘째 문단\n\n셋째 문단', 0);
+  await page.locator(CONTENT).evaluate((el) => (el as HTMLElement).blur());
+  await expect(page.locator(`${MAIN} [data-page-handle]`)).toHaveCount(0);
+
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number, y: number) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  const center = async (text: string) => {
+    const b = (await page.locator(CONTENT).getByText(text, { exact: true }).boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+
+  // 셋째 문단을 길게 눌러 들어 첫째 문단 윗부분으로
+  const from = await center('셋째 문단');
+  const top = (await page.locator(CONTENT).getByText('첫째 문단', { exact: true }).boundingBox())!;
+  await touch('touchStart', from.x, from.y);
+  await expect(page.locator('[data-page-lifted]')).toHaveCount(1);
+  for (let i = 1; i <= 8; i++) await touch('touchMove', from.x, from.y + ((top.y + 2 - from.y) * i) / 8);
+  await expect(page.locator('[data-page-drop]')).toHaveCount(1);
+  await touch('touchEnd', 0, 0);
+  await expect.poll(() => source(page)).toBe('셋째 문단\n\n첫째 문단\n\n둘째 문단');
+  await expect(page.locator('[data-page-lifted]')).toHaveCount(0);
+
+  // 길게 눌렀다 움직이지 않고 떼면 블록 메뉴
+  const mid = await center('첫째 문단');
+  await touch('touchStart', mid.x, mid.y);
+  await expect(page.locator('[data-page-lifted]')).toHaveCount(1);
+  await touch('touchEnd', 0, 0);
+  const menu = page.getByRole('menu', { name: '블록·AI 메뉴' });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+
+  // 커서가 있는 블록은 길게 눌러도 들리지 않는다 (글자 선택 몫)
+  const doc = await source(page);
+  await select(page, doc.indexOf('둘째') + 1, doc.indexOf('둘째') + 1);
+  const second = await center('둘째 문단');
+  await touch('touchStart', second.x, second.y);
+  await page.waitForTimeout(700);
+  await expect(page.locator('[data-page-lifted]')).toHaveCount(0);
+  await touch('touchEnd', 0, 0);
+  expect(await source(page)).toBe(doc);
   expect(errors).toEqual([]);
 });
