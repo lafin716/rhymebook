@@ -23,6 +23,7 @@ import type { PanelVariant } from './ChatPanel';
 import { AnnotationPopover } from './AnnotationPopover';
 import { FootnoteList } from './Footnotes';
 import { PageEditor } from './PageEditor';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SessionHeader } from './SessionHeader';
 import { BranchChips, SummaryCard } from './SummaryCard';
 import { usePageAi } from './usePageAi';
@@ -273,30 +274,32 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
             </IconButton>
           </div>
 
-          <PageEditor
-            key={sessionId}
-            sessionId={sessionId}
-            initial={draft}
-            content={content}
-            hasPending={hasPending}
-            onChange={onChange}
-            onBlur={flush}
-            messageId={doc?.id}
-            branches={branches}
-            annotations={annotations}
-            onNote={(a, rect) => setNoteOpen({ id: a.id, rect })}
-            locked={!!ai.busy}
-            filling={ai.busy === 'fill'}
-            onFill={fill}
-            onStopFill={ai.stop}
-            onView={(view: EditorView | null) => {
-              editorRef.current = view;
-            }}
-            onHistory={(h: { undo: number; redo: number }) => {
-              setHistory(h);
-            }}
-            emoji={emoji}
-          />
+          {/* 편집기가 그리다 예외를 내도 화면 전체가 비지 않게 */}
+          <ErrorBoundary key={sessionId} name="page-editor">
+            <PageEditor
+              sessionId={sessionId}
+              initial={draft}
+              content={content}
+              hasPending={hasPending}
+              onChange={onChange}
+              onBlur={flush}
+              messageId={doc?.id}
+              branches={branches}
+              annotations={annotations}
+              onNote={(a, rect) => setNoteOpen({ id: a.id, rect })}
+              locked={!!ai.busy}
+              filling={ai.busy === 'fill'}
+              onFill={fill}
+              onStopFill={ai.stop}
+              onView={(view: EditorView | null) => {
+                editorRef.current = view;
+              }}
+              onHistory={(h: { undo: number; redo: number }) => {
+                setHistory(h);
+              }}
+              emoji={emoji}
+            />
+          </ErrorBoundary>
           {(summaries.length > 0 || branches.length > 0 || notes.length > 0) && (
             <div className="mt-6 space-y-3">
               {summaries.map((b) => (
@@ -320,7 +323,9 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
         }}
       />
 
-      <PageKeyboardBar view={editorRef.current} history={history} />
+      <ErrorBoundary name="page-keyboard-bar" silent>
+        <PageKeyboardBar view={editorRef.current} history={history} />
+      </ErrorBoundary>
     </section>
   );
 }

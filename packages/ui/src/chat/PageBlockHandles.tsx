@@ -13,7 +13,8 @@ interface Box {
   /** 클라이언트 좌표 */
   top: number;
   bottom: number;
-  head: number;
+  /** 첫 줄 글자의 세로 가운데 (클라이언트 좌표) — 핸들을 여기에 맞춘다 */
+  mid: number;
 }
 
 export interface PageBlockHandlesProps {
@@ -35,8 +36,23 @@ function measure(view: EditorView): Box[] {
   return markdownBlocks(view.state.doc.toString()).map((block) => {
     const first = view.lineBlockAt(block.from);
     const last = view.lineBlockAt(block.to);
-    return { block, top: top + first.top, bottom: top + last.bottom, head: Math.min(first.height, 28) };
+    const box = { block, top: top + first.top, bottom: top + last.bottom };
+    return { ...box, mid: textMid(view, block, box.top, box.bottom) };
   });
+}
+
+/**
+ * 첫 줄 글자의 세로 가운데. 제목처럼 줄 위쪽에 여백이 있는 블록도 글자 옆에 핸들이 오게
+ * 줄 상자가 아니라 실제 글자 좌표로 잰다. 그림으로 바뀐 블록(나란히·이미지 등)은 첫 줄 높이로 어림한다.
+ */
+function textMid(view: EditorView, block: MarkdownBlock, top: number, bottom: number): number {
+  const line = view.state.doc.lineAt(block.from);
+  // 숨긴 머리 기호(`# `) 뒤 첫 글자에서 잰다
+  const lead = /^\s*(#{1,6}\s+|[-*+]\s\[[xX ]\]\s+|[-*+]\s+|\d+[.)]\s+|>\s?)?/.exec(line.text)?.[0].length ?? 0;
+  const at = Math.min(line.from + lead, line.to);
+  const c = block.kind === 'columns' || block.kind === 'image' ? null : view.coordsAtPos(at, 1);
+  if (c && c.bottom > c.top && c.top >= top - 1 && c.bottom <= bottom + 1) return (c.top + c.bottom) / 2;
+  return top + Math.min(bottom - top, 28) / 2;
 }
 
 /** 마우스·손가락 위치에서 놓을 자리를 고른다 */
@@ -192,7 +208,7 @@ export function PageBlockHandles({ view, wrap, tick, locked, onMenu }: PageBlock
             const r = e.currentTarget.getBoundingClientRect();
             onMenu(i, b.block, { x: r.right, y: r.bottom });
           }}
-          style={{ top: b.top - origin.top + Math.max(0, (b.head - 24) / 2), height: 24 }}
+          style={{ top: b.mid - origin.top - 12, height: 24 }}
           className={cn(
             'page-handle absolute left-0 z-10 grid w-5 cursor-grab place-items-center rounded text-muted hover:bg-surface-2 hover:text-fg-2 active:cursor-grabbing',
             drag?.index === i && 'bg-accent-soft text-accent',

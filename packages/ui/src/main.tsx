@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { remoteMode } from './app/capabilities';
 import { restoreLastPage } from './app/lastPage';
 import { isDemo, mobile, presentWindowId, sessionWindowId } from './app/runtime';
@@ -32,13 +33,16 @@ async function boot() {
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      {presentWindowId ? (
-        <PresentAudienceApp sessionId={presentWindowId} />
-      ) : sessionWindowId ? (
-        <SessionWindowApp />
-      ) : (
-        <App />
-      )}
+      {/* 그리다 예외가 나도 빈 화면 대신 안내·다시 시도 */}
+      <ErrorBoundary name="root" full>
+        {presentWindowId ? (
+          <PresentAudienceApp sessionId={presentWindowId} />
+        ) : sessionWindowId ? (
+          <SessionWindowApp />
+        ) : (
+          <App />
+        )}
+      </ErrorBoundary>
     </StrictMode>,
   );
 }

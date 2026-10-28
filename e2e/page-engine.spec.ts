@@ -139,6 +139,29 @@ test('블록 핸들: 끌어서 위아래로 옮기고, 옆 가장자리에 놓�
   const handles = page.locator(`${MAIN} [data-page-handle]`);
   await expect(handles).toHaveCount(3);
 
+  // 핸들은 줄 상자가 아니라 글자의 세로 가운데에 온다 (제목처럼 위 여백이 큰 줄도)
+  const textMid = (text: string) =>
+    page.locator(CONTENT).evaluate((el, t) => {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const i = n.textContent!.indexOf(t);
+        if (i < 0) continue;
+        const r = document.createRange();
+        r.setStart(n, i);
+        r.setEnd(n, i + t.length);
+        const b = r.getBoundingClientRect();
+        return b.top + b.height / 2;
+      }
+      return NaN;
+    }, text);
+  for (const [i, text] of [
+    [0, '제목'],
+    [1, '첫째 문단'],
+  ] as const) {
+    const h = (await handles.nth(i).boundingBox())!;
+    expect(Math.abs(h.y + h.height / 2 - (await textMid(text)))).toBeLessThan(3);
+  }
+
   const drag = async (index: number, x: number, y: number) => {
     const h = (await handles.nth(index).boundingBox())!;
     await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
@@ -164,6 +187,12 @@ test('블록 핸들: 끌어서 위아래로 옮기고, 옆 가장자리에 놓�
   const columns = page.locator(`${MAIN} [data-page-columns]`);
   await expect(columns).toBeVisible();
   await expect(columns.locator('[data-page-column]')).toHaveCount(2);
+  // 칸은 전체 너비를 반반 나눈다 (좁은 화면도 위아래로 쌓지 않는다)
+  const [c1, c2] = await columns.locator('[data-page-column]').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()));
+  const whole = (await columns.boundingBox())!;
+  expect(Math.abs(c1!.width - c2!.width)).toBeLessThan(2);
+  expect(Math.abs(c1!.top - c2!.top)).toBeLessThan(2);
+  expect(c2!.right - c1!.left).toBeGreaterThan(whole.width - 2);
   await expect(handles.first()).toHaveAttribute('data-block-kind', 'columns');
 
   // 핸들을 누르기만 하면 블록 메뉴 → 나란히 배치 풀기

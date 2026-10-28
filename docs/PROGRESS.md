@@ -202,6 +202,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP30-T4 | IMP-30 | 캔버스 보드 축 잠금·발표 모드·청중 창(외부 디스플레이) | agent-D→lead | HIGH | inherit | default | DONE | 100% | T0 | PASS: e2e canvas-present 2건 (desktop+mobile), desktop tsc |
 | IMP30-T5 | IMP-30 | 통합·typecheck/lint/test/e2e·독립 리뷰 | lead+reviewer | MEDIUM | inherit | default | DONE | 100% | T1-T4 | PASS: typecheck·lint·test(core 552·ui 64·bridge 66·relay 9·server 10), e2e 167 passed(실패 2 = 기존 skill-sync-split), 리뷰 지적 5건 중 오탐 1·Known Issues 4 |
 | IMP30-T6 | IMP-30 | 스크린샷 390/768/1440·데스크톱 패키지 앱·ADR·문서·커밋 | lead | LOW | inherit | default | DONE | 100% | T5 | PASS: 페이지·캔버스·발표 스크린샷 3폭, `package:dir` 성공·OctoBooks.app 실행, ADR-087~089·B-13~15 |
+| FIX31-T1 | FIX-31 | 블록 핸들 글자 가운데·나란히 늘 반반·ErrorBoundary 안전망(길게 누르기 빈 화면) | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: e2e page-engine 8/8(핸들 가운데 ±3px·칸 반반 단언 추가, 이전 코드에서 실패 확인), typecheck·lint·test |
 
 ## Active Work
 - 없음 (IMP-30 완료, v0.35.0)
@@ -217,6 +218,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-29 · ADR-090: 블록 핸들을 첫 글자 세로 가운데에(제목 10px 어긋남 수정), 나란히 묶음은 모바일도 반반 그리드, 루트·페이지 편집기 ErrorBoundary(빈 화면 대신 안내·다시 시도). 길게 누르기 빈 화면은 에뮬레이터에서 재현 안 됨 — 원인 미확인. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e page-engine 8 passed.
 - 2026-10-29 · ADR-087~089: 마크다운 페이지 — AI 정리 되돌리기 버튼 제거, 상단 실행 취소/다시 실행·설정, `:` 이모지 미리보기(core `emoji`), 모바일 키보드 단축 바(설정 온오프), 이미지 선택·통째 지우기, 블록 핸들 이동·좌우 나란히 배치(core `pageColumns`), 번호 목록 당겨 매기기, 선택 팝업 하나로 통합·모바일 시스템 메뉴 억제. 캔버스 — 발표·전체 화면·가져오기 순서·전체 화면 제목 숨김, 맞춤 상태 한 축 밀기, 팔레트 개수·접기, 도구 막대 동서남북 도킹, 발표 모드(포인터·펜·지우개, 외부 디스플레이 청중 창은 도구 막대 없음). 통합 중 `.cm-content`의 중복 `data-page-editor`로 선택 메뉴가 안 뜨던 회귀 수정. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e 167 passed / 2 failed(기존 skill-sync-split) / 17 skipped.
 - 2026-10-28 · ADR-086: 페이지 편집/완료 전환 제거 — 늘 실시간 렌더 편집기, 쓰는 대로 저장. 가지 앵커·하이라이트·메모를 편집기 장식으로(core `locateSourceAnchor`·`markdownPlainText` + 테스트), 편집기 선택 → 전역 선택 메뉴 + 서식 단추(`pageEditorBridge`), ⌘/Ctrl+클릭 링크·첨부 열기, 체크박스 즉시 저장. e2e page·canvas·subsession 갱신. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS.
 - 2026-10-28 · ADR-085: 안드로이드 태블릿 사이드바 경계 끌기 움찔(손잡이 `touch-action` 없음 → pointercancel) 수정, 쪽 나눔 판에서 쪽 밖 필기 막기·쪽 경계에서 획 자르기(core `canvasPageAt`·`clipStrokePoints` + 테스트 7), 쪽 넘김 막대 [이 쪽 보관함에 담기](`canvasPageImage.ts`). e2e 캔버스 1건 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e canvas·vault 12 passed.
