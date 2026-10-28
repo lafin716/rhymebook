@@ -29,11 +29,12 @@ import { Archive, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { PanelVariant } from '../chat/ChatPanel';
 import { SessionHeader } from '../chat/SessionHeader';
-import { PanelFullToggle } from '../components/PanelFullToggle';
 import { actions, useApp } from '../app/store';
+import { useUi } from '../app/uiState';
 import { pushNotice, syncClient } from '../app/sync';
 import { cn } from '../lib/cn';
 import { CanvasBoard } from './CanvasBoard';
+import { CanvasPresentation } from './CanvasPresentation';
 import { ImportMenu, ImportPicker, type ImportEntry, type ImportSource } from './CanvasImport';
 import { CanvasSettings } from './CanvasSettings';
 import { confirm } from '../components/ConfirmDialog';
@@ -44,13 +45,20 @@ import { pdfFromFile } from './canvasPdf';
 import { saveToVault } from '../vault/save';
 import {
   loadFavoriteInks,
+  loadPaletteCount,
+  loadPaletteOpen,
   loadPenNib,
   loadStrokeSizes,
+  loadToolbarDock,
   MAX_FAVORITE_INKS,
   saveFavoriteInks,
+  savePaletteCount,
+  savePaletteOpen,
   savePenNib,
   saveStrokeSizes,
+  saveToolbarDock,
   type StrokeKind,
+  type ToolbarDock,
 } from './canvasPrefs';
 import { centerView, fitView, toWorld, type CanvasView } from './view';
 
@@ -102,6 +110,7 @@ export interface CanvasPanelProps {
  */
 export function CanvasPanel({ sessionId, variant = 'main', headerActions, handleClassName, className }: CanvasPanelProps) {
   const content = useApp((s) => pageDoc(s.messages[sessionId])?.content);
+  const panelFull = useUi((s) => s.panelFull);
 
   // 원격 기기는 메시지를 PC에서 받아 와야 캔버스가 보인다
   useEffect(() => {
@@ -111,17 +120,14 @@ export function CanvasPanel({ sessionId, variant = 'main', headerActions, handle
 
   return (
     <section className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg', className)} data-panel={variant} data-canvas="" aria-label="캔버스">
-      <SessionHeader
-        sessionId={sessionId}
-        compact
-        handleClassName={handleClassName}
-        actions={
-          <>
-            {variant === 'main' && <PanelFullToggle />}
-            {headerActions}
-          </>
-        }
-      />
+      {!panelFull && (
+        <SessionHeader
+          sessionId={sessionId}
+          compact
+          handleClassName={handleClassName}
+          actions={headerActions}
+        />
+      )}
       <CanvasEditor key={sessionId} sessionId={sessionId} content={content} />
     </section>
   );
@@ -140,6 +146,11 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const [dialog, setDialog] = useState<'menu' | 'settings' | Exclude<ImportSource, 'image' | 'pdf'> | null>(null);
   const [pageIdx, setPageIdx] = useState(0);
   const [animate, setAnimate] = useState(false);
+  const [presenting, setPresenting] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(loadPaletteOpen);
+  const [paletteCount, setPaletteCount] = useState(loadPaletteCount);
+  const [toolbarDock, setToolbarDock] = useState<ToolbarDock>(loadToolbarDock);
+  const panelFull = useUi((s) => s.panelFull);
   // 실행 취소·다시 실행 가능 여부처럼 렌더에 쓰는 값은 ref를 바꾼 뒤 강제로 다시 그린다
   const [, bump] = useReducer((n: number) => n + 1, 0);
 
@@ -163,6 +174,15 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const page = Math.min(pageIdx, Math.max(0, pageCount - 1));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- 쪽 자리는 판 설정에만 달렸다
   const pageRects = useMemo(() => canvasPageRects(doc), [doc.layout, doc.pages, doc.flow, doc.pdf]);
+
+  // C2: 맞춤 상태에서 한 축만 스와이프 (paged + fitK 이하)
+  const fitNow = useMemo(() => fitFor(boardRef.current, doc, page), [doc, page]);
+  const panAxis = useMemo(() => {
+    if (!pageCount || !fitNow) return null;
+    if (view.k > fitNow.k * ZOOMED_IN) return null;
+    return flow === 'vertical' ? 'y' : 'x';
+  }, [pageCount, fitNow, view.k, flow]);
+
   const viewRef = useRef(view);
   useEffect(() => {
     viewRef.current = view;
@@ -518,23 +538,44 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
       // 글 입력 중에는 단축키를 가로채지 않는다
       if (t?.closest?.('input, textarea, [contenteditable="true"]')) return;
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === 'z') {
+      // 발표 중에는 Escape를 포함한 모든 단축키를 CanvasPresentation에 위임한다
+      if (presenting) return;
+      if (e.key === 'Escape') {
+        if (panelFull) {
+          e.preventDefault();
+          useUi.getState().setPanelFull(false);
+        } else {
+          setSelectedId(null);
+        }
+      } else if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
         e.preventDefault();
         deleteSelected();
-      } else if (e.key === 'Escape') {
-        setSelectedId(null);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, undo, redo, deleteSelected]);
+  }, [selectedId, undo, redo, deleteSelected, panelFull, presenting]);
+
+  // C4: 도킹 위치에 따른 레이아웃 방향
+  const toolbarContainerClass = (() => {
+    switch (toolbarDock) {
+      case 'top':
+        return 'flex flex-col';
+      case 'bottom':
+        return 'flex flex-col-reverse';
+      case 'left':
+        return 'flex';
+      case 'right':
+        return 'flex flex-row-reverse';
+    }
+  })();
 
   return (
-    <>
+    <div className={cn(toolbarContainerClass, 'h-full min-h-0 min-w-0')}>
       <CanvasToolbar
         tool={tool}
         onTool={pickTool}
@@ -556,6 +597,21 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         onImport={() => setDialog('menu')}
         hasSelection={selectedId !== null}
         onDeleteSelected={deleteSelected}
+        panelFull={panelFull}
+        onPanelFull={(full) => useUi.getState().setPanelFull(full)}
+        presenting={presenting}
+        onPresent={() => setPresenting(true)}
+        paletteOpen={paletteOpen}
+        onPaletteOpen={(open) => {
+          setPaletteOpen(open);
+          savePaletteOpen(open);
+        }}
+        paletteCount={paletteCount}
+        toolbarDock={toolbarDock}
+        onToolbarDock={(dock) => {
+          setToolbarDock(dock);
+          saveToolbarDock(dock);
+        }}
       />
       <div className="relative flex min-h-0 flex-1 flex-col">
         <CanvasBoard
@@ -573,6 +629,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           pages={pageRects}
           onSettle={settle}
           animate={animate}
+          panAxis={panAxis}
         />
         {pageCount > 0 && <PageNav page={page} count={pageCount} vertical={flow === 'vertical'} canAdd={layout !== 'pdf'} onGo={goPage} saving={savingPage} onSave={() => void savePage()} />}
       </div>
@@ -595,6 +652,12 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           pdfName={doc.pdf?.name}
           bg={doc.bg}
           onBackground={changeBackground}
+          paletteCount={paletteCount}
+          onPaletteCount={(n) => {
+            setPaletteCount(n);
+            savePaletteCount(n);
+          }}
+          paletteTotal={INK_COLORS.length + favorites.filter((h) => !INK_COLORS.some((c) => c.hex === h)).length}
           onClose={() => setDialog(null)}
         />
       )}
@@ -609,7 +672,15 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           onClose={() => setDialog(null)}
         />
       )}
-    </>
+      {presenting && (
+        <CanvasPresentation
+          sessionId={sessionId}
+          doc={doc}
+          page={page}
+          onExit={() => setPresenting(false)}
+        />
+      )}
+    </div>
   );
 }
 

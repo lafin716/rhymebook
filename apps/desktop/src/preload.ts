@@ -86,6 +86,17 @@ const api: DesktopApiExt = {
         return () => ipcRenderer.removeListener(CH.winSyncIn, h);
       },
     },
+    // 발표 청중 창
+    present: {
+      open: (sessionId) => ipcRenderer.send(CH.presentOpen, sessionId),
+      send: (msg) => ipcRenderer.send(CH.presentSend, msg),
+      onMessage(cb) {
+        const h = (_e: IpcRendererEvent, msg: unknown) => cb(msg as Record<string, unknown>);
+        ipcRenderer.on(CH.presentRecv, h);
+        return () => ipcRenderer.removeListener(CH.presentRecv, h);
+      },
+      close: () => ipcRenderer.send(CH.presentClose),
+    },
   },
   // 스킬 폴더 (IMP-12, ADR-038). main이 이름·경로를 다시 확인한다
   skills: {

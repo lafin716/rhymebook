@@ -26,7 +26,6 @@ async function selectInEditor(page: Page, text: string) {
     v.focus();
     v.dispatch({ selection: { anchor: i, head: i + t.length } });
   }, text);
-  await page.evaluate(() => document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
 }
 
 function collectErrors(page: Page) {
@@ -276,11 +275,12 @@ test('우클릭 메뉴로 블록 넣기 · AI로 내용 채우기 · AI로 정�
   await menu.getByRole('button', { name: '채우기' }).click();
   await expect.poll(() => source(page)).toBe('어텐션 메모\n## 장점\n\n- 채운 항목: 병렬 처리');
 
-  // AI로 정리 — 울타리를 걷고 바꾸며, 되돌리기로 돌아간다
+  // AI로 정리 — 울타리를 걷고 바꾸며, 따로 된 되돌리기 버튼 없이 상단 실행 취소로 돌아간다 (ADR-087)
   await main.getByRole('button', { name: /AI로 정리/ }).click();
   await expect.poll(() => source(page)).toMatch(/^## 정리/m);
   expect(await source(page)).not.toContain('```');
-  await main.getByRole('button', { name: '되돌리기' }).click();
+  await expect(main.getByRole('button', { name: '되돌리기', exact: true })).toHaveCount(0);
+  await main.getByRole('button', { name: '실행 취소' }).click();
   await expect.poll(() => source(page)).toBe('어텐션 메모\n## 장점\n\n- 채운 항목: 병렬 처리');
   expect(errors).toEqual([]);
 });

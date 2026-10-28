@@ -887,6 +887,89 @@ span.annot[data-note-end='true']::after {
   border: 1px solid var(--border);
   vertical-align: bottom;
 }
+.page-editor .cm-lp-columns {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+  gap: 16px;
+  margin: 4px 0;
+}
+.page-editor .cm-lp-column {
+  min-width: 0;
+  border-radius: 8px;
+  padding: 2px 6px;
+  cursor: text;
+}
+.page-editor .cm-lp-column:hover {
+  background: var(--surface-2);
+}
+.page-editor .cm-lp-column img {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.page-editor .cm-lp-col-quote {
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+  color: var(--muted);
+}
+.page-editor .cm-lp-column code {
+  border-radius: 4px;
+  background: var(--surface-2);
+  padding: 0 4px;
+  font-size: 0.9em;
+}
+.page-editor .cm-lp-colmark {
+  color: var(--muted);
+  font-size: 12px;
+}
+.page-editor .cm-lp-colsrc {
+  border-left: 2px solid var(--accent-soft);
+  padding-left: 8px !important;
+}
+/* 좁은 화면에서는 칸을 위아래로 쌓는다 */
+@media (max-width: 767px) {
+  .page-editor .cm-lp-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+.page-handle {
+  opacity: 0;
+  transition: opacity 0.12s;
+  touch-action: none;
+}
+.page-handle[data-active],
+.page-handle:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  .page-handle {
+    opacity: 0.45;
+  }
+}
+.page-editor .cm-lp-image {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  cursor: pointer;
+}
+.page-editor .cm-lp-image-selected img {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.page-editor .cm-lp-image-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--elev, #fff);
+  color: var(--fg);
+  font-size: 12.5px;
+  padding: 4px 10px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+  cursor: pointer;
+}
 .page-editor .cm-lp-dataurl {
   font-family: var(--font-mono);
   font-size: 0.8em;

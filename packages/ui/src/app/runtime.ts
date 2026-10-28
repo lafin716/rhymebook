@@ -47,6 +47,15 @@ export const sessionWindowId: string | null = (() => {
   return q.get('window') === 'session' ? q.get('session') : null;
 })();
 
+/**
+ * 발표 청중 창이면 발표 세션 id. `?window=present&session=<id>`로 열린다.
+ */
+export const presentWindowId: string | null = (() => {
+  if (typeof window === 'undefined') return null;
+  const q = new URLSearchParams(window.location.search);
+  return q.get('window') === 'present' ? q.get('session') : null;
+})();
+
 function platformSecretStore(api: DesktopApi['secrets']): SecretStore {
   return {
     kind: api.persistent ? 'os' : 'memory',

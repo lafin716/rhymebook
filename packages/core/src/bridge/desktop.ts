@@ -83,6 +83,13 @@ export interface DesktopWindowsApi {
     send(msg: SyncClientMsg): void;
     onMessage(cb: (msg: SyncServerMsg) => void): () => void;
   };
+  /** 발표 청중 창 (외부 디스플레이가 있으면 그 화면에 전체 화면으로) */
+  present?: {
+    open(sessionId: string): void;
+    send(msg: Record<string, unknown>): void;
+    onMessage(cb: (msg: Record<string, unknown>) => void): () => void;
+    close(): void;
+  };
 }
 
 export interface HostDevice {

@@ -195,9 +195,16 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP26-T2 | IMP-26 | ui Modal size·스택, `drag.ts`·`pickers.tsx`·`shared.tsx`·`PageEditor.tsx`, VaultOverlay(전체 화면·트리 끌기·도구 모음·저장·미저장 확인), e2e vault | lead | HIGH | inherit | default | DONE | 100% | T1 | PASS: e2e vault desktop·mobile, 스크린샷 mobile·tablet·desktop |
 | IMP26-T3 | IMP-26 | 독립 리뷰·반영·검증·패키지 앱·문서 | reviewer+lead | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: 아래 Latest Integration Result |
 | IMP27-T1 | IMP-27 | core `order`·`placeVaultNode`·`vaultChildren` 정렬·검증 + 테스트, ui 트리 놓을 자리(앞/뒤/안으로) 선 표시, e2e vault 순서 바꾸기 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 399, e2e vault desktop·mobile |
+| IMP30-T0 | IMP-30 | 계획(docs/plans/page-canvas-ux-plan.md)·계약(pageEditorBridge)·critic 검토 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: critic 12건 반영(계획 "Critic 검토 반영"), 브리지 확장 ui tsc PASS |
+| IMP30-T1 | IMP-30 | 페이지 엔진: 이모지 `:`·이미지 선택/통째 삭제·블록 핸들 이동·좌우 나란히·번호 다시 매기기·openFill (core pageColumns·emoji + 테스트) | agent-A1→lead | HIGH | inherit | default | DONE | 100% | T0 | PASS: core pageColumns·emoji 단위 테스트, e2e page-engine 8/8 (desktop+mobile) |
+| IMP30-T2 | IMP-30 | 페이지 화면: 되돌리기 버튼 제거·Undo/Redo·설정·모바일 키보드 바·선택 팝업 통합·시스템 메뉴 억제 | agent-A2→lead | MEDIUM | inherit | default | DONE | 100% | T0 | PASS: e2e page-chrome (desktop+mobile), ui tsc·lint |
+| IMP30-T3 | IMP-30 | 캔버스 도구 막대: 전체 화면·발표 버튼·제목 숨김·팔레트 개수/접기·동서남북 도킹 | agent-C→lead | MEDIUM | inherit | default | DONE | 100% | T0 | PASS: e2e canvas-toolbar 4건 (desktop+mobile) |
+| IMP30-T4 | IMP-30 | 캔버스 보드 축 잠금·발표 모드·청중 창(외부 디스플레이) | agent-D→lead | HIGH | inherit | default | DONE | 100% | T0 | PASS: e2e canvas-present 2건 (desktop+mobile), desktop tsc |
+| IMP30-T5 | IMP-30 | 통합·typecheck/lint/test/e2e·독립 리뷰 | lead+reviewer | MEDIUM | inherit | default | DONE | 100% | T1-T4 | PASS: typecheck·lint·test(core 552·ui 64·bridge 66·relay 9·server 10), e2e 167 passed(실패 2 = 기존 skill-sync-split), 리뷰 지적 5건 중 오탐 1·Known Issues 4 |
+| IMP30-T6 | IMP-30 | 스크린샷 390/768/1440·데스크톱 패키지 앱·ADR·문서·커밋 | lead | LOW | inherit | default | DONE | 100% | T5 | PASS: 페이지·캔버스·발표 스크린샷 3폭, `package:dir` 성공·OctoBooks.app 실행, ADR-087~089·B-13~15 |
 
 ## Active Work
-- 없음 (ADR-086 마크다운 페이지 편집 모드 없애고 실시간 저장 완료)
+- 없음 (IMP-30 완료, v0.35.0)
 - 확인 필요: `e2e/skill-sync-split.spec.ts` '웹(원격): 스킬 관리에 PC 스킬 동기화 버튼…'이 HEAD(v0.30.0)에서도 실패 — `[data-skill-row="curriculum"]` 행이 없어 기다리다 시간 초과. 테스트가 오래된 것으로 보임, 미수정
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
@@ -210,6 +217,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-29 · ADR-087~089: 마크다운 페이지 — AI 정리 되돌리기 버튼 제거, 상단 실행 취소/다시 실행·설정, `:` 이모지 미리보기(core `emoji`), 모바일 키보드 단축 바(설정 온오프), 이미지 선택·통째 지우기, 블록 핸들 이동·좌우 나란히 배치(core `pageColumns`), 번호 목록 당겨 매기기, 선택 팝업 하나로 통합·모바일 시스템 메뉴 억제. 캔버스 — 발표·전체 화면·가져오기 순서·전체 화면 제목 숨김, 맞춤 상태 한 축 밀기, 팔레트 개수·접기, 도구 막대 동서남북 도킹, 발표 모드(포인터·펜·지우개, 외부 디스플레이 청중 창은 도구 막대 없음). 통합 중 `.cm-content`의 중복 `data-page-editor`로 선택 메뉴가 안 뜨던 회귀 수정. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e 167 passed / 2 failed(기존 skill-sync-split) / 17 skipped.
 - 2026-10-28 · ADR-086: 페이지 편집/완료 전환 제거 — 늘 실시간 렌더 편집기, 쓰는 대로 저장. 가지 앵커·하이라이트·메모를 편집기 장식으로(core `locateSourceAnchor`·`markdownPlainText` + 테스트), 편집기 선택 → 전역 선택 메뉴 + 서식 단추(`pageEditorBridge`), ⌘/Ctrl+클릭 링크·첨부 열기, 체크박스 즉시 저장. e2e page·canvas·subsession 갱신. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS.
 - 2026-10-28 · ADR-085: 안드로이드 태블릿 사이드바 경계 끌기 움찔(손잡이 `touch-action` 없음 → pointercancel) 수정, 쪽 나눔 판에서 쪽 밖 필기 막기·쪽 경계에서 획 자르기(core `canvasPageAt`·`clipStrokePoints` + 테스트 7), 쪽 넘김 막대 [이 쪽 보관함에 담기](`canvasPageImage.ts`). e2e 캔버스 1건 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e canvas·vault 12 passed.
 - 2026-10-28 · 캔버스·페이지 전체 화면(ADR-084): 헤더 우측 버튼으로 상단 바·사이드바 숨김/복원(`useUi.panelFull`, 다른 세션 종류·보기로 가면 해제). e2e `panel-full`(desktop·mobile) 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e panel-full·canvas·page 30 passed.

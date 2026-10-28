@@ -1,7 +1,7 @@
-import { pageLinkId, type ID } from '@branch/core';
+import { COLUMNS_CLOSE, COLUMNS_OPEN, pageLinkId, parseColumns, type ID } from '@branch/core';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import { EditorState, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
-import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet } from '@codemirror/view';
+import { EditorState, Prec, StateEffect, StateField, type Extension, type Range } from '@codemirror/state';
+import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type DecorationSet } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import katex from 'katex';
 
@@ -75,25 +75,105 @@ class DataUrlWidget extends WidgetType {
   }
 }
 
+/**
+ * 고른 이미지 (ADR-087). 이미지를 누르면 그 원문 전체를 고르고 테두리·지우기 버튼을 보인다.
+ * 지우면 원문이 통째로(줄만 남으면 줄까지) 한 번에 지워진다. 다른 곳을 고르거나 글이 바뀌면 풀린다.
+ */
+interface ImageRange {
+  from: number;
+  to: number;
+}
+const selectImage = StateEffect.define<ImageRange | null>();
+const imageSelField = StateField.define<ImageRange | null>({
+  create: () => null,
+  update(v, tr) {
+    for (const e of tr.effects) if (e.is(selectImage)) return e.value;
+    if (!v) return v;
+    if (tr.docChanged) return null;
+    const m = tr.state.selection.main;
+    return m.from === v.from && m.to === v.to ? v : null;
+  },
+});
+/** 지금 고른 이미지 원문 범위 — 선택 메뉴는 이때 뜨지 않는다 */
+export const selectedImage = (state: EditorState): ImageRange | null => state.field(imageSelField, false) ?? null;
+
+/** 이미지 원문을 지운다. 그 줄에 다른 글이 없으면 줄째 지운다 */
+function deleteImage(view: EditorView, r: ImageRange): boolean {
+  const doc = view.state.doc;
+  const line = doc.lineAt(r.from);
+  const rest = doc.sliceString(line.from, r.from) + doc.sliceString(r.to, line.to);
+  let from = r.from;
+  let to = r.to;
+  if (!rest.trim()) {
+    from = line.from;
+    to = line.to;
+    if (line.to < doc.length) to++;
+    else if (line.from > 0) from--;
+  }
+  view.dispatch({ changes: { from, to }, selection: { anchor: Math.min(from, doc.length - (to - from)) }, effects: selectImage.of(null), userEvent: 'delete.image' });
+  view.focus();
+  return true;
+}
+
+function deleteSelectedImage(view: EditorView): boolean {
+  const r = selectedImage(view.state);
+  return r ? deleteImage(view, r) : false;
+}
+
+/** 위젯 자리의 이미지 원문 범위 */
+function imageRangeAt(view: EditorView, el: HTMLElement): ImageRange | null {
+  const pos = view.posAtDOM(el);
+  for (let n: SyntaxNode | null = syntaxTree(view.state).resolveInner(pos, 1); n; n = n.parent) {
+    if (n.name === 'Image') return { from: n.from, to: n.to };
+  }
+  return null;
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
+    readonly selected: boolean,
   ) {
     super();
   }
   eq(o: ImageWidget) {
-    return o.src === this.src && o.alt === this.alt;
+    return o.src === this.src && o.alt === this.alt && o.selected === this.selected;
   }
-  toDOM() {
+  toDOM(view: EditorView) {
     const wrap = document.createElement('span');
-    wrap.className = 'cm-lp-image';
+    wrap.className = 'cm-lp-image' + (this.selected ? ' cm-lp-image-selected' : '');
+    wrap.dataset.pageImage = '';
+    if (this.selected) wrap.dataset.selected = '';
     const img = document.createElement('img');
     img.alt = this.alt;
     img.draggable = false;
     // 본문에 넣은 이미지(data:)와 http(s) 이미지만 그린다
     if (/^data:image\/(?:png|jpeg|gif|webp);/i.test(this.src) || /^https?:\/\//i.test(this.src)) img.src = this.src;
     wrap.appendChild(img);
+    wrap.addEventListener('mousedown', (e) => e.preventDefault());
+    wrap.addEventListener('click', (e) => {
+      e.preventDefault();
+      if ((e.target as Element).closest('button')) return;
+      const r = imageRangeAt(view, wrap);
+      if (!r) return;
+      view.dispatch({ selection: { anchor: r.from, head: r.to }, effects: selectImage.of(r) });
+      view.focus();
+    });
+    if (this.selected) {
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'cm-lp-image-delete';
+      del.textContent = '이미지 지우기';
+      del.setAttribute('aria-label', '이미지 지우기');
+      del.addEventListener('mousedown', (e) => e.preventDefault());
+      del.addEventListener('click', (e) => {
+        e.preventDefault();
+        const r = imageRangeAt(view, wrap);
+        if (r) deleteImage(view, r);
+      });
+      wrap.appendChild(del);
+    }
     return wrap;
   }
 }
@@ -242,6 +322,98 @@ class TableWidget extends WidgetType {
   }
 }
 
+/** 한 칸의 마크다운을 간단히 그린다 — 제목·목록·할 일·인용·이미지·굵게/기울임/코드 */
+function renderColumn(md: string, el: HTMLElement) {
+  const inline = (text: string, parent: HTMLElement) => {
+    const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|~~[^~]+~~)/g;
+    let last = 0;
+    for (const m of text.matchAll(re)) {
+      if (m.index! > last) parent.append(text.slice(last, m.index));
+      const t = m[0];
+      const tag = t.startsWith('**') ? 'strong' : t.startsWith('`') ? 'code' : t.startsWith('~~') ? 's' : 'em';
+      const cut = tag === 'strong' || tag === 's' ? 2 : 1;
+      const node = document.createElement(tag);
+      node.textContent = t.slice(cut, -cut);
+      parent.append(node);
+      last = m.index! + t.length;
+    }
+    if (last < text.length) parent.append(text.slice(last));
+  };
+  for (const line of md.split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    let m: RegExpExecArray | null;
+    const row = document.createElement('div');
+    row.className = 'cm-lp-col-line';
+    if ((m = /^(#{1,6})\s+(.*)$/.exec(t))) {
+      row.classList.add(`cm-lp-h${Math.min(m[1]!.length, 3)}`);
+      inline(m[2]!, row);
+    } else if ((m = /^!\[([^\]]*)\]\(([^)\s]+)[^)]*\)$/.exec(t))) {
+      const img = document.createElement('img');
+      img.alt = m[1]!;
+      img.draggable = false;
+      if (/^data:image\/(?:png|jpeg|gif|webp);/i.test(m[2]!) || /^https?:\/\//i.test(m[2]!)) img.src = m[2]!;
+      row.append(img);
+    } else if ((m = /^[-*+]\s\[([ xX])\]\s?(.*)$/.exec(t))) {
+      row.append(m[1] === ' ' ? '☐ ' : '☑ ');
+      inline(m[2]!, row);
+    } else if ((m = /^[-*+]\s(.*)$/.exec(t))) {
+      row.append('• ');
+      inline(m[1]!, row);
+    } else if ((m = /^(\d+[.)])\s(.*)$/.exec(t))) {
+      row.append(`${m[1]} `);
+      inline(m[2]!, row);
+    } else if ((m = /^>\s?(.*)$/.exec(t))) {
+      row.classList.add('cm-lp-col-quote');
+      inline(m[1]!, row);
+    } else inline(t, row);
+    el.append(row);
+  }
+}
+
+/** 나란히 배치 묶음 (ADR-087 P8) — 칸마다 그리고, 누른 칸의 원문으로 커서를 옮긴다 */
+class ColumnsWidget extends WidgetType {
+  constructor(readonly source: string) {
+    super();
+  }
+  eq(o: ColumnsWidget) {
+    return o.source === this.source;
+  }
+  toDOM(view: EditorView) {
+    const wrap = document.createElement('div');
+    wrap.className = 'cm-lp-columns';
+    wrap.dataset.pageColumns = '';
+    const cols = parseColumns(this.source);
+    wrap.style.setProperty('--cols', String(cols.length));
+    cols.forEach((md, i) => {
+      const col = document.createElement('div');
+      col.className = 'cm-lp-column';
+      col.dataset.pageColumn = String(i);
+      renderColumn(md, col);
+      col.addEventListener('mousedown', (e) => e.preventDefault());
+      col.addEventListener('click', () => {
+        const start = view.posAtDOM(wrap);
+        // i번째 칸 원문 첫 글자로
+        const lines = this.source.split('\n');
+        let offset = lines[0]!.length + 1;
+        let seen = 0;
+        for (let k = 1; k < lines.length - 1; k++) {
+          if (seen === i && lines[k]!.trim()) break;
+          if (lines[k]!.trim() === '<!-- column -->') seen++;
+          offset += lines[k]!.length + 1;
+        }
+        view.dispatch({ selection: { anchor: Math.min(start + offset, view.state.doc.length) } });
+        view.focus();
+      });
+      wrap.append(col);
+    });
+    return wrap;
+  }
+  ignoreEvent() {
+    return true;
+  }
+}
+
 /** `| a | b |` 한 줄을 칸으로 — `\|`는 글자 */
 function splitRow(line: string): string[] {
   let s = line.trim();
@@ -261,6 +433,7 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
   const tree = ensureSyntaxTree(state, state.doc.length, 50) ?? syntaxTree(state);
   const doc = state.doc;
   const focused = state.field(focusField);
+  const imgSel = state.field(imageSelField, false) ?? null;
   // 커서가 있는 곳만 원문을 드러낸다 — 글을 고른 동안은 렌더된 모습 그대로 (ADR-077)
   const sel = focused ? state.selection.ranges.filter((r) => r.empty) : [];
   const touches = (from: number, to: number) => sel.some((r) => r.from <= to && r.to >= from);
@@ -302,6 +475,29 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
     covered.push([from, to]);
     if (touches(from, to)) lines(from, to, 'cm-lp-mathsrc');
     else out.push(Decoration.replace({ widget: new MathWidget(tex, true), block: doc.lineAt(from).number !== doc.lineAt(to).number }).range(from, to));
+  }
+
+  // 나란히 배치 묶음 `<!-- columns --> … <!-- /columns -->` — 커서가 없으면 칸으로 그린다
+  for (let i = 1; i <= doc.lines; i++) {
+    const open = doc.line(i);
+    if (open.text.trim() !== COLUMNS_OPEN || inCode(open.from, open.to)) continue;
+    let j = i + 1;
+    while (j <= doc.lines && doc.line(j).text.trim() !== COLUMNS_CLOSE) j++;
+    if (j > doc.lines) break;
+    const close = doc.line(j);
+    // 커서가 들어가면 칸 원문을 보이되 안쪽은 평소처럼 실시간으로 그린다
+    if (touches(open.from, close.to)) {
+      out.push(lineDeco('cm-lp-colmark').range(open.from));
+      for (let k = i + 1; k < j; k++) {
+        const l = doc.line(k);
+        out.push(lineDeco(l.text.trim() === '<!-- column -->' ? 'cm-lp-colmark' : 'cm-lp-colsrc').range(l.from));
+      }
+      out.push(lineDeco('cm-lp-colmark').range(close.from));
+    } else {
+      covered.push([open.from, close.to]);
+      out.push(Decoration.replace({ widget: new ColumnsWidget(doc.sliceString(open.from, close.to)), block: true }).range(open.from, close.to));
+    }
+    i = j;
   }
 
   tree.iterate({
@@ -407,7 +603,8 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
       return false;
     }
     const alt = doc.sliceString(marks[0]!.to, marks[1]!.from).replace(/\\([\\[\]])/g, '$1');
-    out.push(Decoration.replace({ widget: new ImageWidget(doc.sliceString(url.from, url.to), alt) }).range(node.from, node.to));
+    const picked = !!imgSel && imgSel.from === node.from && imgSel.to === node.to;
+    out.push(Decoration.replace({ widget: new ImageWidget(doc.sliceString(url.from, url.to), alt, picked) }).range(node.from, node.to));
     return false;
   }
 
@@ -523,7 +720,7 @@ export function livePreview(opts: LivePreviewOptions): Extension {
   const field = StateField.define<DecorationSet>({
     create: (state) => build(state, opts),
     update(deco, tr) {
-      const effect = tr.effects.some((e) => e.is(setFocus) || e.is(setDrag));
+      const effect = tr.effects.some((e) => e.is(setFocus) || e.is(setDrag) || e.is(selectImage)) || tr.startState.field(imageSelField) !== tr.state.field(imageSelField);
       const parsed = syntaxTree(tr.startState) !== syntaxTree(tr.state);
       // 끄는 동안 선택만 바뀐 건 다시 그리지 않는다
       if (tr.docChanged || effect || parsed || (tr.selection && !isDragging(tr.state))) return build(tr.state, opts);
@@ -534,7 +731,14 @@ export function livePreview(opts: LivePreviewOptions): Extension {
   return [
     focusField,
     dragField,
+    imageSelField,
     dragWatch,
+    Prec.highest(
+      keymap.of([
+        { key: 'Backspace', run: deleteSelectedImage },
+        { key: 'Delete', run: deleteSelectedImage },
+      ]),
+    ),
     EditorView.focusChangeEffect.of((_, focusing) => setFocus.of(focusing)),
     EditorView.domEventHandlers({
       mousedown: (e, view) => {

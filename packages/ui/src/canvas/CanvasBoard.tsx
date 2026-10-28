@@ -72,6 +72,16 @@ export interface CanvasBoardProps {
   onSettle?(): void;
   /** 쪽 넘김처럼 화면을 부드럽게 옮길 때 */
   animate?: boolean;
+  /** 한 축만 스와이프·휠 이동 (null=자유, 'x'=가로만, 'y'=세로만). 핀치·ctrl+휠 확대는 제약 없음 */
+  panAxis?: 'x' | 'y' | null;
+  /** 포인터 처리 없음 (청중 창용) */
+  readOnly?: boolean;
+  /** 레이저 포인터 도구 (그리지 않고 onPointer 호출) */
+  pointer?: boolean;
+  /** 레이저 포인터 위치 변경 콜백 */
+  onPointer?: (p: { x: number; y: number } | null) => void;
+  /** 렌더링할 레이저 점 좌표 (nullptr면 표시 없음) */
+  laser?: { x: number; y: number } | null;
 }
 
 const CURSOR: Record<CanvasToolId, string> = { select: 'cursor-default', pen: 'cursor-crosshair', marker: 'cursor-crosshair', eraser: 'cursor-cell' };
@@ -97,7 +107,7 @@ const coalesced = (e: PointerEvent<HTMLDivElement>): globalThis.PointerEvent[] =
  * 캔버스 판. 펜·형광펜·지우개·선택(이동·크기·앞으로)·화면 이동·확대를 포인터 이벤트로 처리한다.
  * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 뒤에는 터치가 화면을 옮긴다.
  */
-export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate }: CanvasBoardProps) {
+export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser }: CanvasBoardProps) {
   const [preview, setPreview] = useState<CanvasDoc | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
@@ -127,7 +137,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
   // 휠: 그냥 굴리면 화면 이동, Ctrl/⌘+휠(트랙패드 핀치 포함)은 확대·축소. 브라우저 확대는 막는다
   useEffect(() => {
     const el = boardRef.current;
-    if (!el) return;
+    if (!el || readOnly) return;
     let settle: ReturnType<typeof setTimeout> | undefined;
     const onWheel = (e: WheelEvent) => {
       // 선택 도구일 때 긴 글 카드 위에서는 카드 안을 스크롤한다 (끝까지 가면 판을 움직인다)
@@ -145,7 +155,10 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
         const f = Math.exp(-e.deltaY * 0.01);
         onView((v) => zoomAt(v, sx, sy, v.k * f));
       } else {
-        onView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
+        // panAxis 제약 적용: 지정된 축만 이동
+        const deltaX = panAxis === 'y' ? 0 : e.deltaX;
+        const deltaY = panAxis === 'x' ? 0 : e.deltaY;
+        onView((v) => ({ ...v, x: v.x - deltaX, y: v.y - deltaY }));
       }
       clearTimeout(settle);
       settle = setTimeout(() => settleRef.current?.(), WHEEL_SETTLE_MS);
@@ -155,7 +168,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       clearTimeout(settle);
       el.removeEventListener('wheel', onWheel);
     };
-  }, [boardRef, onView]);
+  }, [boardRef, onView, readOnly, panAxis]);
 
   const startPinch = () => {
     const touches = [...pointers.values()].filter((q) => q.type === 'touch');
@@ -172,6 +185,14 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
   };
 
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (readOnly) return;
+    if (pointer) {
+      // 포인터 모드: 위치만 보고하고 그리지 않음
+      const p = local(boardRef.current, e.clientX, e.clientY);
+      const w = toWorld(view, p.x, p.y);
+      onPointer?.({ x: w.x, y: w.y });
+      return;
+    }
     if (e.button !== 0 && e.button !== 1) return;
     // 마우스로 카드 스크롤 막대를 잡으면 브라우저에 맡긴다
     const bar = e.pointerType === 'mouse' && tool === 'select' ? scrollableAt(e.target) : null;
@@ -261,9 +282,15 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
   };
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
+    const p = local(boardRef.current, e.clientX, e.clientY);
+    if (pointer) {
+      // 포인터 모드: 위치만 보고
+      const w = toWorld(view, p.x, p.y);
+      onPointer?.({ x: w.x, y: w.y });
+      return;
+    }
     const q = pointers.get(e.pointerId);
     if (!q) return;
-    const p = local(boardRef.current, e.clientX, e.clientY);
     q.x = p.x;
     q.y = p.y;
     const g = gestureRef.current;
@@ -287,7 +314,10 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       const dy = p.y - g.lastY;
       g.lastX = p.x;
       g.lastY = p.y;
-      onView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+      // panAxis 제약 적용: 지정된 축만 이동
+      const constrainedDx = panAxis === 'y' ? 0 : dx;
+      const constrainedDy = panAxis === 'x' ? 0 : dy;
+      onView((v) => ({ ...v, x: v.x + constrainedDx, y: v.y + constrainedDy }));
     } else if (g.kind === 'scroll') {
       // 카드는 확대된 좌표계 안이라 화면 이동량을 배율로 나눈다
       g.el.scrollTop -= (p.y - g.lastY) / view.k;
@@ -334,6 +364,11 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
   };
 
   const onUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (pointer) {
+      // 포인터 모드: 손가락을 떼면 null 보고
+      onPointer?.(null);
+      return;
+    }
     pointers.delete(e.pointerId);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     const g = gestureRef.current;
@@ -376,6 +411,12 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     if (g.doc !== g.origin) onCommit(g.doc);
   };
 
+  const onLeave = () => {
+    if (pointer) {
+      onPointer?.(null);
+    }
+  };
+
   const cursor = CURSOR[tool];
   const pageBg = useMemo(() => backgroundStyle(doc.bg), [doc.bg]);
   const strokeNodes = useMemo(
@@ -407,6 +448,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onPointerLeave={onLeave}
     >
       <div
         className={cn('absolute top-0 left-0 origin-top-left', animate && 'transition-transform duration-200 ease-out')}
@@ -440,6 +482,17 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
               style={live.tool === 'marker' ? { mixBlendMode: 'multiply' } : undefined}
             />
           ))}
+          {laser && (
+            <circle
+              cx={laser.x}
+              cy={laser.y}
+              data-canvas-laser=""
+              r={9 / view.k}
+              fill="#ff3b30"
+              opacity={0.9}
+              style={{ filter: 'drop-shadow(0 0 6px #ff3b30)' }}
+            />
+          )}
         </svg>
       </div>
       {gesture?.kind === 'pinch' && <span className="sr-only">확대·이동 중</span>}

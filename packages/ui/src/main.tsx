@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { remoteMode } from './app/capabilities';
 import { restoreLastPage } from './app/lastPage';
-import { isDemo, mobile, sessionWindowId } from './app/runtime';
+import { isDemo, mobile, presentWindowId, sessionWindowId } from './app/runtime';
 import { actions, db } from './app/store';
 import { initRemoteSettings, startData } from './app/sync';
 import { useUi } from './app/uiState';
@@ -11,13 +11,14 @@ import { initialThemePref } from './app/useTheme';
 import { startBackupService } from './backup/service';
 import { loadSkills } from './skills/skillsStore';
 import { SessionWindowApp } from './window/SessionWindowApp';
+import { PresentAudienceApp } from './window/PresentAudienceApp';
 import './styles.css';
 
 async function boot() {
   initRemoteSettings();
   await startData();
-  // 세션 창은 세션 하나만 보여 주므로 페이지를 되살리지 않는다
-  if (!sessionWindowId) restoreLastPage();
+  // 세션 창과 발표 청중 창은 최소한의 초기화만 한다
+  if (!sessionWindowId && !presentWindowId) restoreLastPage();
   // 원격 모드는 이 기기에 데이터가 없으므로 백업도 PC에서만 한다
   if (!remoteMode) void startBackupService();
   // 스킬은 기기별 (원격 모드도 이 기기에 둔다). 데모 모드는 저장하지 않는다
@@ -29,7 +30,17 @@ async function boot() {
     actions().setOverlay('settings');
   });
 
-  createRoot(document.getElementById('root')!).render(<StrictMode>{sessionWindowId ? <SessionWindowApp /> : <App />}</StrictMode>);
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      {presentWindowId ? (
+        <PresentAudienceApp sessionId={presentWindowId} />
+      ) : sessionWindowId ? (
+        <SessionWindowApp />
+      ) : (
+        <App />
+      )}
+    </StrictMode>,
+  );
 }
 
 void boot();

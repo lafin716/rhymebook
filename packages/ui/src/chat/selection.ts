@@ -1,6 +1,7 @@
 import { markdownPlainText, pageDoc, selectionToAnchor, type Anchor, type ID } from '@branch/core';
 import { EditorView } from '@codemirror/view';
 import { actions } from '../app/store';
+import { selectedImage } from './livePreview';
 import { flushPageDraft } from './PagePanel';
 import { getSegmentMap } from './segmentRegistry';
 
@@ -124,6 +125,8 @@ function readEditorSelection(host: HTMLElement, range: Range): PendingBranch | n
   const view = cm ? EditorView.findFromDOM(cm) : null;
   if (!sessionId || !view) return null;
   const { state } = view;
+  // 이미지를 고른 상태는 글 선택이 아니다 — 선택 메뉴 대신 이미지 지우기 버튼만 보인다
+  if (selectedImage(state)) return null;
   let { from, to } = state.selection.main;
   const doc = state.doc;
   while (from < to && /\s/.test(doc.sliceString(from, from + 1))) from++;

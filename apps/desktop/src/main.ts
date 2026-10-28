@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, type WebContents } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, screen, type WebContents } from 'electron';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { createBridgeServer, createSkillsDir, createSttEngine, type BridgeConnection } from '@branch/bridge';
@@ -112,6 +112,13 @@ function getTrayIconPath(): string {
 const sessionWindows = new Map<number, BrowserWindow>();
 const SESSION_ID_RE = /^[\w-]{1,64}$/;
 const windowPeer = (wcId: number) => `win-${wcId}`;
+
+/** 발표 (ADR-089): 발표자 webContents id → 청중 창들, 청중 webContents id → 발표자 id */
+const presentAudience = new Map<number, Set<BrowserWindow>>();
+const audiencePresenter = new Map<number, number>();
+const PRESENT_TYPES = new Set(['hello', 'doc', 'page', 'ink', 'laser', 'end']);
+const isPresentMsg = (m: unknown): boolean =>
+  !!m && typeof m === 'object' && PRESENT_TYPES.has((m as { type?: unknown }).type as string);
 
 function createWindow(sessionId?: string): BrowserWindow {
   const win = new BrowserWindow({
@@ -347,6 +354,70 @@ void app.whenReady().then(() => {
         engineWindow.send(CH.hostSyncGone, windowPeer(wcId));
       }
     });
+  });
+
+  /** 발표 청중 창 열기 (ADR-089): 외부 디스플레이가 있으면 그 화면에 전체 화면, 없으면 주 화면에 창으로 */
+  ipcMain.on(CH.presentOpen, (e, sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)) return;
+    const presenter = e.sender;
+    const primary = screen.getPrimaryDisplay();
+    const external = screen.getAllDisplays().find((d) => d.id !== primary.id);
+    const area = (external ?? primary).workArea;
+    const w = new BrowserWindow({
+      x: area.x,
+      y: area.y,
+      width: external ? area.width : Math.min(1280, area.width),
+      height: external ? area.height : Math.min(800, area.height),
+      title: 'octobooks 발표',
+      backgroundColor: '#000000',
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.cjs'),
+        contextIsolation: true,
+        sandbox: true,
+        nodeIntegration: false,
+      },
+    });
+    w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    w.webContents.on('will-navigate', (ev, url) => {
+      if (!isAppUrl(url)) ev.preventDefault();
+    });
+    w.once('ready-to-show', () => {
+      w.show();
+      if (external) w.setFullScreen(true);
+    });
+    const wcId = w.webContents.id;
+    const set = presentAudience.get(presenter.id) ?? new Set<BrowserWindow>();
+    set.add(w);
+    presentAudience.set(presenter.id, set);
+    audiencePresenter.set(wcId, presenter.id);
+    w.once('closed', () => {
+      presentAudience.get(presenter.id)?.delete(w);
+      audiencePresenter.delete(wcId);
+    });
+    const query = { window: 'present', session: sessionId };
+    if (DEV_URL) void w.loadURL(`${DEV_URL}?${new URLSearchParams(query)}`);
+    else void w.loadFile(RENDERER, { query });
+  });
+
+  /** 발표 메시지 중계: 발표자 → 청중 창들, 청중 창(hello) → 발표자 */
+  ipcMain.on(CH.presentSend, (e, msg: unknown) => {
+    if (!isPresentMsg(msg)) return;
+    const presenterId = audiencePresenter.get(e.sender.id);
+    if (presenterId !== undefined) {
+      const target = BrowserWindow.getAllWindows().find((x) => !x.isDestroyed() && x.webContents.id === presenterId);
+      target?.webContents.send(CH.presentRecv, msg);
+      return;
+    }
+    for (const w of presentAudience.get(e.sender.id) ?? []) {
+      if (!w.isDestroyed()) w.webContents.send(CH.presentRecv, msg);
+    }
+  });
+
+  /** 발표 끝: 발표자가 연 청중 창을 모두 닫는다 */
+  ipcMain.on(CH.presentClose, (e) => {
+    for (const w of presentAudience.get(e.sender.id) ?? []) if (!w.isDestroyed()) w.close();
+    presentAudience.delete(e.sender.id);
   });
 
   // 세션 창 → 엔진 창 (피어 id는 main이 붙인다)

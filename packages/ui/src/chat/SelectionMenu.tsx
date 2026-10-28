@@ -35,6 +35,8 @@ import {
   Volume2,
   X,
   ZoomIn,
+  Sparkles,
+  Scissors,
 } from 'lucide-react';
 import {
   useCallback,
@@ -57,7 +59,7 @@ import { speak, stopSpeaking, useSpeech } from '../voice/speak';
 import { ColorPalette, COLOR_KIND_LABELS, colorLabel, swatchCss, type ColorKind } from './ColorPalette';
 import { hasComposer, quoteToComposer, toQuote } from './composerBridge';
 import { openBranch } from './open';
-import { formatPage } from './pageEditorBridge';
+import { formatPage, canFillPage, openPageFill } from './pageEditorBridge';
 import { MENU_GAP, placeMenu, readSelection, type PendingBranch } from './selection';
 
 /**
@@ -156,6 +158,29 @@ export function SelectionMenu() {
       document.removeEventListener('contextmenu', onContext);
     };
   }, [mobile, onContextMenu, custom, memo, draft]);
+
+  // [data-page-ctx] 요소 감시 (페이지 블록 컨텍스트 메뉴가 열리면 선택 메뉴 숨김)
+  useEffect(() => {
+    const check = () => {
+      if (!!document.querySelector('[data-page-ctx]') && pending) {
+        dismiss();
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      window.requestAnimationFrame(check);
+    });
+
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-page-ctx'],
+    });
+
+    check();
+    return () => observer.disconnect();
+  }, [pending, dismiss]);
 
   useEffect(() => {
     if (!pending) return;
@@ -549,41 +574,74 @@ export function SelectionMenu() {
     />
   );
 
-  const actionButtons = (size: 'sm' | 'lg') => (
-    <>
-      <MenuButton size={size} icon={<HelpCircle size={size === 'lg' ? 18 : 15} />} onClick={() => run('what')}>
-        이게 뭐야?
-      </MenuButton>
-      <MenuButton size={size} icon={<ZoomIn size={size === 'lg' ? 18 : 15} />} onClick={() => run('detail')}>
-        더 자세히
-      </MenuButton>
-      <MenuButton size={size} icon={<MessageSquarePlus size={size === 'lg' ? 18 : 15} />} onClick={() => setCustom(true)}>
-        직접 질문
-      </MenuButton>
-      {hasComposer(pending.sessionId) && (
-        <MenuButton size={size} icon={<TextQuote size={size === 'lg' ? 18 : 15} />} onClick={attach}>
-          질문에 첨부
+  const actionButtons = (size: 'sm' | 'lg') => {
+    const isPageEditor = pending.editor !== undefined;
+    return (
+      <>
+        {isPageEditor && canFillPage(pending.editor!) && (
+          <MenuButton
+            size={size}
+            icon={<Sparkles size={size === 'lg' ? 18 : 15} />}
+            onClick={() => {
+              if (pending.editor && openPageFill(pending.editor)) {
+                dismiss();
+              }
+            }}
+          >
+            AI로 채우기
+          </MenuButton>
+        )}
+        <MenuButton size={size} icon={<HelpCircle size={size === 'lg' ? 18 : 15} />} onClick={() => run('what')}>
+          이게 뭐야?
         </MenuButton>
-      )}
-      <MenuButton
-        size={size}
-        icon={copied ? <Check size={size === 'lg' ? 18 : 15} /> : <Copy size={size === 'lg' ? 18 : 15} />}
-        onClick={() => void copy()}
-      >
-        {copied ? '복사됨' : '복사'}
-      </MenuButton>
-      <MenuButton
-        size={size}
-        icon={speaking ? <Square size={size === 'lg' ? 17 : 14} /> : <Volume2 size={size === 'lg' ? 18 : 15} />}
-        onClick={listen}
-      >
-        {speaking ? '멈춤' : '듣기'}
-      </MenuButton>
-      <MenuButton size={size} icon={<Archive size={size === 'lg' ? 18 : 15} />} onClick={keep}>
-        보관
-      </MenuButton>
-    </>
-  );
+        <MenuButton size={size} icon={<ZoomIn size={size === 'lg' ? 18 : 15} />} onClick={() => run('detail')}>
+          더 자세히
+        </MenuButton>
+        <MenuButton size={size} icon={<MessageSquarePlus size={size === 'lg' ? 18 : 15} />} onClick={() => setCustom(true)}>
+          직접 질문
+        </MenuButton>
+        {hasComposer(pending.sessionId) && (
+          <MenuButton size={size} icon={<TextQuote size={size === 'lg' ? 18 : 15} />} onClick={attach}>
+            질문에 첨부
+          </MenuButton>
+        )}
+        <MenuButton
+          size={size}
+          icon={copied ? <Check size={size === 'lg' ? 18 : 15} /> : <Copy size={size === 'lg' ? 18 : 15} />}
+          onClick={() => void copy()}
+        >
+          {copied ? '복사됨' : '복사'}
+        </MenuButton>
+        {isPageEditor && (
+          <MenuButton
+            size={size}
+            icon={<Scissors size={size === 'lg' ? 18 : 15} />}
+            onClick={() => {
+              void copy();
+              if (pending.editor) {
+                const { from, to } = pending.editor.state.selection.main;
+                if (from !== to) {
+                  pending.editor.dispatch({ changes: { from, to, insert: '' }, userEvent: 'delete.cut' });
+                }
+              }
+            }}
+          >
+            잘라내기
+          </MenuButton>
+        )}
+        <MenuButton
+          size={size}
+          icon={speaking ? <Square size={size === 'lg' ? 17 : 14} /> : <Volume2 size={size === 'lg' ? 18 : 15} />}
+          onClick={listen}
+        >
+          {speaking ? '멈춤' : '듣기'}
+        </MenuButton>
+        <MenuButton size={size} icon={<Archive size={size === 'lg' ? 18 : 15} />} onClick={keep}>
+          보관
+        </MenuButton>
+      </>
+    );
+  };
 
   if (mobile) {
     // 하단 바가 선택을 가리면 위쪽으로 올린다

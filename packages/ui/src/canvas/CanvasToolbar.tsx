@@ -1,10 +1,10 @@
 import type { CanvasPenNib } from '@branch/core';
-import { Brush, Eraser, Highlighter, Import, MousePointer2, Maximize, Pen, Pencil, PenTool, Redo2, Settings2, Star, Trash2, Undo2 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Brush, ChevronDown, ChevronUp, Eraser, GripVertical, Highlighter, Import, Maximize2, Minimize2, MousePointer2, Maximize, Pen, Pencil, PenTool, Presentation, Redo2, Settings2, Star, Trash2, Undo2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
 import { strokeOpacity, strokePath } from './strokePath';
-import { clampStroke, isHex, MAX_FAVORITE_INKS, STROKE_RANGE, type StrokeKind } from './canvasPrefs';
+import { clampStroke, isHex, MAX_FAVORITE_INKS, STROKE_RANGE, type StrokeKind, type ToolbarDock } from './canvasPrefs';
 
 export type CanvasToolId = 'select' | 'pen' | 'marker' | 'eraser';
 
@@ -60,16 +60,98 @@ export interface CanvasToolbarProps {
   onImport(): void;
   hasSelection: boolean;
   onDeleteSelected(): void;
+  /** 전체 화면 상태 */
+  panelFull: boolean;
+  onPanelFull(full: boolean): void;
+  /** 발표 중 상태 */
+  presenting: boolean;
+  onPresent(): void;
+  /** 팔레트 펼침 상태 */
+  paletteOpen: boolean;
+  onPaletteOpen(open: boolean): void;
+  /** 팔레트에 한 번에 보일 색 개수 (null = 모두) */
+  paletteCount: number | null;
+  /** 도구 막대 도킹 위치 */
+  toolbarDock: ToolbarDock;
+  onToolbarDock(dock: ToolbarDock): void;
 }
 
-type Pop = { kind: 'size'; tool: StrokeKind; el: HTMLElement } | { kind: 'color'; el: HTMLElement };
+type Pop = { kind: 'size'; tool: StrokeKind; el: HTMLElement } | { kind: 'color'; el: HTMLElement } | { kind: 'overflow'; el: HTMLElement };
 
 export function CanvasToolbar(p: CanvasToolbarProps) {
   const drawing = p.tool === 'pen' || p.tool === 'marker';
   const [pop, setPop] = useState<Pop | null>(null);
+  const [dragHandle, setDragHandle] = useState(false);
+  const [dockPreview, setDockPreview] = useState<{ dock: ToolbarDock; rect: DOMRect } | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const known = INK_COLORS.some((c) => c.hex === p.color) || p.favorites.includes(p.color);
+  const isVertical = p.toolbarDock === 'left' || p.toolbarDock === 'right';
 
   const penNib = PEN_NIBS.find((n) => n.nib === p.nib) ?? PEN_NIBS[0]!;
+
+  // 팔레트: 기본 색 다음에 즐겨찾는 색. 개수를 넘는 색은 '더 많은 색'에 넣되, 지금 고른 색은 늘 보인다
+  const swatches = [
+    ...INK_COLORS.map((c) => ({ hex: c.hex, label: `${c.label} 색`, favorite: false })),
+    ...p.favorites.filter((hex) => !INK_COLORS.some((c) => c.hex === hex)).map((hex) => ({ hex, label: `즐겨찾는 색 ${hex}`, favorite: true })),
+  ];
+  const limit = Math.min(p.paletteCount ?? swatches.length, swatches.length);
+  const shownSwatches = swatches.filter((s, i) => i < limit || s.hex === p.color);
+  const moreSwatches = swatches.filter((s, i) => i >= limit && s.hex !== p.color);
+
+  // C4: 도킹 핸들 끌기 — 가장 가까운 가장자리에 도킹
+  useEffect(() => {
+    if (!dragHandle || !dragStartRef.current) return;
+
+    const startPos = dragStartRef.current;
+
+    const nearestDock = (e: PointerEvent) => {
+      const panel = toolbarRef.current?.closest('[data-canvas]') as HTMLElement | null;
+      if (!panel) return null;
+      const r = panel.getBoundingClientRect();
+      const d: [ToolbarDock, number][] = [
+        ['top', Math.abs(e.clientY - r.top)],
+        ['bottom', Math.abs(r.bottom - e.clientY)],
+        ['left', Math.abs(e.clientX - r.left)],
+        ['right', Math.abs(r.right - e.clientX)],
+      ];
+      return { dock: d.sort((a, b) => a[1] - b[1])[0]![0], rect: r };
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      setDockPreview(Math.hypot(dx, dy) > 20 ? nearestDock(e) : null);
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (!toolbarRef.current) return;
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // 20px 넘게 끌었으면 손을 뗀 자리에서 가장 가까운 가장자리에 붙인다
+      if (dist > 20) {
+        const near = nearestDock(e);
+        if (near) p.onToolbarDock(near.dock);
+      }
+
+      setDragHandle(false);
+      setDockPreview(null);
+      dragStartRef.current = null;
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    return () => {
+      window.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [dragHandle, p]);
 
   /** 처음 누르면 도구만 고른다. 이미 고른 펜·형광펜을 다시 누르면 세부 조정 창을 열고 닫는다 */
   const pickTool = (id: CanvasToolId, el: HTMLElement) => {
@@ -83,7 +165,35 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
   };
 
   return (
-    <div role="toolbar" aria-label="캔버스 도구" className="flex items-center gap-0.5 overflow-x-auto border-b border-line bg-surface px-2 py-1 [scrollbar-width:none] md:flex-wrap md:overflow-visible [&>*]:shrink-0">
+    <div
+      ref={toolbarRef}
+      role="toolbar"
+      aria-label="캔버스 도구"
+      data-canvas-toolbar=""
+      data-dock={p.toolbarDock}
+      className={cn(
+        'flex gap-0.5 bg-surface px-2 py-1 [scrollbar-width:none] [&>*]:shrink-0',
+        isVertical
+          ? cn('flex-col overflow-y-auto', p.toolbarDock === 'left' ? 'border-r border-line' : 'border-l border-line')
+          : cn('flex-row overflow-x-auto md:flex-wrap md:overflow-visible', p.toolbarDock === 'bottom' ? 'border-t border-line pb-[max(0.25rem,env(safe-area-inset-bottom))]' : 'border-b border-line')
+      )}
+    >
+      {/* 도킹 핸들 */}
+      <button
+        type="button"
+        aria-label="도구 막대 위치 변경"
+        title="끌어서 도구 막대를 다시 배치하세요"
+        onPointerDown={(e) => {
+          dragStartRef.current = { x: e.clientX, y: e.clientY };
+          setDragHandle(true);
+        }}
+        className={cn(BTN, dragHandle && 'bg-surface-2')}
+        data-canvas-dock-handle=""
+        style={{ touchAction: 'none' }}
+      >
+        <GripVertical size={18} />
+      </button>
+
       {TOOLS.map((t) => (
         <button
           key={t.id}
@@ -107,16 +217,50 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           )}
         </button>
       ))}
-      <span className="mx-1 h-6 w-px bg-line" aria-hidden />
+      <span className={cn('mx-1 bg-line', isVertical ? 'h-px w-6' : 'h-6 w-px')} aria-hidden />
+
+      {/* 팔레트: 접기/펼치기 토글 + 색들 */}
       <div className={cn('flex items-center gap-0.5', !drawing && 'opacity-40')} role="group" aria-label="색">
-        {INK_COLORS.map((c) => (
-          <Swatch key={c.hex} hex={c.hex} label={`${c.label} 색`} active={p.color === c.hex} onClick={() => p.onColor(c.hex)} />
-        ))}
-        {p.favorites
-          .filter((hex) => !INK_COLORS.some((c) => c.hex === hex))
-          .map((hex) => (
-            <Swatch key={hex} hex={hex} label={`즐겨찾는 색 ${hex}`} active={p.color === hex} onClick={() => p.onColor(hex)} favorite />
-          ))}
+        <button
+          type="button"
+          aria-label={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
+          title={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
+          onClick={() => p.onPaletteOpen(!p.paletteOpen)}
+          className={BTN}
+          data-canvas-palette-toggle=""
+        >
+          {p.paletteOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+
+        {p.paletteOpen ? (
+          <>
+            {shownSwatches.map((c) => (
+              <Swatch key={c.hex} hex={c.hex} label={c.label} active={p.color === c.hex} onClick={() => p.onColor(c.hex)} favorite={c.favorite} />
+            ))}
+            {/* 더 보기: 초과된 색들을 위한 버튼 */}
+            {moreSwatches.length > 0 && (
+              <button
+                type="button"
+                aria-label="더 많은 색"
+                title="더 많은 색"
+                onClick={(e) => setPop(pop?.kind === 'overflow' ? null : { kind: 'overflow', el: e.currentTarget })}
+                className={cn(BTN, 'text-fg-2')}
+                data-canvas-overflow-colors=""
+              >
+                ⋯
+              </button>
+            )}
+          </>
+        ) : (
+          /* 접혀 있을 때는 현재 색만 표시 */
+          <div className="grid size-11 shrink-0 place-items-center md:size-8">
+            <span
+              className="size-5 rounded-full border border-black/10"
+              style={{ backgroundColor: p.color }}
+            />
+          </div>
+        )}
+
         <button
           type="button"
           aria-label="색 직접 고르기"
@@ -135,7 +279,8 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           />
         </button>
       </div>
-      <span className="mx-1 h-6 w-px bg-line" aria-hidden />
+
+      <span className={cn('mx-1 bg-line', isVertical ? 'h-px w-6' : 'h-6 w-px')} aria-hidden />
       <button type="button" aria-label="실행 취소" title="실행 취소 (⌘Z)" disabled={!p.canUndo} onClick={p.onUndo} className={BTN}>
         <Undo2 size={18} />
       </button>
@@ -153,29 +298,98 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           <Trash2 size={18} />
         </button>
       )}
-      <span className="ml-auto" />
-      <button
-        type="button"
-        onClick={p.onImport}
-        className="sticky right-0 inline-flex h-11 items-center gap-1.5 rounded-lg bg-surface px-2.5 text-[13px] text-fg-2 shadow-[-8px_0_8px_-4px_var(--color-surface)] hover:bg-surface-2 hover:text-fg md:static md:h-9 md:shadow-none"
-        data-canvas-import=""
+
+      {/* 발표 · 전체 화면 · 가져오기는 한 묶음으로 끝에 (줄이 넘쳐도 함께 다닌다) */}
+      <div
+        className={cn(
+          'flex shrink-0 items-center gap-0.5',
+          isVertical
+            ? 'w-full flex-col'
+            : 'sticky right-0 ml-auto bg-surface shadow-[-8px_0_8px_-4px_var(--color-surface)] md:static md:shadow-none',
+        )}
       >
-        <Import size={17} />
-        가져오기
-      </button>
+        <span className={cn('mx-1 bg-line', isVertical ? 'h-px w-6' : 'h-6 w-px')} aria-hidden />
+        <button type="button" aria-label="발표" title="발표" onClick={p.onPresent} className={BTN} data-canvas-present="">
+          <Presentation size={18} />
+        </button>
+        <button
+          type="button"
+          aria-label={p.panelFull ? '전체 화면 끝내기' : '전체 화면'}
+          title={p.panelFull ? '전체 화면 끝내기' : '전체 화면'}
+          onClick={() => p.onPanelFull(!p.panelFull)}
+          className={BTN}
+          data-panel-full=""
+        >
+          {p.panelFull ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+        </button>
+        <button
+          type="button"
+          onClick={p.onImport}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-lg text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg',
+            isVertical ? 'w-full h-11 px-3 md:h-9' : 'h-11 px-2.5 md:h-9',
+          )}
+          data-canvas-import=""
+        >
+          <Import size={17} />
+          가져오기
+        </button>
+      </div>
       {pop?.kind === 'size' && (
-        <Popover anchor={pop.el} label={pop.tool === 'pen' ? '펜 설정' : '형광펜 굵기'} onClose={() => setPop(null)}>
+        <Popover anchor={pop.el} label={pop.tool === 'pen' ? '펜 설정' : '형광펜 굵기'} onClose={() => setPop(null)} isVertical={isVertical}>
           {pop.tool === 'pen' && <NibPicker nib={p.nib} onNib={p.onNib} />}
           <SizeEditor kind={pop.tool} size={p.sizes[pop.tool]} color={p.color} nib={pop.tool === 'pen' ? p.nib : undefined} onSize={(n) => p.onSize(pop.tool, n)} />
         </Popover>
       )}
       {pop?.kind === 'color' && (
-        <Popover anchor={pop.el} label="색 고르기" onClose={() => setPop(null)}>
+        <Popover anchor={pop.el} label="색 고르기" onClose={() => setPop(null)} isVertical={isVertical}>
           <ColorEditor color={p.color} onColor={p.onColor} favorites={p.favorites} onToggleFavorite={p.onToggleFavorite} />
         </Popover>
       )}
+      {pop?.kind === 'overflow' && (
+        <Popover anchor={pop.el} label="더 많은 색" onClose={() => setPop(null)} isVertical={isVertical}>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="더 많은 색">
+            {moreSwatches.map((c) => (
+              <button
+                key={c.hex}
+                type="button"
+                aria-label={c.label}
+                title={c.label}
+                onClick={() => {
+                  p.onColor(c.hex);
+                  setPop(null);
+                }}
+                className="relative size-9 rounded-full border border-black/15"
+                style={{ backgroundColor: c.hex }}
+                data-canvas-ink={c.hex}
+              >
+                {c.favorite && <Star size={8} className="absolute top-0.5 right-0.5 fill-current text-amber-500" aria-hidden />}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      )}
+      {dockPreview &&
+        createPortal(
+          <div
+            aria-hidden
+            data-canvas-dock-preview={dockPreview.dock}
+            className="pointer-events-none fixed z-50 rounded-lg bg-accent/25 ring-2 ring-accent"
+            style={dockPreviewStyle(dockPreview.dock, dockPreview.rect)}
+          />,
+          document.body,
+        )}
     </div>
   );
+}
+
+/** 끌고 있는 도구 막대가 붙을 가장자리 미리보기 */
+function dockPreviewStyle(dock: ToolbarDock, r: DOMRect): CSSProperties {
+  const t = 48;
+  if (dock === 'top') return { left: r.left, top: r.top, width: r.width, height: t };
+  if (dock === 'bottom') return { left: r.left, top: r.bottom - t, width: r.width, height: t };
+  if (dock === 'left') return { left: r.left, top: r.top, width: t, height: r.height };
+  return { left: r.right - t, top: r.top, width: t, height: r.height };
 }
 
 function Swatch({ hex, label, active, onClick, favorite }: { hex: string; label: string; active: boolean; onClick(): void; favorite?: boolean }) {
@@ -332,7 +546,7 @@ function ColorEditor({ color, onColor, favorites, onToggleFavorite }: { color: s
 }
 
 /** 도구 막대 아래 떠 있는 작은 창. 도구 막대가 가로로 스크롤되어도 잘리지 않게 body에 띄운다 */
-function Popover({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose(): void; children: ReactNode }) {
+function Popover({ anchor, label, onClose, children, isVertical }: { anchor: HTMLElement; label: string; onClose(): void; children: ReactNode; isVertical?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   useEffect(() => {
@@ -344,12 +558,25 @@ function Popover({ anchor, label, onClose, children }: { anchor: HTMLElement; la
     const place = () => {
       const r = anchor.getBoundingClientRect();
       const w = ref.current?.offsetWidth ?? 264;
-      setPos({ left: Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)), top: r.bottom + 6 });
+      const h = ref.current?.offsetHeight ?? 200;
+
+      if (isVertical) {
+        // 수직 도킹: 옆에 열기 (오른쪽 또는 왼쪽)
+        const isRightOfAnchor = r.right + 6 + w <= window.innerWidth;
+        const left = isRightOfAnchor ? r.right + 6 : Math.max(8, r.left - w - 6);
+        const top = Math.max(8, Math.min(window.innerHeight - h - 8, r.top + r.height / 2 - h / 2));
+        setPos({ left, top });
+      } else {
+        // 수평 도킹: 아래에 열기
+        // 수평 도킹: 아래에, 자리가 없으면(아래 도킹) 위에 열기
+        const below = r.bottom + 6 + h <= window.innerHeight - 8;
+        setPos({ left: Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)), top: below ? r.bottom + 6 : Math.max(8, r.top - h - 6) });
+      }
     };
     place();
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
-  }, [anchor]);
+  }, [anchor, isVertical]);
 
   useEffect(() => {
     const down = (e: PointerEvent) => {

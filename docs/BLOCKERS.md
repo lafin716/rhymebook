@@ -16,5 +16,8 @@
 | B-10 | GitHub 저장소·Actions secrets 미설정 (로컬 저장소에 remote 없음) | 개선 | 워크플로는 actionlint로 검증, 같은 명령(`pnpm typecheck/lint/test/e2e`, desktop `package`, `build:android`)을 로컬에서 실행해 통과 | GitHub 저장소 생성 후 `git remote add origin … && git push`. 서명 시 Settings › Secrets에 `MAC_CSC_LINK`·`MAC_CSC_KEY_PASSWORD`·`APPLE_ID`·`APPLE_APP_SPECIFIC_PASSWORD`·`APPLE_TEAM_ID`·`WIN_CSC_LINK`·`WIN_CSC_KEY_PASSWORD` 등록, `git tag v0.1.0 && git push --tags`로 릴리스 |
 | B-11 | 음성 입력 엔진(whisper-cli) 번들은 macOS arm64만 (Windows·Linux·Intel Mac 미포함), 번들 바이너리 서명·공증(B-03과 함께) | 개선 | 다른 플랫폼과 헤드리스 `rhymebook serve`는 `brew install whisper-cpp`·PATH의 `whisper-cli`, `BRANCH_WHISPER_CLI` 또는 `--whisper-cli`(serve)로 지정. 없으면 설정 › 음성에 설치 안내 | 각 플랫폼 빌드 머신(CI)에서 `apps/desktop/scripts/build-whisper.mjs`에 해당 대상 빌드 추가 후 `vendor/whisper/<플랫폼>`에 넣어 패키징, 서명 시 함께 서명 |
 | B-12 | 음성 입력 실기기 확인(iPhone·Android 마이크 권한·녹음) | 개선 | Playwright 가짜 마이크(실제 한국어 WAV를 getUserMedia로 주입)로 웹·패키지 데스크톱 앱에서 녹음 → PC 전사 확인. iOS/Android 권한 키는 추가만 함 | 실기기에서 PC와 페어링 → 설정 › 음성 입력 "준비됨" 확인 → 마이크 버튼 → 권한 허용 → 말한 내용이 입력창에 들어가는지 확인 |
+| B-13 | 모바일 앱 발표의 외부 디스플레이(청중 화면만 도구 막대 숨김) | 개선 | 데스크톱·웹은 청중 창으로 해결. 모바일 앱은 OS 화면 미러링으로 발표(도구 막대도 보임), [발표 화면 열기]는 숨김 | iOS UIScene 외부 화면·Android Presentation API용 Capacitor 플러그인 작성 후 실기기 + HDMI/AirPlay로 확인 |
+| B-14 | 실기기 확인: 페이지 편집기 선택 시 시스템 메뉴 숨김·키보드 단축키 바 | 개선 | Playwright 모바일(390, 터치)로 단일 선택 메뉴 확인. 네이티브 메뉴 숨김은 실기기만 확인 가능 — 안드로이드는 첫 길게 누르기에서 시스템 메뉴가 한 번 깜빡일 수 있음 | 실기기에서 페이지 글 길게 눌러 고르기 → 앱 선택 메뉴 하나만 뜨는지, 편집 중 키보드 위 단축키 바 확인 |
+| B-15 | 작업 에이전트 세션 한도 | 개선 | IMP-30 하위 에이전트 일부가 세션 한도로 끊긴 채 완료라고 보고 → 리더가 직접 이어서 마무리·검증 | 다음 병렬 작업은 에이전트 결과를 diff·테스트로 확인한 뒤에만 반영 |
 
 예상 항목(발생 시 위 표로 이동): (없음)

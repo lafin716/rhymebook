@@ -10,17 +10,27 @@ import {
   pageSlashQuery,
   locateSourceAnchor,
   toggleInlineFormat,
+  renumberOrderedLists,
+  emojiMatches,
+  unwrapColumns,
+  moveMarkdownBlock,
+  markdownBlocks,
+  type EmojiMatch,
+  type MarkdownBlock,
   type Annotation as TextAnnotation,
   type ID,
   type InlineFormat,
   type PageBlock,
   type Session,
 } from '@branch/core';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentMore, indentLess, undoDepth, redoDepth } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { Annotation, EditorState, Prec, StateEffect, StateField, Transaction, type Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, keymap, placeholder, type DecorationSet } from '@codemirror/view';
 import {
+  ArrowDown,
+  ArrowUp,
+  Columns2,
   FileText,
   Heading1,
   Heading2,
@@ -37,6 +47,7 @@ import {
   Square,
   SquareCode,
   Table,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
@@ -46,8 +57,11 @@ import { cn } from '../lib/cn';
 import { annotationProps } from './anchorPlugin';
 import { pageEmbed } from './attach';
 import { livePreview } from './livePreview';
+import { minimalChange } from './pageText';
 import { openBranch } from './open';
+import { PageBlockHandles } from './PageBlockHandles';
 import { registerPageEditor } from './pageEditorBridge';
+import { getEmojiQuery } from './pageEmoji';
 
 const MENU_H = 320;
 const CTX_W = 240;
@@ -202,15 +216,6 @@ function marksDecorations(openNote: (a: TextAnnotation, rect: DOMRect) => void) 
   });
 }
 
-/** 바뀐 가운데만 고쳐 커서·되돌리기 기록을 지킨다 */
-function minimalChange(before: string, after: string) {
-  let head = 0;
-  const max = Math.min(before.length, after.length);
-  while (head < max && before[head] === after[head]) head++;
-  let tail = 0;
-  while (tail < max - head && before[before.length - 1 - tail] === after[after.length - 1 - tail]) tail++;
-  return { from: head, to: before.length - tail, insert: after.slice(head, after.length - tail) };
-}
 
 /** `/` 블록 메뉴 상태 — start는 `/` 위치 */
 interface Slash {
@@ -220,6 +225,12 @@ interface Slash {
   top: number;
   up: boolean;
 }
+
+/** `:` 이모지 후보 상태 — start는 `:` 위치 (ADR-087) */
+interface Emo extends Slash {
+  matches: EmojiMatch[];
+}
+const EMO_H = 280;
 
 export interface PageEditorProps {
   sessionId: ID;
@@ -244,6 +255,12 @@ export interface PageEditorProps {
   /** 커서 자리(before|after)에 AI로 채울 글. 받는 동안 onDelta, 끝나면 최종 글(멈췄거나 실패면 null) */
   onFill?: (input: { before: string; after: string; request?: string }, onDelta: (text: string) => void) => Promise<string | null>;
   onStopFill?: () => void;
+  /** `:` 이모지 미리보기 켜기 (기본 true) */
+  emoji?: boolean;
+  /** 편집기 view 생성·제거 알림 (onView(view) 또는 onView(null)) */
+  onView?: (view: EditorView | null) => void;
+  /** 되돌리기 기록 상태 변경 알림 */
+  onHistory?: (h: { undo: number; redo: number }) => void;
 }
 
 /** 우클릭 메뉴 — pos는 넣을 자리 */
@@ -252,6 +269,8 @@ interface Ctx {
   left: number;
   top: number;
   ask: boolean;
+  /** 핸들로 연 메뉴 — 그 블록 옮기기·지우기·나란히 풀기 */
+  block?: { index: number; kind: MarkdownBlock['kind'] };
 }
 
 /**
@@ -274,10 +293,17 @@ export function PageEditor({
   filling = false,
   onFill,
   onStopFill,
+  emoji = true,
+  onView,
+  onHistory: _onHistory,
 }: PageEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const [ctx, setCtx] = useState<Ctx | null>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+  /** 핸들이 쓰는 편집기와 다시 잴 때를 알리는 값 */
+  const [editor, setEditor] = useState<EditorView | null>(null);
+  const [layoutTick, setLayoutTick] = useState(0);
   const [ask, setAsk] = useState('');
   const [slash, setSlash] = useState<Slash | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -288,10 +314,16 @@ export function PageEditor({
   const closedAt = useRef<number | null>(null);
   const items = useMemo(() => (slash ? filterPageBlocks(slash.query) : []), [slash]);
   const slashOpen = items.length > 0;
+  const [emo, setEmo] = useState<Emo | null>(null);
+  const [emoIndex, setEmoIndex] = useState(0);
+  const emoOpen = !!emo && emo.matches.length > 0;
+  /** 터치 입력인지 판정 (P10) */
+  const lastPointerType = useRef<string>('mouse');
+  const isTouchInput = () => lastPointerType.current !== 'mouse';
 
   // CodeMirror 확장은 한 번 만들고, 최신 콜백·상태는 ref로 읽는다
-  const latest = useRef({ onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked });
-  latest.current = { onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked };
+  const latest = useRef({ onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex });
+  latest.current = { onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex };
 
   /** 커서 앞이 `/검색어`면 그 아래(공간이 없으면 위)에 블록 메뉴를 연다 */
   const syncSlash = (v: EditorView) => {
@@ -318,8 +350,54 @@ export function PageEditor({
       up,
     });
   };
-  const syncRef = useRef(syncSlash);
-  syncRef.current = syncSlash;
+  /** 커서 앞이 `:검색어`면 이모지 후보를 연다 — 설정에서 끌 수 있다 */
+  const syncEmoji = (v: EditorView) => {
+    const sel = v.state.selection.main;
+    if (!latest.current.emoji || !sel.empty || !v.hasFocus || v.composing) return setEmo(null);
+    const q = getEmojiQuery(v.state.doc.toString(), sel.head);
+    if (!q || !/^[\p{L}\p{N}_+-]{1,30}$/u.test(q.query) || emoClosedAt.current === q.start) {
+      if (!q) emoClosedAt.current = null;
+      return setEmo(null);
+    }
+    const matches = emojiMatches(q.query, 8);
+    const c = v.coordsAtPos(q.start);
+    const box = host.current?.getBoundingClientRect();
+    if (!matches.length || !c || !box) return setEmo(null);
+    const scroll = host.current?.closest('[data-scroll]')?.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const bottom = Math.min(scroll?.bottom ?? Infinity, vv ? vv.offsetTop + vv.height : window.innerHeight);
+    const up = c.bottom + EMO_H > bottom && c.top - EMO_H > (scroll?.top ?? 0);
+    setEmo({
+      start: q.start,
+      query: q.query,
+      matches,
+      left: Math.min(c.left - box.left, Math.max(0, box.width - 256)),
+      top: (up ? c.top : c.bottom) - box.top,
+      up,
+    });
+  };
+  const emoClosedAt = useRef<number | null>(null);
+  const syncRef = useRef((v: EditorView) => {
+    syncSlash(v);
+    syncEmoji(v);
+  });
+  syncRef.current = (v: EditorView) => {
+    syncSlash(v);
+    syncEmoji(v);
+  };
+
+  /** 고른 이모지로 `:검색어`를 바꾼다 */
+  const pickEmoji = (m: EmojiMatch) => {
+    const v = view.current;
+    const e = latest.current.emo;
+    if (!v || !e) return;
+    const caret = v.state.selection.main.head;
+    setEmo(null);
+    v.dispatch({ changes: { from: e.start, to: caret, insert: m.emoji }, selection: { anchor: e.start + m.emoji.length }, userEvent: 'input.emoji' });
+    v.focus();
+  };
+  const pickEmojiRef = useRef(pickEmoji);
+  pickEmojiRef.current = pickEmoji;
 
   const applyFormat = (kind: InlineFormat) => {
     const v = view.current;
@@ -405,17 +483,47 @@ export function PageEditor({
     const pos = !sel.empty && hit >= sel.from && hit <= sel.to ? sel.to : hit;
     v.dispatch({ selection: { anchor: pos } });
     v.focus();
+    showCtx({ pos, ask: false }, e.clientX, e.clientY);
+  };
+  /** 화면 좌표(x, y) 옆에 메뉴를 띄운다 — 화면 밖으로 넘치지 않게 왼쪽·위로 당긴다 */
+  const showCtx = (c: Omit<Ctx, 'left' | 'top'>, cx: number, cy: number) => {
     const box = host.current?.getBoundingClientRect();
     if (!box) return;
-    // 화면 밖으로 넘치지 않게 왼쪽·위로 당긴다
     const vv = window.visualViewport;
     const vw = vv ? vv.offsetLeft + vv.width : window.innerWidth;
     const vh = vv ? vv.offsetTop + vv.height : window.innerHeight;
-    const x = Math.max(8, Math.min(e.clientX, vw - CTX_W - 8));
-    const y = Math.max(8, Math.min(e.clientY, vh - CTX_H - 8));
+    const x = Math.max(8, Math.min(cx, vw - CTX_W - 8));
+    const y = Math.max(8, Math.min(cy, vh - (c.ask ? 160 : CTX_H) - 8));
     setSlash(null);
+    setEmo(null);
     setAsk('');
-    setCtx({ pos, left: x - box.left, top: y - box.top, ask: false });
+    setCtx({ ...c, left: x - box.left, top: y - box.top });
+  };
+  const showCtxRef = useRef(showCtx);
+  showCtxRef.current = showCtx;
+
+  /** 핸들 메뉴: 블록을 한 칸 옮기거나 지우거나 나란히 배치를 푼다 */
+  const blockAction = (index: number, action: 'up' | 'down' | 'unwrap' | 'delete') => {
+    const v = view.current;
+    setCtx(null);
+    if (!v || latest.current.locked) return;
+    const before = v.state.doc.toString();
+    let after = before;
+    if (action === 'up') after = moveMarkdownBlock(before, index, index - 1);
+    else if (action === 'down') after = moveMarkdownBlock(before, index, index + 2);
+    else if (action === 'unwrap') after = unwrapColumns(before, index);
+    else {
+      const b = markdownBlocks(before)[index];
+      if (b) {
+        // 블록 줄과 뒤따르는 빈 줄 하나를 함께 지운다
+        let to = b.to;
+        if (before[to] === '\n') to++;
+        if (before[to] === '\n') to++;
+        after = before.slice(0, b.from) + before.slice(to);
+      }
+    }
+    if (after !== before) v.dispatch({ changes: minimalChange(before, after), userEvent: action === 'delete' ? 'delete.block' : 'move.block' });
+    v.focus();
   };
   const ctxRef = useRef(openCtx);
   ctxRef.current = openCtx;
@@ -461,6 +569,20 @@ export function PageEditor({
         extensions: [
           Prec.highest(
             keymap.of([
+              { key: 'ArrowDown', run: () => moveEmoji(1) },
+              { key: 'ArrowUp', run: () => moveEmoji(-1) },
+              { key: 'Enter', run: () => pickEmojiCurrent() },
+              { key: 'Tab', run: () => pickEmojiCurrent() },
+              {
+                key: 'Escape',
+                run: () => {
+                  const l = latest.current;
+                  if (!l.emoOpen || !l.emo) return false;
+                  emoClosedAt.current = l.emo.start;
+                  setEmo(null);
+                  return true;
+                },
+              },
               { key: 'ArrowDown', run: () => moveSlash(1) },
               { key: 'ArrowUp', run: () => moveSlash(-1) },
               { key: 'Enter', run: () => pickCurrent() },
@@ -509,19 +631,43 @@ export function PageEditor({
             openPage: (id) => actions().openSession(id, 'main'),
             pageExists: (id) => !!actions().sessions[id],
           }),
+          // 번호 목록 가운데를 지우거나 옮기면 아래 번호를 당겨 매긴다 — 같은 트랜잭션(되돌리기 한 번)에 덧붙인다 (ADR-087)
+          EditorState.transactionFilter.of((tr: Transaction) => {
+            if (!tr.docChanged || tr.annotation(external) || tr.isUserEvent('input.type.compose')) return tr;
+            if (!tr.isUserEvent('input') && !tr.isUserEvent('delete') && !tr.isUserEvent('move')) return tr;
+            const after = tr.newDoc.toString();
+            const renumbered = renumberOrderedLists(after);
+            if (renumbered === after) return tr;
+            return [tr, { changes: minimalChange(after, renumbered), sequential: true }];
+          }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged && !u.transactions.some((t) => t.annotation(external))) latest.current.onChange(u.state.doc.toString());
             if (u.docChanged || u.selectionSet || u.focusChanged) syncRef.current(u.view);
+            if (u.docChanged || u.geometryChanged || u.viewportChanged) setLayoutTick((t) => t + 1);
+            // P2: onHistory 콜백 — undo/redo 깊이 추적 (A2 undo/redo 버튼이 의존)
+            if (_onHistory && (u.docChanged || u.transactions.some((t) => t.isUserEvent('undo') || t.isUserEvent('redo')))) {
+              _onHistory({ undo: undoDepth(u.state), redo: redoDepth(u.state) });
+            }
           }),
           EditorView.domEventHandlers({
             blur: () => {
               setSlash(null);
+              setEmo(null);
               latest.current.onBlur();
+            },
+            pointerdown: (e) => {
+              // P10: 터치 입력 감지
+              if (e instanceof PointerEvent) {
+                lastPointerType.current = e.pointerType;
+              }
+              return false;
             },
             // 우클릭은 블록·AI 채우기 메뉴. Shift+우클릭은 기본 메뉴(복사·붙여넣기)
             // 고른 글 위 우클릭은 선택 메뉴(가지·서식)나 기본 메뉴에 맡긴다 (ADR-086)
+            // P10: 터치에서는 Ctx를 열지 않음 (블록 메뉴는 핸들로 접근)
             contextmenu: (e, ed) => {
               if (e.shiftKey) return false;
+              if (isTouchInput()) return false;
               const { main } = ed.state.selection;
               const at = ed.posAtCoords({ x: e.clientX, y: e.clientY });
               if (!main.empty && at !== null && at >= main.from && at <= main.to) return false;
@@ -534,9 +680,13 @@ export function PageEditor({
       }),
     });
     view.current = v;
+    setEditor(v);
+    onView?.(v);
     // 빈 페이지만 바로 쓰기 시작한다. 쓴 글이 있으면 읽다가 누른 곳부터 고친다
     if (!initial.trim()) v.focus();
     return () => {
+      onView?.(null);
+      setEditor(null);
       v.destroy();
       view.current = null;
     };
@@ -544,6 +694,19 @@ export function PageEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function moveEmoji(d: 1 | -1) {
+    const l = latest.current;
+    if (!l.emoOpen || !l.emo || view.current?.composing) return false;
+    const n = l.emo.matches.length;
+    setEmoIndex((i) => (i + d + n) % n);
+    return true;
+  }
+  function pickEmojiCurrent() {
+    const l = latest.current;
+    if (!l.emoOpen || !l.emo || view.current?.composing) return false;
+    pickEmojiRef.current(l.emo.matches[l.emoIndex] ?? l.emo.matches[0]!);
+    return true;
+  }
   function moveSlash(d: 1 | -1) {
     const l = latest.current;
     if (!l.slashOpen || view.current?.composing) return false;
@@ -577,12 +740,64 @@ export function PageEditor({
     v.dispatch({ effects: setMarks.of(marks) });
   }, [branches, annotations]);
 
-  // 선택 메뉴가 이 편집기의 선택에 서식을 넣는다
+  // 선택 메뉴와 키보드 바가 이 편집기의 선택에 서식을 넣는다
   useEffect(() => {
     const v = view.current;
     if (!v) return;
-    return registerPageEditor(v, (kind) => formatRef.current(kind));
-  }, []);
+    return registerPageEditor(v, {
+      format: (kind) => formatRef.current(kind),
+      canFill: () => !!onFill && !latest.current.locked,
+      openFill: () => {
+        if (!onFill || latest.current.locked) return false;
+        const sel = v.state.selection.main;
+        const at = v.coordsAtPos(sel.to, -1) ?? v.coordsAtPos(sel.head);
+        const box = host.current?.getBoundingClientRect();
+        showCtxRef.current({ pos: sel.to, ask: true }, at?.left ?? box?.left ?? 0, (at?.bottom ?? box?.top ?? 0) + 6);
+        return true;
+      },
+      block: (kind) => {
+        if (latest.current.locked) return false;
+        const marker = { h1: '# ', h2: '## ', h3: '### ', bullet: '- ', ordered: '1. ', todo: '- [ ] ' }[kind];
+        const sel = v.state.selection.main;
+        const doc = v.state.doc;
+        const first = doc.lineAt(sel.from).number;
+        const last = doc.lineAt(sel.to).number;
+        const re = /^(\s*)(#{1,6} |[-*+] \[[ xX]\] |[-*+] |\d+[.)] )?/;
+        const sameKind = (m: string | undefined) => {
+          if (!m) return false;
+          if (kind === 'ordered') return /^\d+[.)] $/.test(m);
+          if (kind === 'todo') return /^[-*+] \[[ xX]\] $/.test(m);
+          if (kind === 'bullet') return /^[-*+] $/.test(m);
+          return m === marker;
+        };
+        const lines = [];
+        for (let i = first; i <= last; i++) lines.push(doc.line(i));
+        const filled = lines.filter((l) => l.text.trim());
+        // 고른 줄이 모두 이미 그 모양이면 기호를 뗀다(되돌리기 토글)
+        const off = filled.length > 0 && filled.every((l) => sameKind(re.exec(l.text)?.[2]));
+        let n = 1;
+        const changes = lines
+          .filter((l) => l.text.trim() || lines.length === 1)
+          .map((l) => {
+            const m = re.exec(l.text)!;
+            const indent = m[1] ?? '';
+            const mark = off ? '' : kind === 'ordered' ? `${n++}. ` : marker;
+            return { from: l.from + indent.length, to: l.from + m[0].length, insert: mark };
+          });
+        v.dispatch({ changes, userEvent: 'input.format' });
+        v.focus();
+        return true;
+      },
+      indent: (dir) => {
+        if (latest.current.locked) return false;
+        if (dir === 1) {
+          return indentMore(v);
+        } else {
+          return indentLess(v);
+        }
+      },
+    });
+  }, [onFill]);
 
   // AI가 고치는 동안은 읽기 전용
   useEffect(() => {
@@ -637,6 +852,7 @@ export function PageEditor({
   };
 
   useEffect(() => setSlashIndex(0), [slash?.start, slash?.query]);
+  useEffect(() => setEmoIndex(0), [emo?.start, emo?.query]);
   const menu = useRef<HTMLDivElement>(null);
   useEffect(() => {
     menu.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
@@ -656,8 +872,15 @@ export function PageEditor({
   }, [slashOpen, slashIndex, sessionId]);
 
   return (
-    <div className="relative">
-      <div ref={host} data-page-editor="" data-session-id={sessionId} data-message-id={messageId} className="page-editor min-h-[50vh]" />
+    <div ref={wrap} className="relative">
+      <div ref={host} data-page-editor="" data-session-id={sessionId} data-message-id={messageId} className="page-editor min-h-[50vh] pl-6" />
+      <PageBlockHandles
+        view={editor}
+        wrap={wrap}
+        tick={layoutTick}
+        locked={locked}
+        onMenu={(index, b, at) => showCtx({ pos: b.to, ask: false, block: { index, kind: b.kind } }, at.x, at.y)}
+      />
       <input
         ref={fileInput}
         type="file"
@@ -688,6 +911,7 @@ export function PageEditor({
         <div
           ref={ctxMenu}
           data-page-context=""
+          data-page-ctx=""
           role="menu"
           aria-label="블록·AI 메뉴"
           onKeyDown={onCtxKey}
@@ -720,6 +944,37 @@ export function PageEditor({
             </form>
           ) : (
             <>
+              {ctx.block && (
+                <>
+                  <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">이 블록</div>
+                  {(
+                    [
+                      ['up', '위로 옮기기', ArrowUp],
+                      ['down', '아래로 옮기기', ArrowDown],
+                      ...(ctx.block.kind === 'columns' ? [['unwrap', '나란히 배치 풀기', Columns2] as const] : []),
+                      ['delete', '블록 지우기', Trash2],
+                    ] as const
+                  ).map(([id, label, Icon]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      data-block-action={id}
+                      onClick={() => blockAction(ctx.block!.index, id)}
+                      className={cn(
+                        'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1 text-left text-[13px] outline-none hover:bg-surface-2 focus-visible:bg-surface-2',
+                        id === 'delete' ? 'text-danger' : 'text-fg',
+                      )}
+                    >
+                      <span className="grid size-6 shrink-0 place-items-center rounded-md border border-line bg-surface">
+                        <Icon size={14} />
+                      </span>
+                      {label}
+                    </button>
+                  ))}
+                  <div className="my-1 h-px bg-line" />
+                </>
+              )}
               {onFill && (
                 <>
                   <button
@@ -761,6 +1016,38 @@ export function PageEditor({
               </div>
             </>
           )}
+        </div>
+      )}
+      {emoOpen && emo && (
+        <div
+          data-page-emoji=""
+          onMouseDown={(e) => e.preventDefault()}
+          style={{ left: emo.left, top: emo.top }}
+          className={cn(
+            'animate-pop-in absolute z-20 flex w-64 max-w-full flex-col rounded-xl border border-line bg-elev p-1 shadow-float',
+            emo.up ? '-mt-1 -translate-y-full' : 'mt-1',
+          )}
+        >
+          <div className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">이모지 · ↑↓ 선택 · Enter</div>
+          <div role="listbox" aria-label="이모지" style={{ maxHeight: EMO_H - 40 }} className="scroll-thin overflow-y-auto">
+            {emo.matches.map((m, i) => (
+              <button
+                key={`${m.emoji}-${m.name}`}
+                type="button"
+                role="option"
+                tabIndex={-1}
+                aria-selected={i === emoIndex}
+                data-emoji={m.emoji}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setEmoIndex(i)}
+                onClick={() => pickEmoji(m)}
+                className={cn('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left', i === emoIndex && 'bg-surface-2')}
+              >
+                <span className="grid size-7 shrink-0 place-items-center text-[18px] leading-none">{m.emoji}</span>
+                <span className="min-w-0 flex-1 truncate text-[13.5px] text-fg">:{m.name}:</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {slashOpen && slash && (

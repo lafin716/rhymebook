@@ -10,10 +10,13 @@ import {
   type ID,
   type Session,
 } from '@branch/core';
-import { Sparkles, Square, Undo2, X } from 'lucide-react';
+import { Sparkles, Square, Undo2, Redo2, Settings, X } from 'lucide-react';
+import { undo, redo } from '@codemirror/commands';
+import type { EditorView } from '@codemirror/view';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
+import { IconButton } from '../components/Button';
 import { PanelFullToggle } from '../components/PanelFullToggle';
 import { cn } from '../lib/cn';
 import type { PanelVariant } from './ChatPanel';
@@ -23,6 +26,9 @@ import { PageEditor } from './PageEditor';
 import { SessionHeader } from './SessionHeader';
 import { BranchChips, SummaryCard } from './SummaryCard';
 import { usePageAi } from './usePageAi';
+import { PageSettings } from './PageSettings';
+import { PageKeyboardBar } from './PageKeyboardBar';
+import { minimalChange } from './pageText';
 
 const SAVE_DELAY = 500;
 
@@ -59,8 +65,21 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pending = useRef<string | null>(null);
   const ai = usePageAi();
-  /** AI 정리 전 본문 — 되돌리기용. 손으로 고치면 버린다 */
-  const [undo, setUndo] = useState<string | null>(null);
+
+  // 편집기 인스턴스 및 상태
+  const editorRef = useRef<EditorView | null>(null);
+  const [history, setHistory] = useState<{ undo: number; redo: number }>({ undo: 0, redo: 0 });
+
+  // 설정 창
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [emoji, setEmoji] = useState(() => {
+    try {
+      const v = localStorage.getItem('octobooks.page.emoji');
+      return v !== 'false';
+    } catch {
+      return true;
+    }
+  });
 
   const flush = useCallback(() => {
     clearTimeout(timer.current);
@@ -89,7 +108,6 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
   if (shown !== sessionId) {
     setShown(sessionId);
     setDraft(content);
-    setUndo(null);
     ai.clearError();
   }
   // 다른 페이지로 가면 돌던 AI를 멈춘다
@@ -98,7 +116,6 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
 
   const hasPending = useCallback(() => pending.current !== null, []);
   const onChange = (next: string) => {
-    setUndo(null);
     setDraft(next);
     pending.current = next;
     clearTimeout(timer.current);
@@ -106,7 +123,8 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
   };
 
   const title = () => actions().sessions[sessionId]?.title ?? '';
-  /** 노트 전체를 AI로 정리한다. 다 받은 뒤 한 번에 바꾸고, 되돌리기를 남긴다 */
+
+  /** 노트 전체를 AI로 정리한다. 편집기가 있으면 dispatch로 넣어 기록 1칸이 되게 하고, 없으면 updatePage로 저장한다 */
   const organize = async () => {
     flush();
     const before = pageDoc(actions().messages[sessionId])?.content ?? '';
@@ -118,13 +136,17 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
     if (!next) return;
     // 기다리는 동안 다른 곳(원격)에서 바뀌었으면 덮어쓰지 않는다
     if ((pageDoc(actions().messages[sessionId])?.content ?? '') !== before) return;
-    if (actions().updatePage(sessionId, next)) setUndo(before);
-  };
-  const revert = () => {
-    if (undo === null) return;
-    flush();
-    actions().updatePage(sessionId, undo);
-    setUndo(null);
+
+    // 편집기가 있으면 dispatch로 넣어 기록을 만들고, 없으면 updatePage로 저장
+    if (editorRef.current) {
+      const changes = minimalChange(before, next);
+      editorRef.current.dispatch({
+        changes,
+        userEvent: 'input.ai',
+      });
+    } else {
+      actions().updatePage(sessionId, next);
+    }
   };
   /** 편집기 커서 자리에 채울 글 — 받는 동안 onDelta로 흘려 보낸다 */
   const fill = (input: { before: string; after: string; request?: string }, onDelta: (text: string) => void) => {
@@ -173,10 +195,6 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
               <Button size="sm" variant="soft" icon={<Square size={13} />} data-page-ai-stop="" onClick={ai.stop} title="정리 멈추기">
                 정리 중…
               </Button>
-            ) : undo !== null ? (
-              <Button size="sm" variant="ghost" icon={<Undo2 size={14} />} data-page-ai-undo="" onClick={revert}>
-                되돌리기
-              </Button>
             ) : (
               <Button
                 size="sm"
@@ -213,6 +231,48 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
         )}
       >
         <div className="relative mx-auto max-w-3xl">
+          {/* 상단 도구 줄: Undo/Redo (좌측) 및 설정 (우측) */}
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center gap-1" data-page-toolbar="">
+              <IconButton
+                label="실행 취소"
+                size="sm"
+                disabled={!editorRef.current || history.undo === 0}
+                onClick={() => {
+                  if (editorRef.current) {
+                    undo({ state: editorRef.current.state, dispatch: editorRef.current.dispatch });
+                    editorRef.current.focus();
+                  }
+                }}
+                data-page-undo=""
+              >
+                <Undo2 size={16} />
+              </IconButton>
+              <IconButton
+                label="다시 실행"
+                size="sm"
+                disabled={!editorRef.current || history.redo === 0}
+                onClick={() => {
+                  if (editorRef.current) {
+                    redo({ state: editorRef.current.state, dispatch: editorRef.current.dispatch });
+                    editorRef.current.focus();
+                  }
+                }}
+                data-page-redo=""
+              >
+                <Redo2 size={16} />
+              </IconButton>
+            </div>
+            <IconButton
+              label="페이지 설정"
+              size="sm"
+              onClick={() => setSettingsOpen(true)}
+              data-page-settings-open=""
+            >
+              <Settings size={16} />
+            </IconButton>
+          </div>
+
           <PageEditor
             key={sessionId}
             sessionId={sessionId}
@@ -229,6 +289,13 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
             filling={ai.busy === 'fill'}
             onFill={fill}
             onStopFill={ai.stop}
+            onView={(view: EditorView | null) => {
+              editorRef.current = view;
+            }}
+            onHistory={(h: { undo: number; redo: number }) => {
+              setHistory(h);
+            }}
+            emoji={emoji}
           />
           {(summaries.length > 0 || branches.length > 0 || notes.length > 0) && (
             <div className="mt-6 space-y-3">
@@ -244,6 +311,16 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
           )}
         </div>
       </div>
+
+      <PageSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onEmojiChange={(value) => {
+          setEmoji(value);
+        }}
+      />
+
+      <PageKeyboardBar view={editorRef.current} history={history} />
     </section>
   );
 }

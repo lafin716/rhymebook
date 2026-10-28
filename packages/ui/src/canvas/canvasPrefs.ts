@@ -5,6 +5,9 @@ import { CANVAS_PEN_NIBS, type CanvasPenNib } from '@branch/core';
 const FAVORITES_KEY = 'octobooks.canvas.favoriteInks';
 const SIZES_KEY = 'octobooks.canvas.strokeSizes';
 const NIB_KEY = 'octobooks.canvas.penNib';
+const PALETTE_COUNT_KEY = 'octobooks.canvas.paletteCount';
+const PALETTE_OPEN_KEY = 'octobooks.canvas.paletteOpen';
+const TOOLBAR_DOCK_KEY = 'octobooks.canvas.toolbarDock';
 
 /** 즐겨찾기 잉크 색은 최대 이만큼 */
 export const MAX_FAVORITE_INKS = 8;
@@ -24,6 +27,8 @@ export const clampStroke = (kind: StrokeKind, n: number) => {
   const r = STROKE_RANGE[kind];
   return Number.isFinite(n) ? Math.round(Math.max(r.min, Math.min(r.max, n))) : r.def;
 };
+
+export type ToolbarDock = 'top' | 'right' | 'bottom' | 'left';
 
 function load(key: string): unknown {
   try {
@@ -64,3 +69,25 @@ export function loadPenNib(): CanvasPenNib {
 }
 
 export const savePenNib = (nib: CanvasPenNib) => save(NIB_KEY, nib);
+
+/** 팔레트에 한 번에 보일 색 개수 (null = 모두). 넘치는 색은 '더 많은 색'에 들어간다 (ADR-088) */
+export function loadPaletteCount(): number | null {
+  const v = load(PALETTE_COUNT_KEY);
+  return typeof v === 'number' && Number.isInteger(v) && v >= 1 ? v : null;
+}
+
+export const savePaletteCount = (n: number | null) => save(PALETTE_COUNT_KEY, n);
+
+export function loadPaletteOpen(): boolean {
+  const v = load(PALETTE_OPEN_KEY);
+  return v === null || v === '1';
+}
+
+export const savePaletteOpen = (open: boolean) => save(PALETTE_OPEN_KEY, open ? '1' : '0');
+
+export function loadToolbarDock(): ToolbarDock {
+  const v = load(TOOLBAR_DOCK_KEY);
+  return v === 'right' || v === 'bottom' || v === 'left' ? v : 'top';
+}
+
+export const saveToolbarDock = (dock: ToolbarDock) => save(TOOLBAR_DOCK_KEY, dock);

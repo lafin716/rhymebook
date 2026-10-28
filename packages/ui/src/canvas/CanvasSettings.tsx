@@ -69,7 +69,7 @@ const FLOWS: { flow: CanvasFlow; label: string; hint: string; icon: ReactNode }[
 const OPTION =
   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-fg hover:bg-surface-2 md:min-h-9";
 
-/** 캔버스 설정: 판 크기(자유·16:9·9:16·A4 가로·세로, PDF 모드 표시), 쪽 넘김 방향, 바탕(색·무늬) */
+/** 캔버스 설정: 판 크기(자유·16:9·9:16·A4 가로·세로, PDF 모드 표시), 쪽 넘김 방향, 바탕(색·무늬), 팔레트 개수 */
 export function CanvasSettings({
   layout,
   onLayout,
@@ -78,6 +78,9 @@ export function CanvasSettings({
   pdfName,
   bg,
   onBackground,
+  paletteCount,
+  onPaletteCount,
+  paletteTotal,
   onClose,
 }: {
   layout: CanvasLayout;
@@ -88,9 +91,14 @@ export function CanvasSettings({
   pdfName?: string;
   bg: CanvasBackground | undefined;
   onBackground(bg: CanvasBackground): void;
+  paletteCount: number | null;
+  onPaletteCount(n: number | null): void;
+  /** 기본 색 + 즐겨찾는 색 수 */
+  paletteTotal: number;
   onClose(): void;
 }) {
   const color = bg?.color ?? CANVAS_PAPER;
+  const shownCount = Math.min(paletteCount ?? paletteTotal, paletteTotal);
   return (
     <ImportDialog label="캔버스 설정" title="캔버스 설정" onClose={onClose}>
       {layout === "pdf" && (
@@ -273,6 +281,25 @@ export function CanvasSettings({
           );
         })}
       </ul>
+      <p className="px-3 pt-3 pb-2 text-[12px] text-muted">한 번에 보일 색 개수</p>
+      <div className="flex flex-col gap-2 px-3 pb-3">
+        <input
+          type="range"
+          min={1}
+          max={paletteTotal}
+          value={shownCount}
+          aria-label="팔레트 색 개수"
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            onPaletteCount(n >= paletteTotal ? null : n);
+          }}
+          className="h-2 w-full accent-[var(--accent)]"
+        />
+        <div className="flex items-center justify-between text-[13px] text-fg-2">
+          <span>최소 1개</span>
+          <span className="font-mono" data-palette-count>{paletteCount === null ? `모두 (${paletteTotal})` : `${shownCount} / ${paletteTotal}`}</span>
+        </div>
+      </div>
     </ImportDialog>
   );
 }
