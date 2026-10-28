@@ -29,6 +29,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from 'lucide-
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { PanelVariant } from '../chat/ChatPanel';
 import { SessionHeader } from '../chat/SessionHeader';
+import { PanelFullToggle } from '../components/PanelFullToggle';
 import { actions, useApp } from '../app/store';
 import { pushNotice, syncClient } from '../app/sync';
 import { cn } from '../lib/cn';
@@ -108,7 +109,17 @@ export function CanvasPanel({ sessionId, variant = 'main', headerActions, handle
 
   return (
     <section className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg', className)} data-panel={variant} data-canvas="" aria-label="캔버스">
-      <SessionHeader sessionId={sessionId} compact handleClassName={handleClassName} actions={headerActions} />
+      <SessionHeader
+        sessionId={sessionId}
+        compact
+        handleClassName={handleClassName}
+        actions={
+          <>
+            {variant === 'main' && <PanelFullToggle />}
+            {headerActions}
+          </>
+        }
+      />
       <CanvasEditor key={sessionId} sessionId={sessionId} content={content} />
     </section>
   );

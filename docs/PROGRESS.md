@@ -197,7 +197,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP27-T1 | IMP-27 | core `order`·`placeVaultNode`·`vaultChildren` 정렬·검증 + 테스트, ui 트리 놓을 자리(앞/뒤/안으로) 선 표시, e2e vault 순서 바꾸기 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 399, e2e vault desktop·mobile |
 
 ## Active Work
-- 없음 (ADR-083 펜 세부 조정 두 번째 누름·펜 종류 완료)
+- 없음 (ADR-084 캔버스·페이지 전체 화면 완료)
 - 확인 필요: `e2e/skill-sync-split.spec.ts` '웹(원격): 스킬 관리에 PC 스킬 동기화 버튼…'이 HEAD(v0.30.0)에서도 실패 — `[data-skill-row="curriculum"]` 행이 없어 기다리다 시간 초과. 테스트가 오래된 것으로 보임, 미수정
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
@@ -210,6 +210,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-28 · 캔버스·페이지 전체 화면(ADR-084): 헤더 우측 버튼으로 상단 바·사이드바 숨김/복원(`useUi.panelFull`, 다른 세션 종류·보기로 가면 해제). e2e `panel-full`(desktop·mobile) 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e panel-full·canvas·page 30 passed.
 - 2026-10-28 · 캔버스 수정 7건(ADR-081): 긴 카드 스크롤(휠·터치), 흰색·직접 고른 색·즐겨찾기(기기별), 굵기 단계 삭제 → 펜 다시 누르면 굵기 창, 가져오기 아이콘 `Import`, PDF 가져오기 → PDF 모드(쪽마다 한 장, pdf.js 지연 로드·자산 플러그인), A4 가로, 바탕 색·바둑판(촘촘/느슨)·줄공책. core `CanvasDoc.pdf`/`bg`/`canvasPageRects` + 테스트. e2e 캔버스 2건 추가, 기존 위아래 넘김 측정을 poll로(병렬 실행 시 간헐 실패). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 512·ui 64·bridge 66·relay 9·server 10 PASS, `pnpm e2e` 136 passed · 2 failed(skill-sync-split, HEAD에서도 실패).
 - 2026-10-28 · 캔버스 수정(ADR-082): 판 크기에 A4 세로(1131×1600). 펜 도구로 긴 글 카드 위 필기가 안 되던 문제(카드 스크롤 상자가 판의 touch-action을 끊음) → 카드 본문 `touch-none`, 스크롤은 선택 도구에서만(휠·터치·막대). core 테스트·e2e(펜 도구에서 카드 위 필기·휠 무시) 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e 캔버스 8 passed.
 - 2026-10-28 · 캔버스 펜(ADR-083): 펜·형광펜은 처음 누르면 고르기만, 다시 누르면 세부 조정 창. 펜 종류 만년필·볼펜·붓펜·연필(core `CanvasStroke.nib`, 기기 설정 저장, 미리보기·단추 아이콘 반영). core 테스트·e2e(두 번째 누름 창, 붓펜 획, 새로고침 후 유지) 추가. `pnpm typecheck`·`pnpm lint`·`pnpm test` PASS, e2e 캔버스 8 passed.

@@ -3,6 +3,7 @@ import { Check, FileText, Pencil, Sparkles, Square, Undo2, X } from 'lucide-reac
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
+import { PanelFullToggle } from '../components/PanelFullToggle';
 import { cn } from '../lib/cn';
 import type { PanelVariant } from './ChatPanel';
 import { FootnoteList } from './Footnotes';
@@ -202,6 +203,7 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
               </Button>
             )}
             {toggle}
+            {variant === 'main' && <PanelFullToggle />}
             {headerActions}
           </>
         }

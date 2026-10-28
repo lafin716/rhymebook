@@ -56,6 +56,9 @@ interface UiState {
   /** 태블릿·데스크톱에서 보관함을 전체 화면으로 (기기별, ADR-058) */
   vaultFull: boolean;
   toggleVaultFull(): void;
+  /** 캔버스·페이지를 전체 화면으로 — 상단 바·사이드바를 숨긴다 (일시 상태) */
+  panelFull: boolean;
+  setPanelFull(v: boolean): void;
   /** 사이드바 세션 트리 펼침·접힘 (세션 id별, 기기별, ADR-078). 기록이 없으면 각 행의 기본값을 쓴다 */
   treeOpen: Record<string, boolean>;
   setTreeOpen(id: string, open: boolean): void;
@@ -167,6 +170,8 @@ export const useUi = create<UiState>((set, get) => ({
     set({ vaultFull });
     save(VAULT_FULL_KEY, vaultFull ? '1' : '0');
   },
+  panelFull: false,
+  setPanelFull: (panelFull) => set({ panelFull }),
   sidebarWidth: clampSidebarWidth(Number(load(SIDEBAR_WIDTH_KEY)) || SIDEBAR_WIDTH.default),
   setSidebarWidth: (w, persist = true) => {
     const sidebarWidth = clampSidebarWidth(w);
