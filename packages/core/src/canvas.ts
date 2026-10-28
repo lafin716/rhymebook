@@ -57,14 +57,75 @@ export interface CanvasStroke {
   points: number[];
 }
 
+/** 판 모양: 자유(끝없는 판), 가로형 16:9, 세로형 9:16 쪽 나눔 */
+export type CanvasLayout = 'free' | 'landscape' | 'portrait';
+/** 쪽이 이어지는 방향: 옆으로(오른쪽) 또는 위아래로(아래쪽) */
+export type CanvasFlow = 'horizontal' | 'vertical';
+
 export interface CanvasDoc {
   v: 1;
   /** 배열 순서 = 아래부터 위로 */
   items: CanvasItem[];
   strokes: CanvasStroke[];
+  /** 없으면 'free' */
+  layout?: CanvasLayout;
+  /** 쪽 나눔 판의 쪽 수 (1 이상). 자유 판에서는 없다 */
+  pages?: number;
+  /** 쪽 나눔 판의 쪽 방향. 없으면 'horizontal' */
+  flow?: CanvasFlow;
 }
 
 export const emptyCanvas = (): CanvasDoc => ({ v: 1, items: [], strokes: [] });
+
+/** 쪽 크기 (캔버스 px) */
+export const CANVAS_PAGE_SIZE: Record<Exclude<CanvasLayout, 'free'>, { w: number; h: number }> = {
+  landscape: { w: 1600, h: 900 },
+  portrait: { w: 900, h: 1600 },
+};
+/** 쪽 사이 간격 (캔버스 px) */
+export const CANVAS_PAGE_GAP = 80;
+export const CANVAS_MAX_PAGES = 200;
+
+export const canvasLayout = (doc: Pick<CanvasDoc, 'layout'>): CanvasLayout => doc.layout ?? 'free';
+
+export const canvasFlow = (doc: Pick<CanvasDoc, 'flow'>): CanvasFlow => doc.flow ?? 'horizontal';
+
+export const canvasPageCount = (doc: Pick<CanvasDoc, 'layout' | 'pages'>): number =>
+  canvasLayout(doc) === 'free' ? 0 : Math.max(1, doc.pages ?? 1);
+
+/**
+ * i번째 쪽(0부터)의 사각형. 쪽은 오른쪽(위아래 방향이면 아래쪽)으로 이어지고, 첫 쪽의 가운데가 캔버스 원점이다
+ * (자유 판에서 원점 둘레에 쓴 내용이 첫 쪽에 들어온다). 자유 판이면 null.
+ */
+export function canvasPageRect(layout: CanvasLayout, i: number, flow: CanvasFlow = 'horizontal'): CanvasRect | null {
+  if (layout === 'free') return null;
+  const { w, h } = CANVAS_PAGE_SIZE[layout];
+  return flow === 'vertical'
+    ? { x: -w / 2, y: i * (h + CANVAS_PAGE_GAP) - h / 2, w, h }
+    : { x: i * (w + CANVAS_PAGE_GAP) - w / 2, y: -h / 2, w, h };
+}
+
+/** 판 모양 바꾸기. 내용은 그대로 두고, 쪽 나눔이면 쪽 수·쪽 방향을 지킨다 */
+export function setCanvasLayout(doc: CanvasDoc, layout: CanvasLayout): CanvasDoc {
+  if (layout === canvasLayout(doc)) return doc;
+  const { layout: _l, pages: _p, flow, ...rest } = doc;
+  if (layout === 'free') return rest;
+  return { ...rest, layout, pages: Math.max(1, doc.pages ?? 1), ...(flow === 'vertical' ? { flow } : {}) };
+}
+
+/** 쪽 방향 바꾸기. 자유 판에서는 그대로 */
+export function setCanvasFlow(doc: CanvasDoc, flow: CanvasFlow): CanvasDoc {
+  if (canvasLayout(doc) === 'free' || flow === canvasFlow(doc)) return doc;
+  const { flow: _f, ...rest } = doc;
+  return flow === 'vertical' ? { ...rest, flow } : rest;
+}
+
+/** 쪽 나눔 판에 빈 쪽을 하나 더한다 (상한이면 그대로) */
+export function addCanvasPage(doc: CanvasDoc): CanvasDoc {
+  const n = canvasPageCount(doc);
+  if (!n || n >= CANVAS_MAX_PAGES) return doc;
+  return { ...doc, pages: n + 1 };
+}
 
 const IMAGE_SRC_RE = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -113,7 +174,13 @@ export function parseCanvas(content: string | undefined): CanvasDoc {
   const o = raw as Record<string, unknown>;
   const items = Array.isArray(o.items) ? o.items.map(parseItem).filter((x): x is CanvasItem => !!x) : [];
   const strokes = Array.isArray(o.strokes) ? o.strokes.map(parseStroke).filter((x): x is CanvasStroke => !!x) : [];
-  return { v: 1, items, strokes };
+  const doc: CanvasDoc = { v: 1, items, strokes };
+  if (o.layout === 'landscape' || o.layout === 'portrait') {
+    doc.layout = o.layout;
+    doc.pages = num(o.pages) ? Math.min(CANVAS_MAX_PAGES, Math.max(1, Math.floor(o.pages))) : 1;
+    if (o.flow === 'vertical') doc.flow = 'vertical';
+  }
+  return doc;
 }
 
 export const serializeCanvas = (doc: CanvasDoc): string => JSON.stringify(doc);
@@ -261,6 +328,8 @@ export function canvasText(doc: CanvasDoc, max = 6000): string {
     else out.push(`[이미지${it.name ? `: ${it.name}` : ''}]`, '');
   }
   if (doc.strokes.length) out.push(`[손글씨 필기 ${doc.strokes.length}획]`);
+  const pages = canvasPageCount(doc);
+  if (pages > 1) out.push(`[${pages}쪽]`);
   const text = out.join('\n').trim();
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }

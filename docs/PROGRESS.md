@@ -197,7 +197,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP27-T1 | IMP-27 | core `order`·`placeVaultNode`·`vaultChildren` 정렬·검증 + 테스트, ui 트리 놓을 자리(앞/뒤/안으로) 선 표시, e2e vault 순서 바꾸기 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: core 399, e2e vault desktop·mobile |
 
 ## Active Work
-- 없음 (ADR-079 캔버스 필기·가져오기 완료)
+- 없음 (ADR-080 캔버스 설정·쪽 나눔 완료)
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
 - 확인 필요: Windows에서 core `sync.reset`·`자동 제목` 2건, bridge 19건, relay 2건 테스트가 IMP-08 이전 코드에서도 실패(macOS 기준 통과 기록). 원인 미조사
@@ -209,6 +209,8 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-28 · 캔버스 쪽 넘김 방향(ADR-080 추가): 설정에 옆으로/위아래로, core `CanvasDoc.flow`·`setCanvasFlow`·`canvasPageRect(…, flow)` + 테스트 1, 위아래면 세로로 밀어 쪽 넘김·새 쪽, 쪽 넘김 막대 위·아래 화살표. e2e 쪽 나눔 테스트에 위아래 넘김 추가. typecheck·lint·test·`e2e/canvas.spec.ts` 4 passed.
+- 2026-10-28 · 캔버스 설정(ADR-080): 도구막대 [캔버스 설정] → 판 크기 자유·가로형 16:9·세로형 9:16. core `CanvasDoc.layout`/`pages`(파싱·`setCanvasLayout`·`addCanvasPage`·`canvasPageRect` + 테스트 3), ui 쪽 배경·쪽 맞춤, 화면 이동 끝에 옆으로 밀면 쪽 넘김(마지막 쪽 다음은 새 쪽), 아래 쪽 넘김 막대, 펜류 고르면 항목 선택 해제, 가져온 직후 선택 도구. e2e `canvas` 갱신 + 쪽 나눔 테스트(desktop·mobile). `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 506·ui 64·bridge 66·relay 9·server 10 PASS, `pnpm e2e e2e/canvas.spec.ts` 4 passed.
 - 2026-10-28 · 캔버스 필기·가져오기(ADR-079): 새로 만들기·사이드바 +·빈 화면에서 `kind:'canvas'` 문서 세션, core `canvas.ts`(CanvasDoc 파싱·직렬화·획·항목·`canvasText`/`docText`, 이미지 data URL만 + 테스트), 맥락·요약·검색·학습 내보내기는 평문, 동기화 `page.new.pageKind:'canvas'`(feature `canvas`)·`SYNC_LIMITS.doc`; ui `canvas/`(perfect-freehand 펜·형광펜·지우개·선택/이동, 펜 우선 손바닥 무시, rAF 그리기, 실행 취소/다시 실행, 전체 보기, 0.5초 지연 저장 + pagehide 저장, 이미지 파일(1600px 축소·25MB)·세션·페이지·보관함 가져오기, 모바일 도구막대 한 줄 가로 스크롤), 검색 본문 WeakMap 캐시. 독립 리뷰 지적 5건 반영·2건 알려진 한계. e2e `canvas`(필기·페이지 가져오기·그 위에 쓰기·실행 취소·새로고침 유지) desktop·mobile, `subsession` 메뉴 기대값에 캔버스 추가. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 503·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 130 passed·14 skipped, skill-sync-split 2건 실패(기존). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-28 · 사이드바 트리 접힘 상태 유지(ADR-078): ui `useUi.treeOpen`·`setTreeOpen`(기기별 localStorage, 최근 1000개), Sidebar `RootItem`·`BranchRow`가 이를 사용, 열린 세션 자동 펼침은 `useRevealActive`(바뀔 때만). e2e `branch-collapse` 접힘 유지(닫았다 열기·새로고침) desktop·mobile. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 491·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 128 passed·14 skipped, skill-sync-split 2건 실패(기존). 패키지 데스크톱 앱 재빌드·실행.
 - 2026-10-28 · 페이지 선택 서식 팝업·끌어 고르기·읽기 모드 체크박스·/이미지·/파일(ADR-077): livePreview 끄는 중 장식 고정(`dragField`)·원문 드러내기는 빈 선택만·data URL 이미지/파일 위젯; core `pageFormat`(`toggleInlineFormat`·`toggleTaskAt`·`taskItemOffsets`·첨부 마크다운·`stashEmbeds`/`restoreEmbeds`/`stripEmbeds` + 테스트 14), `PAGE_BLOCKS` 이미지·파일, 맥락·AI 정리/채우기에서 첨부 자리표시; ui 선택 서식 팝업(⌘B·⌘I·⌘⇧X·⌘E·⌘K), `pageEmbed`(3MB, 위험 형식 octet-stream), 읽기 모드 `urlTransform`·data 링크 내려받기·`TaskToggleContext` 체크박스 저장, 페이지 SelectionMenu 글자 효과 숨김. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 491·ui 64·bridge 66(+3 skipped)·relay 9·server 10 PASS, `pnpm e2e` 126 passed·14 skipped(새 page ADR-077 3개 × desktop·mobile), skill-sync-split 2건 실패 — 변경 전에도 실패(기존 문제). 패키지 데스크톱 앱 재빌드·실행.

@@ -55,7 +55,7 @@ export async function ensureLoaded(id: ID): Promise<void> {
   });
 }
 
-function ImportDialog({ label, title, onClose, children }: { label: string; title: string; onClose(): void; children: ReactNode }) {
+export function ImportDialog({ label, title, onClose, children }: { label: string; title: string; onClose(): void; children: ReactNode }) {
   return (
     <Modal open onClose={onClose} label={label} className="md:max-w-md">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line pr-2 pl-4">

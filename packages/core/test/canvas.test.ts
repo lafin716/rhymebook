@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   addCanvasItem,
+  addCanvasPage,
   addStroke,
+  CANVAS_MAX_PAGES,
+  CANVAS_PAGE_GAP,
+  canvasFlow,
+  canvasLayout,
+  canvasPageCount,
+  canvasPageRect,
   canvasBounds,
   canvasText,
   compactPoints,
@@ -13,6 +20,8 @@ import {
   raiseCanvasItem,
   removeCanvasItem,
   serializeCanvas,
+  setCanvasFlow,
+  setCanvasLayout,
   sessionCardText,
   updateCanvasItem,
   type CanvasDoc,
@@ -156,5 +165,55 @@ describe('canvas sessions in the store', () => {
     const req = buildSummaryRequest(st.sessions[id] as Session, st.messages[id] ?? []);
     expect(req.messages[0]!.content).toContain('핵심');
     expect(req.messages[0]!.content).not.toContain('base64');
+  });
+});
+
+describe('canvas layout (쪽 나눔)', () => {
+  it('자유 판은 쪽이 없고, 쪽 나눔은 첫 쪽 가운데가 원점이며 오른쪽으로 이어진다', () => {
+    expect(canvasPageRect('free', 0)).toBeNull();
+    expect(canvasPageRect('landscape', 0)).toEqual({ x: -800, y: -450, w: 1600, h: 900 });
+    expect(canvasPageRect('portrait', 1)).toEqual({ x: 900 + CANVAS_PAGE_GAP - 450, y: -800, w: 900, h: 1600 });
+  });
+
+  it('판 모양을 바꿔도 내용은 그대로, 쪽 수는 지킨다', () => {
+    const base = addStroke(emptyCanvas(), { id: 's1', tool: 'pen', color: '#000000', size: 2, points: [0, 0, 0.5, 5, 5, 0.5] });
+    const land = setCanvasLayout(base, 'landscape');
+    expect(canvasLayout(land)).toBe('landscape');
+    expect(canvasPageCount(land)).toBe(1);
+    const two = addCanvasPage(land);
+    expect(canvasPageCount(two)).toBe(2);
+    const port = setCanvasLayout(two, 'portrait');
+    expect(canvasPageCount(port)).toBe(2);
+    expect(port.strokes).toBe(base.strokes);
+    const free = setCanvasLayout(port, 'free');
+    expect(free).not.toHaveProperty('layout');
+    expect(free).not.toHaveProperty('pages');
+    expect(canvasPageCount(free)).toBe(0);
+    expect(addCanvasPage(free)).toBe(free);
+    expect(setCanvasLayout(free, 'free')).toBe(free);
+  });
+
+  it('저장·읽기에서 판 모양과 쪽 수를 지키고 잘못된 값은 버린다', () => {
+    const doc = addCanvasPage(addCanvasPage(setCanvasLayout(emptyCanvas(), 'portrait')));
+    expect(parseCanvas(serializeCanvas(doc))).toEqual(doc);
+    expect(parseCanvas(JSON.stringify({ v: 1, items: [], strokes: [], layout: 'weird', pages: 3 }))).toEqual(emptyCanvas());
+    expect(parseCanvas(JSON.stringify({ v: 1, items: [], strokes: [], layout: 'landscape', pages: -2 })).pages).toBe(1);
+    expect(parseCanvas(JSON.stringify({ v: 1, items: [], strokes: [], layout: 'landscape', pages: 1e9 })).pages).toBe(CANVAS_MAX_PAGES);
+  });
+
+  it('쪽 방향: 위아래면 쪽이 아래로 이어지고, 판 모양을 바꿔도 지키며 자유 판에서는 버린다', () => {
+    expect(canvasPageRect('landscape', 1, 'vertical')).toEqual({ x: -800, y: 900 + CANVAS_PAGE_GAP - 450, w: 1600, h: 900 });
+    expect(setCanvasFlow(emptyCanvas(), 'vertical')).toEqual(emptyCanvas());
+    const land = setCanvasLayout(emptyCanvas(), 'landscape');
+    expect(canvasFlow(land)).toBe('horizontal');
+    const vert = setCanvasFlow(land, 'vertical');
+    expect(canvasFlow(vert)).toBe('vertical');
+    expect(setCanvasFlow(vert, 'vertical')).toBe(vert);
+    const port = setCanvasLayout(vert, 'portrait');
+    expect(port.flow).toBe('vertical');
+    expect(parseCanvas(serializeCanvas(port))).toEqual(port);
+    expect(setCanvasLayout(port, 'free')).not.toHaveProperty('flow');
+    expect(setCanvasFlow(vert, 'horizontal')).not.toHaveProperty('flow');
+    expect(parseCanvas(JSON.stringify({ v: 1, items: [], strokes: [], layout: 'landscape', flow: 'diag' }))).not.toHaveProperty('flow');
   });
 });

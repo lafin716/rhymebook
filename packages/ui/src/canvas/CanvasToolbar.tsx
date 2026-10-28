@@ -1,4 +1,4 @@
-import { Eraser, Highlighter, ImagePlus, MousePointer2, Maximize, Pen, Redo2, Trash2, Undo2 } from 'lucide-react';
+import { Eraser, Highlighter, ImagePlus, MousePointer2, Maximize, Pen, Redo2, Settings2, Trash2, Undo2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
 
@@ -43,6 +43,9 @@ export interface CanvasToolbarProps {
   onUndo(): void;
   onRedo(): void;
   onFit(): void;
+  /** 자유 판은 '전체 보기', 쪽 나눔은 '쪽 맞춤' */
+  fitLabel: string;
+  onSettings(): void;
   onImport(): void;
   hasSelection: boolean;
   onDeleteSelected(): void;
@@ -106,8 +109,11 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       <button type="button" aria-label="다시 실행" title="다시 실행 (⌘⇧Z)" disabled={!p.canRedo} onClick={p.onRedo} className={BTN}>
         <Redo2 size={18} />
       </button>
-      <button type="button" aria-label="전체 보기" title="전체 보기" onClick={p.onFit} className={BTN}>
+      <button type="button" aria-label={p.fitLabel} title={p.fitLabel} onClick={p.onFit} className={BTN}>
         <Maximize size={18} />
+      </button>
+      <button type="button" aria-label="캔버스 설정" title="캔버스 설정" onClick={p.onSettings} className={BTN} data-canvas-settings-open="">
+        <Settings2 size={18} />
       </button>
       {p.hasSelection && (
         <button type="button" aria-label="선택 항목 지우기" title="선택 항목 지우기 (Delete)" onClick={p.onDeleteSelected} className={cn(BTN, 'text-danger hover:text-danger')}>

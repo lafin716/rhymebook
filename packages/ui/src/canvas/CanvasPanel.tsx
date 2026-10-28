@@ -1,17 +1,27 @@
 import {
   addCanvasItem,
+  addCanvasPage,
   canvasBounds,
+  canvasFlow,
+  canvasLayout,
+  canvasPageCount,
+  canvasPageRect,
   CANVAS_MAX_CHARS,
   newId,
   pageDoc,
   parseCanvas,
   removeCanvasItem,
   serializeCanvas,
+  setCanvasFlow,
+  setCanvasLayout,
   type CanvasDoc,
   type CanvasItem,
+  type CanvasFlow,
+  type CanvasLayout,
   type ID,
 } from '@branch/core';
-import { useCallback, useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { PanelVariant } from '../chat/ChatPanel';
 import { SessionHeader } from '../chat/SessionHeader';
 import { actions, useApp } from '../app/store';
@@ -19,6 +29,7 @@ import { pushNotice, syncClient } from '../app/sync';
 import { cn } from '../lib/cn';
 import { CanvasBoard } from './CanvasBoard';
 import { ImportMenu, ImportPicker, type ImportEntry, type ImportSource } from './CanvasImport';
+import { CanvasSettings } from './CanvasSettings';
 import { CanvasToolbar, INK_COLORS, STROKE_SIZES, type CanvasToolId, type StrokeSizeKey } from './CanvasToolbar';
 import { pictureFromFile, type CanvasPicture } from './canvasImage';
 import { centerView, fitView, toWorld, type CanvasView } from './view';
@@ -33,12 +44,29 @@ const CASCADE = 24;
 const TOO_BIG = '캔버스가 너무 커서 저장하지 못했어요. 이미지를 줄이거나 나눠서 쓰세요.';
 const SAVE_FAIL = '캔버스를 저장하지 못했어요. 잠시 후 다시 시도하세요.';
 
+/** 쪽 나눔 판에서 화면 너비(위아래 방향이면 높이)의 이 비율(최대 SWIPE_MAX px) 넘게 밀면 쪽을 넘긴다 */
+const SWIPE_RATIO = 0.15;
+const SWIPE_MAX = 80;
+/** 맞춤보다 이만큼 넘게 확대했으면 쪽 넘김 대신 쪽 안에서 자유롭게 움직인다 */
+const ZOOMED_IN = 1.15;
+/** 쪽 둘레 여백 (화면 px) */
+const PAGE_PAD = 16;
+
+/** 판 모양·쪽 수·쪽 방향은 설정이라 실행 취소 기록에 넣지 않는다 — 되돌려도 지금(cur) 값을 지킨다 */
+function keepLayout(d: CanvasDoc, cur: CanvasDoc): CanvasDoc {
+  const base = setCanvasLayout(d, 'free');
+  if (!cur.layout) return base;
+  return { ...base, layout: cur.layout, pages: cur.pages, ...(cur.flow ? { flow: cur.flow } : {}) };
+}
+
 const isEmpty = (d: CanvasDoc) => d.items.length === 0 && d.strokes.length === 0;
 
-/** 보드 크기에 맞춘 화면. 내용이 없으면 가운데 원점 */
-function fitFor(board: HTMLElement | null, target: CanvasDoc): CanvasView | null {
+/** 보드 크기에 맞춘 화면. 쪽 나눔이면 page쪽, 자유 판이면 내용 전체(없으면 가운데 원점) */
+function fitFor(board: HTMLElement | null, target: CanvasDoc, page = 0): CanvasView | null {
   const r = board?.getBoundingClientRect();
   if (!r) return null;
+  const pageRect = canvasPageRect(canvasLayout(target), page, canvasFlow(target));
+  if (pageRect) return fitView(pageRect, r.width, r.height, PAGE_PAD);
   const bounds = canvasBounds(target);
   return bounds ? fitView(bounds, r.width, r.height) : centerView(r.width, r.height);
 }
@@ -80,7 +108,9 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const [color, setColor] = useState<string>(INK_COLORS[0]?.hex ?? '#1f2937');
   const [sizeKey, setSizeKey] = useState<StrokeSizeKey>('M');
   const [selectedId, setSelectedId] = useState<ID | null>(null);
-  const [dialog, setDialog] = useState<'menu' | Exclude<ImportSource, 'image'> | null>(null);
+  const [dialog, setDialog] = useState<'menu' | 'settings' | Exclude<ImportSource, 'image'> | null>(null);
+  const [pageIdx, setPageIdx] = useState(0);
+  const [animate, setAnimate] = useState(false);
   // 실행 취소·다시 실행 가능 여부처럼 렌더에 쓰는 값은 ref를 바꾼 뒤 강제로 다시 그린다
   const [, bump] = useReducer((n: number) => n + 1, 0);
 
@@ -95,6 +125,32 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const size = tool === 'marker' ? STROKE_SIZES[sizeKey].marker : STROKE_SIZES[sizeKey].pen;
+  const layout = canvasLayout(doc);
+  const flow = canvasFlow(doc);
+  const pageCount = canvasPageCount(doc);
+  // 바깥에서 쪽이 줄었을 수 있다
+  const page = Math.min(pageIdx, Math.max(0, pageCount - 1));
+  const pageRects = useMemo(() => Array.from({ length: pageCount }, (_, i) => canvasPageRect(layout, i, flow)!), [layout, flow, pageCount]);
+  const viewRef = useRef(view);
+  useEffect(() => {
+    viewRef.current = view;
+  });
+  const animTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(animTimer.current), []);
+
+  /** 손동작으로 화면을 옮길 때는 쪽 넘김 애니메이션을 끈다 */
+  const moveView = useCallback((f: (v: CanvasView) => CanvasView) => {
+    clearTimeout(animTimer.current);
+    setAnimate(false);
+    setView(f);
+  }, []);
+
+  const glideTo = (v: CanvasView) => {
+    clearTimeout(animTimer.current);
+    setAnimate(true);
+    setView(v);
+    animTimer.current = setTimeout(() => setAnimate(false), 250);
+  };
 
   const flush = useCallback(() => {
     clearTimeout(timer.current);
@@ -141,12 +197,14 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     savedRef.current = content;
     const wasEmpty = isEmpty(docRef.current);
     const next = parseCanvas(content);
+    const relayout = canvasLayout(next) !== canvasLayout(docRef.current) || canvasFlow(next) !== canvasFlow(docRef.current);
     hist.current = { past: [], future: [] };
     docRef.current = next;
     setDoc(next);
     setSelectedId(null);
     bump();
-    if (wasEmpty) {
+    if (wasEmpty || relayout) {
+      if (relayout) setPageIdx(0);
       const v = fitFor(boardRef.current, next);
       if (v) setView(v);
     }
@@ -186,19 +244,82 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     const prev = hist.current.past.pop();
     if (!prev) return;
     hist.current.future.push(docRef.current);
-    show(prev);
+    show(keepLayout(prev, docRef.current));
   }, [show]);
 
   const redo = useCallback(() => {
     const next = hist.current.future.pop();
     if (!next) return;
     hist.current.past.push(docRef.current);
-    show(next);
+    show(keepLayout(next, docRef.current));
   }, [show]);
 
   const fit = () => {
-    const v = fitFor(boardRef.current, docRef.current);
-    if (v) setView(v);
+    const v = fitFor(boardRef.current, docRef.current, page);
+    if (v) glideTo(v);
+  };
+
+  /** i쪽으로 넘긴다. 마지막 쪽 다음이면 빈 쪽을 하나 더한다 */
+  const goPage = (i: number) => {
+    let d = docRef.current;
+    const n = canvasPageCount(d);
+    if (!n) return;
+    if (i >= n) {
+      const more = addCanvasPage(d);
+      if (more === d) i = n - 1;
+      else {
+        show(more);
+        d = more;
+      }
+    }
+    i = Math.max(0, i);
+    setPageIdx(i);
+    const v = fitFor(boardRef.current, d, i);
+    if (v) glideTo(v);
+  };
+
+  /** 화면 이동이 끝났을 때: 쪽 방향으로 충분히 밀었으면 쪽을 넘기고, 아니면 지금 쪽에 다시 맞춘다 */
+  const settle = () => {
+    if (!pageCount) return;
+    const r = boardRef.current?.getBoundingClientRect();
+    const fitNow = fitFor(boardRef.current, docRef.current, page);
+    if (!r || !fitNow) return;
+    const v = viewRef.current;
+    // 확대해서 보고 있으면 쪽 안을 자유롭게 움직인다
+    if (v.k > fitNow.k * ZOOMED_IN) return;
+    // 지금 쪽 가운데가 화면 가운데에서 쪽 방향으로 얼마나 밀렸나 (화면 px)
+    const rect = pageRects[page]!;
+    const vertical = flow === 'vertical';
+    const d = vertical ? v.y + (rect.y + rect.h / 2) * v.k - r.height / 2 : v.x + (rect.x + rect.w / 2) * v.k - r.width / 2;
+    const th = Math.min(SWIPE_MAX, (vertical ? r.height : r.width) * SWIPE_RATIO);
+    if (d < -th) goPage(page + 1);
+    else if (d > th && page > 0) goPage(page - 1);
+    else goPage(page);
+  };
+
+  const changeLayout = (next: CanvasLayout) => {
+    setDialog(null);
+    const d = setCanvasLayout(docRef.current, next);
+    if (d === docRef.current) return;
+    show(d);
+    setPageIdx(0);
+    const v = fitFor(boardRef.current, d, 0);
+    if (v) glideTo(v);
+  };
+
+  /** 쪽 방향을 바꾸면 지금 쪽을 새 자리에서 다시 맞춘다 */
+  const changeFlow = (next: CanvasFlow) => {
+    const d = setCanvasFlow(docRef.current, next);
+    if (d === docRef.current) return;
+    show(d);
+    const v = fitFor(boardRef.current, d, page);
+    if (v) glideTo(v);
+  };
+
+  /** 펜·형광펜·지우개로 바꾸면 고른 항목을 놓는다 — 그리는 중에 그림이 잡히지 않게 */
+  const pickTool = (t: CanvasToolId) => {
+    setTool(t);
+    if (t !== 'select') setSelectedId(null);
   };
 
   const deleteSelected = useCallback(() => {
@@ -239,6 +360,8 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
       lastId = id;
     });
     commit(next);
+    // 가져온 직후에는 바로 옮기거나 크기를 바꿀 수 있게 선택 도구로
+    setTool('select');
     setSelectedId(lastId);
   };
 
@@ -291,7 +414,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     <>
       <CanvasToolbar
         tool={tool}
-        onTool={setTool}
+        onTool={pickTool}
         color={color}
         onColor={setColor}
         size={sizeKey}
@@ -301,22 +424,30 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         onUndo={undo}
         onRedo={redo}
         onFit={fit}
+        fitLabel={pageCount ? '쪽 맞춤' : '전체 보기'}
+        onSettings={() => setDialog('settings')}
         onImport={() => setDialog('menu')}
         hasSelection={selectedId !== null}
         onDeleteSelected={deleteSelected}
       />
-      <CanvasBoard
-        doc={doc}
-        view={view}
-        onView={setView}
-        tool={tool}
-        color={color}
-        size={size}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onCommit={commit}
-        boardRef={boardRef}
-      />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <CanvasBoard
+          doc={doc}
+          view={view}
+          onView={moveView}
+          tool={tool}
+          color={color}
+          size={size}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onCommit={commit}
+          boardRef={boardRef}
+          pages={pageRects}
+          onSettle={settle}
+          animate={animate}
+        />
+        {pageCount > 0 && <PageNav page={page} count={pageCount} vertical={flow === 'vertical'} onGo={goPage} />}
+      </div>
       <input
         ref={fileRef}
         type="file"
@@ -326,8 +457,9 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         aria-label="가져올 이미지 파일"
         onChange={(e) => onFiles(e.target.files)}
       />
+      {dialog === 'settings' && <CanvasSettings layout={layout} onLayout={changeLayout} flow={flow} onFlow={changeFlow} onClose={() => setDialog(null)} />}
       {dialog === 'menu' && <ImportMenu onPick={pickSource} onClose={() => setDialog(null)} />}
-      {dialog && dialog !== 'menu' && (
+      {dialog && dialog !== 'menu' && dialog !== 'settings' && (
         <ImportPicker
           source={dialog}
           onPick={(entry) => {
@@ -338,5 +470,27 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         />
       )}
     </>
+  );
+}
+
+const NAV_BTN = 'grid size-11 place-items-center rounded-full text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 md:size-9';
+
+/** 쪽 나눔 판 아래의 쪽 넘김: 이전 · n / 전체 · 다음(마지막 쪽이면 새 쪽) */
+function PageNav({ page, count, vertical, onGo }: { page: number; count: number; vertical: boolean; onGo(i: number): void }) {
+  const last = page >= count - 1;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center pb-[env(safe-area-inset-bottom)]">
+      <nav aria-label="쪽 넘김" data-canvas-pages="" className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-line bg-surface/95 px-1 shadow-md">
+        <button type="button" aria-label="이전 쪽" title="이전 쪽" disabled={page === 0} onClick={() => onGo(page - 1)} className={NAV_BTN}>
+          {vertical ? <ChevronUp size={18} /> : <ChevronLeft size={18} />}
+        </button>
+        <span className="min-w-12 text-center text-[13px] text-fg-2 tabular-nums" aria-live="polite">
+          {page + 1} / {count}
+        </span>
+        <button type="button" aria-label={last ? '새 쪽' : '다음 쪽'} title={last ? '새 쪽' : '다음 쪽'} onClick={() => onGo(page + 1)} className={NAV_BTN}>
+          {last ? <Plus size={18} /> : vertical ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        </button>
+      </nav>
+    </div>
   );
 }

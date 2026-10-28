@@ -7,6 +7,7 @@ import {
   updateCanvasItem,
   type CanvasDoc,
   type CanvasItem,
+  type CanvasRect,
   type CanvasTool,
   type ID,
 } from '@branch/core';
@@ -21,6 +22,8 @@ import { clampZoom, toWorld, zoomAt, type CanvasView } from './view';
 const ERASER_RADIUS = 12;
 /** 항목 크기 조절 최소·형광펜 색 투명도 */
 const MARKER_OPACITY = 0.35;
+/** 휠·트랙패드 스크롤이 멈추고 이만큼 지나면 쪽에 맞춘다 (ms) */
+const WHEEL_SETTLE_MS = 160;
 
 /**
  * 진행 중인 손동작. 움직이는 동안은 `doc`(미리보기)만 바뀌고, 손을 떼면 한 번에 `onCommit`한다.
@@ -52,6 +55,12 @@ export interface CanvasBoardProps {
   onSelect(id: ID | null): void;
   onCommit(next: CanvasDoc): void;
   boardRef: RefObject<HTMLDivElement | null>;
+  /** 쪽 나눔 판의 쪽 사각형들 (자유 판이면 빈 배열) */
+  pages: readonly CanvasRect[];
+  /** 화면 이동·확대·스크롤이 끝났을 때 — 쪽 나눔 판은 여기서 쪽을 넘기거나 제자리에 맞춘다 */
+  onSettle?(): void;
+  /** 쪽 넘김처럼 화면을 부드럽게 옮길 때 */
+  animate?: boolean;
 }
 
 const CURSOR: Record<CanvasToolId, string> = { select: 'cursor-default', pen: 'cursor-crosshair', marker: 'cursor-crosshair', eraser: 'cursor-cell' };
@@ -71,7 +80,7 @@ const coalesced = (e: PointerEvent<HTMLDivElement>): globalThis.PointerEvent[] =
  * 캔버스 판. 펜·형광펜·지우개·선택(이동·크기·앞으로)·화면 이동·확대를 포인터 이벤트로 처리한다.
  * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 뒤에는 터치가 화면을 옮긴다.
  */
-export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, onSelect, onCommit, boardRef }: CanvasBoardProps) {
+export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate }: CanvasBoardProps) {
   const [preview, setPreview] = useState<CanvasDoc | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
@@ -91,11 +100,16 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
     liveFrame.current = 0;
   };
   useEffect(() => () => cancelAnimationFrame(liveFrame.current), []);
+  const settleRef = useRef(onSettle);
+  useEffect(() => {
+    settleRef.current = onSettle;
+  });
 
   // 휠: 그냥 굴리면 화면 이동, Ctrl/⌘+휠(트랙패드 핀치 포함)은 확대·축소. 브라우저 확대는 막는다
   useEffect(() => {
     const el = boardRef.current;
     if (!el) return;
+    let settle: ReturnType<typeof setTimeout> | undefined;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const r = el.getBoundingClientRect();
@@ -107,9 +121,14 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
       } else {
         onView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
       }
+      clearTimeout(settle);
+      settle = setTimeout(() => settleRef.current?.(), WHEEL_SETTLE_MS);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    return () => {
+      clearTimeout(settle);
+      el.removeEventListener('wheel', onWheel);
+    };
   }, [boardRef, onView]);
 
   const startPinch = () => {
@@ -272,7 +291,10 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
     if (!g) return;
     if (g.kind === 'pinch') {
       // 두 손가락 중 하나라도 떼면 확대 동작은 끝난다
-      if ([...pointers.values()].filter((t) => t.type === 'touch').length < 2) setG(null);
+      if ([...pointers.values()].filter((t) => t.type === 'touch').length < 2) {
+        setG(null);
+        onSettle?.();
+      }
       return;
     }
     if (g.pointerId !== e.pointerId) return;
@@ -280,7 +302,10 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
     setG(null);
     setLive(null);
     setPreview(null);
-    if (g.kind === 'pan') return;
+    if (g.kind === 'pan') {
+      onSettle?.();
+      return;
+    }
     if (g.kind === 'draw') {
       if (g.points.length >= 6) {
         onCommit(addStroke(g.origin, { id: newId('s'), tool: g.tool, color: g.color, size: g.size, points: compactPoints(g.points) }));
@@ -312,15 +337,28 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
       data-tool={tool}
       role="application"
       aria-label="캔버스 그림판"
-      className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden bg-[#fbf9f4]', cursor)}
+      data-paged={pages.length ? '' : undefined}
+      className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', pages.length ? 'bg-[#e6e2d9]' : 'bg-[#fbf9f4]', cursor)}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
     >
-      <div className="absolute top-0 left-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
+      <div
+        className={cn('absolute top-0 left-0 origin-top-left', animate && 'transition-transform duration-200 ease-out')}
+        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}
+      >
+        {pages.map((r, i) => (
+          <div
+            key={i}
+            data-canvas-page={i}
+            aria-hidden
+            className="absolute bg-[#fbf9f4] shadow-[0_1px_6px_rgba(0,0,0,0.18)]"
+            style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
+          />
+        ))}
         {shown.items.map((item) => (
-          <ItemView key={item.id} item={item} selected={item.id === selectedId} k={view.k} />
+          <ItemView key={item.id} item={item} selected={item.id === selectedId} movable={tool === 'select'} k={view.k} />
         ))}
         <svg aria-hidden className="pointer-events-none absolute top-0 left-0 overflow-visible" width={1} height={1}>
           {strokeNodes}
@@ -340,7 +378,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, selectedId, 
 }
 
 /** 항목 한 장: 그림은 이미지, 글 카드는 제목과 마크다운 본문. 선택하면 테두리와 크기 조절 손잡이가 보인다 */
-const ItemView = memo(function ItemView({ item, selected, k }: { item: CanvasItem; selected: boolean; k: number }) {
+const ItemView = memo(function ItemView({ item, selected, movable, k }: { item: CanvasItem; selected: boolean; movable: boolean; k: number }) {
   const box = { left: item.x, top: item.y, width: item.w, height: item.h };
   const handle = selected && (
     <span
@@ -350,7 +388,7 @@ const ItemView = memo(function ItemView({ item, selected, k }: { item: CanvasIte
       style={{ width: 12 / k, height: 12 / k, right: -6 / k, bottom: -6 / k }}
     />
   );
-  const frame = cn('absolute cursor-move', selected && 'outline-2 outline-offset-2 outline-accent outline-solid');
+  const frame = cn('absolute', movable && 'cursor-move', selected && 'outline-2 outline-offset-2 outline-accent outline-solid');
   if (item.type === 'image') {
     return (
       <div data-canvas-item={item.id} data-selected={selected || undefined} role="img" aria-label={item.name ?? '가져온 이미지'} className={frame} style={box}>
