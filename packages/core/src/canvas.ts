@@ -430,6 +430,15 @@ export function strokeHit(stroke: CanvasStroke, x: number, y: number, radius: nu
   return false;
 }
 
+/** 스포이드: (x, y)에서 맨 위에 그려진 획의 색, 닿는 획이 없으면 바탕색 */
+export function canvasColorAt(doc: CanvasDoc, x: number, y: number, radius: number): string {
+  for (let i = doc.strokes.length - 1; i >= 0; i--) {
+    const s = doc.strokes[i]!;
+    if (strokeHit(s, x, y, radius)) return s.color.toLowerCase();
+  }
+  return (doc.bg?.color ?? CANVAS_PAPER).toLowerCase();
+}
+
 /** 지우개: (x, y) 반경에 닿는 획을 통째로 지운다. 지운 게 없으면 같은 doc을 돌려준다 */
 export function eraseStrokesAt(doc: CanvasDoc, x: number, y: number, radius: number): CanvasDoc {
   const strokes = doc.strokes.filter((s) => !strokeHit(s, x, y, radius));

@@ -1,5 +1,6 @@
 import {
   addStroke,
+  canvasColorAt,
   canvasPageAt,
   clipStrokePoints,
   compactPoints,
@@ -85,6 +86,9 @@ export interface CanvasBoardProps {
   laser?: { x: number; y: number } | null;
   /** 두 손가락으로 두 번 톡 쳤을 때 */
   onTwoFingerDoubleTap?(): void;
+  /** 스포이드 모드: 판을 누르면 그리지 않고 그 자리 색을 onEyeDrop으로 알린다 */
+  eyeDrop?: boolean;
+  onEyeDrop?(hex: string): void;
 }
 
 const CURSOR: Record<CanvasToolId, string> = { select: 'cursor-default', pen: 'cursor-crosshair', marker: 'cursor-crosshair', eraser: 'cursor-cell' };
@@ -116,7 +120,7 @@ const coalesced = (e: PointerEvent<HTMLDivElement>): globalThis.PointerEvent[] =
  * 캔버스 판. 펜·형광펜·지우개·선택(이동·크기·앞으로)·화면 이동·확대를 포인터 이벤트로 처리한다.
  * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 뒤에는 터치가 화면을 옮긴다.
  */
-export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser, onTwoFingerDoubleTap }: CanvasBoardProps) {
+export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser, onTwoFingerDoubleTap, eyeDrop, onEyeDrop }: CanvasBoardProps) {
   const [preview, setPreview] = useState<CanvasDoc | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
@@ -201,6 +205,12 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       const p = local(boardRef.current, e.clientX, e.clientY);
       const w = toWorld(view, p.x, p.y);
       onPointer?.({ x: w.x, y: w.y });
+      return;
+    }
+    if (eyeDrop) {
+      const p = local(boardRef.current, e.clientX, e.clientY);
+      const w = toWorld(view, p.x, p.y);
+      onEyeDrop?.(canvasColorAt(doc, w.x, w.y, 6 / view.k));
       return;
     }
     const stylusEraser = isStylusEraser(e);
@@ -439,7 +449,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     }
   };
 
-  const cursor = CURSOR[tool];
+  const cursor = eyeDrop ? 'cursor-crosshair' : CURSOR[tool];
   const pageBg = useMemo(() => backgroundStyle(doc.bg), [doc.bg]);
   const strokeNodes = useMemo(
     () =>

@@ -25,7 +25,7 @@ import {
   type CanvasPenNib,
   type ID,
 } from '@branch/core';
-import { Archive, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react';
+import { Archive, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pipette, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { PanelVariant } from '../chat/ChatPanel';
 import { SessionHeader } from '../chat/SessionHeader';
@@ -154,6 +154,8 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const [paletteCount, setPaletteCount] = useState(loadPaletteCount);
   const [toolbarDock, setToolbarDock] = useState<ToolbarDock>(loadToolbarDock);
   const [twoFingerTap, setTwoFingerTap] = useState<TwoFingerDoubleTap>(loadTwoFingerDoubleTap);
+  // 화면 스포이드가 없는 기기: 판을 한 번 눌러 색을 따오는 중
+  const [eyeDropping, setEyeDropping] = useState(false);
   const panelFull = useUi((s) => s.panelFull);
   // 실행 취소·다시 실행 가능 여부처럼 렌더에 쓰는 값은 ref를 바꾼 뒤 강제로 다시 그린다
   const [, bump] = useReducer((n: number) => n + 1, 0);
@@ -557,7 +559,10 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
       // 발표 중에는 Escape를 포함한 모든 단축키를 CanvasPresentation에 위임한다
       if (presenting) return;
       if (e.key === 'Escape') {
-        if (panelFull) {
+        if (eyeDropping) {
+          e.preventDefault();
+          setEyeDropping(false);
+        } else if (panelFull) {
           e.preventDefault();
           useUi.getState().setPanelFull(false);
         } else {
@@ -574,7 +579,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, undo, redo, deleteSelected, panelFull, presenting]);
+  }, [selectedId, undo, redo, deleteSelected, panelFull, presenting, eyeDropping]);
 
   // C4: 도킹 위치에 따른 레이아웃 방향
   const toolbarContainerClass = (() => {
@@ -628,6 +633,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           setToolbarDock(dock);
           saveToolbarDock(dock);
         }}
+        onEyeDropBoard={() => setEyeDropping(true)}
       />
       <div className="relative flex min-h-0 flex-1 flex-col">
         <CanvasBoard
@@ -647,7 +653,32 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           animate={animate}
           panAxis={panAxis}
           onTwoFingerDoubleTap={onTwoFingerDoubleTap}
+          eyeDrop={eyeDropping}
+          onEyeDrop={(hex) => {
+            setColor(hex);
+            setEyeDropping(false);
+          }}
         />
+        {eyeDropping && (
+          <div
+            role="status"
+            data-canvas-eyedrop-hint=""
+            className="pointer-events-none absolute inset-x-0 top-2 flex justify-center"
+          >
+            <span className="pointer-events-auto flex items-center gap-2 rounded-full border border-line bg-surface py-1 pr-1 pl-3 text-[13px] text-fg shadow-md">
+              <Pipette size={16} className="text-accent" aria-hidden />
+              판을 눌러 색을 따오세요
+              <button
+                type="button"
+                aria-label="스포이드 그만두기"
+                onClick={() => setEyeDropping(false)}
+                className="grid size-9 place-items-center rounded-full text-muted hover:bg-surface-2"
+              >
+                <X size={16} />
+              </button>
+            </span>
+          </div>
+        )}
         {pageCount > 0 && <PageNav page={page} count={pageCount} vertical={flow === 'vertical'} canAdd={layout !== 'pdf'} onGo={goPage} saving={savingPage} onSave={() => void savePage()} />}
       </div>
       <input

@@ -291,3 +291,56 @@ test('설정: 두 손가락 두 번 톡 동작을 고르면 새로고침 후에�
   ).toHaveAttribute('aria-checked', 'true');
   expect(errors).toEqual([]);
 });
+
+test('스포이드: 화면 스포이드가 없으면 판을 눌러 획·바탕 색을 따오고, RGB 칸은 색 창 안에 들어온다', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  // 안드로이드·사파리처럼 EyeDropper가 없는 브라우저
+  await page.addInitScript(() => {
+    delete (window as { EyeDropper?: unknown }).EyeDropper;
+  });
+  await onboard(page);
+  await newCanvas(page, info.project.name === 'mobile');
+  await expect(page.getByRole('button', { name: '가져오기' })).not.toContainText('가져오기');
+
+  const board = (await page.getByLabel('캔버스 그림판').boundingBox())!;
+  const y = board.y + board.height / 2;
+  await page.mouse.move(board.x + 40, y);
+  await page.mouse.down();
+  await page.mouse.move(board.x + 160, y, { steps: 8 });
+  await page.mouse.up();
+
+  const custom = page.locator('[data-canvas-color-custom]');
+  const editor = page.locator('[data-canvas-color-editor]');
+  const code = editor.getByLabel('색 코드');
+  await custom.click();
+  const ink = await code.inputValue();
+  // RGB 칸이 색 창 밖으로 넘치지 않는다
+  const box = (await editor.boundingBox())!;
+  for (const name of ['R 값', 'G 값', 'B 값']) {
+    const f = (await editor.getByLabel(name).boundingBox())!;
+    expect(f.x).toBeGreaterThanOrEqual(box.x);
+    expect(f.x + f.width).toBeLessThanOrEqual(box.x + box.width + 0.5);
+  }
+  await code.fill('#ff0000');
+  await code.press('Enter');
+  await expect(code).toHaveValue('#ff0000');
+
+  // 획 위를 누르면 그 획 색
+  await editor.getByRole('button', { name: '화면에서 색 따오기' }).click();
+  await expect(page.getByText('판을 눌러 색을 따오세요')).toBeVisible();
+  await page.mouse.click(board.x + 100, y);
+  await expect(page.getByText('판을 눌러 색을 따오세요')).toBeHidden();
+  await custom.click();
+  await expect(code).toHaveValue(ink);
+
+  // 빈 곳은 바탕색, Esc로 그만둘 수 있다
+  await editor.getByRole('button', { name: '화면에서 색 따오기' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('판을 눌러 색을 따오세요')).toBeHidden();
+  await custom.click();
+  await editor.getByRole('button', { name: '화면에서 색 따오기' }).click();
+  await page.mouse.click(board.x + 100, board.y + board.height * 0.8);
+  await custom.click();
+  await expect(code).toHaveValue('#fbf9f4');
+  expect(errors).toEqual([]);
+});

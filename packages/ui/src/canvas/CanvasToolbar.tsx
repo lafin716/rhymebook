@@ -75,6 +75,8 @@ export interface CanvasToolbarProps {
   /** 도구 막대 도킹 위치 */
   toolbarDock: ToolbarDock;
   onToolbarDock(dock: ToolbarDock): void;
+  /** 브라우저 스포이드(EyeDropper)가 없을 때: 판을 한 번 눌러 그 자리 색을 따오는 모드로 */
+  onEyeDropBoard(): void;
 }
 
 type Pop = { kind: 'size'; tool: StrokeKind; el: HTMLElement } | { kind: 'color'; el: HTMLElement } | { kind: 'overflow'; el: HTMLElement };
@@ -175,7 +177,7 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       className={cn(
         'flex items-center gap-0.5 bg-surface px-2 py-1 [scrollbar-width:none] [&>*]:shrink-0',
         isVertical
-          ? cn('flex-col overflow-y-auto', p.toolbarDock === 'left' ? 'border-r border-line' : 'border-l border-line')
+          ? cn('flex-col justify-center-safe overflow-y-auto', p.toolbarDock === 'left' ? 'border-r border-line' : 'border-l border-line')
           : cn('flex-row overflow-x-auto md:flex-wrap md:overflow-visible', p.toolbarDock === 'bottom' ? 'border-t border-line pb-[max(0.25rem,env(safe-area-inset-bottom))]' : 'border-b border-line')
       )}
     >
@@ -321,19 +323,8 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         >
           {p.panelFull ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
-        {/* 세로 막대에서는 글자 없이 아이콘만: 글자가 막대 너비를 넓히지 않게 */}
-        <button
-          type="button"
-          aria-label="가져오기"
-          title="가져오기"
-          onClick={p.onImport}
-          className={cn(
-            isVertical ? BTN : 'inline-flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg md:h-9',
-          )}
-          data-canvas-import=""
-        >
-          <Import size={isVertical ? 18 : 17} />
-          {!isVertical && '가져오기'}
+        <button type="button" aria-label="가져오기" title="가져오기" onClick={p.onImport} className={BTN} data-canvas-import="">
+          <Import size={18} />
         </button>
       </div>
       {pop?.kind === 'size' && (
@@ -344,7 +335,16 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       )}
       {pop?.kind === 'color' && (
         <Popover anchor={pop.el} label="색 고르기" onClose={() => setPop(null)} isVertical={isVertical}>
-          <ColorEditor color={p.color} onColor={p.onColor} favorites={p.favorites} onToggleFavorite={p.onToggleFavorite} />
+          <ColorEditor
+            color={p.color}
+            onColor={p.onColor}
+            favorites={p.favorites}
+            onToggleFavorite={p.onToggleFavorite}
+            onEyeDropBoard={() => {
+              setPop(null);
+              p.onEyeDropBoard();
+            }}
+          />
         </Popover>
       )}
       {pop?.kind === 'overflow' && (
@@ -561,7 +561,19 @@ declare global {
  * 색 창 (포토샵식): 채도·명도 판, 색상 띠, 처음 색/새 색 비교, HEX·RGB 입력, 스포이드(되는 곳에서만), 즐겨찾기.
  * 회색·검정처럼 색상이 없는 색에서도 고르던 색상이 사라지지 않게 HSV를 따로 들고 있는다.
  */
-function ColorEditor({ color, onColor, favorites, onToggleFavorite }: { color: string; onColor(hex: string): void; favorites: string[]; onToggleFavorite(hex: string): void }) {
+function ColorEditor({
+  color,
+  onColor,
+  favorites,
+  onToggleFavorite,
+  onEyeDropBoard,
+}: {
+  color: string;
+  onColor(hex: string): void;
+  favorites: string[];
+  onToggleFavorite(hex: string): void;
+  onEyeDropBoard(): void;
+}) {
   const [original] = useState(color);
   const [hsv, setHsv] = useState<Hsv>(() => rgbToHsv(hexToRgb(color) ?? { r: 0, g: 0, b: 0 }));
   const [hex, setHex] = useState(color);
@@ -600,8 +612,9 @@ function ColorEditor({ color, onColor, favorites, onToggleFavorite }: { color: s
     if (isHex(h)) pickHex(h);
     else setHex(color);
   };
-  const canEyeDrop = typeof window !== 'undefined' && !!window.EyeDropper;
   const eyeDrop = async () => {
+    // 안드로이드·사파리처럼 화면 스포이드가 없으면 판을 눌러 따온다
+    if (typeof window === 'undefined' || !window.EyeDropper) return onEyeDropBoard();
     try {
       const r = await new window.EyeDropper!().open();
       pickHex(r.sRGBHex.toLowerCase());
@@ -685,16 +698,14 @@ function ColorEditor({ color, onColor, favorites, onToggleFavorite }: { color: s
             style={{ backgroundColor: original }}
           />
         </div>
-        {canEyeDrop && (
-          <button type="button" aria-label="화면에서 색 따오기" title="화면에서 색 따오기" onClick={() => void eyeDrop()} className={BTN}>
-            <Pipette size={18} />
-          </button>
-        )}
+        <button type="button" aria-label="화면에서 색 따오기" title="스포이드 · 화면에서 색 따오기" onClick={() => void eyeDrop()} className={cn(BTN, 'border border-line')} data-canvas-eyedrop="">
+          <Pipette size={18} />
+        </button>
       </div>
 
-      {/* HEX · RGB */}
-      <div className="grid grid-cols-[1fr_repeat(3,2.75rem)] items-end gap-1.5">
-        <label className="flex flex-col gap-0.5 text-[11px] text-muted">
+      {/* HEX 한 줄, 그 아래 R·G·B 세 칸 — 한 줄에 다 넣으면 창 밖으로 넘친다 */}
+      <div className="grid grid-cols-3 gap-1.5" data-canvas-color-fields="">
+        <label className="col-span-3 flex flex-col gap-0.5 text-[11px] text-muted">
           HEX
           <input
             type="text"
@@ -720,7 +731,7 @@ function ColorEditor({ color, onColor, favorites, onToggleFavorite }: { color: s
               onChange={(e) => {
                 if (Number.isFinite(e.target.valueAsNumber)) pickHex(rgbToHex({ ...rgb, [k]: e.target.valueAsNumber }));
               }}
-              className="h-11 min-w-0 rounded-md border border-line bg-bg px-1 text-right text-[13px] text-fg tabular-nums md:h-8"
+              className="h-11 w-full min-w-0 rounded-md border border-line bg-bg px-2 text-right text-[13px] text-fg tabular-nums md:h-8"
             />
           </label>
         ))}

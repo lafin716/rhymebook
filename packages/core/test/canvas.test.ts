@@ -17,6 +17,7 @@ import {
   setCanvasBackground,
   setCanvasPdf,
   canvasBounds,
+  canvasColorAt,
   canvasText,
   compactPoints,
   docText,
@@ -113,6 +114,15 @@ describe('canvas doc', () => {
     expect(eraseStrokesAt(doc, 50, 25, 5)).toBe(doc);
     expect(eraseStrokesAt(doc, 50, 3, 3).strokes.map((s) => s.id)).toEqual(['b']);
     expect(eraseStrokesAt(addStroke(emptyCanvas(), stroke('dot', [5, 5, 0.5])), 6, 6, 2).strokes).toEqual([]);
+  });
+
+  it('eyedropper picks the topmost stroke color, else the background', () => {
+    let doc = addStroke(emptyCanvas(), { ...stroke('a', [0, 0, 0.5, 100, 0, 0.5], 4), color: '#DC2626' });
+    doc = addStroke(doc, { ...stroke('b', [50, -50, 0.5, 50, 50, 0.5], 4), color: '#2563eb' });
+    expect(canvasColorAt(doc, 10, 0, 2)).toBe('#dc2626');
+    expect(canvasColorAt(doc, 50, 0, 2)).toBe('#2563eb');
+    expect(canvasColorAt(doc, 10, 30, 2)).toBe(CANVAS_PAPER);
+    expect(canvasColorAt(setCanvasBackground(doc, { color: '#1f2937' }), 10, 30, 2)).toBe('#1f2937');
   });
 
   it('item move/resize/raise/remove and bounds', () => {

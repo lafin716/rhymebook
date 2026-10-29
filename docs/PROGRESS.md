@@ -218,6 +218,7 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - docs/DECISIONS.md 참조
 
 ## Latest Integration Result
+- 2026-10-29 · ADR-093(v0.38.0): 색 창 HEX/RGB 줄바꿈(창 밖 넘침 해결), 스포이드 버튼 늘 표시 — EyeDropper 없는 기기는 판을 눌러 획·바탕 색 따오기(core `canvasColorAt` + 단위 테스트), 가져오기 아이콘만, 세로 막대 가운데 정렬. e2e canvas-toolbar 스포이드 1건 추가. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 553·ui 70·bridge 66·relay 9·server 10 PASS(core sync.reset 타이밍 테스트 1회 간헐 실패 후 재실행 통과), e2e 177 passed / 2 failed(기존 skill-sync-split) / 19 skipped.
 - 2026-10-29 · ADR-092 보완(v0.37.1): 세로 막대 '가져오기'를 아이콘만 두어 막대 너비 109→53px, 구분선 교차 축 가운데 정렬(가로 막대에서 위로 치우침 해결). e2e canvas-toolbar 너비·구분선 검사 추가. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 552·ui 70·bridge 66·relay 9·server 10 PASS, e2e 175 passed / 2 failed(기존 skill-sync-split) / 19 skipped.
 - 2026-10-29 · ADR-092: 캔버스 세로 막대 팔레트 세로 쌓기·토글(가로 오른쪽/세로 아래)·밀어 여닫기, 포토샵식 색 창(채도·명도 판·색상 띠·처음 색 비교·HEX/RGB·스포이드), 펜 뒤 지우개(button 5 / buttons&32), 태블릿 펜 모드 손가락 화면 이동·쪽 넘김, 두 손가락 두 번 톡(설정: 선택↔펜·지우개↔펜·실행 취소·끄기). ui `colorMath`·`twoFingerTap` + 단위 테스트 6, e2e canvas-toolbar 3건 추가. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 552·ui 70·bridge 66·relay 9·server 10 PASS, e2e 175 passed / 2 failed(기존 skill-sync-split — 변경 전에도 실패) / 19 skipped.
 - 2026-10-29 · ADR-091: 모바일은 핸들 없이 길게 눌러 블록 옮기기(커서 있는 블록은 글자 선택, 그대로 떼면 블록 메뉴), 칸 묶음 표시 줄은 글자 없는 위젯·커서 건너뛰기·입력/지우기 보호. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` PASS(sync 1건 간헐 — 단독 재실행 통과), e2e 168 passed — skill-sync-split 1건은 변경 전에도 실패(기존), annotations 모바일 1건 간헐(단독 통과).
