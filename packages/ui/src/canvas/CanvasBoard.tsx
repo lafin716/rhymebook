@@ -20,6 +20,7 @@ import { cn } from '../lib/cn';
 import type { CanvasToolId } from './CanvasToolbar';
 import { backgroundStyle } from './canvasBackground';
 import { strokeOpacity, strokePath } from './strokePath';
+import { createTwoFingerTap } from './twoFingerTap';
 import { clampZoom, toWorld, zoomAt, type CanvasView } from './view';
 
 /** 지우개 반경 (캔버스 px) */
@@ -82,6 +83,8 @@ export interface CanvasBoardProps {
   onPointer?: (p: { x: number; y: number } | null) => void;
   /** 렌더링할 레이저 점 좌표 (nullptr면 표시 없음) */
   laser?: { x: number; y: number } | null;
+  /** 두 손가락으로 두 번 톡 쳤을 때 */
+  onTwoFingerDoubleTap?(): void;
 }
 
 const CURSOR: Record<CanvasToolId, string> = { select: 'cursor-default', pen: 'cursor-crosshair', marker: 'cursor-crosshair', eraser: 'cursor-cell' };
@@ -91,6 +94,12 @@ const scrollableAt = (target: EventTarget | null): HTMLElement | null => {
   const el = (target as HTMLElement | null)?.closest?.<HTMLElement>('[data-canvas-scroll]');
   return el && el.scrollHeight > el.clientHeight + 1 ? el : null;
 };
+
+/** 펜 뒤쪽 지우개(스테들러·S펜 등 EMR 펜): 버튼 5 또는 buttons 비트 32로 온다 */
+const isStylusEraser = (e: PointerEvent<HTMLDivElement>) => e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0);
+
+/** 태블릿처럼 화면이 큰 터치 기기 — 펜으로 쓰는 게 기본이라 손가락은 그리지 않고 화면을 옮긴다(쪽 넘김) */
+const isTabletTouch = () => typeof screen !== 'undefined' && Math.min(screen.width, screen.height) >= 600;
 
 const local = (el: HTMLDivElement | null, clientX: number, clientY: number) => {
   const r = el?.getBoundingClientRect();
@@ -107,7 +116,7 @@ const coalesced = (e: PointerEvent<HTMLDivElement>): globalThis.PointerEvent[] =
  * 캔버스 판. 펜·형광펜·지우개·선택(이동·크기·앞으로)·화면 이동·확대를 포인터 이벤트로 처리한다.
  * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 뒤에는 터치가 화면을 옮긴다.
  */
-export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser }: CanvasBoardProps) {
+export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser, onTwoFingerDoubleTap }: CanvasBoardProps) {
   const [preview, setPreview] = useState<CanvasDoc | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
@@ -116,6 +125,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
   // 다른 손동작 상태는 ref로 두고, 렌더에 필요한 것만 state로 둔다
   const pointers = useMemo(() => new Map<number, { type: string; x: number; y: number }>(), []);
   const penSeen = useMemo(() => ({ current: false }), []);
+  const twoTap = useMemo(() => createTwoFingerTap(), []);
   const gestureRef = useMemo<{ current: Gesture | null }>(() => ({ current: null }), []);
   const setG = (g: Gesture | null) => {
     gestureRef.current = g;
@@ -193,12 +203,16 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       onPointer?.({ x: w.x, y: w.y });
       return;
     }
-    if (e.button !== 0 && e.button !== 1) return;
+    const stylusEraser = isStylusEraser(e);
+    if (e.button !== 0 && e.button !== 1 && !stylusEraser) return;
+    // 펜 뒤쪽 지우개로 대면 지금 도구와 상관없이 지운다
+    const t: CanvasToolId = stylusEraser ? 'eraser' : tool;
     // 마우스로 카드 스크롤 막대를 잡으면 브라우저에 맡긴다
-    const bar = e.pointerType === 'mouse' && tool === 'select' ? scrollableAt(e.target) : null;
+    const bar = e.pointerType === 'mouse' && t === 'select' ? scrollableAt(e.target) : null;
     if (bar && e.target === bar && e.nativeEvent.offsetX > bar.clientWidth) return;
     if (e.pointerType === 'pen') {
       penSeen.current = true;
+      twoTap.cancel();
       // 펜보다 먼저 닿은 손바닥의 획·확대는 버리고 펜이 이어받는다
       const g0 = gestureRef.current;
       if (g0 && (g0.kind === 'pinch' || pointers.get(g0.pointerId)?.type === 'touch')) {
@@ -215,6 +229,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     const p = local(boardRef.current, e.clientX, e.clientY);
     pointers.set(e.pointerId, { type: e.pointerType, x: p.x, y: p.y });
     e.currentTarget.setPointerCapture(e.pointerId);
+    if (e.pointerType === 'touch') twoTap.down(e.pointerId, p.x, p.y, e.timeStamp);
 
     if (e.pointerType === 'touch' && [...pointers.values()].filter((q) => q.type === 'touch').length === 2) {
       startPinch();
@@ -223,12 +238,13 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     if (gestureRef.current) return;
 
     const w = toWorld(view, p.x, p.y);
-    const panHere = e.button === 1 || (e.pointerType === 'touch' && penSeen.current && tool !== 'select');
+    // 펜을 쓴 기기나 태블릿에서는 그리기 도구여도 손가락이 화면을 옮긴다 (쪽 나눔 판은 손을 떼면 쪽을 넘긴다)
+    const panHere = e.button === 1 || (e.pointerType === 'touch' && t !== 'select' && (penSeen.current || isTabletTouch()));
     // 선택 도구에서 손가락·펜으로 긴 글 카드 본문을 끌면 카드 안을 스크롤한다 (제목줄을 끌면 옮긴다)
-    const sc = e.pointerType !== 'mouse' && tool === 'select' ? scrollableAt(e.target) : null;
+    const sc = e.pointerType !== 'mouse' && t === 'select' ? scrollableAt(e.target) : null;
     if (sc) {
       const id = sc.closest<HTMLElement>('[data-canvas-item]')?.dataset.canvasItem;
-      if (tool === 'select' && id) onSelect(id);
+      if (t === 'select' && id) onSelect(id);
       setG({ kind: 'scroll', pointerId: e.pointerId, el: sc, lastY: p.y });
       return;
     }
@@ -237,7 +253,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       return;
     }
 
-    if (tool === 'select') {
+    if (t === 'select') {
       const target = e.target as HTMLElement;
       const id = target.closest<HTMLElement>('[data-canvas-item]')?.dataset.canvasItem;
       const item = id ? doc.items.find((it) => it.id === id) : undefined;
@@ -262,7 +278,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       return;
     }
 
-    if (tool === 'eraser') {
+    if (t === 'eraser') {
       const next = eraseStrokesAt(doc, w.x, w.y, ERASER_RADIUS);
       setPreview(next === doc ? null : next);
       setG({ kind: 'erase', pointerId: e.pointerId, origin: doc, doc: next });
@@ -277,8 +293,8 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     }
     const page = pages[pageIdx] ?? null;
     const points = [w.x, w.y, e.pressure || 0.5];
-    setLive({ tool, nib, color, size, parts: [points.slice()] });
-    setG({ kind: 'draw', pointerId: e.pointerId, origin: doc, tool, nib, color, size, points, page });
+    setLive({ tool: t, nib, color, size, parts: [points.slice()] });
+    setG({ kind: 'draw', pointerId: e.pointerId, origin: doc, tool: t, nib, color, size, points, page });
   };
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -293,6 +309,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     if (!q) return;
     q.x = p.x;
     q.y = p.y;
+    if (q.type === 'touch') twoTap.move(e.pointerId, p.x, p.y);
     const g = gestureRef.current;
     if (!g) return;
 
@@ -369,7 +386,12 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       onPointer?.(null);
       return;
     }
+    const q = pointers.get(e.pointerId);
     pointers.delete(e.pointerId);
+    if (q?.type === 'touch') {
+      if (e.type === 'pointercancel') twoTap.cancel();
+      else if (twoTap.up(e.pointerId, e.timeStamp)) onTwoFingerDoubleTap?.();
+    }
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     const g = gestureRef.current;
     if (!g) return;

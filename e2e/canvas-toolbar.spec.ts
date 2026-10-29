@@ -176,3 +176,104 @@ test('가로형 쪽이 화면에 맞춰져 있으면 위아래로 밀어도 판�
   await expect(page.getByRole('navigation', { name: '쪽 넘김' })).toContainText('1 / 1');
   expect(errors).toEqual([]);
 });
+
+test('세로 막대에서는 팔레트도 세로로 쌓이고 토글은 맨 아래 · 가로에서는 맨 오른쪽 (ADR-092)', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await newCanvas(page, info.project.name === 'mobile');
+  const colors = page.getByRole('group', { name: '색' });
+  const toggle = colors.locator('[data-canvas-palette-toggle]');
+  const custom = colors.locator('[data-canvas-color-custom]');
+  const inks = colors.locator('[data-canvas-ink]');
+
+  // 가로: 색들 → 직접 고르기 → 토글 순으로 오른쪽으로
+  await expect(inks).toHaveCount(7);
+  const lastInk = (await inks.last().boundingBox())!;
+  expect((await custom.boundingBox())!.x).toBeGreaterThan(lastInk.x);
+  expect((await toggle.boundingBox())!.x).toBeGreaterThan((await custom.boundingBox())!.x);
+
+  // 왼쪽에 붙이면 세로로 쌓인다
+  const panel = (await page.locator('[data-canvas]').boundingBox())!;
+  const handle = page.getByRole('button', { name: '도구 막대 위치 변경' });
+  const h = (await handle.boundingBox())!;
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(panel.x + 5, panel.y + panel.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect(page.locator('[data-canvas-toolbar]')).toHaveAttribute('data-dock', 'left');
+
+  const first = (await inks.first().boundingBox())!;
+  const second = (await inks.nth(1).boundingBox())!;
+  expect(Math.abs(first.x - second.x)).toBeLessThan(2);
+  expect(second.y).toBeGreaterThan(first.y);
+  const ty = (await toggle.boundingBox())!.y;
+  expect(ty).toBeGreaterThan((await custom.boundingBox())!.y);
+  expect(ty).toBeGreaterThan((await inks.last().boundingBox())!.y);
+  // 팔레트가 막대 밖으로 삐져나가지 않는다
+  const bar = (await page.locator('[data-canvas-toolbar]').boundingBox())!;
+  const group = (await colors.boundingBox())!;
+  expect(group.x).toBeGreaterThanOrEqual(bar.x - 1);
+  expect(group.x + group.width).toBeLessThanOrEqual(bar.x + bar.width + 1);
+
+  // 접고 펼치기도 그대로
+  await toggle.click();
+  await expect(inks).toHaveCount(0);
+  await expect(toggle).toHaveAttribute('aria-label', '색 팔레트 펼치기');
+  await toggle.click();
+  await expect(inks).toHaveCount(7);
+  expect(errors).toEqual([]);
+});
+
+test('색 직접 고르기: 채도·명도 판과 색상 띠로 고르고 처음 색으로 되돌리기 (ADR-092)', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await newCanvas(page, info.project.name === 'mobile');
+  await page.locator('[data-canvas-color-custom]').click();
+  const editor = page.locator('[data-canvas-color-editor]');
+  const code = editor.getByLabel('색 코드');
+  const before = await code.inputValue();
+
+  // 끌다가 판·띠 밖으로 나가도 끝에 붙는다: 색상 띠 왼쪽 끝 = 빨강, 판 오른쪽 위 = 채도·명도 100%
+  const drag = async (sel: string, toX: (b: { x: number; width: number }) => number, toY: (b: { y: number; height: number }) => number) => {
+    const box = (await editor.locator(sel).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(toX(box), toY(box), { steps: 5 });
+    await page.mouse.up();
+  };
+  await drag('[data-canvas-color-hue]', (b) => b.x - 30, (b) => b.y);
+  await drag('[data-canvas-color-sv]', (b) => b.x + b.width + 30, (b) => b.y - 30);
+  await expect(code).toHaveValue('#ff0000');
+  await expect(editor.getByLabel('R 값')).toHaveValue('255');
+
+  // 색상 띠 1/3 지점 = 초록
+  const hue = (await editor.locator('[data-canvas-color-hue]').boundingBox())!;
+  await page.mouse.click(hue.x + hue.width / 3, hue.y + hue.height / 2);
+  await expect(code).toHaveValue('#00ff00');
+
+  // RGB 칸으로도 바꿀 수 있다
+  await editor.getByLabel('B 값').fill('255');
+  await expect(code).toHaveValue(/ff$/);
+
+  await editor.getByRole('button', { name: /^처음 색/ }).click();
+  await expect(code).toHaveValue(before);
+  expect(errors).toEqual([]);
+});
+
+test('설정: 두 손가락 두 번 톡 동작을 고르면 새로고침 후에도 남는다 (ADR-092)', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await onboard(page);
+  await newCanvas(page, info.project.name === 'mobile');
+  await page.getByRole('button', { name: '캔버스 설정' }).click();
+  const settings = page.getByRole('dialog', { name: '캔버스 설정' });
+  const group = settings.getByRole('radiogroup', { name: '두 손가락으로 두 번 톡' });
+  await expect(group.locator('[data-two-finger-tap="select-pen"]')).toHaveAttribute('aria-checked', 'true');
+  await group.locator('[data-two-finger-tap="undo"]').click();
+  await expect(group.locator('[data-two-finger-tap="undo"]')).toHaveAttribute('aria-checked', 'true');
+  await page.reload();
+  await page.getByRole('button', { name: '캔버스 설정' }).click();
+  await expect(
+    page.getByRole('dialog', { name: '캔버스 설정' }).locator('[data-two-finger-tap="undo"]'),
+  ).toHaveAttribute('aria-checked', 'true');
+  expect(errors).toEqual([]);
+});

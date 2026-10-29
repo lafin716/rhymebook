@@ -50,6 +50,7 @@ import {
   loadPenNib,
   loadStrokeSizes,
   loadToolbarDock,
+  loadTwoFingerDoubleTap,
   MAX_FAVORITE_INKS,
   saveFavoriteInks,
   savePaletteCount,
@@ -57,8 +58,10 @@ import {
   savePenNib,
   saveStrokeSizes,
   saveToolbarDock,
+  saveTwoFingerDoubleTap,
   type StrokeKind,
   type ToolbarDock,
+  type TwoFingerDoubleTap,
 } from './canvasPrefs';
 import { centerView, fitView, toWorld, type CanvasView } from './view';
 
@@ -150,6 +153,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const [paletteOpen, setPaletteOpen] = useState(loadPaletteOpen);
   const [paletteCount, setPaletteCount] = useState(loadPaletteCount);
   const [toolbarDock, setToolbarDock] = useState<ToolbarDock>(loadToolbarDock);
+  const [twoFingerTap, setTwoFingerTap] = useState<TwoFingerDoubleTap>(loadTwoFingerDoubleTap);
   const panelFull = useUi((s) => s.panelFull);
   // 실행 취소·다시 실행 가능 여부처럼 렌더에 쓰는 값은 ref를 바꾼 뒤 강제로 다시 그린다
   const [, bump] = useReducer((n: number) => n + 1, 0);
@@ -465,6 +469,18 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     if (t !== 'select') setSelectedId(null);
   };
 
+  // 두 손가락 두 번 톡으로 돌아갈 도구: 마지막에 쓴 선택 아닌 도구, 마지막에 쓴 펜·형광펜
+  const lastTool = useRef<{ other: CanvasToolId; ink: CanvasToolId }>({ other: 'pen', ink: 'pen' });
+  useEffect(() => {
+    if (tool !== 'select') lastTool.current.other = tool;
+    if (tool === 'pen' || tool === 'marker') lastTool.current.ink = tool;
+  }, [tool]);
+  const onTwoFingerDoubleTap = () => {
+    if (twoFingerTap === 'select-pen') pickTool(tool === 'select' ? lastTool.current.other : 'select');
+    else if (twoFingerTap === 'eraser-pen') pickTool(tool === 'eraser' ? lastTool.current.ink : 'eraser');
+    else if (twoFingerTap === 'undo') undo();
+  };
+
   const deleteSelected = useCallback(() => {
     if (!selectedId) return;
     commit(removeCanvasItem(docRef.current, selectedId));
@@ -630,6 +646,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           onSettle={settle}
           animate={animate}
           panAxis={panAxis}
+          onTwoFingerDoubleTap={onTwoFingerDoubleTap}
         />
         {pageCount > 0 && <PageNav page={page} count={pageCount} vertical={flow === 'vertical'} canAdd={layout !== 'pdf'} onGo={goPage} saving={savingPage} onSave={() => void savePage()} />}
       </div>
@@ -656,6 +673,11 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           onPaletteCount={(n) => {
             setPaletteCount(n);
             savePaletteCount(n);
+          }}
+          twoFingerTap={twoFingerTap}
+          onTwoFingerTap={(a) => {
+            setTwoFingerTap(a);
+            saveTwoFingerDoubleTap(a);
           }}
           paletteTotal={INK_COLORS.length + favorites.filter((h) => !INK_COLORS.some((c) => c.hex === h)).length}
           onClose={() => setDialog(null)}

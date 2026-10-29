@@ -6,6 +6,7 @@ import {
   type CanvasPattern,
 } from "@branch/core";
 import { ArrowLeftRight, ArrowUpDown, Check, FileType2 } from "lucide-react";
+import type { TwoFingerDoubleTap } from "./canvasPrefs";
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
 import { ImportDialog } from "./CanvasImport";
@@ -66,6 +67,13 @@ const FLOWS: { flow: CanvasFlow; label: string; hint: string; icon: ReactNode }[
   },
 ];
 
+const TWO_FINGER: { action: TwoFingerDoubleTap; label: string; hint: string }[] = [
+  { action: "select-pen", label: "선택 ↔ 펜", hint: "선택 도구와 마지막에 쓴 도구를 오가요" },
+  { action: "eraser-pen", label: "지우개 ↔ 펜", hint: "지우개와 마지막에 쓴 펜·형광펜을 오가요" },
+  { action: "undo", label: "실행 취소", hint: "방금 한 것을 되돌려요" },
+  { action: "off", label: "끄기", hint: "아무것도 하지 않아요" },
+];
+
 const OPTION =
   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-fg hover:bg-surface-2 md:min-h-9";
 
@@ -81,6 +89,8 @@ export function CanvasSettings({
   paletteCount,
   onPaletteCount,
   paletteTotal,
+  twoFingerTap,
+  onTwoFingerTap,
   onClose,
 }: {
   layout: CanvasLayout;
@@ -95,6 +105,9 @@ export function CanvasSettings({
   onPaletteCount(n: number | null): void;
   /** 기본 색 + 즐겨찾는 색 수 */
   paletteTotal: number;
+  /** 두 손가락으로 두 번 톡 쳤을 때 할 일 (기기별) */
+  twoFingerTap: TwoFingerDoubleTap;
+  onTwoFingerTap(a: TwoFingerDoubleTap): void;
   onClose(): void;
 }) {
   const color = bg?.color ?? CANVAS_PAPER;
@@ -132,7 +145,7 @@ export function CanvasSettings({
                 aria-checked={on}
                 data-canvas-layout={o.layout}
                 onClick={() => onLayout(o.layout)}
-                className={cn(OPTION, on && "bg-accent-soft hover:bg-accent-soft")}
+                className={cn(OPTION, on && 'bg-accent-soft hover:bg-accent-soft')}
               >
                 <span
                   className="grid size-9 shrink-0 place-items-center"
@@ -175,7 +188,7 @@ export function CanvasSettings({
                     aria-checked={on}
                     data-canvas-flow={o.flow}
                     onClick={() => onFlow(o.flow)}
-                    className={cn(OPTION, on && "bg-accent-soft hover:bg-accent-soft")}
+                    className={cn(OPTION, on && 'bg-accent-soft hover:bg-accent-soft')}
                   >
                     <span
                       className="grid size-9 shrink-0 place-items-center text-accent"
@@ -268,7 +281,7 @@ export function CanvasSettings({
                 aria-checked={on}
                 data-canvas-bg-pattern={o.pattern ?? "none"}
                 onClick={() => onBackground({ ...bg, pattern: o.pattern })}
-                className={cn(OPTION, on && "bg-accent-soft hover:bg-accent-soft")}
+                className={cn(OPTION, on && 'bg-accent-soft hover:bg-accent-soft')}
               >
                 <span
                   className="size-9 shrink-0 rounded-md border border-line"
@@ -300,6 +313,31 @@ export function CanvasSettings({
           <span className="font-mono" data-palette-count>{paletteCount === null ? `모두 (${paletteTotal})` : `${shownCount} / ${paletteTotal}`}</span>
         </div>
       </div>
+      <p className="px-3 pt-1 pb-2 text-[12px] text-muted">두 손가락으로 두 번 톡</p>
+      <ul role="radiogroup" aria-label="두 손가락으로 두 번 톡" className="flex flex-col gap-1 pb-1">
+        {TWO_FINGER.map((o) => {
+          const on = o.action === twoFingerTap;
+          return (
+            <li key={o.action}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={on}
+                data-two-finger-tap={o.action}
+                title={o.hint}
+                onClick={() => onTwoFingerTap(o.action)}
+                className={cn(OPTION, on && 'bg-accent-soft hover:bg-accent-soft')}
+              >
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-[14px]">{o.label}</span>
+                  <span className="text-[12px] text-muted">{o.hint}</span>
+                </span>
+                {on && <Check size={18} className="shrink-0 text-accent" />}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </ImportDialog>
   );
 }

@@ -1,9 +1,10 @@
 import type { CanvasPenNib } from '@branch/core';
-import { Brush, ChevronDown, ChevronUp, Eraser, GripVertical, Highlighter, Import, Maximize2, Minimize2, MousePointer2, Maximize, Pen, Pencil, PenTool, Presentation, Redo2, Settings2, Star, Trash2, Undo2 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Brush, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eraser, GripVertical, Highlighter, Import, Maximize2, Minimize2, MousePointer2, Maximize, Pen, Pencil, PenTool, Pipette, Presentation, Redo2, Settings2, Star, Trash2, Undo2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
 import { strokeOpacity, strokePath } from './strokePath';
+import { hexToRgb, hsvToHex, rgbToHex, rgbToHsv, type Hsv } from './colorMath';
 import { clampStroke, isHex, MAX_FAVORITE_INKS, STROKE_RANGE, type StrokeKind, type ToolbarDock } from './canvasPrefs';
 
 export type CanvasToolId = 'select' | 'pen' | 'marker' | 'eraser';
@@ -219,48 +220,28 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       ))}
       <span className={cn('mx-1 bg-line', isVertical ? 'h-px w-6' : 'h-6 w-px')} aria-hidden />
 
-      {/* 팔레트: 접기/펼치기 토글 + 색들 */}
-      <div className={cn('flex items-center gap-0.5', !drawing && 'opacity-40')} role="group" aria-label="색">
-        <button
-          type="button"
-          aria-label={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
-          title={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
-          onClick={() => p.onPaletteOpen(!p.paletteOpen)}
-          className={BTN}
-          data-canvas-palette-toggle=""
-        >
-          {p.paletteOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </button>
+      {/* 팔레트: 색들(밀려 열리고 닫힘) · 직접 고르기 · 접기/펼치기 토글. 세로 막대에서는 위아래로 쌓고 토글은 맨 아래 */}
+      <div className={cn('flex items-center gap-0.5', isVertical && 'flex-col', !drawing && 'opacity-40')} role="group" aria-label="색" data-canvas-palette="">
+        <Slide open={p.paletteOpen} vertical={isVertical}>
+          {shownSwatches.map((c) => (
+            <Swatch key={c.hex} hex={c.hex} label={c.label} active={p.color === c.hex} onClick={() => p.onColor(c.hex)} favorite={c.favorite} />
+          ))}
+          {/* 더 보기: 초과된 색들을 위한 버튼 */}
+          {moreSwatches.length > 0 && (
+            <button
+              type="button"
+              aria-label="더 많은 색"
+              title="더 많은 색"
+              onClick={(e) => setPop(pop?.kind === 'overflow' ? null : { kind: 'overflow', el: e.currentTarget })}
+              className={cn(BTN, 'text-fg-2')}
+              data-canvas-overflow-colors=""
+            >
+              ⋯
+            </button>
+          )}
+        </Slide>
 
-        {p.paletteOpen ? (
-          <>
-            {shownSwatches.map((c) => (
-              <Swatch key={c.hex} hex={c.hex} label={c.label} active={p.color === c.hex} onClick={() => p.onColor(c.hex)} favorite={c.favorite} />
-            ))}
-            {/* 더 보기: 초과된 색들을 위한 버튼 */}
-            {moreSwatches.length > 0 && (
-              <button
-                type="button"
-                aria-label="더 많은 색"
-                title="더 많은 색"
-                onClick={(e) => setPop(pop?.kind === 'overflow' ? null : { kind: 'overflow', el: e.currentTarget })}
-                className={cn(BTN, 'text-fg-2')}
-                data-canvas-overflow-colors=""
-              >
-                ⋯
-              </button>
-            )}
-          </>
-        ) : (
-          /* 접혀 있을 때는 현재 색만 표시 */
-          <div className="grid size-11 shrink-0 place-items-center md:size-8">
-            <span
-              className="size-5 rounded-full border border-black/10"
-              style={{ backgroundColor: p.color }}
-            />
-          </div>
-        )}
-
+        {/* 직접 고르기: 무지개 테두리 안에 지금 색 — 팔레트를 접어도 지금 색이 보인다 */}
         <button
           type="button"
           aria-label="색 직접 고르기"
@@ -272,11 +253,29 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           data-canvas-color-custom=""
         >
           <span
-            className={cn('size-5 rounded-full border border-black/10', !known && 'ring-2 ring-accent ring-offset-2 ring-offset-surface')}
-            style={{
-              background: known ? 'conic-gradient(#ef4444, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #ef4444)' : p.color,
-            }}
-          />
+            className={cn('grid size-6 place-items-center rounded-full', !known && 'ring-2 ring-accent ring-offset-2 ring-offset-surface')}
+            style={{ background: 'conic-gradient(#ef4444, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #ef4444)' }}
+          >
+            <span className="size-3.5 rounded-full border border-surface" style={{ backgroundColor: p.color }} />
+          </span>
+        </button>
+
+        <button
+          type="button"
+          aria-label={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
+          title={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
+          aria-expanded={p.paletteOpen}
+          onClick={() => p.onPaletteOpen(!p.paletteOpen)}
+          className={cn(BTN, 'md:h-8 md:w-6', isVertical && 'md:h-6 md:w-9')}
+          data-canvas-palette-toggle=""
+        >
+          {isVertical ? (
+            p.paletteOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+          ) : p.paletteOpen ? (
+            <ChevronLeft size={16} />
+          ) : (
+            <ChevronRight size={16} />
+          )}
         </button>
       </div>
 
@@ -392,6 +391,50 @@ function dockPreviewStyle(dock: ToolbarDock, r: DOMRect): CSSProperties {
   return { left: r.right - t, top: r.top, width: t, height: r.height };
 }
 
+const SLIDE_MS = 200;
+
+/**
+ * 팔레트 색들을 토글 쪽으로 밀어 넣고 꺼내는 칸. grid 0fr↔1fr 전환으로 실제 크기까지 함께 줄어든다.
+ * 다 닫히면 내용을 빼서(접힌 팔레트에는 색 버튼이 없다) 탭 이동·읽기 대상에서도 빠진다.
+ */
+function Slide({ open, vertical, children }: { open: boolean; vertical: boolean; children: ReactNode }) {
+  const [mounted, setMounted] = useState(open);
+  const [shown, setShown] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      // 0fr로 한 번 그린 다음 펼쳐야 전환이 보인다
+      let inner = 0;
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setShown(true));
+      });
+      return () => {
+        cancelAnimationFrame(outer);
+        cancelAnimationFrame(inner);
+      };
+    }
+    setShown(false);
+    const t = setTimeout(() => setMounted(false), SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [open]);
+  if (!mounted) return null;
+  return (
+    <div
+      className={cn(
+        'grid ease-out motion-reduce:transition-none',
+        vertical
+          ? cn('transition-[grid-template-rows]', shown ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')
+          : cn('transition-[grid-template-columns]', shown ? 'grid-cols-[1fr]' : 'grid-cols-[0fr]'),
+      )}
+      style={{ transitionDuration: `${SLIDE_MS}ms` }}
+      inert={!open}
+      data-canvas-palette-slide={shown ? 'open' : 'closed'}
+    >
+      <div className={cn('flex items-center gap-0.5 overflow-hidden', vertical ? 'min-h-0 flex-col' : 'min-w-0')}>{children}</div>
+    </div>
+  );
+}
+
 function Swatch({ hex, label, active, onClick, favorite }: { hex: string; label: string; active: boolean; onClick(): void; favorite?: boolean }) {
   return (
     <button type="button" aria-label={label} aria-pressed={active} title={label} onClick={onClick} className="relative grid size-11 shrink-0 place-items-center md:size-8" data-canvas-ink={hex}>
@@ -481,41 +524,206 @@ function SizeEditor({ kind, size, color, nib, onSize }: { kind: StrokeKind; size
   );
 }
 
-/** 색 창: 아무 색이나 고르고, 즐겨찾기에 넣거나 뺀다 */
+const HUE_GRADIENT = 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)';
+
+/** 판·띠 위 포인터 위치 → 0~1 비율. 누른 채 밖으로 나가도 끝에 붙는다 */
+const ratio = (e: ReactPointerEvent<HTMLElement>) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))),
+    y: Math.max(0, Math.min(1, (e.clientY - r.top) / Math.max(1, r.height))),
+  };
+};
+
+/** 누르고 끄는 동안 계속 받는 포인터 핸들러 묶음 */
+const dragHandlers = (apply: (e: ReactPointerEvent<HTMLElement>) => void) => ({
+  onPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    apply(e);
+  },
+  onPointerMove: (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) apply(e);
+  },
+});
+
+/** 화살표 키 한 번에 움직일 양 (Shift는 10배) */
+const arrowStep = (e: ReactKeyboardEvent, unit: number) => (e.shiftKey ? unit * 10 : unit);
+
+declare global {
+  interface Window {
+    EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> };
+  }
+}
+
+/**
+ * 색 창 (포토샵식): 채도·명도 판, 색상 띠, 처음 색/새 색 비교, HEX·RGB 입력, 스포이드(되는 곳에서만), 즐겨찾기.
+ * 회색·검정처럼 색상이 없는 색에서도 고르던 색상이 사라지지 않게 HSV를 따로 들고 있는다.
+ */
 function ColorEditor({ color, onColor, favorites, onToggleFavorite }: { color: string; onColor(hex: string): void; favorites: string[]; onToggleFavorite(hex: string): void }) {
+  const [original] = useState(color);
+  const [hsv, setHsv] = useState<Hsv>(() => rgbToHsv(hexToRgb(color) ?? { r: 0, g: 0, b: 0 }));
   const [hex, setHex] = useState(color);
-  useEffect(() => setHex(color), [color]);
+  const emitted = useRef(color);
+  // 바깥(팔레트·즐겨찾기)에서 색이 바뀌면 판을 맞춘다. 우리가 보낸 색이면 HSV를 그대로 둔다
+  useEffect(() => {
+    setHex(color);
+    if (color === emitted.current) return;
+    emitted.current = color;
+    const rgb = hexToRgb(color);
+    if (rgb) setHsv(rgbToHsv(rgb));
+  }, [color]);
+
+  const pickHsv = (next: Hsv) => {
+    setHsv(next);
+    const h = hsvToHex(next);
+    emitted.current = h;
+    if (h !== color) onColor(h);
+  };
+  const pickHex = (h: string) => {
+    const rgb = hexToRgb(h);
+    if (!rgb) return;
+    const next = rgbToHex(rgb);
+    emitted.current = next;
+    setHsv(rgbToHsv(rgb));
+    if (next !== color) onColor(next);
+  };
+
+  const rgb = hexToRgb(color) ?? { r: 0, g: 0, b: 0 };
   const fav = favorites.includes(color);
   const preset = INK_COLORS.some((c) => c.hex === color);
   const full = !fav && favorites.length >= MAX_FAVORITE_INKS;
   const commitHex = (v: string) => {
     const t = v.trim().toLowerCase();
     const h = t.startsWith('#') ? t : `#${t}`;
-    if (isHex(h)) onColor(h);
+    if (isHex(h)) pickHex(h);
     else setHex(color);
   };
+  const canEyeDrop = typeof window !== 'undefined' && !!window.EyeDropper;
+  const eyeDrop = async () => {
+    try {
+      const r = await new window.EyeDropper!().open();
+      pickHex(r.sRGBHex.toLowerCase());
+    } catch {
+      // 스포이드를 Esc로 그만두면 아무것도 바꾸지 않는다
+    }
+  };
+
   return (
     <div className="flex w-60 flex-col gap-3" data-canvas-color-editor="">
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          value={color}
-          aria-label="색 고르기"
-          onChange={(e) => onColor(e.target.value.toLowerCase())}
-          className="h-11 w-14 cursor-pointer rounded-md border border-line bg-bg p-0.5 md:h-9"
-        />
-        <input
-          type="text"
-          value={hex}
-          aria-label="색 코드"
-          maxLength={7}
-          spellCheck={false}
-          onChange={(e) => setHex(e.target.value)}
-          onBlur={(e) => commitHex(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && commitHex(e.currentTarget.value)}
-          className="h-11 min-w-0 flex-1 rounded-md border border-line bg-bg px-2 font-mono text-[13px] text-fg md:h-9"
+      {/* 채도(가로) · 명도(세로) 판 */}
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label="채도·명도"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(hsv.s * 100)}
+        aria-valuetext={`채도 ${Math.round(hsv.s * 100)}%, 명도 ${Math.round(hsv.v * 100)}%`}
+        data-canvas-color-sv=""
+        className="relative h-36 w-full cursor-crosshair touch-none rounded-lg outline-offset-2"
+        style={{
+          backgroundColor: `hsl(${hsv.h} 100% 50%)`,
+          backgroundImage: 'linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent)',
+        }}
+        {...dragHandlers((e) => {
+          const r = ratio(e);
+          pickHsv({ ...hsv, s: r.x, v: 1 - r.y });
+        })}
+        onKeyDown={(e) => {
+          const d = arrowStep(e, 0.01);
+          const move = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, d], ArrowDown: [0, -d] }[e.key];
+          if (!move) return;
+          e.preventDefault();
+          pickHsv({ ...hsv, s: Math.max(0, Math.min(1, hsv.s + move[0]!)), v: Math.max(0, Math.min(1, hsv.v + move[1]!)) });
+        }}
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+          style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, backgroundColor: color }}
         />
       </div>
+
+      {/* 색상 띠 */}
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label="색상"
+        aria-valuemin={0}
+        aria-valuemax={360}
+        aria-valuenow={Math.round(hsv.h)}
+        data-canvas-color-hue=""
+        className="relative h-4 w-full cursor-pointer touch-none rounded-full outline-offset-2"
+        style={{ background: HUE_GRADIENT }}
+        {...dragHandlers((e) => pickHsv({ ...hsv, h: ratio(e).x * 360 }))}
+        onKeyDown={(e) => {
+          const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+          if (!d) return;
+          e.preventDefault();
+          pickHsv({ ...hsv, h: Math.max(0, Math.min(360, hsv.h + d * arrowStep(e, 1))) });
+        }}
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 h-5 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.4)]"
+          style={{ left: `${(hsv.h / 360) * 100}%` }}
+        />
+      </div>
+
+      {/* 새 색 / 처음 색 · 스포이드 */}
+      <div className="flex items-center gap-2">
+        <div className="flex h-11 flex-1 overflow-hidden rounded-lg border border-line md:h-9">
+          <span className="flex-1" style={{ backgroundColor: color }} title="새 색" data-canvas-color-new="" />
+          <button
+            type="button"
+            aria-label={`처음 색 ${original}로 되돌리기`}
+            title="처음 색으로 되돌리기"
+            onClick={() => pickHex(original)}
+            className="flex-1"
+            style={{ backgroundColor: original }}
+          />
+        </div>
+        {canEyeDrop && (
+          <button type="button" aria-label="화면에서 색 따오기" title="화면에서 색 따오기" onClick={() => void eyeDrop()} className={BTN}>
+            <Pipette size={18} />
+          </button>
+        )}
+      </div>
+
+      {/* HEX · RGB */}
+      <div className="grid grid-cols-[1fr_repeat(3,2.75rem)] items-end gap-1.5">
+        <label className="flex flex-col gap-0.5 text-[11px] text-muted">
+          HEX
+          <input
+            type="text"
+            value={hex}
+            aria-label="색 코드"
+            maxLength={7}
+            spellCheck={false}
+            onChange={(e) => setHex(e.target.value)}
+            onBlur={(e) => commitHex(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && commitHex(e.currentTarget.value)}
+            className="h-11 min-w-0 rounded-md border border-line bg-bg px-2 font-mono text-[13px] text-fg md:h-8"
+          />
+        </label>
+        {(['r', 'g', 'b'] as const).map((k) => (
+          <label key={k} className="flex flex-col gap-0.5 text-[11px] text-muted">
+            {k.toUpperCase()}
+            <input
+              type="number"
+              min={0}
+              max={255}
+              value={rgb[k]}
+              aria-label={`${k.toUpperCase()} 값`}
+              onChange={(e) => {
+                if (Number.isFinite(e.target.valueAsNumber)) pickHex(rgbToHex({ ...rgb, [k]: e.target.valueAsNumber }));
+              }}
+              className="h-11 min-w-0 rounded-md border border-line bg-bg px-1 text-right text-[13px] text-fg tabular-nums md:h-8"
+            />
+          </label>
+        ))}
+      </div>
+
       {favorites.length > 0 && (
         <div className="flex flex-wrap gap-1" role="group" aria-label="즐겨찾는 색">
           {favorites.map((h) => (

@@ -91,3 +91,15 @@ export function loadToolbarDock(): ToolbarDock {
 }
 
 export const saveToolbarDock = (dock: ToolbarDock) => save(TOOLBAR_DOCK_KEY, dock);
+
+/** 두 손가락으로 두 번 톡 쳤을 때 할 일 (ADR-092) */
+export type TwoFingerDoubleTap = 'off' | 'select-pen' | 'eraser-pen' | 'undo';
+const TWO_FINGER_KEY = 'octobooks.canvas.twoFingerDoubleTap';
+const TWO_FINGER_ACTIONS: readonly TwoFingerDoubleTap[] = ['off', 'select-pen', 'eraser-pen', 'undo'];
+
+export function loadTwoFingerDoubleTap(): TwoFingerDoubleTap {
+  const v = load(TWO_FINGER_KEY);
+  return TWO_FINGER_ACTIONS.includes(v as TwoFingerDoubleTap) ? (v as TwoFingerDoubleTap) : 'select-pen';
+}
+
+export const saveTwoFingerDoubleTap = (a: TwoFingerDoubleTap) => save(TWO_FINGER_KEY, a);
