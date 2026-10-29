@@ -173,7 +173,7 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       data-canvas-toolbar=""
       data-dock={p.toolbarDock}
       className={cn(
-        'flex gap-0.5 bg-surface px-2 py-1 [scrollbar-width:none] [&>*]:shrink-0',
+        'flex items-center gap-0.5 bg-surface px-2 py-1 [scrollbar-width:none] [&>*]:shrink-0',
         isVertical
           ? cn('flex-col overflow-y-auto', p.toolbarDock === 'left' ? 'border-r border-line' : 'border-l border-line')
           : cn('flex-row overflow-x-auto md:flex-wrap md:overflow-visible', p.toolbarDock === 'bottom' ? 'border-t border-line pb-[max(0.25rem,env(safe-area-inset-bottom))]' : 'border-b border-line')
@@ -218,7 +218,7 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           )}
         </button>
       ))}
-      <span className={cn('mx-1 bg-line', isVertical ? 'h-px w-6' : 'h-6 w-px')} aria-hidden />
+      <span className={cn('shrink-0 self-center bg-line', isVertical ? 'my-1 h-px w-6' : 'mx-1 h-6 w-px')} aria-hidden />
 
       {/* 팔레트: 색들(밀려 열리고 닫힘) · 직접 고르기 · 접기/펼치기 토글. 세로 막대에서는 위아래로 쌓고 토글은 맨 아래 */}
       <div className={cn('flex items-center gap-0.5', isVertical && 'flex-col', !drawing && 'opacity-40')} role="group" aria-label="색" data-canvas-palette="">
@@ -279,7 +279,7 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         </button>
       </div>
 
-      <span className={cn('mx-1 bg-line', isVertical ? 'h-px w-6' : 'h-6 w-px')} aria-hidden />
+      <span className={cn('shrink-0 self-center bg-line', isVertical ? 'my-1 h-px w-6' : 'mx-1 h-6 w-px')} aria-hidden />
       <button type="button" aria-label="실행 취소" title="실행 취소 (⌘Z)" disabled={!p.canUndo} onClick={p.onUndo} className={BTN}>
         <Undo2 size={18} />
       </button>
@@ -303,11 +303,11 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         className={cn(
           'flex shrink-0 items-center gap-0.5',
           isVertical
-            ? 'w-full flex-col'
+            ? 'flex-col'
             : 'sticky right-0 ml-auto bg-surface shadow-[-8px_0_8px_-4px_var(--color-surface)] md:static md:shadow-none',
         )}
       >
-        <span className={cn('mx-1 bg-line', isVertical ? 'h-px w-6' : 'h-6 w-px')} aria-hidden />
+        <span className={cn('shrink-0 self-center bg-line', isVertical ? 'my-1 h-px w-6' : 'mx-1 h-6 w-px')} aria-hidden />
         <button type="button" aria-label="발표" title="발표" onClick={p.onPresent} className={BTN} data-canvas-present="">
           <Presentation size={18} />
         </button>
@@ -321,17 +321,19 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         >
           {p.panelFull ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
+        {/* 세로 막대에서는 글자 없이 아이콘만: 글자가 막대 너비를 넓히지 않게 */}
         <button
           type="button"
+          aria-label="가져오기"
+          title="가져오기"
           onClick={p.onImport}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg',
-            isVertical ? 'w-full h-11 px-3 md:h-9' : 'h-11 px-2.5 md:h-9',
+            isVertical ? BTN : 'inline-flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg md:h-9',
           )}
           data-canvas-import=""
         >
-          <Import size={17} />
-          가져오기
+          <Import size={isVertical ? 18 : 17} />
+          {!isVertical && '가져오기'}
         </button>
       </div>
       {pop?.kind === 'size' && (

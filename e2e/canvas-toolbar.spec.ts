@@ -192,6 +192,13 @@ test('세로 막대에서는 팔레트도 세로로 쌓이고 토글은 맨 아�
   expect((await custom.boundingBox())!.x).toBeGreaterThan(lastInk.x);
   expect((await toggle.boundingBox())!.x).toBeGreaterThan((await custom.boundingBox())!.x);
 
+  // 가로 막대의 구분선은 버튼 높이 가운데에 (위로 치우치지 않음)
+  const custBox = (await custom.boundingBox())!;
+  for (const sep of await page.locator('[data-canvas-toolbar] > span[aria-hidden]').all()) {
+    const s = (await sep.boundingBox())!;
+    expect(Math.abs(s.y + s.height / 2 - (custBox.y + custBox.height / 2))).toBeLessThan(3);
+  }
+
   // 왼쪽에 붙이면 세로로 쌓인다
   const panel = (await page.locator('[data-canvas]').boundingBox())!;
   const handle = page.getByRole('button', { name: '도구 막대 위치 변경' });
@@ -214,6 +221,13 @@ test('세로 막대에서는 팔레트도 세로로 쌓이고 토글은 맨 아�
   const group = (await colors.boundingBox())!;
   expect(group.x).toBeGreaterThanOrEqual(bar.x - 1);
   expect(group.x + group.width).toBeLessThanOrEqual(bar.x + bar.width + 1);
+  // 막대는 버튼 한 줄 너비 — 글자 버튼(가져오기)도 아이콘만 남아 넓히지 않는다
+  expect(bar.width).toBeLessThan(72);
+  // 구분선은 막대 가운데에
+  for (const sep of await page.locator('[data-canvas-toolbar] > span[aria-hidden]').all()) {
+    const s = (await sep.boundingBox())!;
+    expect(Math.abs(s.x + s.width / 2 - (bar.x + bar.width / 2))).toBeLessThan(3);
+  }
 
   // 접고 펼치기도 그대로
   await toggle.click();
