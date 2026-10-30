@@ -16,6 +16,7 @@ import {
   type ID,
 } from '@branch/core';
 import { memo, useEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from 'react';
+import { flushSync } from 'react-dom';
 import { Markdown } from '../chat/Markdown';
 import { cn } from '../lib/cn';
 import type { CanvasToolId } from './CanvasToolbar';
@@ -135,12 +136,6 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     gestureRef.current = g;
     setGesture(g);
   };
-  const liveFrame = useRef(0);
-  const cancelLive = () => {
-    if (liveFrame.current) cancelAnimationFrame(liveFrame.current);
-    liveFrame.current = 0;
-  };
-  useEffect(() => () => cancelAnimationFrame(liveFrame.current), []);
   const settleRef = useRef(onSettle);
   const toolRef = useRef(tool);
   useEffect(() => {
@@ -227,7 +222,6 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       const g0 = gestureRef.current;
       if (g0 && (g0.kind === 'pinch' || pointers.get(g0.pointerId)?.type === 'touch')) {
         for (const [id, q] of pointers) if (q.type === 'touch') pointers.delete(id);
-        cancelLive();
         setG(null);
         setLive(null);
         setPreview(null);
@@ -356,14 +350,8 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
         const w = toWorld(view, ev.clientX - r.left, ev.clientY - r.top);
         g.points.push(w.x, w.y, ev.pressure || 0.5);
       }
-      // 그리는 중 획은 화면 한 장(rAF)에 한 번만 다시 그린다
-      if (!liveFrame.current) {
-        liveFrame.current = requestAnimationFrame(() => {
-          liveFrame.current = 0;
-          const cur = gestureRef.current;
-          if (cur?.kind === 'draw') setLive({ tool: cur.tool, nib: cur.nib, color: cur.color, size: cur.size, parts: strokeParts(cur.points, cur.page) });
-        });
-      }
+      // 그리는 중 획은 이 이벤트 안에서 바로 그려 같은 화면에 나오게 한다 (rAF·예약 렌더는 한 프레임 늦다)
+      flushSync(() => setLive({ tool: g.tool, nib: g.nib, color: g.color, size: g.size, parts: strokeParts(g.points, g.page) }));
     } else if (g.kind === 'erase') {
       const w = toWorld(view, p.x, p.y);
       const next = eraseStrokesAt(g.doc, w.x, w.y, ERASER_RADIUS);
@@ -414,7 +402,6 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       return;
     }
     if (g.pointerId !== e.pointerId) return;
-    cancelLive();
     setG(null);
     setLive(null);
     setPreview(null);

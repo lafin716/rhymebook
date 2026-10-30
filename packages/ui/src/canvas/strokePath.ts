@@ -4,14 +4,17 @@ import type { CanvasPenNib, CanvasStroke } from '@branch/core';
 /** 형광펜 색 투명도 */
 export const MARKER_OPACITY = 0.35;
 
-/** 펜 종류별 획 모양. 만년필은 필압에 따라 굵기가 변하고, 볼펜은 거의 일정, 붓펜은 크게 변하며 끝이 가늘고, 연필은 가늘게 변한다 */
+/**
+ * 펜 종류별 획 모양. 만년필은 필압에 따라 굵기가 변하고, 볼펜은 거의 일정, 붓펜은 크게 변하며 끝이 가늘고, 연필은 가늘게 변한다.
+ * streamline은 0 — 점을 이전 점 쪽으로 끌어당기는 보정이라 획 끝이 펜촉을 늦게 따라온다. 쓴 자리에 바로 그린다.
+ */
 const NIB: Record<CanvasPenNib, StrokeOptions> = {
-  fountain: { thinning: 0.5, smoothing: 0.5, streamline: 0.5 },
-  ballpoint: { thinning: 0.1, smoothing: 0.6, streamline: 0.6 },
-  brush: { thinning: 0.8, smoothing: 0.6, streamline: 0.45, start: { taper: true }, end: { taper: true } },
-  pencil: { thinning: 0.25, smoothing: 0.35, streamline: 0.3 },
+  fountain: { thinning: 0.5, smoothing: 0.5, streamline: 0 },
+  ballpoint: { thinning: 0.1, smoothing: 0.6, streamline: 0 },
+  brush: { thinning: 0.8, smoothing: 0.6, streamline: 0, start: { taper: true }, end: { taper: true } },
+  pencil: { thinning: 0.25, smoothing: 0.35, streamline: 0 },
 };
-const MARKER: StrokeOptions = { thinning: 0, smoothing: 0.5, streamline: 0.5 };
+const MARKER: StrokeOptions = { thinning: 0, smoothing: 0.5, streamline: 0 };
 
 /** 필압이 없는 입력(마우스: 모두 0.5)인지 */
 const flatPressure = (points: readonly number[]) => {
