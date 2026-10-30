@@ -1,6 +1,6 @@
 import { OctoMark } from '../components/OctoMark';
 import { childrenOf, listedRootSessions, type ID } from '@branch/core';
-import { ChevronRight, FileText, GitBranch, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronsDownUp, FileText, GitBranch, MessageSquareText, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
@@ -18,6 +18,8 @@ import { relativeTime } from '../lib/time';
 import { RenameInput, SessionMenu, SubCreateMenu, type MenuPoint } from './SessionMenu';
 import { startNewSession } from './newSession';
 import { renameSession } from '../chat/PagePanel';
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
 
 /** 세션 목록. 데스크톱(≥1024)은 고정 사이드바(접기 가능), 그 이하는 드로어 */
 export function Sidebar() {
@@ -167,7 +169,15 @@ function SidebarBody() {
           새로 만들기
         </Button>
       </div>
-      <div className="flex items-center justify-between px-4 pt-4 pb-2 text-[10px] font-semibold tracking-widest text-muted"><span>나의 학습 바다</span><span>{roots.length}개의 시작점</span></div>
+      {/* 목록 툴바: 왼쪽은 목록 이름·개수, 오른쪽은 목록 도구 (ADR-098) */}
+      <div role="toolbar" aria-label="세션 목록 도구" className="flex items-center gap-2 px-4 pt-3 pb-1.5">
+        <span className="min-w-0 flex-1 truncate text-[10px] font-semibold tracking-widest text-muted">
+          나의 학습 바다 · {roots.length}개의 시작점
+        </span>
+        <IconButton size="sm" label="모두 접기" disabled={roots.length === 0} onClick={() => useUi.getState().collapseTrees(roots)}>
+          <ChevronsDownUp size={15} />
+        </IconButton>
+      </div>
       <nav aria-label="학습 세션" className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {roots.length === 0 ? (
           <p className="px-3 py-6 text-center text-[13px] text-muted">{remoteMode && !pcOnline ? 'PC와 연결되면 학습 목록이 보여요' : '세션이 없어요'}</p>
@@ -175,19 +185,32 @@ function SidebarBody() {
           roots.map((id) => <RootItem key={id} id={id} onPick={close} />)
         )}
       </nav>
-      <button
-        type="button"
-        onClick={() => {
-          actions().setOverlay('skills');
-          close();
-        }}
-        className="flex items-center gap-2 border-t border-line px-4 py-2.5 text-left text-[13px] text-fg-2 hover:bg-surface-2/60"
-      >
-        <Sparkles size={15} className="text-accent" />
-        <span className="flex-1">스킬 관리</span>
-      </button>
+      <div className="grid grid-cols-2 divide-x divide-line border-t border-line">
+        <button
+          type="button"
+          onClick={() => {
+            actions().setOverlay('prompts');
+            close();
+          }}
+          className="flex min-w-0 items-center gap-2 px-4 py-2.5 text-left text-[13px] text-fg-2 hover:bg-surface-2/60"
+        >
+          <MessageSquareText size={15} className="shrink-0 text-accent" />
+          <span className="truncate">프롬프트 관리</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            actions().setOverlay('skills');
+            close();
+          }}
+          className="flex min-w-0 items-center gap-2 px-4 py-2.5 text-left text-[13px] text-fg-2 hover:bg-surface-2/60"
+        >
+          <Sparkles size={15} className="shrink-0 text-accent" />
+          <span className="truncate">스킬 관리</span>
+        </button>
+      </div>
       <ConnectionFooter />
-      <div className="flex items-center justify-between px-4 pb-3 pt-1 text-[10px] text-muted"><span>octobooks</span><span className="rounded-full border border-line px-2 py-0.5 tracking-wider">PREVIEW BETA</span></div>
+      <div className="flex items-center justify-between px-4 pb-3 pt-1 text-[10px] text-muted"><span>octobooks{APP_VERSION && <span className="ml-1.5 tabular-nums">v{APP_VERSION}</span>}</span><span className="rounded-full border border-line px-2 py-0.5 tracking-wider">PREVIEW BETA</span></div>
     </>
   );
 }
@@ -241,8 +264,9 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   });
   const isActiveRoot = activeRoot === id;
   const childCount = useApp((st) => childrenOf(st.sessions, id).length);
-  // 펼침 상태는 기기별 스토어에 둔다 — 사이드바를 닫았다 열어도(언마운트) 유지 (ADR-078)
-  const open = useUi((u) => u.treeOpen[id] ?? isActiveRoot);
+  // 펼침 상태는 기기별 스토어에 둔다 — 사이드바를 닫았다 열어도(언마운트) 유지 (ADR-078).
+  // 기본은 접힘: 펼친 트리만 기록이 남는다 (ADR-098)
+  const open = useUi((u) => u.treeOpen[id] ?? false);
   const setOpen = (v: boolean) => useUi.getState().setTreeOpen(id, v);
   const [menu, setMenu] = useState<MenuPoint | null>(null);
   const [renaming, setRenaming] = useState(false);

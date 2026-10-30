@@ -3,20 +3,18 @@ import { withTextAttachments } from './attachments';
 import { canvasText, parseCanvas } from './canvas';
 import { isDocSession } from './page';
 import { stripEmbeds } from './pageFormat';
-import { BRANCH_SUGGEST_INSTRUCTION, stripBranchBlock } from './branch-suggest';
+import { stripBranchBlock } from './branch-suggest';
+import { DEFAULT_PROMPTS, promptText, type PromptOverrides } from './prompts';
 import { withSkill } from './skills';
 import type { Anchor, ID, Message, Session, SkillRef } from './model';
 import type { ChatTurn, StreamRequest } from './provider';
 import { pathToRoot, type SessionMap } from './tree';
 
-export const BASE_SYSTEM =
-  '너는 학습을 돕는 튜터다. 학습자의 수준에 맞춰 정확하고 구조적으로 설명하고, 필요하면 마크다운(목록, 표, 코드 블록)을 사용하라.';
+export const BASE_SYSTEM = DEFAULT_PROMPTS.base;
 
-export const BRANCH_INSTRUCTION =
-  '학습자가 이 맥락에서 막힌 부분이다. 맥락에 맞춰 짧고 명확하게, 비유와 예시를 들어 설명하라.';
+export const BRANCH_INSTRUCTION = DEFAULT_PROMPTS.branch;
 
-export const SUBSESSION_INSTRUCTION =
-  '학습자가 이 대화를 보다가 직접 이어서 묻는 하위 질문이다. 부모 대화의 맥락을 바탕으로 짧고 명확하게, 비유와 예시를 들어 설명하라.';
+export const SUBSESSION_INSTRUCTION = DEFAULT_PROMPTS.subsession;
 
 export const DEFAULT_CONTEXT_WINDOW = 6;
 const MAX_MESSAGE_CHARS = 1500;
@@ -53,6 +51,8 @@ export interface BranchContextOptions {
   messages: MessageMap;
   sessionId: ID;
   contextWindow?: number;
+  /** 사용자가 고친 시스템 프롬프트 (ADR-098) */
+  prompts?: PromptOverrides;
 }
 
 /**
@@ -63,12 +63,13 @@ export interface BranchContextOptions {
 export function buildSystemPrompt(opts: BranchContextOptions): string {
   const { sessions, messages, sessionId } = opts;
   const n = opts.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+  const base = promptText('base', opts.prompts);
   const path = pathToRoot(sessions, sessionId);
   const self = path[path.length - 1];
-  if (!self || !self.parentId) return BASE_SYSTEM;
+  if (!self || !self.parentId) return base;
 
   const root = path[0]!;
-  const lines: string[] = [BASE_SYSTEM, '', '## 학습 맥락', `루트 주제: ${root.title}`, '', '### 가지 경로 (루트 → 현재)'];
+  const lines: string[] = [base, '', '## 학습 맥락', `루트 주제: ${root.title}`, '', '### 가지 경로 (루트 → 현재)'];
 
   path.slice(1).forEach((s, i) => {
     if (!s.parentId) return;
@@ -106,8 +107,8 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
     for (const m of recent) lines.push(`[${roleLabel(m.role)}] ${clip(m.content)}`);
   }
 
-  if (anchor) lines.push('', '## 지시', BRANCH_INSTRUCTION, `현재 질문 대상: "${anchor.text}"`);
-  else lines.push('', '## 지시', SUBSESSION_INSTRUCTION);
+  if (anchor) lines.push('', '## 지시', promptText('branch', opts.prompts), `현재 질문 대상: "${anchor.text}"`);
+  else lines.push('', '## 지시', promptText('subsession', opts.prompts));
   return lines.join('\n');
 }
 
@@ -138,37 +139,35 @@ export function buildChatRequest(opts: BranchContextOptions): StreamRequest {
   const lastUser = msgs.findLast((m) => m.role === 'user');
   return {
     // 추천 가지 지시는 채팅 답변에만 — 요약·제목·재정리에는 붙이지 않는다 (ADR-094)
-    system: withSkill(`${buildSystemPrompt(opts)}\n\n${BRANCH_SUGGEST_INSTRUCTION}`, lastUser?.skill),
+    system: withSkill(`${buildSystemPrompt(opts)}\n\n${promptText('branchSuggest', opts.prompts)}`, lastUser?.skill),
     messages: toTurns(msgs),
     purpose: 'chat',
   };
 }
 
-export const SUMMARY_SYSTEM =
-  '다음은 학습자가 하나의 개념을 묻고 이해한 대화다. 학습자가 이해한 핵심을 한국어 1~2문장으로 요약하라. 서두 없이 요약문만 출력하라.';
+export const SUMMARY_SYSTEM = DEFAULT_PROMPTS.summary;
 
-export function buildSummaryRequest(session: Session, msgs: Message[]): StreamRequest {
+export function buildSummaryRequest(session: Session, msgs: Message[], prompts?: PromptOverrides): StreamRequest {
   // 캔버스는 JSON 대신 카드 글로 요약한다 (ADR-079)
   const src = session.kind === 'canvas' ? msgs.map((m) => ({ ...m, content: canvasText(parseCanvas(m.content), 2000) })) : msgs;
   const transcript = toTurns(src)
     .map((t) => `[${roleLabel(t.role)}] ${clip(t.content, 2000)}`)
     .join('\n');
   return {
-    system: SUMMARY_SYSTEM,
+    system: promptText('summary', prompts),
     messages: [{ role: 'user', content: `질문 대상: "${session.anchor?.text ?? session.title}"\n\n${transcript}` }],
     purpose: 'summary',
   };
 }
 
-export const TITLE_SYSTEM =
-  '다음 대화의 주제를 5~20자의 한국어 제목으로 만들어라. 따옴표나 마침표 없이 제목만 출력하라.';
+export const TITLE_SYSTEM = DEFAULT_PROMPTS.title;
 
-export function buildTitleRequest(msgs: Message[]): StreamRequest {
+export function buildTitleRequest(msgs: Message[], prompts?: PromptOverrides): StreamRequest {
   const transcript = toTurns(msgs)
     .slice(0, 2)
     .map((t) => `[${roleLabel(t.role)}] ${clip(t.content, 600)}`)
     .join('\n');
-  return { system: TITLE_SYSTEM, messages: [{ role: 'user', content: transcript }], purpose: 'title' };
+  return { system: promptText('title', prompts), messages: [{ role: 'user', content: transcript }], purpose: 'title' };
 }
 
 export function branchQuestion(kind: 'what' | 'detail', text: string): string {

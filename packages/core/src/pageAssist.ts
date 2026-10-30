@@ -1,49 +1,27 @@
+import { DEFAULT_PROMPTS, promptText, type PromptOverrides } from './prompts';
 import type { StreamRequest } from './provider';
 
 /* ── 페이지 AI 도우미 (ADR-076) ── */
 
-const BASE = [
-  '너는 마크다운 학습 노트 편집을 돕는다.',
-  '- 결과는 페이지에 그대로 들어갈 마크다운 본문만 쓴다. 인사·설명·머리말("다음은…")을 붙이지 않는다.',
-  '- 전체를 ``` 코드 울타리로 감싸지 않는다.',
-  '- 노트의 언어를 따른다 (비어 있으면 한국어).',
-  '- `[제목](#page:…)` 형태의 하위 페이지 링크는 글자 하나 바꾸지 않고 남긴다.',
-  '- `![…](embed:N)`·`[…](embed:N …)` 형태의 첨부 이미지·파일도 주소를 바꾸지 않고 남긴다.',
-].join('\n');
+export const PAGE_ORGANIZE_SYSTEM = DEFAULT_PROMPTS.pageOrganize;
 
-export const PAGE_ORGANIZE_SYSTEM = [
-  BASE,
-  '',
-  '할 일: 노트 전체를 읽기 좋게 정리한다.',
-  '- 내용(사실·예시·수식·코드·링크)은 빠뜨리지 않는다. 지어내지 않는다.',
-  '- 중복을 합치고, 흐름에 맞게 제목(##, ###)·목록·표로 구조를 잡는다.',
-  '- 어색한 문장과 맞춤법을 다듬되 원래 말투는 유지한다.',
-].join('\n');
-
-export const PAGE_FILL_SYSTEM = [
-  BASE,
-  '',
-  '할 일: 노트의 [여기에 채우기] 자리에 들어갈 내용만 쓴다.',
-  '- 앞뒤 글과 이어지게 쓰고, 앞뒤에 이미 있는 내용을 되풀이하지 않는다.',
-  '- 바로 앞이 제목이면 그 제목 아래 본문을, 목록 중간이면 같은 모양의 목록 항목을 쓴다.',
-  '- 정확한 내용만 쓴다. 확실하지 않으면 짧게 쓴다.',
-].join('\n');
+export const PAGE_FILL_SYSTEM = DEFAULT_PROMPTS.pageFill;
 
 const FILL_MARK = '[여기에 채우기]';
 const LIST = /^\s*(?:[-*+]|\d+[.)]) /;
 
 /** 노트 전체를 정리해 달라는 요청 */
-export function buildPageOrganizeRequest(input: { title: string; content: string; request?: string }): StreamRequest {
+export function buildPageOrganizeRequest(input: { title: string; content: string; request?: string; prompts?: PromptOverrides }): StreamRequest {
   const parts = [`## 페이지 제목\n${input.title}`, '', '## 노트', input.content];
   if (input.request?.trim()) parts.push('', '## 추가 요청', input.request.trim());
-  return { system: PAGE_ORGANIZE_SYSTEM, messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'page' };
+  return { system: promptText('pageOrganize', input.prompts), messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'page' };
 }
 
 /** 커서 자리(before|after 사이)에 내용을 채워 달라는 요청 */
-export function buildPageFillRequest(input: { title: string; before: string; after: string; request?: string }): StreamRequest {
+export function buildPageFillRequest(input: { title: string; before: string; after: string; request?: string; prompts?: PromptOverrides }): StreamRequest {
   const parts = [`## 페이지 제목\n${input.title}`, '', '## 노트', `${input.before}${FILL_MARK}${input.after}`, '', '## 요청'];
   parts.push(input.request?.trim() || '앞뒤 맥락에 맞는 내용을 채워 줘.');
-  return { system: PAGE_FILL_SYSTEM, messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'page' };
+  return { system: promptText('pageFill', input.prompts), messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'page' };
 }
 
 /** AI 출력에서 페이지에 넣을 본문만 — 전체를 감싼 ```markdown 울타리와 남은 채우기 표시를 걷어 낸다 */

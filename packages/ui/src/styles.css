@@ -893,13 +893,13 @@ span.annot[data-note-end='true']::after {
   gap: 12px;
   margin: 14px 0 4px;
 }
-/* 칸 하나 = 상자 하나 (ADR-096). 안에 작은 편집기가 들고, +·핸들은 상자 윗변 왼쪽에 걸친다 */
+/* 칸 하나 = 상자 하나 (ADR-096). 안에 작은 편집기가 들고, +·핸들은 상자 안 왼쪽 띠에 세로로 (ADR-098) */
 .page-editor .cm-lp-column {
   position: relative;
   min-width: 0;
   border: 1px solid transparent;
   border-radius: 8px;
-  padding: 6px 8px;
+  padding: 6px 8px 6px 26px;
   transition: border-color 0.12s;
 }
 .page-editor .cm-lp-column:hover {
@@ -914,18 +914,18 @@ span.annot[data-note-end='true']::after {
 .page-editor .cm-lp-column > .cm-lp-colbtns {
   --bh: 22px;
   right: auto;
-  left: 6px;
-  top: calc(var(--bh) / -2 - 1px);
+  left: 3px;
+  top: calc(6px + 0.86em - var(--bh) / 2);
+  flex-direction: column;
   margin: 0;
-  border-radius: 6px;
-  background: var(--bg);
 }
+/* 칸 위에 마우스를 올리거나 칸에 포커스가 있을 때만 보인다 */
 .page-editor .cm-lp-column:hover > .cm-lp-colbtns .page-handle,
 .page-editor .cm-lp-column:focus-within > .cm-lp-colbtns .page-handle {
   opacity: 1;
 }
-/* 터치: 칸 버튼은 늘 흐리게 보인다 — 칸을 고르기 전에도 +·핸들을 누를 수 있게 */
-.page-touch.page-editor .cm-lp-column > .cm-lp-colbtns .page-handle {
+/* 터치: 칸을 눌러 고를 때(포커스)만 보인다 */
+.page-touch.page-editor .cm-lp-column:focus-within > .cm-lp-colbtns .page-handle {
   display: grid;
 }
 /* 좁은 화면에서도 칸은 전체 너비를 똑같이 나눈다 — 틈만 좁힌다 */
@@ -934,7 +934,7 @@ span.annot[data-note-end='true']::after {
     gap: 6px;
   }
   .page-editor .cm-lp-column {
-    padding: 6px 4px;
+    padding: 6px 4px 6px 26px;
   }
 }
 /* 행 앞 +·핸들 자리 (ADR-096) — 높이 0 블록 위젯 안에 절대 배치, 세로는 행 종류별 첫 줄 가운데 */

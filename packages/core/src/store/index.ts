@@ -355,7 +355,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       if (!provider) return;
       try {
         const req = {
-          ...buildTitleRequest(get().messages[sessionId] ?? []),
+          ...buildTitleRequest(get().messages[sessionId] ?? [], get().settings.prompts),
           ...sessionModelOptions(get(), sessionId, providerId),
         };
         const raw = await collectStream(provider, req);
@@ -461,6 +461,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           messages: state.messages,
           sessionId,
           contextWindow: state.settings.contextWindow,
+          prompts: state.settings.prompts,
         });
       Object.assign(req, target.options);
       // 일반 대화에만 웹 도구를 붙인다. 재정리 같은 내부 요청은 도구 없이 (ADR-070)
@@ -826,7 +827,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         // 재정리 후 모든 하위 세션이 각주가 된다: 만든 순서가 각주 번호
         const notes = childrenOf(st.sessions, sessionId);
         const request = buildReorganizeRequest(
-          { sessions: st.sessions, messages: st.messages, sessionId, contextWindow: st.settings.contextWindow },
+          { sessions: st.sessions, messages: st.messages, sessionId, contextWindow: st.settings.contextWindow, prompts: st.settings.prompts },
           old,
           notes.map((c) => ({ title: c.title, ...(c.anchor ? { anchorText: c.anchor.text } : {}), ...(c.summary ? { summary: c.summary } : {}) })),
           ref,
@@ -1079,7 +1080,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         setDraft({ status: 'generating', text: '' });
         let partial = '';
         try {
-          const req = buildSummaryRequest(s, get().messages[sessionId] ?? []);
+          const req = buildSummaryRequest(s, get().messages[sessionId] ?? [], get().settings.prompts);
           Object.assign(req, sessionModelOptions(get(), sessionId, providerId));
           req.signal = ctrl.signal;
           const text = await collectStream(provider, req, (t) => {

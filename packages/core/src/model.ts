@@ -1,3 +1,4 @@
+import type { PromptOverrides } from './prompts';
 export type ID = string;
 
 export type Role = 'user' | 'assistant';
@@ -189,7 +190,7 @@ export interface ViewState {
   sheetSessionIds: ID[];
 }
 
-export type Overlay = 'none' | 'search' | 'settings' | 'notes' | 'skills' | 'vault';
+export type Overlay = 'none' | 'search' | 'settings' | 'notes' | 'skills' | 'prompts' | 'vault';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
@@ -205,6 +206,8 @@ export interface Settings {
   setupDone?: boolean;
   /** 데스크톱 원격 페어링: 원격 요청을 처리할 이 PC의 CLI (auto면 준비된 CLI, ADR-025) */
   hostAgent?: 'auto' | 'claude-cli' | 'codex-cli';
+  /** 사용자가 고친 시스템 프롬프트. 없는 키는 기본 문구 (ADR-098) */
+  prompts?: PromptOverrides;
 }
 
 export type ConnectionStatus =

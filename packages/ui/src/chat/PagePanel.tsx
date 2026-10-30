@@ -14,7 +14,7 @@ import { Sparkles, Square, Undo2, Redo2, Settings, X } from 'lucide-react';
 import { undo, redo } from '@codemirror/commands';
 import type { EditorView } from '@codemirror/view';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { actions, useApp } from '../app/store';
+import { actions, appStore, useApp } from '../app/store';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/Button';
 import { PanelFullToggle } from '../components/PanelFullToggle';
@@ -135,7 +135,7 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
     if (!before.trim()) return;
     // 첨부(data URL)는 자리표시로 보내고 받은 글에서 되돌린다 (ADR-077)
     const stash = stashEmbeds(before);
-    const raw = await ai.run('organize', buildPageOrganizeRequest({ title: title(), content: stash.text }));
+    const raw = await ai.run('organize', buildPageOrganizeRequest({ title: title(), content: stash.text, prompts: appStore.getState().settings.prompts }));
     const next = raw === null ? '' : restoreEmbeds(cleanPageAssist(raw), stash.embeds);
     if (!next) return;
     // 기다리는 동안 다른 곳(원격)에서 바뀌었으면 덮어쓰지 않는다
@@ -161,7 +161,7 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
     const afterText = after.text.replace(/\]\(embed:(\d+)/g, (_, n: string) => `](embed:${Number(n) + before.embeds.length}`);
     const clean = (t: string, partial: boolean) => restoreEmbeds(cleanPageAssist(t, partial), embeds);
     return ai
-      .run('fill', buildPageFillRequest({ title: title(), ...input, before: before.text, after: afterText }), (t) => onDelta(clean(t, true)))
+      .run('fill', buildPageFillRequest({ title: title(), ...input, before: before.text, after: afterText, prompts: appStore.getState().settings.prompts }), (t) => onDelta(clean(t, true)))
       .then((raw) => (raw === null ? null : clean(raw, false)));
   };
 

@@ -4,6 +4,8 @@
  * 블록이 없으면(옛 답변·지시를 안 따른 모델) "1주차·2단계·Chapter 3" 같은 제목을 챕터로 본다.
  */
 
+import { DEFAULT_PROMPTS } from './prompts';
+
 export const BRANCHES_LANG = 'branches';
 
 export interface BranchSuggestion {
@@ -36,16 +38,7 @@ const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
 const BLOCK_RE = /(?:^|\n) {0,3}```branches[^\n]*\n([\s\S]*?)(?:\n {0,3}```[ \t]*(?=\n|$)|$)/;
 
 /** 답변 지시: 끝에 추천 가지 블록을 붙인다 (채팅 요청에만) */
-export const BRANCH_SUGGEST_INSTRUCTION = [
-  '## 추천 가지',
-  '답변을 마친 뒤 맨 끝에 아래 형식의 ```branches 코드 블록을 하나만 붙여라. 화면에서는 숨겨지고 버튼으로 바뀐다.',
-  '```branches',
-  '{"chapters":[{"title":"본문에 쓴 챕터 제목 그대로","question":"그 챕터를 배우는 학습자 질문 한 문장"}],"next":[{"title":"20자 이내 이름","question":"이어서 물을 학습자 질문 한 문장"}]}',
-  '```',
-  '- chapters: 답변이 커리큘럼·로드맵·단계별 계획이면 각 챕터(장·주차·단계)를 본문 제목 글자 그대로 적는다. 큰 챕터 아래 하위 챕터(절)가 있으면 큰 챕터만 적는다. 아니면 빈 배열.',
-  '- next: 지금 답변에서 더 파고들거나 다음에 배울 만한 질문 2~3개.',
-  '- 블록 밖에서는 이 블록을 언급하지 마라. 짧은 인사·잡담이면 블록을 생략해도 된다.',
-].join('\n');
+export const BRANCH_SUGGEST_INSTRUCTION = DEFAULT_PROMPTS.branchSuggest;
 
 const cut = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 

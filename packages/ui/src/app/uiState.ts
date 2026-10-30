@@ -62,6 +62,8 @@ interface UiState {
   /** 사이드바 세션 트리 펼침·접힘 (세션 id별, 기기별, ADR-078). 기록이 없으면 각 행의 기본값을 쓴다 */
   treeOpen: Record<string, boolean>;
   setTreeOpen(id: string, open: boolean): void;
+  /** 여러 트리를 한 번에 접는다 — 사이드바 '모두 접기' (ADR-098). 최상위 세션은 기본이 접힘이라 기록을 지운다 */
+  collapseTrees(ids: readonly string[]): void;
   /** 딥링크로 받은 페어링 링크. 설정 › 원격 Bridge 폼이 가져가면 비운다 */
   pairLink: string | null;
   /** 사이드바에서 끌고 있는 세션 (분할 놓기 영역 표시용) */
@@ -185,6 +187,14 @@ export const useUi = create<UiState>((set, get) => ({
     // 바꾼 항목을 맨 뒤로 보내 오래된 기록부터 버린다
     const { [id]: _, ...rest } = cur;
     const treeOpen = Object.fromEntries([...Object.entries(rest), [id, open] as const].slice(-MAX_TREE_OPEN));
+    set({ treeOpen });
+    save(TREE_OPEN_KEY, JSON.stringify(treeOpen));
+  },
+  collapseTrees: (ids) => {
+    const drop = new Set(ids);
+    const cur = get().treeOpen;
+    if (!Object.keys(cur).some((k) => drop.has(k))) return;
+    const treeOpen = Object.fromEntries(Object.entries(cur).filter(([k]) => !drop.has(k)));
     set({ treeOpen });
     save(TREE_OPEN_KEY, JSON.stringify(treeOpen));
   },

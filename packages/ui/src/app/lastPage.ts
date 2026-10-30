@@ -5,7 +5,7 @@ import { appStore } from './store';
 const LAST_PAGE_KEY = 'branch.lastPage';
 
 /** 앱을 다시 켰을 때 되살리는 전체 화면 페이지. 검색·설정은 잠깐 여는 창이라 기억하지 않는다 */
-const RESTORABLE: readonly Overlay[] = ['notes', 'skills', 'vault'];
+const RESTORABLE: readonly Overlay[] = ['notes', 'skills', 'prompts', 'vault'];
 
 const isRestorable = (v: unknown): v is Overlay => RESTORABLE.includes(v as Overlay);
 

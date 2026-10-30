@@ -1,3 +1,4 @@
+import { DEFAULT_PROMPTS, promptText, type PromptOverrides } from './prompts';
 import type { StreamRequest } from './provider';
 import { normalizeSkillFilePath, normalizeSkillName, sanitizeSkillFiles, SKILL_LIMITS, SKILL_NAME_RE } from './skills';
 import type { Skill, SkillFile } from './model';
@@ -22,41 +23,11 @@ export interface SkillAssistInput {
   current?: SkillFields;
   /** 겹치면 안 되는 다른 스킬의 명령 이름 */
   takenNames?: readonly string[];
+  /** 사용자가 고친 시스템 프롬프트 (ADR-098) */
+  prompts?: PromptOverrides;
 }
 
-export const SKILL_ASSIST_SYSTEM = [
-  '너는 학습 채팅앱의 "스킬" 작성 도우미다.',
-  '스킬은 학습자가 채팅에서 /명령으로 고르면 그 질문 하나에 시스템 지시로 더해지는 재사용 지시문이다.',
-  'Claude·Codex 스킬처럼 스킬 폴더에 부수 파일을 둘 수 있고, 스킬을 쓸 때 지시와 함께 모델에게 전달된다.',
-  '이 앱의 학습자는 답변 속 용어를 드래그해 가지(하위 질문)로 더 파고든다.',
-  '',
-  '요청에 맞게 스킬을 새로 만들거나, 주어진 현재 스킬을 고친다. 아래 형식으로만 출력하고 다른 말은 쓰지 않는다:',
-  '',
-  '<name>명령 이름</name>',
-  '<title>제목</title>',
-  '<description>설명</description>',
-  '<prompt>',
-  '지시',
-  '</prompt>',
-  '<file path="references/예시.md">',
-  '파일 내용 (필요할 때만, 여러 개 가능)',
-  '</file>',
-  '<delete path="지울 파일 경로"/>',
-  '<note>무엇을 만들었거나 바꿨는지 한두 문장</note>',
-  '',
-  '규칙:',
-  '- name: 영문 소문자·숫자·-·_ 로 2~24자, 공백 없이. 짧고 기억하기 쉽게. 이미 있는 명령 이름은 쓰지 않는다.',
-  '- title: 한국어 20자 이내.',
-  '- description: 무엇을 해 주는 스킬인지 한국어 한 문장(80자 이내).',
-  '- prompt: 모델이 따를 지시. "~한다" 체의 번호 목록으로 진행 단계, 출력 형식(제목·목록·표), 분량, 입력이 비었거나 모호할 때의 처리를 구체적으로 쓴다.',
-  '  학습자가 드래그해 더 물어볼 수 있게 핵심 용어는 굵게 쓰라는 지시를 알맞게 넣는다. 4000자 이내.',
-  '- 부수 파일은 지시를 짧게 유지하는 데 도움이 될 때만 만든다. 지시만으로 충분하면 만들지 않는다.',
-  '  긴 참고 자료·용어집·채점 기준은 references/, 예제 코드·실습 스크립트는 scripts/, 답변 서식 템플릿은 assets/ 에 둔다.',
-  '  경로는 영문 소문자·숫자·-·_ 와 확장자(.md, .py, .txt 등). 파일 하나 8000자 이내, 텍스트만.',
-  '  파일을 만들면 prompt에서 그 경로를 이름으로 가리켜 언제 참고할지 쓴다. 파일 안의 스크립트는 실행되지 않고 내용만 전달된다.',
-  '- 고칠 때는 요청한 부분만 바꾸고 나머지는 그대로 둔다. name·title·description·prompt는 바꾸지 않아도 모두 출력한다.',
-  '  부수 파일은 새로 만들거나 고치는 파일만 <file>로 전체 내용을 출력한다. 출력하지 않은 기존 파일은 그대로 유지된다. 지울 파일만 <delete>로 쓴다.',
-].join('\n');
+export const SKILL_ASSIST_SYSTEM = DEFAULT_PROMPTS.skillAssist;
 
 /** 요청에 싣는 기존 파일 한 개의 최대 길이 (넘으면 앞부분만) */
 const FILE_IN_REQUEST = 6000;
@@ -82,7 +53,7 @@ export function buildSkillAssistRequest(input: SkillAssistInput): StreamRequest 
   const taken = (input.takenNames ?? []).filter((n) => n !== input.current?.name);
   if (taken.length) parts.push('## 이미 있는 명령 이름', taken.join(', '), '');
   parts.push('## 요청', input.request.trim() || (hasContent(input.current) ? '전체적으로 더 명확하고 쓰기 좋게 다듬어 줘.' : '학습에 도움이 되는 스킬을 하나 만들어 줘.'));
-  return { system: SKILL_ASSIST_SYSTEM, messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'skill' };
+  return { system: promptText('skillAssist', input.prompts), messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'skill' };
 }
 
 export type SkillAssistResult = Partial<Omit<SkillFields, 'files'>> & {

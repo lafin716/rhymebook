@@ -12,6 +12,7 @@ import { Sidebar } from '../session/Sidebar';
 import { useHostPolicySync } from '../settings/HostCard';
 import { SettingsModal } from '../settings/SettingsModal';
 import { SkillsPage } from '../skills/SkillsPage';
+import { PromptsPage } from '../prompts/PromptsPage';
 import { MainView } from '../views/MainView';
 import { PopupLayer } from '../views/PopupLayer';
 import { SheetStack } from '../views/SheetStack';
@@ -71,6 +72,7 @@ export function App() {
       <NotesModal />
       <VaultOverlay />
       <SkillsPage />
+      <PromptsPage />
       <ConfirmHost />
       <MoveTurnHost />
       <Toasts />

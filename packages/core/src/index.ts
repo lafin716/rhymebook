@@ -10,6 +10,7 @@ export * from './splitLayout';
 export * from './provider';
 export * from './cli-options';
 export * from './context';
+export * from './prompts';
 export * from './turns';
 export * from './page';
 export * from './canvas';

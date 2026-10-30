@@ -85,7 +85,7 @@ export function SkillAssist({ draft, onDraft, skills, onBusy, autoFocus }: Props
     ctrl.current = c;
     setStatus({ kind: 'running' });
     onBusy(true);
-    const req = buildSkillAssistRequest({ request, current: before, takenNames: skills.filter((s) => s.id !== draft.id).map((s) => s.name) });
+    const req = buildSkillAssistRequest({ request, current: before, takenNames: skills.filter((s) => s.id !== draft.id).map((s) => s.name), prompts: appStore.getState().settings.prompts });
     if (caps.modelChoice) Object.assign(req, resolveModelOptions(providerId, undefined, appStore.getState().connections[providerId]));
     req.signal = c.signal;
     try {

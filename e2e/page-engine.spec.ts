@@ -244,8 +244,8 @@ test('칸 하나는 상자 하나 — 칸 안 편집은 그 칸에서만, 표·�
   for (let i = 0; i < 3; i++) await page.keyboard.press('Backspace');
   await expect.poll(() => source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
 
-  // 오른쪽 칸 + → 그 칸 끝에 새 줄
-  await cols.nth(1).hover();
+  // 오른쪽 칸 + → 그 칸 끝에 새 줄 (칸 버튼은 칸을 고른 뒤에 보인다, ADR-098)
+  await cols.nth(1).getByText('오른쪽', { exact: true }).click();
   await columns.locator('[data-column-add]').nth(1).click();
   await page.keyboard.type('추가');
   await expect.poll(() => source(page)).toContain('```\n추가\n<!-- /columns -->');
@@ -254,7 +254,7 @@ test('칸 하나는 상자 하나 — 칸 안 편집은 그 칸에서만, 표·�
   await expect.poll(() => source(page)).not.toContain('추가');
 
   // 칸 핸들 메뉴 → 왼쪽으로 옮기기
-  await cols.nth(1).hover();
+  await cols.nth(1).getByText('오른쪽', { exact: true }).click();
   await columns.locator('[data-column-handle]').nth(1).click();
   const menu = page.getByRole('menu', { name: '블록·AI 메뉴' });
   await menu.getByRole('menuitem', { name: '왼쪽으로 옮기기' }).click();
@@ -336,5 +336,46 @@ test('모바일: 한 번 탭하면 행을 고르고(핸들·시트), 핸들로 �
   await sheet.locator('[data-row-action="delete"]').click();
   await expect.poll(() => source(page)).not.toContain('첫째 문단');
   await expect(sheet).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('칸 +·핸들은 칸 왼쪽 띠에, 마우스를 올리거나 칸을 고를 때만 보이고 동작한다 (ADR-098)', async ({ page }, info) => {
+  const errors = collectErrors(page);
+  await blankPage(page);
+  const doc = '첫 줄\n\n<!-- columns -->\n왼쪽 하나\n\n왼쪽 둘\n<!-- column -->\n오른쪽 하나\n\n- 목록\n<!-- /columns -->\n\n아래';
+  await setDoc(page, doc, doc.length);
+  const columns = page.locator(`${MAIN} [data-page-columns]`);
+  const cols = columns.locator('[data-page-column]');
+  const mobile = info.project.name === 'mobile';
+  await page.mouse.move(0, 0);
+  const vis = (i: number) => columns.locator('[data-column-add]').nth(i).evaluate((b) => { const s = getComputedStyle(b); return s.display !== 'none' && Number(s.opacity) > 0.5; });
+  expect(await vis(0)).toBe(false);
+  expect(await vis(1)).toBe(false);
+  if (!mobile) {
+    await cols.nth(1).hover();
+    await expect.poll(() => vis(1)).toBe(true);
+    expect(await vis(0)).toBe(false);
+  }
+  const text = cols.nth(1).getByText('오른쪽 하나');
+  if (mobile) await text.tap(); else await text.click();
+  if (mobile && !(await vis(1))) { await text.tap(); }
+  await page.mouse.move(0, 0);
+  await expect.poll(() => vis(1)).toBe(true);
+  // 버튼은 칸 상자 안 왼쪽, 첫 줄 높이
+  const btn = (await columns.locator('[data-column-add]').nth(1).boundingBox())!;
+  const box = (await cols.nth(1).boundingBox())!;
+  const line = (await text.boundingBox())!;
+  expect(btn.x).toBeGreaterThanOrEqual(box.x);
+  expect(btn.x + btn.width).toBeLessThanOrEqual(line.x);
+  expect(Math.abs(btn.y + btn.height / 2 - (line.y + line.height / 2))).toBeLessThan(8);
+  // + 는 그 칸 끝에 새 줄
+  const add = columns.locator('[data-column-add]').nth(1);
+  if (mobile) await add.tap(); else await add.click();
+  await page.keyboard.type('추가');
+  await expect.poll(() => source(page)).toContain('- 목록\n추가\n<!-- /columns -->');
+  // 핸들은 칸 메뉴
+  const grip = columns.locator('[data-column-handle]').nth(1);
+  if (mobile) await grip.tap(); else await grip.click();
+  await expect(page.getByRole('menu', { name: '블록·AI 메뉴' })).toBeVisible();
   expect(errors).toEqual([]);
 });
