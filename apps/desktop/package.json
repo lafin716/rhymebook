@@ -1,6 +1,6 @@
 {
   "name": "@branch/desktop",
-  "version": "0.39.0",
+  "version": "0.40.0",
   "private": true,
   "description": "OctoBooks 데스크톱 (Electron + 내장 bridge)",
   "main": "dist/main.cjs",
