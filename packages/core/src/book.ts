@@ -1,3 +1,4 @@
+import { stripBranchBlock } from './branch-suggest';
 import type { Message } from './model';
 import { BOOK_SKILL_ID } from './skills';
 import { safeFileName } from './study';
@@ -37,7 +38,7 @@ export function isBookSession(messages: readonly Message[] | undefined): boolean
 export function collectBookAnswers(messages: readonly Message[]): string[] {
   return messages
     .filter((m) => m.role === 'assistant' && m.status !== 'error' && m.status !== 'streaming' && m.content.trim())
-    .map((m) => m.content);
+    .map((m) => stripBranchBlock(m.content));
 }
 
 export function bookFileName(title: string): string {

@@ -1,3 +1,4 @@
+import { stripBranchBlock } from './branch-suggest';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { isAttachmentList } from './attachments';
 import { isAnnotation, isMessage, isSession } from './backup/snapshot';
@@ -162,7 +163,8 @@ function sessionMarkdown(node: StudyNode, byId: Map<ID, StudyNode>, children: St
     for (const m of messages) {
       lines.push(m.role === 'user' ? '### 🙋 질문' : '### 💬 답변', '');
       if (m.skill) lines.push(`_스킬: /${m.skill.name}_`, '');
-      if (m.content.trim()) lines.push(m.content.trim(), '');
+      const text = stripBranchBlock(m.content).trim();
+      if (text) lines.push(text, '');
       for (const a of m.attachments ?? []) lines.push(`📎 ${a.name}`, '');
       if (m.status === 'error' || m.status === 'stopped') lines.push(`_(${m.status === 'error' ? '오류' : '중지됨'})_`, '');
     }
@@ -431,7 +433,7 @@ export function buildStudyDigest(bundle: StudyBundle, maxChars: number = STUDY_L
       if (s.anchor?.text) lines.push('가지 친 원문:', quote(s.anchor.text.trim()), '');
       if (s.summary?.trim()) lines.push('내가 이해한 것:', quote(s.summary.trim()), '');
       for (const m of msgs.get(s.id) ?? []) {
-        let body = m.content.trim();
+        let body = stripBranchBlock(m.content).trim();
         if (m.role === 'assistant' && body.length > answerCap) {
           body = `${body.slice(0, answerCap).trimEnd()} …(줄임)`;
           cut++;

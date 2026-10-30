@@ -1,4 +1,4 @@
-import { breadcrumb, docText, draftSessionIds, type ID } from '@branch/core';
+import { breadcrumb, docText, draftSessionIds, stripBranchBlock, type ID } from '@branch/core';
 import { GitBranch, MessageSquare, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { actions, useApp } from '../app/store';
@@ -32,7 +32,7 @@ const textCache = new WeakMap<object, string>();
 function searchText(s: Parameters<typeof docText>[0], m: { content: string }): string {
   let t = textCache.get(m);
   if (t === undefined) {
-    t = docText(s, m.content);
+    t = docText(s, stripBranchBlock(m.content));
     textCache.set(m, t);
   }
   return t;

@@ -43,3 +43,4 @@ export * from './platform';
 export * from './sync';
 export * from './tts';
 export * from './vault';
+export * from './branch-suggest';

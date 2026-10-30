@@ -3,6 +3,7 @@ import { withTextAttachments } from './attachments';
 import { canvasText, parseCanvas } from './canvas';
 import { isDocSession } from './page';
 import { stripEmbeds } from './pageFormat';
+import { BRANCH_SUGGEST_INSTRUCTION, stripBranchBlock } from './branch-suggest';
 import { withSkill } from './skills';
 import type { Anchor, ID, Message, Session, SkillRef } from './model';
 import type { ChatTurn, StreamRequest } from './provider';
@@ -25,7 +26,7 @@ export type MessageMap = Record<ID, Message[]>;
 
 function clip(text: string, max = MAX_MESSAGE_CHARS): string {
   // 페이지에 넣은 이미지·파일(data URL)은 자리표시로 — base64가 맥락을 다 차지하지 않게 (ADR-077)
-  text = stripEmbeds(text);
+  text = stripEmbeds(stripBranchBlock(text));
   return text.length > max ? `${text.slice(0, max)}…(생략)` : text;
 }
 
@@ -119,7 +120,7 @@ export function toTurns(msgs: Message[]): ChatTurn[] {
         // 응답 이미지(Codex 생성)는 다시 보내지 않고 메모만 남긴다 — API는 assistant 턴 이미지를 받지 않는다 (ADR-041)
         const n = m.attachments?.filter((a) => a.kind === 'image').length ?? 0;
         const note = n ? `[이미지 ${n}장을 만들어 보여 줌]` : '';
-        return { role: m.role, content: [stripEmbeds(m.content).trim(), note].filter(Boolean).join('\n\n') || note };
+        return { role: m.role, content: [stripEmbeds(stripBranchBlock(m.content)).trim(), note].filter(Boolean).join('\n\n') || note };
       }
       const binary = m.attachments?.filter((a) => a.kind !== 'text') ?? [];
       const content = withTextAttachments(m.content, m.attachments);
@@ -136,7 +137,8 @@ export function buildChatRequest(opts: BranchContextOptions): StreamRequest {
   // 스킬은 마지막 질문에만 적용한다
   const lastUser = msgs.findLast((m) => m.role === 'user');
   return {
-    system: withSkill(buildSystemPrompt(opts), lastUser?.skill),
+    // 추천 가지 지시는 채팅 답변에만 — 요약·제목·재정리에는 붙이지 않는다 (ADR-094)
+    system: withSkill(`${buildSystemPrompt(opts)}\n\n${BRANCH_SUGGEST_INSTRUCTION}`, lastUser?.skill),
     messages: toTurns(msgs),
     purpose: 'chat',
   };

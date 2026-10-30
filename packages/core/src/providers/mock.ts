@@ -1,3 +1,4 @@
+import { BRANCH_SUGGEST_INSTRUCTION } from '../branch-suggest';
 import { REORGANIZE_REQUEST } from '../context';
 import type { ProviderId } from '../model';
 import {
@@ -41,6 +42,28 @@ interface Canned {
 }
 
 const CANNED: Canned[] = [
+  {
+    keys: /커리큘럼|로드맵|학습 ?계획/,
+    answer: `**트랜스포머 4주 로드맵**이에요. 한 주에 한 챕터씩, 앞 챕터가 다음 챕터의 바탕이 되도록 짰어요.
+
+## 1주차: 벡터와 내적
+단어를 숫자 벡터로 보는 법과, 두 벡터가 얼마나 비슷한지 재는 **내적**을 익혀요.
+
+## 2주차: 소프트맥스와 확률
+점수 목록을 합이 1인 가중치로 바꾸는 **소프트맥스**를 손으로 계산해 봐요.
+
+## 3주차: 어텐션
+Query·Key·Value로 관련도를 계산해 값을 가중합하는 **어텐션** 식을 한 줄씩 따라가요.
+
+## 4주차: 멀티헤드와 트랜스포머 블록
+어텐션을 여러 갈래로 돌리는 **멀티헤드**와 잔차 연결·정규화로 블록을 완성해요.
+
+> 챕터마다 직접 손으로 계산해 보는 시간을 꼭 넣으세요.
+
+\`\`\`branches
+{"chapters":[{"title":"1주차: 벡터와 내적","question":"1주차: 벡터와 내적을 예시와 함께 차근차근 알려줘"},{"title":"2주차: 소프트맥스와 확률","question":"2주차: 소프트맥스가 점수를 확률로 바꾸는 과정을 알려줘"},{"title":"3주차: 어텐션","question":"3주차: 어텐션 식을 한 줄씩 풀어서 알려줘"},{"title":"4주차: 멀티헤드와 트랜스포머 블록","question":"4주차: 멀티헤드 어텐션과 트랜스포머 블록 구조를 알려줘"}],"next":[{"title":"미리 알아둘 수학","question":"이 로드맵을 시작하기 전에 알아 둘 수학은 뭐야?"},{"title":"하루 공부 순서","question":"한 챕터를 하루에 어떤 순서로 공부하면 좋아?"}]}
+\`\`\``,
+  },
   {
     keys: /코사인/,
     answer: `**코사인 유사도**는 두 벡터가 **같은 방향을 가리키는 정도**만 보는 척도예요.
@@ -219,15 +242,26 @@ export function mockAnswer(req: StreamRequest): string {
   const focus = focusOf(req);
   const probe = `${user} ${focus ?? ''}`;
   const hit = CANNED.find((c) => c.keys.test(user)) ?? CANNED.find((c) => c.keys.test(probe));
-  if (hit) return hit.answer;
+  if (hit) return withNext(req, hit.answer, focus ?? user);
   const target = focus ?? user.slice(0, 40);
-  return `좋은 질문이에요. **${target}** 를 앞선 맥락에 맞춰 짧게 설명해 볼게요.
+  return withNext(req, `좋은 질문이에요. **${target}** 를 앞선 맥락에 맞춰 짧게 설명해 볼게요.
 
 - **핵심**: ${target}은(는) 지금 다루는 개념을 이루는 한 부분이에요.
 - **비유**: 레고 설명서의 한 단계처럼, 이것을 이해해야 다음 단계가 맞춰집니다.
 - **예시**: 실제 계산 한 번을 손으로 따라가 보면 감이 옵니다.
 
-> (데모 응답입니다. 실제 provider를 연결하면 맥락에 맞는 설명이 생성됩니다.)`;
+> (데모 응답입니다. 실제 provider를 연결하면 맥락에 맞는 설명이 생성됩니다.)`, target);
+}
+
+/** 추천 가지 지시를 받았으면 이어 갈 질문 블록을 붙인다 (ADR-094) — 이미 블록이 있으면 그대로 */
+function withNext(req: StreamRequest, answer: string, topic: string): string {
+  if (!req.system.includes(BRANCH_SUGGEST_INSTRUCTION) || answer.includes('```branches')) return answer;
+  const t = topic.replace(/\s+/g, ' ').trim().slice(0, 16) || '이 개념';
+  const next = [
+    { title: '예시로 더 보기', question: `${t}을(를) 실제 예시 하나로 처음부터 끝까지 보여줘` },
+    { title: '헷갈리는 점', question: `${t}에서 처음 배우는 사람이 가장 헷갈리는 점은 뭐야?` },
+  ];
+  return `${answer}\n\n\`\`\`branches\n${JSON.stringify({ chapters: [], next })}\n\`\`\``;
 }
 
 function chunk(text: string): string[] {

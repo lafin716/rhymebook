@@ -1,4 +1,4 @@
-import { nextFallback, PROVIDER_LABELS, annotationsForMessage, type Message, type SegmentMap, type Session } from '@branch/core';
+import { nextFallback, PROVIDER_LABELS, annotationsForMessage, planBranchSuggestions, stripBranchBlock, type Message, type SegmentMap, type Session } from '@branch/core';
 import { AlertTriangle, Archive, RefreshCw, RotateCcw, Shuffle, Sparkles, Square } from 'lucide-react';
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { actions, useApp } from '../app/store';
@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
 import type { AnchorMark } from './anchorPlugin';
 import { AttachmentList } from './Attachments';
+import { BranchSuggestContext, BranchSuggestions, type BranchSuggestValue } from './BranchSuggest';
 import { Markdown } from './Markdown';
 import { openBranch } from './open';
 import { setSegmentMap } from './segmentRegistry';
@@ -70,6 +71,13 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
   );
   const onMap = useCallback((map: SegmentMap) => setSegmentMap(message.id, map), [message.id]);
 
+  // 추천 가지: 챕터 버튼 + 아래 칩 (다 받은 답변만, ADR-094)
+  const plan = useMemo(() => (streaming ? null : planBranchSuggestions(message.content)), [message.content, streaming]);
+  const suggest = useMemo<BranchSuggestValue | null>(
+    () => (plan?.chapters.length ? { sessionId: message.sessionId, messageId: message.id, chapters: plan.chapters, branches } : null),
+    [plan, message.sessionId, message.id, branches],
+  );
+
   // 렌더 후 DOM에서 실제로 하이라이트된 앵커를 확인 (원문이 바뀌어 못 찾은 앵커 표시)
   const anchorKey = anchors.map((a) => a.sessionId).join('|');
   useLayoutEffect(() => {
@@ -121,14 +129,16 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
             data-session-id={message.sessionId}
             onClick={onClick}
           >
-            <Markdown
-              content={message.content}
-              messageId={message.id}
-              anchors={streaming ? undefined : anchors}
-              annotations={streaming ? undefined : annotations}
-              onMap={onMap}
-              streaming={streaming}
-            />
+            <BranchSuggestContext.Provider value={suggest}>
+              <Markdown
+                content={message.content}
+                messageId={message.id}
+                anchors={streaming ? undefined : anchors}
+                annotations={streaming ? undefined : annotations}
+                onMap={onMap}
+                streaming={streaming}
+              />
+            </BranchSuggestContext.Provider>
           </div>
           {!streaming && <RegionGutter target={ref} />}
         </div>
@@ -164,6 +174,7 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
         </div>
       )}
       <BranchChips branches={branches} unlocated={unlocated} />
+      {plan && <BranchSuggestions sessionId={message.sessionId} items={plan.next} />}
       {!streaming && message.content.trim() && (
         <div className="-mt-1 flex opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
           <Button
@@ -172,7 +183,7 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
             data-vault-save
             icon={<Archive size={14} />}
             className="text-muted"
-            onClick={() => saveToVault({ type: 'text', text: message.content }, message.id)}
+            onClick={() => saveToVault({ type: 'text', text: stripBranchBlock(message.content) }, message.id)}
           >
             보관
           </Button>

@@ -13,6 +13,7 @@ import { rehypeSvgPreview, svgRanges } from './svgPlugin';
 import { QuizBlock, QuizContext, quizSource } from './QuizCard';
 import { SpeakBlock, speakSource } from './SpeakCard';
 import { SvgPreview } from './SvgPreview';
+import { branchesSource, chapterHeading, ChapterListItem } from './BranchSuggest';
 import { actions, useApp } from '../app/store';
 
 export interface MarkdownProps {
@@ -26,8 +27,13 @@ export interface MarkdownProps {
 }
 
 const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkCjkFriendly, remarkMath];
-/** ```quiz 블록은 퀴즈 카드, ```speak 블록은 읽기 카드, 나머지 코드 블록은 SVG 미리보기/일반 코드 */
+/** ```quiz 블록은 퀴즈 카드, ```speak 블록은 읽기 카드, ```branches 블록은 숨김(추천 가지), 나머지 코드 블록은 SVG 미리보기/일반 코드 */
 function Pre(props: ComponentProps<'pre'> & ExtraProps) {
+  if (branchesSource(props.node) !== null) {
+    // 원문 오프셋을 맞추려고 블록은 남기고 숨긴다 (ADR-094)
+    const { node: _node, ...rest } = props;
+    return <pre {...rest} hidden />;
+  }
   const quiz = quizSource(props.node);
   if (quiz !== null) return <QuizBlock {...props} source={quiz} />;
   const said = speakSource(props.node);
@@ -98,7 +104,17 @@ function Anchor({ node: _node, href, children, ...rest }: ComponentProps<'a'> & 
   );
 }
 
-const components: Options['components'] = { pre: Pre, a: Anchor, input: Input };
+const components: Options['components'] = {
+  pre: Pre,
+  a: Anchor,
+  input: Input,
+  // 커리큘럼 챕터 줄에 가지 버튼 (BranchSuggestContext가 있을 때만)
+  h1: chapterHeading('h1'),
+  h2: chapterHeading('h2'),
+  h3: chapterHeading('h3'),
+  h4: chapterHeading('h4'),
+  li: ChapterListItem,
+};
 
 /** 코드(펜스 블록·인라인 코드) 영역 마스크. 수식 구분자 변환에서 제외한다 */
 function codeMask(src: string): Uint8Array {
