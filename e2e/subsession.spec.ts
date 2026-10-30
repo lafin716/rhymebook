@@ -7,8 +7,8 @@ test('하위 세션: 사이드바 + → 세션 → 부모 각주와 내비게이
   if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
   const nav = page.getByRole('navigation', { name: '학습 세션' });
   // 첫 학습을 연 뒤 그 행의 + 로 하위 세션을 만든다
-  const parentTitle = (await nav.locator('div.truncate').first().innerText()).trim();
-  await nav.locator('div.truncate').first().click();
+  const parentTitle = (await nav.locator('[data-tree-title]').first().innerText()).trim();
+  await nav.locator('[data-tree-title]').first().click();
   if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
   await nav.getByRole('button', { name: '하위 항목 만들기' }).first().click({ force: true });
   // 질문 입력 팝업 없이 드롭다운에서 고른다
@@ -44,7 +44,7 @@ test('빈 하위 세션: 요약 버튼 줄 접기·펼치기', async ({ page }, 
   await page.goto('/#scenario=home');
   if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
   const nav = page.getByRole('navigation', { name: '학습 세션' });
-  await nav.locator('div.truncate').first().click();
+  await nav.locator('[data-tree-title]').first().click();
   if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
   await nav.getByRole('button', { name: '하위 항목 만들기' }).first().click({ force: true });
   await page.getByRole('menu', { name: '하위 항목 만들기' }).getByRole('menuitem', { name: '세션' }).click();

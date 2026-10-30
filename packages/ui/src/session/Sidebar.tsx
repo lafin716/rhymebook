@@ -1,6 +1,6 @@
 import { OctoMark } from '../components/OctoMark';
 import { childrenOf, listedRootSessions, type ID } from '@branch/core';
-import { ChevronRight, ChevronsDownUp, FileText, GitBranch, MessageSquareText, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronsDownUp, FileText, Folder, FolderOpen, GitBranch, MessageSquareText, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
@@ -178,7 +178,7 @@ function SidebarBody() {
           <ChevronsDownUp size={15} />
         </IconButton>
       </div>
-      <nav aria-label="학습 세션" className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+      <nav aria-label="학습 세션" className="scroll-thin min-h-0 flex-1 space-y-px overflow-y-auto px-2 pb-3">
         {roots.length === 0 ? (
           <p className="px-3 py-6 text-center text-[13px] text-muted">{remoteMode && !pcOnline ? 'PC와 연결되면 학습 목록이 보여요' : '세션이 없어요'}</p>
         ) : (
@@ -256,13 +256,45 @@ function useRemoveSession(id: ID) {
   }, [id]);
 }
 
+/** 트리 행 아이콘: 학습은 폴더(펼치면 열린 폴더), 가지는 가지, 페이지·캔버스는 파일처럼 */
+function KindIcon({ kind, root, open }: { kind: string | undefined; root?: boolean; open?: boolean }) {
+  const cls = 'shrink-0';
+  if (kind === 'page') return <FileText size={15} aria-label="페이지" className={cn(cls, 'text-muted')} />;
+  if (kind === 'canvas') return <PenLine size={15} aria-label="캔버스" className={cn(cls, 'text-muted')} />;
+  if (root) return open ? <FolderOpen size={15} className={cn(cls, 'text-accent')} /> : <Folder size={15} className={cn(cls, 'text-accent')} />;
+  return <GitBranch size={14} className={cn(cls, 'text-muted')} />;
+}
+
+/** 펼침 화살표 칸. 하위가 없으면 자리만 차지해 아이콘 줄을 맞춘다 */
+function TreeChevron({ open, show, label, onToggle }: { open: boolean; show: boolean; label: string; onToggle(): void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-expanded={show ? open : undefined}
+      tabIndex={show ? undefined : -1}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn('grid h-7 w-4 shrink-0 place-items-center rounded text-muted hover:text-fg', !show && 'invisible')}
+    >
+      <ChevronRight size={13} className={cn('transition-transform duration-150', open && 'rotate-90')} />
+    </button>
+  );
+}
+
+/** 파일 트리 행 공통 모양: 한 줄 높이, 둥근 사각 강조 */
+const rowCls = (active: boolean) =>
+  cn('group flex h-7 items-center gap-1 rounded-md pl-1 pr-0.5', active ? 'bg-accent-soft text-fg' : 'text-fg-2 hover:bg-surface-2/70');
+
 function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   const s = useApp((st) => st.sessions[id]);
-  const activeRoot = useApp((st) => {
+  const active = useApp((st) => st.view.activeSessionId === id);
+  const containsActive = useApp((st) => {
     const a = st.view.activeSessionId;
-    return a ? st.sessions[a]?.rootId : undefined;
+    return !!a && a !== id && st.sessions[a]?.rootId === id;
   });
-  const isActiveRoot = activeRoot === id;
   const childCount = useApp((st) => childrenOf(st.sessions, id).length);
   // 펼침 상태는 기기별 스토어에 둔다 — 사이드바를 닫았다 열어도(언마운트) 유지 (ADR-078).
   // 기본은 접힘: 펼친 트리만 기록이 남는다 (ADR-098)
@@ -274,27 +306,22 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   const remove = useRemoveSession(id);
   if (!s) return null;
   return (
-    <div className="mb-0.5">
+    <div>
       <div
         data-session-row={id}
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu({ x: e.clientX, y: e.clientY });
         }}
-        className={cn('group flex items-center rounded-xl', isActiveRoot ? 'bg-accent-soft' : 'hover:bg-surface-2/70')}
+        className={rowCls(active)}
       >
-        <button
-          type="button"
-          aria-label={open ? '가지 접기' : '가지 펼치기'}
-          onClick={() => setOpen(!open)}
-          className={cn('grid h-8 w-6 shrink-0 place-items-center text-muted', !childCount && 'invisible')}
-        >
-          <ChevronRight size={14} className={cn('transition-transform', open && 'rotate-90')} />
-        </button>
+        <TreeChevron open={open} show={childCount > 0} label={open ? '가지 접기' : '가지 펼치기'} onToggle={() => setOpen(!open)} />
         {renaming ? (
-          <div className="min-w-0 flex-1 py-1.5 pr-1">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 pr-1">
+            <KindIcon kind={s.kind} root open={open && childCount > 0} />
             <RenameInput
               value={s.title}
+              className="h-6 text-[13px]"
               onDone={(next) => {
                 setRenaming(false);
                 if (next) renameSession(id, next);
@@ -305,32 +332,27 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
           <button
             type="button"
             {...dragProps(id)}
+            title={`${s.title} · ${relativeTime(s.updatedAt)}${childCount > 0 ? ` · 가지 ${childCount}` : ''}`}
             onClick={() => {
               actions().openSession(id, 'main');
               onPick();
             }}
-            className="min-w-0 flex-1 py-2 pr-1 text-left"
+            className="flex h-full min-w-0 flex-1 items-center gap-1.5 pr-1 text-left text-[13px]"
           >
-            <div className="truncate text-[14px] font-medium text-fg">
-              {s.kind === 'page' && <FileText size={14} aria-label="페이지" className="mr-1.5 inline-block align-[-2px] text-muted" />}
-              {s.kind === 'canvas' && <PenLine size={14} aria-label="캔버스" className="mr-1.5 inline-block align-[-2px] text-muted" />}
-              {s.title}
-            </div>
-            <div className="text-[11.5px] text-muted">
-              {relativeTime(s.updatedAt)}
-              {childCount > 0 && ` · 가지 ${childCount}`}
-            </div>
+            <KindIcon kind={s.kind} root open={open && childCount > 0} />
+            <span data-tree-title className={cn('truncate', (active || containsActive) && 'font-medium', containsActive ? 'text-accent' : 'text-fg')}>{s.title}</span>
+            {childCount > 0 && !open && <span className="shrink-0 text-[11px] text-muted tabular-nums">+{childCount}</span>}
           </button>
         )}
         <IconButton
           size="sm"
           label="세션 삭제"
-          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className="!size-6 shrink-0 !rounded-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           onClick={() => void remove()}
         >
-          <Trash2 size={14} />
+          <Trash2 size={13} />
         </IconButton>
-        <SubSessionButton parentId={id} className="mr-1" />
+        <SubSessionButton parentId={id} className="!size-6 !rounded-md" />
       </div>
       {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
       {open && childCount > 0 && <BranchTree parentId={id} depth={1} onPick={onPick} />}
@@ -338,10 +360,11 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   );
 }
 
+/** 하위 목록: 부모 화살표 가운데를 지나는 세로 안내선으로 깊이를 보여 준다 */
 function BranchTree({ parentId, depth, onPick }: { parentId: ID; depth: number; onPick(): void }) {
   const kids = useAppShallow((st) => childrenOf(st.sessions, parentId).map((c) => c.id));
   return (
-    <ul className="ml-3 border-l border-accent/20">
+    <ul className="ml-3 border-l border-line pl-0.5">
       {kids.map((id) => (
         <BranchRow key={id} id={id} depth={depth} onPick={onPick} />
       ))}
@@ -364,33 +387,28 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
   return (
     <li>
       {renaming ? (
-        <div className="flex items-center gap-1.5 py-1 pr-2 pl-[22px]">
-          {s.kind === 'page' ? <FileText size={12} className="shrink-0 text-muted" /> : s.kind === 'canvas' ? <PenLine size={12} className="shrink-0 text-muted" /> : <GitBranch size={12} className="shrink-0 text-muted" />}
-          <RenameInput
-            value={s.title}
-            className="h-6 text-[13px]"
-            onDone={(next) => {
-              setRenaming(false);
-              if (next) renameSession(id, next);
-            }}
-          />
+        <div className={rowCls(false)}>
+          <TreeChevron open={open} show={false} label="하위 세션 펼치기" onToggle={() => {}} />
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 pr-1">
+            <KindIcon kind={s.kind} />
+            <RenameInput
+              value={s.title}
+              className="h-6 text-[13px]"
+              onDone={(next) => {
+                setRenaming(false);
+                if (next) renameSession(id, next);
+              }}
+            />
+          </div>
         </div>
       ) : (
-        <div className="group flex items-center">
-          <button
-            type="button"
-            aria-label={open ? '하위 세션 접기' : '하위 세션 펼치기'}
-            aria-expanded={hasKids ? open : undefined}
-            tabIndex={hasKids ? undefined : -1}
-            onClick={() => setOpen(!open)}
-            className={cn('ml-0.5 grid h-7 w-4 shrink-0 place-items-center text-muted hover:text-fg', !hasKids && 'invisible')}
-          >
-            <ChevronRight size={12} className={cn('transition-transform', open && 'rotate-90')} />
-          </button>
+        <div className={rowCls(active)}>
+          <TreeChevron open={open} show={hasKids} label={open ? '하위 세션 접기' : '하위 세션 펼치기'} onToggle={() => setOpen(!open)} />
           <button
             type="button"
             data-session-row={id}
             {...dragProps(id)}
+            title={s.title}
             onClick={() => {
               actions().openSession(id, 'main');
               onPick();
@@ -399,17 +417,14 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
               e.preventDefault();
               setMenu({ x: e.clientX, y: e.clientY });
             }}
-            className={cn(
-              'flex min-w-0 flex-1 items-center gap-1.5 rounded-r-lg py-1.5 pr-2 pl-1 text-left text-[13px]',
-              active ? 'bg-accent-soft font-medium text-fg' : 'text-fg-2 hover:bg-surface-2/70',
-            )}
+            className={cn('flex h-full min-w-0 flex-1 items-center gap-1.5 pr-1 text-left text-[13px]', active && 'font-medium')}
           >
-            {s.kind === 'page' ? <FileText size={12} className="shrink-0 text-muted" /> : s.kind === 'canvas' ? <PenLine size={12} className="shrink-0 text-muted" /> : <GitBranch size={12} className="shrink-0 text-muted" />}
+            <KindIcon kind={s.kind} />
             <span className="truncate">{s.title}</span>
-            {hasKids && !open && <span className="shrink-0 text-[11px] text-muted">+{kidCount}</span>}
+            {hasKids && !open && <span className="shrink-0 text-[11px] text-muted tabular-nums">+{kidCount}</span>}
             {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
           </button>
-          <SubSessionButton parentId={id} className="mr-1" />
+          <SubSessionButton parentId={id} className="!size-6 !rounded-md" />
         </div>
       )}
       {menu && <SessionMenu at={menu} sessionId={id} onClose={closeMenu} onRename={() => setRenaming(true)} onDelete={() => void remove()} />}
@@ -439,7 +454,7 @@ function SubSessionButton({ parentId, className }: { parentId: ID; className?: s
           setAt({ x: r.left, y: r.bottom + 4 });
         }}
       >
-        <Plus size={14} />
+        <Plus size={13} />
       </IconButton>
       {at && <SubCreateMenu at={at} parentId={parentId} trigger={trigger} onClose={close} />}
     </>

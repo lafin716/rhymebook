@@ -17,7 +17,7 @@ test('보관함: 답변 담기 · 폴더 트리 · 페이지 구성', async ({ p
   await page.goto('/#scenario=home');
   if (mobile) await page.getByRole('button', { name: '세션 목록', exact: true }).click();
   const nav = page.getByRole('navigation', { name: '학습 세션' });
-  await nav.locator('div.truncate').first().click();
+  await nav.locator('[data-tree-title]').first().click();
 
   // 답변 아래 [보관]
   const main = page.locator('[data-panel="main"]');
