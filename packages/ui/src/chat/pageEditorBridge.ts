@@ -49,3 +49,11 @@ export function pageBlock(view: EditorView, kind: PageBlockKind): boolean {
 export function indentPage(view: EditorView, dir: 1 | -1): boolean {
   return editors.get(view)?.indent(dir) ?? false;
 }
+
+/**
+ * 지금 키보드가 이 편집기 것인가. 페이지 위에 연 가지 시트의 메시지 입력처럼
+ * 다른 입력창이 키보드를 열었을 때 단축키 바가 그 입력창을 덮지 않게 한다.
+ */
+export function ownsKeyboard(content: Pick<Node, 'contains'>, active: Element | null): boolean {
+  return !!active && content.contains(active);
+}

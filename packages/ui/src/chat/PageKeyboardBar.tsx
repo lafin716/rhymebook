@@ -6,7 +6,7 @@ import type { EditorView } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { caps } from '../app/capabilities';
 import { cn } from '../lib/cn';
-import { formatPage, indentPage, pageBlock } from './pageEditorBridge';
+import { formatPage, indentPage, ownsKeyboard, pageBlock } from './pageEditorBridge';
 import type { PageBlockKind } from './pageEditorBridge';
 
 interface PageKeyboardBarProps {
@@ -37,6 +37,19 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
     };
     document.addEventListener('selectionchange', onSel);
     return () => document.removeEventListener('selectionchange', onSel);
+  }, [view]);
+  /** 편집기에 포커스가 있을 때만 띄운다 — 키보드는 다른 입력창(가지 시트의 메시지 입력 등)이 열었을 수도 있다 */
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!view) return;
+    const sync = () => setFocused(ownsKeyboard(view.contentDOM, document.activeElement));
+    sync();
+    document.addEventListener('focusin', sync);
+    document.addEventListener('focusout', sync);
+    return () => {
+      document.removeEventListener('focusin', sync);
+      document.removeEventListener('focusout', sync);
+    };
   }, [view]);
   const barPositionRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,7 +110,7 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
   }, [view]);
 
   // 모바일 기기가 아니거나 설정이 끌려 있으면 렌더하지 않음
-  if (caps.kind !== 'mobile' || !enabled || !view || !keyboardOpen || barPosition === null || selecting) return null;
+  if (caps.kind !== 'mobile' || !enabled || !view || !keyboardOpen || barPosition === null || selecting || !focused) return null;
 
   const handleIndent = (dir: 1 | -1) => {
     if (view && indentPage(view, dir)) {
