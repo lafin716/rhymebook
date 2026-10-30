@@ -96,3 +96,39 @@ describe('branch suggestions (ADR-094)', () => {
     expect(req.system).toContain('```branches');
   });
 });
+
+describe('책 목차 커리큘럼: 큰 챕터에만 가지 버튼', () => {
+  const TOC = `# 파이썬 입문
+
+## 1장. 기초 문법
+_목표: 변수와 자료형 · 약 3시간_
+
+1. **1.1 변수** — 값을 이름에 담는다
+2. **1.2 자료형** — 숫자·문자열을 구분한다
+
+## 2장. 함수
+1. **2.1 함수 정의** — 코드를 묶는다
+
+## 다음으로
+- 비동기`;
+
+  it('하위 챕터까지 적혀 와도 큰 챕터(## 줄)만 남기고, 하위 챕터는 칩으로도 내리지 않는다', () => {
+    const block = {
+      chapters: [
+        { title: '1장. 기초 문법', question: '기초 문법' },
+        { title: '1.1 변수', question: '변수' },
+        { title: '1.2 자료형', question: '자료형' },
+        { title: '2장. 함수', question: '함수' },
+      ],
+      next: [{ title: '비동기', question: '비동기를 알려줘' }],
+    };
+    const plan = planBranchSuggestions(`${TOC}\n\n\`\`\`branches\n${JSON.stringify(block)}\n\`\`\``);
+    expect(plan.chapters.map((c) => c.question)).toEqual(['기초 문법', '함수']);
+    expect(plan.next.map((c) => c.question)).toEqual(['비동기를 알려줘']);
+  });
+
+  it('목록 줄 챕터만 있으면 그대로 둔다', () => {
+    const content = '1. **변수와 자료형** — 값\n2. **함수와 모듈** — 묶음\n\n```branches\n{"chapters":[{"title":"변수와 자료형","question":"q1"},{"title":"함수와 모듈","question":"q2"}],"next":[]}\n```';
+    expect(planBranchSuggestions(content).chapters.map((c) => c.question)).toEqual(['q1', 'q2']);
+  });
+});

@@ -304,3 +304,4 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 - (해결, Phase 1) 겹치는 앵커 위치 판정, indexOf 폴백 오매칭, 요약 초안 경합·에러 시 부분 텍스트 유실 → ADR-012/013.
 - 데스크톱 실행: `pnpm --filter @branch/desktop build && pnpm --filter @branch/desktop start` (개발: Vite 서버 기동 후 `pnpm --filter @branch/desktop dev`).
 - 웹 API 키는 탭 메모리 전용이라 새로고침 시 다시 입력해야 함(의도, 설정 경고 표시). 실제 키 검증은 B-02.
+- 2026-10-30 · ADR-097(v0.42.0): 기본 커리큘럼 스킬 책 목차 형식(큰 챕터 + 제목·목적만 있는 하위 챕터), 가지 버튼은 가장 얕은 챕터 줄에만(core `planBranchSuggestions`), 고치지 않은 예전 기본 스킬 자동 갱신(core `upgradeBuiltinSkills`, 폴더 먼저 기록), mock 커리큘럼 답변 갱신. 모바일: 페이지 키보드 바가 가지 시트 메시지 입력을 덮어 입력·붙여넣기가 안 되던 문제 — 편집기 포커스일 때만 표시. `pnpm typecheck`·`pnpm lint` PASS, `pnpm test` core 582·ui 72·bridge 66·relay 9·server 10 PASS, e2e branch-suggest·skill·page PASS(skill-sync-split 2건은 기존 실패).

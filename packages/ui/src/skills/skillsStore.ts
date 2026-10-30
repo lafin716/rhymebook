@@ -8,6 +8,7 @@ import {
   sanitizeSkillFiles,
   skillsToSeed,
   toSkillFolder,
+  upgradeBuiltinSkills,
   type ID,
   type Skill,
   type SkillFile,
@@ -278,6 +279,7 @@ export async function loadSkills(database: BranchDB | null) {
     return;
   }
   let skills: Skill[];
+  let upgraded: Skill[] = [];
   try {
     if (database) {
       const dbSkills = (await database.skills.toArray()).filter(isSkill);
@@ -296,6 +298,13 @@ export async function loadSkills(database: BranchDB | null) {
           await database.kv.put({ key: 'skillsSeeded', value: newSeeded });
         }
       }
+      // 고치지 않은 예전 기본 스킬은 새 기본값으로 올린다
+      upgraded = upgradeBuiltinSkills(skills);
+      if (upgraded.length) {
+        await database.skills.bulkPut(upgraded);
+        const byId = new Map(upgraded.map((s) => [s.id, s]));
+        skills = skills.map((s) => byId.get(s.id) ?? s);
+      }
     } else {
       skills = defaultSkills();
     }
@@ -308,6 +317,8 @@ export async function loadSkills(database: BranchDB | null) {
   markReady();
   // 데모 모드(db 없음)는 폴더를 건드리지 않는다
   if (folders && db) {
+    // 폴더에 남은 예전 내용이 동기화로 되돌리지 않게 먼저 쓴다
+    await Promise.all(upgraded.map((s) => folders.write(toSkillFolder(s), {}).catch((e: unknown) => console.warn('[skills] 폴더 쓰기 실패', e))));
     await syncSkillFolders(true);
     window.addEventListener('focus', () => void syncSkillFolders());
   }

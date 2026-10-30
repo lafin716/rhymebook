@@ -20,6 +20,7 @@ import {
   SPEAK_SKILL_ID,
   REORGANIZE_SKILL_ID,
   CURRICULUM_SKILL_ID,
+  LEGACY_CURRICULUM_PROMPTS,
   defaultSkills,
   filterSkills,
   isSkillRef,
@@ -28,6 +29,7 @@ import {
   skillRef,
   skillsToSeed,
   slashQuery,
+  upgradeBuiltinSkills,
   validateSkill,
   withSkill,
 } from '../src/skills';
@@ -162,7 +164,7 @@ describe('skills', () => {
       messages: { s: [{ id: 'm', sessionId: 's', role: 'user', content: '러스트', createdAt: 0, skill: ref }] },
       sessionId: 's',
     });
-    expect(req.system).toContain('단계별 학습 커리큘럼');
+    expect(req.system).toContain('책 목차처럼 구성한 학습 커리큘럼');
     const later = buildChatRequest({
       sessions,
       messages: {
@@ -213,5 +215,19 @@ describe('skills', () => {
     const own = { ...defaults[2]!, id: 'mine', builtin: undefined };
     const { add: add6 } = skillsToSeed([own], [CURRICULUM_SKILL_ID, BOOK_SKILL_ID]);
     expect(add6.map((s) => s.name)).toEqual(['speak', 'reorganize']);
+  });
+});
+
+describe('upgradeBuiltinSkills', () => {
+  it('고치지 않은 예전 커리큘럼 스킬만 책 목차 형식으로 올린다', () => {
+    const cur = defaultSkills(1).find((s) => s.id === CURRICULUM_SKILL_ID)!;
+    expect(cur.prompt).toContain('## 1장.');
+    expect(cur.prompt).toContain('하위 챕터는 제목과 목적 한 줄만');
+    const legacy = { ...cur, prompt: `${LEGACY_CURRICULUM_PROMPTS[0]!}\n`, description: '옛 설명' };
+    const [up, ...rest] = upgradeBuiltinSkills([legacy], 5);
+    expect(rest).toEqual([]);
+    expect(up).toMatchObject({ id: CURRICULUM_SKILL_ID, prompt: cur.prompt, description: cur.description, updatedAt: 5 });
+    // 사용자가 고친 것·이미 새 버전·다른 스킬은 그대로
+    expect(upgradeBuiltinSkills([{ ...legacy, prompt: `${legacy.prompt} 내 규칙` }, cur, ...defaultSkills(1).slice(1)])).toEqual([]);
   });
 });

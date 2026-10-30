@@ -42,7 +42,7 @@ export const BRANCH_SUGGEST_INSTRUCTION = [
   '```branches',
   '{"chapters":[{"title":"본문에 쓴 챕터 제목 그대로","question":"그 챕터를 배우는 학습자 질문 한 문장"}],"next":[{"title":"20자 이내 이름","question":"이어서 물을 학습자 질문 한 문장"}]}',
   '```',
-  '- chapters: 답변이 커리큘럼·로드맵·단계별 계획이면 각 챕터(장·주차·단계)를 본문 제목 글자 그대로 적는다. 아니면 빈 배열.',
+  '- chapters: 답변이 커리큘럼·로드맵·단계별 계획이면 각 챕터(장·주차·단계)를 본문 제목 글자 그대로 적는다. 큰 챕터 아래 하위 챕터(절)가 있으면 큰 챕터만 적는다. 아니면 빈 배열.',
   '- next: 지금 답변에서 더 파고들거나 다음에 배울 만한 질문 2~3개.',
   '- 블록 밖에서는 이 블록을 언급하지 마라. 짧은 인사·잡담이면 블록을 생략해도 된다.',
 ].join('\n');
@@ -212,13 +212,25 @@ export interface MessageBranchPlan {
   next: BranchSuggestion[];
 }
 
+/** 챕터 줄의 깊이: 제목은 # 개수(1~6), 목록 줄은 7 */
+function lineLevel(content: string, lineStart: number): number {
+  const m = / {0,3}(#{1,6})\s/y;
+  m.lastIndex = lineStart;
+  return m.exec(content)?.[1]!.length ?? 7;
+}
+
 /** 답변 하나의 추천 가지 전체 (블록 → 없으면 챕터 추측) */
 export function planBranchSuggestions(content: string): MessageBranchPlan {
   const block = extractBranchSuggestions(content);
   // 블록은 코드 펜스라 줄 찾기에서 빠진다 — 원문 그대로 써야 렌더러의 오프셋과 맞는다
   const chapters = block?.chapters.length ? block.chapters : guessChapters(content);
-  const { located, missing } = locateChapters(content, chapters);
-  const seen = new Set(located.map((c) => c.question));
-  const next = [...missing, ...(block?.next ?? [])].filter((s) => !seen.has(s.question) && (seen.add(s.question), true));
+  const found = locateChapters(content, chapters);
+  // 가지 버튼은 큰 챕터에만: 하위 챕터(더 깊은 제목·목록 줄)까지 적혀 와도 가장 얕은 단계만 남긴다
+  const levels = found.located.map((c) => lineLevel(content, c.lineStart));
+  const top = Math.min(...levels);
+  const located = found.located.filter((_, i) => levels[i] === top);
+  // 걸러 낸 하위 챕터도 아래 칩으로 내리지 않는다
+  const seen = new Set(found.located.map((c) => c.question));
+  const next = [...found.missing, ...(block?.next ?? [])].filter((s) => !seen.has(s.question) && (seen.add(s.question), true));
   return { chapters: located, next };
 }
