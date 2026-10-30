@@ -14,6 +14,9 @@ import {
   emojiMatches,
   unwrapColumns,
   moveMarkdownBlock,
+  moveColumnOut,
+  removeColumn,
+  reorderColumn,
   markdownBlocks,
   type EmojiMatch,
   type MarkdownBlock,
@@ -23,12 +26,15 @@ import {
   type PageBlock,
   type Session,
 } from '@branch/core';
-import { defaultKeymap, history, historyKeymap, indentMore, indentLess, undoDepth, redoDepth } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, undoDepth, redoDepth } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { Annotation, EditorState, Prec, StateEffect, StateField, Transaction, type Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, keymap, placeholder, type DecorationSet } from '@codemirror/view';
 import {
   ArrowDown,
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowRight,
   ArrowUp,
   Columns2,
   FileText,
@@ -63,7 +69,8 @@ import { minimalChange } from './pageText';
 import { openBranch } from './open';
 import { PageBlockHandles } from './PageBlockHandles';
 import { PageRowSheet } from './PageRowSheet';
-import { blockAtPos, insertRowBelow, pageRowEditing, selectRow, selectedRowField, setRowKind } from './pageRowEditing';
+import { rowHandles } from './pageRowHandles';
+import { blockAtPos, insertRowBelow, pageRowEditing, selectRow, selectedRowField, setRowKind, shiftIndent } from './pageRowEditing';
 import { registerPageEditor } from './pageEditorBridge';
 import { getEmojiQuery } from './pageEmoji';
 
@@ -285,6 +292,8 @@ interface Ctx {
   ask: boolean;
   /** 핸들로 연 메뉴 — 그 블록 옮기기·지우기·나란히 풀기 */
   block?: { index: number; kind: MarkdownBlock['kind'] };
+  /** 칸 핸들로 연 메뉴 — 그 칸 옮기기·꺼내기·지우기 (ADR-096) */
+  column?: { index: number; col: number; count: number };
 }
 
 /**
@@ -570,8 +579,40 @@ export function PageEditor({
     }
     maybeFocus(v);
   };
+  /** 칸 핸들 메뉴: 칸을 좌우로 옮기거나 묶음 밖으로 꺼내거나 지운다 */
+  const columnAction = (index: number, col: number, action: 'left' | 'right' | 'out' | 'delete') => {
+    const v = view.current;
+    setCtx(null);
+    if (!v || latest.current.locked) return;
+    const before = v.state.doc.toString();
+    const after =
+      action === 'left'
+        ? reorderColumn(before, index, col, -1)
+        : action === 'right'
+          ? reorderColumn(before, index, col, 1)
+          : action === 'out'
+            ? moveColumnOut(before, index, col)
+            : removeColumn(before, index, col);
+    if (after !== before) v.dispatch({ changes: minimalChange(before, after), userEvent: action === 'delete' ? 'delete.block' : 'move.block' });
+  };
   const ctxRef = useRef(openCtx);
   ctxRef.current = openCtx;
+
+  // 칸 핸들은 칸 위젯 안에 있어 이벤트로 받는다
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const onMenu = (e: Event) => {
+      const v = view.current;
+      const d = (e as CustomEvent<{ from: number; column: number; count: number; x: number; y: number }>).detail;
+      if (!v || latest.current.locked) return;
+      const index = markdownBlocks(v.state.doc.toString()).findIndex((b) => b.from === d.from);
+      if (index < 0) return;
+      showCtxRef.current({ pos: d.from, ask: false, column: { index, col: d.column, count: d.count } }, d.x, d.y + 4);
+    };
+    el.addEventListener('page-column-menu', onMenu);
+    return () => el.removeEventListener('page-column-menu', onMenu);
+  }, []);
 
   /** 커서 자리에 AI 글을 흘려 넣고, 끝나면 되돌리기 한 번에 지워지도록 한 덩어리로 다시 넣는다 */
   const fillAt = async (pos: number, request: string) => {
@@ -664,6 +705,7 @@ export function PageEditor({
             ]),
           ),
           pageRowEditing(),
+          rowHandles(),
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
           markdown({ base: markdownLanguage }),
@@ -818,11 +860,7 @@ export function PageEditor({
       },
       indent: (dir) => {
         if (latest.current.locked) return false;
-        if (dir === 1) {
-          return indentMore(v);
-        } else {
-          return indentLess(v);
-        }
+        return shiftIndent(v, dir);
       },
     });
   }, [onFill]);
@@ -883,6 +921,11 @@ export function PageEditor({
     if (!v || latest.current.locked) return;
     lastPointerType.current = e.pointerType;
     if (e.pointerType !== 'touch' || !touchBlocks) {
+      if (v.state.field(viewModeField)) v.dispatch({ effects: [setViewMode.of(false), selectRow.of(null)] });
+      return;
+    }
+    // 칸 안은 칸 편집기가 받는다 — 보기 상태면 풀어 바로 고칠 수 있게
+    if (e.target instanceof Element && e.target.closest('[data-page-columns]')) {
       if (v.state.field(viewModeField)) v.dispatch({ effects: [setViewMode.of(false), selectRow.of(null)] });
       return;
     }
@@ -958,7 +1001,7 @@ export function PageEditor({
         onPointerDownCapture={onHostPointerDown}
         onPointerUpCapture={onHostPointerUp}
         onPointerCancelCapture={() => (tap.current = null)}
-        className={cn('page-editor min-h-[50vh]', touchBlocks ? 'pl-11' : 'pl-12')}
+        className={cn('page-editor min-h-[50vh]', touchBlocks ? 'page-touch pl-11' : 'pl-12')}
       />
       <PageBlockHandles
         view={editor}
@@ -1049,7 +1092,38 @@ export function PageEditor({
           style={{ left: ctx.left, top: ctx.top, width: CTX_W }}
           className="animate-pop-in absolute z-30 flex flex-col rounded-xl border border-line bg-elev p-1 shadow-float"
         >
-          {ctx.ask ? (
+          {ctx.column ? (
+            <>
+              <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">이 칸</div>
+              {(
+                [
+                  ['left', '왼쪽으로 옮기기', ArrowLeft, ctx.column.col > 0],
+                  ['right', '오른쪽으로 옮기기', ArrowRight, ctx.column.col < ctx.column.count - 1],
+                  ['out', '칸 밖으로 꺼내기', ArrowDownToLine, true],
+                  ['delete', '칸 지우기', Trash2, true],
+                ] as const
+              )
+                .filter(([, , , on]) => on)
+                .map(([id, label, Icon]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="menuitem"
+                    data-column-action={id}
+                    onClick={() => columnAction(ctx.column!.index, ctx.column!.col, id)}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1 text-left text-[13px] outline-none hover:bg-surface-2 focus-visible:bg-surface-2',
+                      id === 'delete' ? 'text-danger' : 'text-fg',
+                    )}
+                  >
+                    <span className="grid size-6 shrink-0 place-items-center rounded-md border border-line bg-surface">
+                      <Icon size={14} />
+                    </span>
+                    {label}
+                  </button>
+                ))}
+            </>
+          ) : ctx.ask ? (
             <form
               className="flex flex-col gap-1.5 p-1.5"
               onSubmit={(e) => {

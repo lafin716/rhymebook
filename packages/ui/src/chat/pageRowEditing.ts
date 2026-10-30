@@ -3,7 +3,7 @@
  * 줄 머리 기호(`# `·`> `·`- `·`- [ ] `)는 공백까지 쳐야 블록이 되고, 바뀐 뒤엔 편집 중에도 숨는다.
  * 그래서 커서가 숨은 기호 안에 서지 않게 하고, Backspace·Enter를 내용 시작 기준으로 다시 정한다.
  */
-import { insertRowAfter, markdownBlocks, rowPrefix, spaceShortcut, type RowPrefix } from '@branch/core';
+import { insertRowAfter, markdownBlocks, rowPrefix, shiftListLines, spaceShortcut, type RowPrefix } from '@branch/core';
 import { indentLess } from '@codemirror/commands';
 import { syntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, Prec, StateEffect, StateField, type Extension, type Line, type Transaction } from '@codemirror/state';
@@ -105,6 +105,42 @@ function rowInputRules(tr: Transaction): Transaction | readonly [Transaction, { 
   return tr;
 }
 
+const TAB = '    ';
+
+/**
+ * Tab(dir 1)·Shift+Tab(dir -1) — 목록 줄이면 하위 목록으로 넣거나 꺼내고, 아니면 Tab은 커서 자리에 공백, Shift+Tab은 줄 앞 공백을 뺀다.
+ * 포커스가 편집기 밖으로 빠지지 않게 늘 키를 먹는다(읽기 전용 제외). 나가려면 Esc.
+ */
+export function shiftIndent(view: EditorView, dir: 1 | -1): boolean {
+  const { state } = view;
+  if (state.readOnly) return false;
+  const sel = state.selection.main;
+  const first = state.doc.lineAt(sel.from);
+  const last = state.doc.lineAt(sel.to);
+  let list = false;
+  for (let n = first.number; n <= last.number && !list; n++) {
+    const mk = rowMarker(state, state.doc.line(n));
+    list = !!mk && mk.kind !== 'heading' && mk.kind !== 'quote';
+  }
+  if (list) {
+    const edits = shiftListLines(state.doc.toString(), first.number - 1, last.number - 1, dir) ?? [];
+    if (!edits.length) return true;
+    const changes = edits.map((e) => {
+      const l = state.doc.line(e.line + 1);
+      return e.delta > 0 ? { from: l.from, insert: ' '.repeat(e.delta) } : { from: l.from, to: l.from - e.delta };
+    });
+    view.dispatch({ changes, userEvent: 'input.indent', scrollIntoView: true });
+    return true;
+  }
+  if (dir === 1) {
+    view.dispatch(state.replaceSelection(TAB), { userEvent: 'input', scrollIntoView: true });
+    return true;
+  }
+  const n = Math.min(TAB.length, /^ */.exec(first.text)![0].length);
+  if (n) view.dispatch({ changes: { from: first.from, to: first.from + n }, userEvent: 'delete.dedent' });
+  return true;
+}
+
 /** index번째 블록 아래에 새 행을 넣고 그 자리로 커서를 옮긴다 — 되돌리기 한 번 */
 export function insertRowBelow(view: EditorView, index: number): boolean {
   const before = view.state.doc.toString();
@@ -179,6 +215,13 @@ export function pageRowEditing(): Extension {
       keymap.of([
         { key: 'Backspace', run: backspaceMarker },
         { key: 'Enter', run: enterAtMarker },
+      ]),
+    ),
+    // 피커(Tab으로 고르기)보다 낮게 — 피커 keymap은 Prec.highest
+    Prec.high(
+      keymap.of([
+        { key: 'Tab', run: (v) => shiftIndent(v, 1) },
+        { key: 'Shift-Tab', run: (v) => shiftIndent(v, -1) },
       ]),
     ),
     EditorState.transactionFilter.of(rowInputRules),

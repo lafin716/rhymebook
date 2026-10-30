@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
  * 칸 묶음 표시 줄은 글자로 보이지 않기 (ADR-091). 모바일은 탭으로 행 고르기 → 핸들·행 시트, 다시 탭하면 편집 (ADR-095).
  */
 const MAIN = '[data-panel="main"]';
-const CONTENT = `${MAIN} [data-page-editor] .cm-content`;
+const CONTENT = `${MAIN} [data-page-editor] .cm-content >> nth=0`;
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGklEQVR42mNk+M9Qz0AEYBxVSF+FAP8EBQEAOjsKX6kNqGQAAAAASUVORK5CYII=';
 
@@ -214,39 +214,67 @@ test('블록 핸들: 끌어서 위아래로 옮기고, 옆 가장자리에 놓�
   expect(errors).toEqual([]);
 });
 
-test('칸 묶음 안을 고칠 때 표시 줄(<!-- column -->)은 글자로 보이지 않고 입력·지우기로 깨지지 않는다', async ({ page }) => {
+test('칸 하나는 상자 하나 — 칸 안 편집은 그 칸에서만, 표·코드도 칸 안에서 그려진다 (ADR-096)', async ({ page }) => {
   const errors = collectErrors(page);
   await blankPage(page);
-  const doc = '<!-- columns -->\n왼쪽\n<!-- column -->\n오른쪽\n<!-- /columns -->\n\n아래';
-  // 커서를 왼쪽 칸 끝에
-  await setDoc(page, doc, doc.indexOf('왼쪽') + 2);
-  const content = page.locator(CONTENT);
-  await expect(content.locator('[data-page-colmark]')).toHaveCount(3);
-  await expect(content).not.toContainText('<!--');
-  await expect(content).toContainText('왼쪽');
+  const doc =
+    '<!-- columns -->\n왼쪽\n\n| 가 | 나 |\n| --- | --- |\n| 1 | 2 |\n<!-- column -->\n오른쪽\n\n```js\nconst a = 1;\n```\n<!-- /columns -->\n\n아래';
+  await setDoc(page, doc, doc.length);
+  const columns = page.locator(`${MAIN} [data-page-columns]`);
+  const cols = columns.locator('[data-page-column]');
+  await expect(cols).toHaveCount(2);
+  // 표시 줄·표/코드 기호가 글자로 보이지 않는다
+  await expect(columns).not.toContainText('<!--');
+  await expect(columns).not.toContainText('| ---');
+  await expect(cols.nth(0).locator('table')).toHaveCount(1);
+  // 코드 블록은 본문과 같은 코드 상자로 (울타리는 흐리게)
+  await expect(cols.nth(1).locator('.cm-line.cm-lp-code')).toHaveCount(3);
+  await expect(cols.nth(1)).toContainText('const a = 1;');
+  // 칸마다 + · 핸들
+  await expect(columns.locator('[data-column-add]')).toHaveCount(2);
+  await expect(columns.locator('[data-column-handle]')).toHaveCount(2);
 
-  // 왼쪽 칸 끝에서 입력 → 칸 안에 들어가고, 지우기로 표시 줄을 넘어가지 않는다
+  // 왼쪽 칸을 눌러 고치면 그 칸에만 들어간다
+  await cols.nth(0).getByText('왼쪽', { exact: true }).click();
+  await page.keyboard.press('End');
   await page.keyboard.type('!');
-  expect(await source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
-  await page.keyboard.press('Delete');
-  await page.keyboard.press('Delete');
-  expect(await source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
+  await expect.poll(() => source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
+  // 칸 맨 앞 Backspace·Delete 연타로 칸 나눔이 깨지지 않는다
+  await page.keyboard.press('Home');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Backspace');
+  await expect.poll(() => source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
 
-  // 오른쪽 칸 맨 앞에서 Backspace도 칸 나눔을 지우지 않는다
-  const right = (await source(page)).indexOf('오른쪽');
-  await select(page, right, right);
-  await page.keyboard.press('Backspace');
-  expect(await source(page)).toBe(doc.replace('왼쪽', '왼쪽!'));
+  // 오른쪽 칸 + → 그 칸 끝에 새 줄
+  await cols.nth(1).hover();
+  await columns.locator('[data-column-add]').nth(1).click();
+  await page.keyboard.type('추가');
+  await expect.poll(() => source(page)).toContain('```\n추가\n<!-- /columns -->');
+  // 되돌리기는 본문 기록을 따른다
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => source(page)).not.toContain('추가');
 
-  // 아래 화살표로 칸 나눔 줄을 건너뛰고, 위로 가도 표시 줄에 서지 않는다
-  await select(page, doc.indexOf('왼쪽'), doc.indexOf('왼쪽'));
-  await page.keyboard.press('ArrowDown');
-  const head = () =>
-    page.locator(CONTENT).evaluate((el) => (el as unknown as { cmTile: { root: { view: { state: { selection: { main: { head: number } } } } } } }).cmTile.root.view.state.selection.main.head);
-  const src = await source(page);
-  const h = await head();
-  expect(h).toBeGreaterThanOrEqual(src.indexOf('오른쪽'));
-  expect(h).toBeLessThanOrEqual(src.indexOf('오른쪽') + 3);
+  // 칸 핸들 메뉴 → 왼쪽으로 옮기기
+  await cols.nth(1).hover();
+  await columns.locator('[data-column-handle]').nth(1).click();
+  const menu = page.getByRole('menu', { name: '블록·AI 메뉴' });
+  await menu.getByRole('menuitem', { name: '왼쪽으로 옮기기' }).click();
+  await expect.poll(() => source(page)).toMatch(/^<!-- columns -->\n오른쪽/);
+  expect(errors).toEqual([]);
+});
+
+test('Tab: 글에서는 공백, 목록에서는 들여쓰기 · Shift+Tab은 내어쓰기', async ({ page }) => {
+  const errors = collectErrors(page);
+  await blankPage(page);
+  await setDoc(page, '글');
+  await page.keyboard.press('Tab');
+  await expect.poll(() => source(page)).toMatch(/^글 +$/);
+  await setDoc(page, '- 하나\n- 둘');
+  await page.keyboard.press('Tab');
+  await expect.poll(() => source(page)).toBe('- 하나\n  - 둘');
+  await page.keyboard.press('Shift+Tab');
+  await expect.poll(() => source(page)).toBe('- 하나\n- 둘');
+  // 포커스는 편집기에 남는다
+  await expect(page.locator(CONTENT)).toBeFocused();
   expect(errors).toEqual([]);
 });
 
@@ -256,7 +284,7 @@ test('모바일: 한 번 탭하면 행을 고르고(핸들·시트), 핸들로 �
   await blankPage(page);
   await setDoc(page, '첫째 문단\n\n둘째 문단\n\n셋째 문단', 0);
   await page.locator(CONTENT).evaluate((el) => (el as HTMLElement).blur());
-  await expect(page.locator(`${MAIN} [data-page-handle]`)).toHaveCount(0);
+  await expect(page.locator(`${MAIN} [data-page-handle][data-active]`)).toHaveCount(0);
 
   // 첫 탭: 행을 고른다 — 키보드(포커스) 없이 표시·핸들·행 시트
   await page.locator(CONTENT).getByText('셋째 문단', { exact: true }).tap();
@@ -264,9 +292,9 @@ test('모바일: 한 번 탭하면 행을 고르고(핸들·시트), 핸들로 �
   await expect(page.locator(CONTENT)).not.toBeFocused();
   const sheet = page.locator('[data-page-sheet]');
   await expect(sheet).toBeVisible();
-  const handle = page.locator(`${MAIN} [data-page-handle]`);
+  const handle = page.locator(`${MAIN} [data-page-handle][data-active]`);
   await expect(handle).toHaveCount(1);
-  await expect(page.locator(`${MAIN} [data-page-row-add]`)).toHaveCount(1);
+  await expect(page.locator(`${MAIN} [data-page-row-add][data-active]`)).toHaveCount(1);
 
   // 핸들을 끌어 첫째 문단 윗부분으로
   const cdp = await page.context().newCDPSession(page);

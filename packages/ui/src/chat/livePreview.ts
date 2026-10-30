@@ -1,9 +1,28 @@
-import { COLUMN_BREAK, COLUMNS_CLOSE, COLUMNS_OPEN, markdownBlocks, pageLinkId, parseColumns, type ID } from '@branch/core';
+import { COLUMN_BREAK, COLUMNS_CLOSE, COLUMNS_OPEN, columnSpans, markdownBlocks, pageLinkId, type ID } from '@branch/core';
+import { defaultKeymap, redo, undo } from '@codemirror/commands';
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import { EditorSelection, EditorState, Prec, StateEffect, StateField, type Extension, type Range, type Text, type Transaction } from '@codemirror/state';
-import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type DecorationSet } from '@codemirror/view';
+import {
+  Annotation,
+  ChangeSet,
+  Compartment,
+  EditorState,
+  Prec,
+  RangeSet,
+  StateEffect,
+  StateField,
+  type ChangeSpec,
+  type Extension,
+  type Range,
+  type Text,
+  type Transaction,
+} from '@codemirror/state';
+import { Decoration, EditorView, ViewPlugin, WidgetType, keymap, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
 import katex from 'katex';
+import { pageRowEditing } from './pageRowEditing';
+import { handleButtons } from './pageRowHandles';
+import { minimalChange } from './pageText';
 
 /**
  * 노션처럼 쓰는 마크다운 실시간 미리보기 (ADR-075). 원문은 그대로 두고(앵커가 원문 오프셋에 기대므로)
@@ -322,121 +341,6 @@ class TableWidget extends WidgetType {
   }
 }
 
-/** 한 칸의 마크다운을 간단히 그린다 — 제목·목록·할 일·인용·이미지·굵게/기울임/코드 */
-function renderColumn(md: string, el: HTMLElement) {
-  const inline = (text: string, parent: HTMLElement) => {
-    const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|~~[^~]+~~)/g;
-    let last = 0;
-    for (const m of text.matchAll(re)) {
-      if (m.index! > last) parent.append(text.slice(last, m.index));
-      const t = m[0];
-      const tag = t.startsWith('**') ? 'strong' : t.startsWith('`') ? 'code' : t.startsWith('~~') ? 's' : 'em';
-      const cut = tag === 'strong' || tag === 's' ? 2 : 1;
-      const node = document.createElement(tag);
-      node.textContent = t.slice(cut, -cut);
-      parent.append(node);
-      last = m.index! + t.length;
-    }
-    if (last < text.length) parent.append(text.slice(last));
-  };
-  for (const line of md.split('\n')) {
-    const t = line.trim();
-    if (!t) continue;
-    let m: RegExpExecArray | null;
-    const row = document.createElement('div');
-    row.className = 'cm-lp-col-line';
-    if ((m = /^(#{1,6})\s+(.*)$/.exec(t))) {
-      row.classList.add(`cm-lp-h${Math.min(m[1]!.length, 3)}`);
-      inline(m[2]!, row);
-    } else if ((m = /^!\[([^\]]*)\]\(([^)\s]+)[^)]*\)$/.exec(t))) {
-      const img = document.createElement('img');
-      img.alt = m[1]!;
-      img.draggable = false;
-      if (/^data:image\/(?:png|jpeg|gif|webp);/i.test(m[2]!) || /^https?:\/\//i.test(m[2]!)) img.src = m[2]!;
-      row.append(img);
-    } else if ((m = /^[-*+]\s\[([ xX])\]\s?(.*)$/.exec(t))) {
-      row.append(m[1] === ' ' ? '☐ ' : '☑ ');
-      inline(m[2]!, row);
-    } else if ((m = /^[-*+]\s(.*)$/.exec(t))) {
-      row.append('• ');
-      inline(m[1]!, row);
-    } else if ((m = /^(\d+[.)])\s(.*)$/.exec(t))) {
-      row.append(`${m[1]} `);
-      inline(m[2]!, row);
-    } else if ((m = /^>\s?(.*)$/.exec(t))) {
-      row.classList.add('cm-lp-col-quote');
-      inline(m[1]!, row);
-    } else inline(t, row);
-    el.append(row);
-  }
-}
-
-/** 나란히 배치 묶음 (ADR-087 P8) — 칸마다 그리고, 누른 칸의 원문으로 커서를 옮긴다 */
-class ColumnsWidget extends WidgetType {
-  constructor(readonly source: string) {
-    super();
-  }
-  eq(o: ColumnsWidget) {
-    return o.source === this.source;
-  }
-  toDOM(view: EditorView) {
-    const wrap = document.createElement('div');
-    wrap.className = 'cm-lp-columns';
-    wrap.dataset.pageColumns = '';
-    const cols = parseColumns(this.source);
-    wrap.style.setProperty('--cols', String(cols.length));
-    cols.forEach((md, i) => {
-      const col = document.createElement('div');
-      col.className = 'cm-lp-column';
-      col.dataset.pageColumn = String(i);
-      renderColumn(md, col);
-      col.addEventListener('mousedown', (e) => e.preventDefault());
-      col.addEventListener('click', () => {
-        const start = view.posAtDOM(wrap);
-        // i번째 칸 원문 첫 글자로
-        const lines = this.source.split('\n');
-        let offset = lines[0]!.length + 1;
-        let seen = 0;
-        for (let k = 1; k < lines.length - 1; k++) {
-          if (seen === i && lines[k]!.trim()) break;
-          if (lines[k]!.trim() === '<!-- column -->') seen++;
-          offset += lines[k]!.length + 1;
-        }
-        view.dispatch({ selection: { anchor: Math.min(start + offset, view.state.doc.length) } });
-        view.focus();
-      });
-      wrap.append(col);
-    });
-    return wrap;
-  }
-  ignoreEvent() {
-    return true;
-  }
-}
-
-/**
- * 칸 묶음 표시 줄(`<!-- columns -->` 등) — 쓴 글이 아니라 기능이라 글자는 숨기고 (ADR-091)
- * 여닫는 줄은 얇은 틈, 칸 나눔은 점선으로만 보인다.
- */
-class ColumnMarkWidget extends WidgetType {
-  constructor(readonly kind: 'open' | 'break' | 'close') {
-    super();
-  }
-  eq(o: ColumnMarkWidget) {
-    return o.kind === this.kind;
-  }
-  toDOM() {
-    const el = document.createElement('div');
-    el.className = `cm-lp-colmark cm-lp-colmark-${this.kind}`;
-    el.dataset.pageColmark = this.kind;
-    el.setAttribute('aria-hidden', 'true');
-    return el;
-  }
-  ignoreEvent() {
-    return false;
-  }
-}
-
 interface ColumnMarks {
   /** 묶음 전체 */
   from: number;
@@ -472,7 +376,7 @@ function columnMarks(doc: Text): ColumnMarks[] {
  * 블록 옮기기·지우기 메뉴·AI·되돌리기처럼 묶음을 다시 쓰는 변경은 막지 않는다.
  */
 function protectColumnMarks(tr: Transaction): boolean | readonly number[] {
-  if (!((tr.isUserEvent('input') && !tr.isUserEvent('input.ai') && !tr.isUserEvent('input.row')) || (tr.isUserEvent('delete') && !tr.isUserEvent('delete.block')))) return true;
+  if (!((tr.isUserEvent('input') && !tr.isUserEvent('input.ai') && !tr.isUserEvent('input.row') && !tr.isUserEvent('input.column')) || (tr.isUserEvent('delete') && !tr.isUserEvent('delete.block') && !tr.isUserEvent('delete.column')))) return true;
   const groups = columnMarks(tr.startState.doc);
   if (!groups.length) return true;
   const whole: [number, number][] = [];
@@ -490,35 +394,303 @@ function protectColumnMarks(tr: Transaction): boolean | readonly number[] {
   return ranges.length ? ranges : true;
 }
 
-/** 커서가 숨긴 표시 줄에 서지 않게 — 움직이던 쪽의 가까운 글 줄로 옮긴다 */
-function skipColumnMarks(tr: Transaction) {
-  if (!tr.selection) return tr;
-  const doc = tr.newDoc;
-  const groups = columnMarks(doc);
-  if (!groups.length) return tr;
-  const prev = tr.startState.selection.main.head;
-  let changed = false;
-  const fix = (pos: number, forward: boolean) => {
-    for (const g of groups) {
-      if (pos < g.from || pos > g.to) continue;
-      const m = g.marks.find((k) => pos >= k.from && pos <= k.to);
-      if (!m) return pos;
-      changed = true;
-      const after = Math.min(m.to + 1, doc.length);
-      const before = Math.max(m.from - 1, 0);
-      if (m.kind === 'open') return forward || m.from === 0 ? after : before;
-      if (m.kind === 'close') return forward && m.to < doc.length ? after : before;
-      return forward ? after : before;
+/** 칸 안 편집기가 본문에서 받아 온 변경 — 본문으로 다시 보내지 않는다 */
+const fromMain = Annotation.define<boolean>();
+/** 칸 안 편집기의 쓰기 가능 여부 — 본문의 잠금·보기 모드를 따른다 */
+const columnEditable = new Compartment();
+const MARKER_LINES = new Set([COLUMNS_OPEN, COLUMN_BREAK, COLUMNS_CLOSE]);
+function hasMarkerLine(doc: Text): boolean {
+  for (let i = 1; i <= doc.lines; i++) if (MARKER_LINES.has(doc.line(i).text.trim())) return true;
+  return false;
+}
+const editableOf = (main: EditorView): Extension => [
+  EditorView.editable.of(main.state.facet(EditorView.editable)),
+  EditorState.readOnly.of(main.state.readOnly),
+];
+const lockedOf = (main: EditorView) => !main.state.facet(EditorView.editable) || main.state.readOnly;
+
+/** 칸 묶음 DOM → 칸마다의 편집기 */
+const columnViews = new WeakMap<HTMLElement, EditorView[]>();
+const columnObservers = new WeakMap<HTMLElement, ResizeObserver>();
+
+/** 위젯 DOM이 놓인 묶음 */
+function groupOf(main: EditorView, wrap: HTMLElement): ColumnMarks | null {
+  let start: number;
+  try {
+    start = main.posAtDOM(wrap);
+  } catch {
+    return null;
+  }
+  return columnMarks(main.state.doc).find((g) => g.from === start) ?? null;
+}
+
+function columnsDomAt(main: EditorView, from: number): HTMLElement | null {
+  for (const el of main.contentDOM.querySelectorAll<HTMLElement>('[data-page-columns]')) {
+    try {
+      if (main.posAtDOM(el) === from) return el;
+    } catch {
+      /* 화면 밖 */
     }
-    return pos;
-  };
-  const sel = tr.selection;
-  const ranges = sel.ranges.map((r) => {
-    const forward = r.head >= (tr.docChanged ? tr.changes.mapPos(prev) : prev);
-    return r.empty ? EditorSelection.cursor(fix(r.head, forward)) : r;
+  }
+  return null;
+}
+
+/** 묶음 `from`의 col번째 칸으로 들어간다 */
+function focusColumn(main: EditorView, from: number, col: number | 'last', at: 'start' | 'end'): boolean {
+  const wrap = columnsDomAt(main, from);
+  const views = wrap && columnViews.get(wrap);
+  const v = views?.[col === 'last' ? views.length - 1 : col];
+  if (!v) return false;
+  v.focus();
+  v.dispatch({ selection: { anchor: at === 'start' ? 0 : v.state.doc.length }, scrollIntoView: true });
+  return true;
+}
+
+/** 칸 편집기에서 본문으로 나간다 — 묶음이 문서 끝이면 빈 줄을 하나 만든다 */
+function leaveColumns(main: EditorView, wrap: HTMLElement, dir: -1 | 1): boolean {
+  const g = groupOf(main, wrap);
+  if (!g) return false;
+  const doc = main.state.doc;
+  if (dir < 0) {
+    if (g.from === 0) main.dispatch({ changes: { from: 0, insert: '\n' }, selection: { anchor: 0 }, userEvent: 'input.column' });
+    else main.dispatch({ selection: { anchor: g.from - 1 }, scrollIntoView: true });
+  } else if (g.to >= doc.length) main.dispatch({ changes: { from: g.to, insert: '\n' }, selection: { anchor: g.to + 1 }, userEvent: 'input.column' });
+  else main.dispatch({ selection: { anchor: g.to + 1 }, scrollIntoView: true });
+  main.focus();
+  return true;
+}
+
+/** 커서가 첫(마지막) 화면 줄에 있는가 — 줄바꿈된 긴 줄 가운데서는 평소처럼 움직인다 */
+function atVerticalEdge(view: EditorView, dir: -1 | 1): boolean {
+  const r = view.state.selection.main;
+  if (!r.empty) return false;
+  const line = view.state.doc.lineAt(r.head);
+  if (dir < 0 ? line.number !== 1 : line.number !== view.state.doc.lines) return false;
+  const here = view.coordsAtPos(r.head);
+  const edge = view.coordsAtPos(dir < 0 ? line.from : line.to);
+  return !here || !edge || Math.abs(here.top - edge.top) < 2;
+}
+
+/** 칸에서 고친 것을 본문의 그 칸 자리에만 옮겨 쓴다 */
+function pushToMain(main: EditorView, wrap: HTMLElement, col: number, before: Text, sub: EditorView, trs: readonly Transaction[]) {
+  const g = groupOf(main, wrap);
+  if (!g) return;
+  const blockText = main.state.sliceDoc(g.from, g.to);
+  const span = columnSpans(blockText)[col];
+  if (!span) return;
+  const base = g.from + span.from;
+  const after = sub.state.doc.toString();
+  const changes: ChangeSpec[] = [];
+  if (span.empty) {
+    if (!after) return;
+    changes.push({ from: base, insert: `${after}\n` });
+  } else if (blockText.slice(span.from, span.to) === before.toString()) {
+    trs
+      .reduce((acc, t) => acc.compose(t.changes), ChangeSet.empty(before.length))
+      .iterChanges((fromA, toA, _fromB, _toB, ins) => changes.push({ from: base + fromA, to: base + toA, insert: ins.toString() }));
+  } else changes.push({ from: base, to: g.from + span.to, insert: after });
+  main.dispatch({ changes, userEvent: 'input.column' });
+}
+
+/** 칸 하나의 편집기 — 같은 실시간 미리보기·행 편집을 쓰고, 되돌리기는 본문 기록을 따른다 (ADR-096) */
+function columnEditor(main: EditorView, wrap: HTMLElement, col: number, text: string, opts: LivePreviewOptions): EditorView {
+  const colIndex = (v: EditorView) => Number(v.dom.closest<HTMLElement>('[data-page-column]')?.dataset.pageColumn ?? col);
+  const sub = new EditorView({
+    state: EditorState.create({
+      doc: text,
+      extensions: [
+        columnEditable.of(editableOf(main)),
+        // 칸 표시 줄은 칸 안에서 만들 수 없다 — 묶음이 깨진다
+        EditorState.changeFilter.of((tr) => !!tr.annotation(fromMain) || !hasMarkerLine(tr.newDoc)),
+        Prec.highest(
+          keymap.of([
+            { key: 'Mod-z', run: () => undo(main), preventDefault: true },
+            { key: 'Mod-Shift-z', run: () => redo(main), preventDefault: true },
+            { key: 'Mod-y', run: () => redo(main), preventDefault: true },
+            { key: 'Escape', run: () => leaveColumns(main, wrap, 1) },
+            { key: 'ArrowUp', run: (v) => atVerticalEdge(v, -1) && leaveColumns(main, wrap, -1) },
+            { key: 'ArrowDown', run: (v) => atVerticalEdge(v, 1) && leaveColumns(main, wrap, 1) },
+          ]),
+        ),
+        pageRowEditing(),
+        keymap.of(defaultKeymap),
+        markdown({ base: markdownLanguage }),
+        EditorView.lineWrapping,
+        EditorView.contentAttributes.of({ 'aria-label': `칸 ${col + 1}` }),
+        livePreview(opts),
+      ],
+    }),
+    dispatchTransactions: (trs, view) => {
+      const before = view.state.doc;
+      view.update(trs);
+      if (!trs.some((t) => t.docChanged) || trs.some((t) => t.annotation(fromMain))) return;
+      pushToMain(main, wrap, colIndex(view), before, view, trs);
+    },
   });
-  if (!changed) return tr;
-  return [tr, { selection: EditorSelection.create(ranges, sel.mainIndex), sequential: true }];
+  sub.dom.dataset.columnEditor = String(col);
+  return sub;
+}
+
+/**
+ * 나란히 배치 묶음 (ADR-087 P8 → ADR-096) — 칸마다 작은 편집기를 둔다. 표시 줄은 늘 숨기고,
+ * 칸 안에서 고치면 본문의 그 칸 자리만 바뀐다. 칸마다 +·핸들(옮기기·꺼내기·지우기 메뉴)이 붙는다.
+ */
+class ColumnsWidget extends WidgetType {
+  constructor(
+    readonly source: string,
+    readonly opts: LivePreviewOptions,
+  ) {
+    super();
+  }
+  eq(o: ColumnsWidget) {
+    return o.source === this.source;
+  }
+  toDOM(main: EditorView) {
+    const wrap = document.createElement('div');
+    wrap.className = 'cm-lp-columns';
+    wrap.dataset.pageColumns = '';
+    const spans = columnSpans(this.source);
+    wrap.style.setProperty('--cols', String(spans.length));
+    const locked = lockedOf(main);
+    const views = spans.map((s, i) => {
+      const col = document.createElement('div');
+      col.className = 'cm-lp-column';
+      col.dataset.pageColumn = String(i);
+      const btns = handleButtons(
+        { label: `칸 ${i + 1} 끝에 행 추가`, attrs: { 'data-column-add': String(i) } },
+        { label: `칸 ${i + 1} 옮기기·메뉴`, attrs: { 'data-column-handle': String(i) } },
+      );
+      btns.classList.add('cm-lp-colbtns');
+      for (const b of btns.querySelectorAll('button')) b.disabled = locked;
+      const sub = columnEditor(main, wrap, i, this.source.slice(s.from, s.to), this.opts);
+      col.append(btns, sub.dom);
+      wrap.append(col);
+      return sub;
+    });
+    columnViews.set(wrap, views);
+    wrap.addEventListener('mousedown', (e) => {
+      if ((e.target as Element).closest('.cm-lp-colbtns')) e.preventDefault();
+    });
+    wrap.addEventListener('click', (e) => {
+      const t = e.target as Element;
+      const add = t.closest<HTMLElement>('[data-column-add]');
+      const grip = t.closest<HTMLElement>('[data-column-handle]');
+      if (!add && !grip) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (lockedOf(main)) return;
+      if (add) {
+        const v = columnViews.get(wrap)?.[Number(add.dataset.columnAdd)];
+        if (!v) return;
+        const end = v.state.doc.length;
+        v.focus();
+        if (v.state.doc.toString().trim()) v.dispatch({ changes: { from: end, insert: '\n' }, selection: { anchor: end + 1 }, userEvent: 'input', scrollIntoView: true });
+        else v.dispatch({ selection: { anchor: end } });
+        return;
+      }
+      const g = groupOf(main, wrap);
+      if (!g || !grip) return;
+      const r = grip.getBoundingClientRect();
+      wrap.dispatchEvent(
+        new CustomEvent('page-column-menu', {
+          bubbles: true,
+          detail: { from: g.from, column: Number(grip.dataset.columnHandle), count: columnViews.get(wrap)?.length ?? 0, x: r.left, y: r.bottom },
+        }),
+      );
+    });
+    wrap.addEventListener('contextmenu', (e) => {
+      if ((e.target as Element).closest('.cm-lp-colbtns')) e.preventDefault();
+    });
+    const ro = new ResizeObserver(() => main.requestMeasure());
+    ro.observe(wrap);
+    columnObservers.set(wrap, ro);
+    return wrap;
+  }
+  updateDOM(dom: HTMLElement) {
+    const views = columnViews.get(dom);
+    const spans = columnSpans(this.source);
+    if (!views || views.length !== spans.length) return false;
+    spans.forEach((s, i) => {
+      const v = views[i]!;
+      const cur = v.state.doc.toString();
+      const next = this.source.slice(s.from, s.to);
+      if (cur !== next) v.dispatch({ changes: minimalChange(cur, next), annotations: fromMain.of(true) });
+    });
+    return true;
+  }
+  destroy(dom: HTMLElement) {
+    for (const v of columnViews.get(dom) ?? []) v.destroy();
+    columnViews.delete(dom);
+    columnObservers.get(dom)?.disconnect();
+    columnObservers.delete(dom);
+  }
+  get estimatedHeight() {
+    return 48;
+  }
+  ignoreEvent() {
+    return true;
+  }
+}
+
+/** 본문 잠금·보기 모드가 바뀌면 칸 편집기도 따라 바꾼다 */
+const columnLockSync = ViewPlugin.fromClass(
+  class {
+    update(u: ViewUpdate) {
+      if (u.startState.facet(EditorView.editable) === u.state.facet(EditorView.editable) && u.startState.readOnly === u.state.readOnly) return;
+      const ext = editableOf(u.view);
+      const locked = lockedOf(u.view);
+      for (const el of u.view.contentDOM.querySelectorAll<HTMLElement>('[data-page-columns]')) {
+        for (const v of columnViews.get(el) ?? []) v.dispatch({ effects: columnEditable.reconfigure(ext), annotations: fromMain.of(true) });
+        for (const b of el.querySelectorAll<HTMLButtonElement>('.cm-lp-colbtns button')) b.disabled = locked;
+      }
+    }
+  },
+);
+
+/** 커서는 묶음을 한 덩어리로 건너뛴다 */
+const atomicCache = new WeakMap<Text, RangeSet<Decoration>>();
+const columnAtomic = EditorView.atomicRanges.of((view) => {
+  const doc = view.state.doc;
+  let set = atomicCache.get(doc);
+  if (!set) {
+    set = RangeSet.of(columnMarks(doc).map((g) => hide.range(g.from, g.to)));
+    atomicCache.set(doc, set);
+  }
+  return set;
+});
+
+/**
+ * 묶음 바로 옆에서의 지우기·위아래 — 묶음을 통째로 지우거나 건너뛰지 않고 칸으로 들어간다.
+ * 묶음 옆 빈 줄은 지운다.
+ */
+function besideColumns(dir: -1 | 1, kind: 'delete' | 'move') {
+  return (view: EditorView): boolean => {
+    const r = view.state.selection.main;
+    if (!r.empty) return false;
+    const groups = columnMarks(view.state.doc);
+    if (!groups.length) return false;
+    const line = view.state.doc.lineAt(r.head);
+    // dir -1: 위쪽 묶음(줄 머리에서), 1: 아래쪽 묶음(줄 끝에서)
+    const g = dir < 0 ? groups.find((k) => k.to + 1 === line.from) : groups.find((k) => k.from === line.to + 1);
+    if (!g) return false;
+    if (kind === 'delete') {
+      if (r.head !== (dir < 0 ? line.from : line.to)) return false;
+      if (!line.length) {
+        const from = dir < 0 ? line.from - 1 : line.from;
+        view.dispatch({ changes: { from, to: from + 1 }, selection: { anchor: from }, userEvent: 'delete.column' });
+      }
+      const from = dir > 0 && !line.length ? g.from - 1 : g.from;
+      return focusColumn(view, from, dir < 0 ? 'last' : 0, dir < 0 ? 'end' : 'start') || true;
+    }
+    if (!atVerticalEdgeOfLine(view, line, dir)) return false;
+    return focusColumn(view, g.from, 0, dir < 0 ? 'end' : 'start');
+  };
+}
+
+function atVerticalEdgeOfLine(view: EditorView, line: { from: number; to: number }, dir: -1 | 1): boolean {
+  const here = view.coordsAtPos(view.state.selection.main.head);
+  const edge = view.coordsAtPos(dir < 0 ? line.from : line.to);
+  return !here || !edge || Math.abs(here.top - edge.top) < 2;
 }
 
 /** `| a | b |` 한 줄을 칸으로 — `\|`는 글자 */
@@ -585,7 +757,7 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
     else out.push(Decoration.replace({ widget: new MathWidget(tex, true), block: doc.lineAt(from).number !== doc.lineAt(to).number }).range(from, to));
   }
 
-  // 나란히 배치 묶음 `<!-- columns --> … <!-- /columns -->` — 커서가 없으면 칸으로 그린다
+  // 나란히 배치 묶음 `<!-- columns --> … <!-- /columns -->` — 늘 칸 편집기로 그린다 (ADR-096)
   for (let i = 1; i <= doc.lines; i++) {
     const open = doc.line(i);
     if (open.text.trim() !== COLUMNS_OPEN || inCode(open.from, open.to)) continue;
@@ -593,23 +765,8 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
     while (j <= doc.lines && doc.line(j).text.trim() !== COLUMNS_CLOSE) j++;
     if (j > doc.lines) break;
     const close = doc.line(j);
-    // 커서가 들어가면 칸 원문을 위아래로 보이되 안쪽은 평소처럼 실시간으로 그린다. 표시 줄 글자는 숨긴다
-    if (touches(open.from, close.to)) {
-      const mark = (l: { from: number; to: number }, kind: ColumnMarkWidget['kind']) => {
-        covered.push([l.from, l.to]);
-        out.push(Decoration.replace({ widget: new ColumnMarkWidget(kind), block: true }).range(l.from, l.to));
-      };
-      mark(open, 'open');
-      for (let k = i + 1; k < j; k++) {
-        const l = doc.line(k);
-        if (l.text.trim() === COLUMN_BREAK) mark(l, 'break');
-        else out.push(lineDeco('cm-lp-colsrc').range(l.from));
-      }
-      mark(close, 'close');
-    } else {
-      covered.push([open.from, close.to]);
-      out.push(Decoration.replace({ widget: new ColumnsWidget(doc.sliceString(open.from, close.to)), block: true }).range(open.from, close.to));
-    }
+    covered.push([open.from, close.to]);
+    out.push(Decoration.replace({ widget: new ColumnsWidget(doc.sliceString(open.from, close.to), opts), block: true }).range(open.from, close.to));
     i = j;
   }
 
@@ -864,7 +1021,16 @@ export function livePreview(opts: LivePreviewOptions): Extension {
     ),
     EditorView.focusChangeEffect.of((_, focusing) => setFocus.of(focusing)),
     EditorState.changeFilter.of(protectColumnMarks),
-    EditorState.transactionFilter.of(skipColumnMarks),
+    columnAtomic,
+    columnLockSync,
+    Prec.high(
+      keymap.of([
+        { key: 'Backspace', run: besideColumns(-1, 'delete') },
+        { key: 'Delete', run: besideColumns(1, 'delete') },
+        { key: 'ArrowUp', run: besideColumns(-1, 'move') },
+        { key: 'ArrowDown', run: besideColumns(1, 'move') },
+      ]),
+    ),
     EditorView.domEventHandlers({
       mousedown: (e, view) => {
         if (e.button === 0 && !e.shiftKey && !e.metaKey && !e.ctrlKey) view.dispatch({ effects: setDrag.of(true) });

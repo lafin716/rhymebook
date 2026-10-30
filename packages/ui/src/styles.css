@@ -890,53 +890,139 @@ span.annot[data-note-end='true']::after {
 .page-editor .cm-lp-columns {
   display: grid;
   grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
-  gap: 16px;
-  margin: 4px 0;
+  gap: 12px;
+  margin: 14px 0 4px;
 }
+/* 칸 하나 = 상자 하나 (ADR-096). 안에 작은 편집기가 들고, +·핸들은 상자 윗변 왼쪽에 걸친다 */
 .page-editor .cm-lp-column {
+  position: relative;
   min-width: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
-  padding: 2px 6px;
-  cursor: text;
+  padding: 6px 8px;
+  transition: border-color 0.12s;
 }
 .page-editor .cm-lp-column:hover {
-  background: var(--surface-2);
+  border-color: var(--border);
 }
-.page-editor .cm-lp-column img {
-  max-width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--border);
+.page-editor .cm-lp-column:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
-.page-editor .cm-lp-col-quote {
-  border-left: 3px solid var(--border);
-  padding-left: 10px;
-  color: var(--muted);
+.page-editor .cm-lp-column .cm-content {
+  min-height: 1.72em;
 }
-.page-editor .cm-lp-column code {
-  border-radius: 4px;
-  background: var(--surface-2);
-  padding: 0 4px;
-  font-size: 0.9em;
+.page-editor .cm-lp-column > .cm-lp-colbtns {
+  --bh: 22px;
+  right: auto;
+  left: 6px;
+  top: calc(var(--bh) / -2 - 1px);
+  margin: 0;
+  border-radius: 6px;
+  background: var(--bg);
 }
-/* 칸 묶음 표시 줄은 글자 없이 — 여닫는 줄은 얇은 틈, 칸 나눔은 점선 (ADR-091) */
-.page-editor .cm-lp-colmark {
-  height: 6px;
-  margin-left: 2px;
-  border-left: 2px solid var(--accent-soft);
+.page-editor .cm-lp-column:hover > .cm-lp-colbtns .page-handle,
+.page-editor .cm-lp-column:focus-within > .cm-lp-colbtns .page-handle {
+  opacity: 1;
 }
-.page-editor .cm-lp-colmark-break {
-  height: 13px;
-  background: repeating-linear-gradient(90deg, var(--border) 0 6px, transparent 6px 10px) left 10px center / calc(100% - 10px) 1px no-repeat;
-}
-.page-editor .cm-lp-colsrc {
-  border-left: 2px solid var(--accent-soft);
-  padding-left: 8px !important;
+/* 터치: 칸 버튼은 늘 흐리게 보인다 — 칸을 고르기 전에도 +·핸들을 누를 수 있게 */
+.page-touch.page-editor .cm-lp-column > .cm-lp-colbtns .page-handle {
+  display: grid;
 }
 /* 좁은 화면에서도 칸은 전체 너비를 똑같이 나눈다 — 틈만 좁힌다 */
 @media (max-width: 767px) {
   .page-editor .cm-lp-columns {
-    gap: 8px;
+    gap: 6px;
   }
+  .page-editor .cm-lp-column {
+    padding: 6px 4px;
+  }
+}
+/* 행 앞 +·핸들 자리 (ADR-096) — 높이 0 블록 위젯 안에 절대 배치, 세로는 행 종류별 첫 줄 가운데 */
+.page-editor .cm-lp-rowanchor {
+  position: relative;
+  height: 0;
+  --mid: 0.86em;
+  --bh: 24px;
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='h1'] {
+  --mid: 1.6575em;
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='h2'] {
+  --mid: 1.466em;
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='h3'] {
+  --mid: 1.339em;
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='h4'],
+.page-editor .cm-lp-rowanchor[data-row-kind='h5'],
+.page-editor .cm-lp-rowanchor[data-row-kind='h6'] {
+  --mid: 1.275em;
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='code'] {
+  --mid: 17.9px;
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='table'] {
+  --mid: 1.513em;
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='columns'] {
+  --mid: calc(21px + 0.86em);
+}
+.page-editor .cm-lp-rowanchor[data-row-kind='math'] {
+  --mid: calc(0.2em + 0.86em);
+}
+.page-touch .cm-lp-rowanchor,
+.page-touch .cm-lp-colbtns {
+  --bh: 32px;
+}
+.page-editor .cm-lp-rowbtns {
+  position: absolute;
+  right: 100%;
+  top: calc(var(--mid) - var(--bh) / 2);
+  margin-right: 4px;
+  display: flex;
+  z-index: 10;
+}
+.page-editor .cm-lp-rowbtns .page-handle {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: var(--bh);
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+}
+.page-touch .cm-lp-rowbtns .page-handle {
+  width: 22px;
+}
+.page-editor .cm-lp-rowbtns .page-handle svg {
+  width: 14px;
+  height: 14px;
+}
+.page-touch .cm-lp-rowbtns .page-handle svg {
+  width: 16px;
+  height: 16px;
+}
+.page-editor .cm-lp-rowbtns .page-handle:hover {
+  background: var(--surface-2);
+  color: var(--fg-2);
+}
+.page-editor .cm-lp-rowbtns .page-grip {
+  cursor: grab;
+}
+.page-editor .cm-lp-rowbtns .page-grip:active {
+  cursor: grabbing;
+}
+.page-editor .cm-lp-rowbtns .page-handle[data-dragging] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.page-editor .cm-lp-rowbtns .page-handle:disabled {
+  cursor: default;
+}
+.page-touch .cm-lp-rowbtns .page-handle:not([data-active]) {
+  display: none;
 }
 .page-handle {
   opacity: 0;

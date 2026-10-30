@@ -251,3 +251,79 @@ export function renumberOrderedLists(text: string): string {
   }
   return lines.join('\n');
 }
+
+/** 칸 하나의 원문 자리 — 묶음 텍스트 기준 오프셋. 줄이 없는 칸은 from === to(다음 표시 줄 시작)이고 empty */
+export interface ColumnSpan {
+  from: number;
+  to: number;
+  empty: boolean;
+}
+
+/**
+ * columns 묶음 텍스트에서 칸마다 원문 자리를 찾는다 (ADR-096). 칸 편집기는 이 자리만 고친다.
+ * parseColumns와 달리 앞뒤 빈 줄도 칸 안의 글로 친다 — 오프셋이 그대로 맞아야 해서.
+ */
+export function columnSpans(blockText: string): ColumnSpan[] {
+  const lines = blockText.split('\n');
+  const spans: ColumnSpan[] = [];
+  let p = lines[0]!.length + 1;
+  let start = p;
+  let last = -1;
+  const close = (next: number) => spans.push(last < 0 ? { from: next, to: next, empty: true } : { from: start, to: last, empty: false });
+  for (let k = 1; k < lines.length - 1; k++) {
+    const l = lines[k]!;
+    if (l.trim() === COLUMN_BREAK) {
+      close(p);
+      start = p + l.length + 1;
+      last = -1;
+    } else last = p + l.length;
+    p += l.length + 1;
+  }
+  close(p);
+  return spans;
+}
+
+/** 칸들로 묶음을 다시 쓴다 — 칸이 하나만 남으면 묶음을 풀고, 없으면 지운다 */
+function rewriteColumns(text: string, index: number, edit: (cols: string[]) => { cols: string[]; after?: string }): string {
+  const lines = text.split('\n');
+  const block = lineBlocks(lines)[index];
+  if (!block || block.kind !== 'columns') return text;
+  const blockText = lines.slice(block.start, block.end + 1).join('\n');
+  const spans = columnSpans(blockText);
+  const { cols, after } = edit(spans.map((s) => blockText.slice(s.from, s.to)));
+  const out = cols.length > 1 ? columnsLines(cols) : cols.length === 1 ? cols[0]!.split('\n') : [];
+  if (after !== undefined) out.push(...after.split('\n'));
+  if (!out.length) {
+    const c = cut(lines, block);
+    lines.splice(c.from, c.count);
+  } else lines.splice(block.start, block.end - block.start + 1, ...out);
+  return lines.join('\n');
+}
+
+/** 칸을 왼쪽(-1)·오른쪽(1)으로 한 칸 옮긴다 */
+export function reorderColumn(text: string, index: number, col: number, dir: -1 | 1): string {
+  return rewriteColumns(text, index, (cols) => {
+    const to = col + dir;
+    if (col < 0 || col >= cols.length || to < 0 || to >= cols.length) return { cols };
+    const next = [...cols];
+    [next[col], next[to]] = [next[to]!, next[col]!];
+    return { cols: next };
+  });
+}
+
+/** 칸을 묶음 밖(바로 아래)으로 꺼낸다 — 남은 칸이 하나면 묶음도 푼다 */
+export function moveColumnOut(text: string, index: number, col: number): string {
+  return rewriteColumns(text, index, (cols) => {
+    if (col < 0 || col >= cols.length) return { cols };
+    const body = cols[col]!.replace(/^\n+|\n+$/g, '');
+    return { cols: cols.filter((_, i) => i !== col), after: body };
+  });
+}
+
+/** 칸을 지운다 — 남은 칸이 하나면 묶음도 푼다 */
+export function removeColumn(text: string, index: number, col: number): string {
+  return rewriteColumns(text, index, (cols) => {
+    if (col < 0 || col >= cols.length) return { cols };
+    return { cols: cols.filter((_, i) => i !== col) };
+  });
+}

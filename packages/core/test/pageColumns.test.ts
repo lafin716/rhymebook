@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { markdownBlocks, moveMarkdownBlock, parseColumns, placeBlockBeside, unwrapColumns, renumberOrderedLists } from '../src';
+import { columnSpans, markdownBlocks, moveColumnOut, moveMarkdownBlock, parseColumns, placeBlockBeside, removeColumn, reorderColumn, unwrapColumns, renumberOrderedLists } from '../src';
 
 describe('markdownBlocks', () => {
   it('최상위 블록 목록을 반환한다', () => {
@@ -158,5 +158,40 @@ describe('pageColumns — 정확한 동작 (ADR-087)', () => {
   it('빈 줄로 띄운 목록은 이어 세고, 코드 안은 건드리지 않는다', () => {
     expect(renumberOrderedLists('1. a\n\n5. b')).toBe('1. a\n\n2. b');
     expect(renumberOrderedLists('```\n1. a\n5. b\n```')).toBe('```\n1. a\n5. b\n```');
+  });
+});
+
+describe('칸 단위 조작 (ADR-096)', () => {
+  const doc = ['# 제목', '<!-- columns -->', 'A1', 'A2', '<!-- column -->', '| a |', '|---|', '| 1 |', '<!-- column -->', 'C', '<!-- /columns -->', '끝'].join('\n');
+  const block = () => markdownBlocks(doc).findIndex((b) => b.kind === 'columns');
+
+  it('columnSpans는 칸마다 원문 자리를 준다', () => {
+    const b = markdownBlocks(doc)[block()]!;
+    const text = doc.slice(b.from, b.to);
+    expect(columnSpans(text).map((s) => text.slice(s.from, s.to))).toEqual(['A1\nA2', '| a |\n|---|\n| 1 |', 'C']);
+  });
+
+  it('빈 칸은 다음 표시 줄 앞 빈 자리', () => {
+    const text = ['<!-- columns -->', 'A', '<!-- column -->', '<!-- /columns -->'].join('\n');
+    const spans = columnSpans(text);
+    expect(spans[1]).toEqual({ from: text.indexOf('<!-- /columns -->'), to: text.indexOf('<!-- /columns -->'), empty: true });
+  });
+
+  it('reorderColumn은 칸을 옆으로 옮긴다', () => {
+    const out = reorderColumn(doc, block(), 0, 1);
+    expect(parseColumns(out.slice(out.indexOf('<!-- columns -->'), out.indexOf('<!-- /columns -->') + 17))).toEqual(['| a |\n|---|\n| 1 |', 'A1\nA2', 'C']);
+    expect(reorderColumn(doc, block(), 0, -1)).toBe(doc);
+  });
+
+  it('moveColumnOut은 칸을 묶음 아래로 꺼낸다', () => {
+    const out = moveColumnOut(doc, block(), 2);
+    expect(out.endsWith('<!-- /columns -->\nC\n끝')).toBe(true);
+    expect(out).not.toContain('<!-- column -->\nC');
+  });
+
+  it('칸이 하나만 남으면 묶음을 푼다', () => {
+    const two = ['<!-- columns -->', 'A', '<!-- column -->', 'B', '<!-- /columns -->'].join('\n');
+    expect(removeColumn(two, 0, 0)).toBe('B');
+    expect(moveColumnOut(two, 0, 1)).toBe('A\nB');
   });
 });

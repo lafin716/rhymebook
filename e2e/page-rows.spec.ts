@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
  * 행 앞 + 버튼으로 아래에 새 행 · 되돌리기/설정은 제목 바에.
  */
 const MAIN = '[data-panel="main"]';
-const CONTENT = `${MAIN} [data-page-editor] .cm-content`;
+const CONTENT = `${MAIN} [data-page-editor] .cm-content >> nth=0`;
 
 type View = { state: { doc: { toString(): string; length: number } }; dispatch(s: unknown): void; focus(): void };
 

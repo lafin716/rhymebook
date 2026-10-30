@@ -1,8 +1,6 @@
 import { markdownBlocks, moveMarkdownBlock, placeBlockBeside, type MarkdownBlock } from '@branch/core';
 import type { EditorView } from '@codemirror/view';
-import { GripVertical, Plus } from 'lucide-react';
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
-import { cn } from '../lib/cn';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { minimalChange } from './pageText';
 import { selectedRowField } from './pageRowEditing';
 
@@ -14,13 +12,11 @@ interface Box {
   /** 클라이언트 좌표 */
   top: number;
   bottom: number;
-  /** 첫 줄 글자의 세로 가운데 (클라이언트 좌표) — 핸들을 여기에 맞춘다 */
-  mid: number;
 }
 
 export interface PageBlockHandlesProps {
   view: EditorView | null;
-  /** 바깥 relative 상자 — 핸들 좌표의 기준 */
+  /** 바깥 relative 상자 — 놓을 자리 표시의 기준, 버튼 누르기를 위임으로 받는다 */
   wrap: RefObject<HTMLDivElement | null>;
   /** 본문·배치가 바뀔 때마다 늘어나는 값 */
   tick: number;
@@ -48,28 +44,22 @@ function scrollParent(el: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
+/**
+ * 블록 상자 — 그려진 블록은 행 앞 자리(높이 0 위젯)의 실제 좌표로, 화면 밖이라 안 그려진 블록만 높이 지도로 어림한다.
+ * 끝은 다음 블록의 시작 줄 위(사이 빈 줄 제외)까지가 아니라 마지막 줄 아래.
+ */
 function measure(view: EditorView): Box[] {
   const top = view.documentTop;
-  return markdownBlocks(view.state.doc.toString()).map((block) => {
-    const first = view.lineBlockAt(block.from);
-    const last = view.lineBlockAt(block.to);
-    const box = { block, top: top + first.top, bottom: top + last.bottom };
-    return { ...box, mid: textMid(view, block, box.top, box.bottom) };
+  const anchors = new Map<number, number>();
+  for (const el of view.contentDOM.querySelectorAll<HTMLElement>('[data-row-anchor]')) {
+    anchors.set(Number(el.dataset.rowAnchor), el.getBoundingClientRect().top);
+  }
+  return markdownBlocks(view.state.doc.toString()).map((block, i) => {
+    const first = anchors.get(i) ?? top + view.lineBlockAt(block.from).top;
+    const lastLine = view.lineBlockAt(block.to);
+    const bottom = Math.max(first, top + lastLine.bottom);
+    return { block, top: first, bottom };
   });
-}
-
-/**
- * 첫 줄 글자의 세로 가운데. 제목처럼 줄 위쪽에 여백이 있는 블록도 글자 옆에 핸들이 오게
- * 줄 상자가 아니라 실제 글자 좌표로 잰다. 그림으로 바뀐 블록(나란히·이미지 등)은 첫 줄 높이로 어림한다.
- */
-function textMid(view: EditorView, block: MarkdownBlock, top: number, bottom: number): number {
-  const line = view.state.doc.lineAt(block.from);
-  // 숨긴 머리 기호(`# `) 뒤 첫 글자에서 잰다
-  const lead = /^\s*(#{1,6}\s+|[-*+]\s\[[xX ]\]\s+|[-*+]\s+|\d+[.)]\s+|>\s?)?/.exec(line.text)?.[0].length ?? 0;
-  const at = Math.min(line.from + lead, line.to);
-  const c = block.kind === 'columns' || block.kind === 'image' ? null : view.coordsAtPos(at, 1);
-  if (c && c.bottom > c.top && c.top >= top - 1 && c.bottom <= bottom + 1) return (c.top + c.bottom) / 2;
-  return top + Math.min(bottom - top, 28) / 2;
 }
 
 /** 마우스·손가락 위치에서 놓을 자리를 고른다 */
@@ -115,42 +105,39 @@ function movedIndex(index: number, drop: BlockDrop): number {
 }
 
 /** 지금 손대는 블록 — 고른 행(모바일), 아니면 커서가 있는 블록(포커스 중) */
-function focusIndex(view: EditorView, boxes: Box[]): number {
+function focusIndex(view: EditorView): number {
+  const blocks = markdownBlocks(view.state.doc.toString());
   const row = view.state.field(selectedRowField, false);
-  if (row) return boxes.findIndex((b) => b.block.from <= row.to && b.block.to >= row.from);
+  if (row) return blocks.findIndex((b) => b.from <= row.to && b.to >= row.from);
   if (!view.hasFocus) return -1;
   const head = view.state.selection.main.head;
-  return boxes.findIndex((b) => head >= b.block.from && head <= b.block.to);
+  return blocks.findIndex((b) => head >= b.from && head <= b.to);
 }
 
 /**
- * 행 앞 +·핸들 (ADR-087 P7·P8 → ADR-095). 글이 있는 블록마다 앞에 + 와 손잡이를 둔다.
+ * 행 앞 +·핸들 (ADR-087 P7·P8 → ADR-095 → ADR-096). 버튼은 편집기 안 행 앞 자리(pageRowHandles)에 그려지고,
+ * 여기서는 누르기·끌기를 위임으로 받고 보이기(data-active)·놓을 자리 표시를 맡는다.
  * + 는 그 블록 아래에 새 행을 넣고, 손잡이는 끌어서 위아래로 옮기거나 다른 블록 좌우 가장자리에 놓아 나란히(칸) 배치한다.
  * 손잡이를 누르기만 하면 블록 메뉴(모바일은 행 시트).
  * 데스크톱은 마우스가 지나는 블록·커서가 있는 블록에, 모바일은 고른 행·편집 중인 행에만 보인다.
  */
 export function PageBlockHandles({ view, wrap, tick, locked, onMenu, onAdd, onMoved, touch = false }: PageBlockHandlesProps) {
-  const [boxes, setBoxes] = useState<Box[]>([]);
   const [hover, setHover] = useState(-1);
-  const [drag, setDrag] = useState<{ index: number; drop: BlockDrop | null } | null>(null);
+  const [drag, setDrag] = useState<{ index: number; drop: BlockDrop | null; boxes: Box[] } | null>(null);
   const press = useRef<{ index: number; x: number; y: number; id: number; moved: boolean; touch: boolean } | null>(null);
   const scroll = useRef(0);
-
-  useEffect(() => {
-    if (!view) return;
-    // 측정은 CodeMirror가 그린 뒤에
-    const id = requestAnimationFrame(() => setBoxes(measure(view)));
-    return () => cancelAnimationFrame(id);
-  }, [view, tick]);
+  const latest = useRef({ view, locked, onMenu, onAdd, onMoved, drag });
+  latest.current = { view, locked, onMenu, onAdd, onMoved, drag };
 
   // 마우스가 지나는 블록의 +·핸들이 보인다
   useEffect(() => {
     const el = wrap.current;
     if (!el || !view) return;
     const move = (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse') return;
+      if (e.pointerType !== 'mouse' || press.current) return;
       const list = measure(view);
-      setHover(list.findIndex((b) => e.clientY >= b.top && e.clientY <= b.bottom));
+      // 행 앞 버튼 자리(왼쪽 여백)도 그 행으로 친다
+      setHover(list.findIndex((b) => e.clientY >= b.top - 2 && e.clientY <= b.bottom));
     };
     const leave = () => setHover(-1);
     el.addEventListener('pointermove', move);
@@ -163,81 +150,142 @@ export function PageBlockHandles({ view, wrap, tick, locked, onMenu, onAdd, onMo
 
   useEffect(() => () => cancelAnimationFrame(scroll.current), []);
 
-  if (!view) return null;
-  const origin = wrap.current?.getBoundingClientRect();
-  if (!origin) return null;
-  const focused = focusIndex(view, boxes);
-
-  const retarget = (x: number, y: number) => {
-    const p = press.current;
-    if (!p) return;
-    const content = view.contentDOM.getBoundingClientRect();
-    const list = measure(view);
-    setBoxes(list);
-    setDrag({ index: p.index, drop: dropAt(list, p.index, x, y, content.left, content.right) });
-  };
-  // 손가락으로 끄는 동안 위아래 가장자리에 머물면 계속 스크롤
-  const autoScroll = (x: number, y: number) => {
-    cancelAnimationFrame(scroll.current);
-    const scroller = scrollParent(wrap.current);
-    if (!scroller) return;
-    const step = () => {
-      if (!press.current?.moved) return;
-      const r = scroller.getBoundingClientRect();
-      const top = Math.max(r.top, 0);
-      const bottom = Math.min(r.bottom, window.visualViewport?.height ?? window.innerHeight);
-      const dy = y < top + EDGE ? -(top + EDGE - y) / 4 : y > bottom - EDGE ? (y - bottom + EDGE) / 4 : 0;
-      if (!dy) return;
-      scroller.scrollTop += dy;
-      retarget(x, y);
+  // 누르기·끌기 — 버튼은 CodeMirror가 그리니 바깥 상자에서 위임으로 받는다
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || !view) return;
+    const target = (e: Event) => (e.target instanceof Element ? e.target.closest<HTMLButtonElement>('[data-page-handle], [data-page-row-add]') : null);
+    const retarget = (x: number, y: number) => {
+      const p = press.current;
+      if (!p) return;
+      const content = view.contentDOM.getBoundingClientRect();
+      const list = measure(view);
+      setDrag({ index: p.index, drop: dropAt(list, p.index, x, y, content.left, content.right), boxes: list });
+    };
+    // 손가락으로 끄는 동안 위아래 가장자리에 머물면 계속 스크롤
+    const autoScroll = (x: number, y: number) => {
+      cancelAnimationFrame(scroll.current);
+      const scroller = scrollParent(el);
+      if (!scroller) return;
+      const step = () => {
+        if (!press.current?.moved) return;
+        const r = scroller.getBoundingClientRect();
+        const top = Math.max(r.top, 0);
+        const bottom = Math.min(r.bottom, window.visualViewport?.height ?? window.innerHeight);
+        const dy = y < top + EDGE ? -(top + EDGE - y) / 4 : y > bottom - EDGE ? (y - bottom + EDGE) / 4 : 0;
+        if (!dy) return;
+        scroller.scrollTop += dy;
+        retarget(x, y);
+        scroll.current = requestAnimationFrame(step);
+      };
       scroll.current = requestAnimationFrame(step);
     };
-    scroll.current = requestAnimationFrame(step);
-  };
+    const blockOf = (i: number) => markdownBlocks(view.state.doc.toString())[i];
 
-  const onDown = (i: number) => (e: ReactPointerEvent<HTMLButtonElement>) => {
-    if (locked || e.button !== 0) return;
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    press.current = { index: i, x: e.clientX, y: e.clientY, id: e.pointerId, moved: false, touch: e.pointerType !== 'mouse' };
-  };
-  const onMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
-    const p = press.current;
-    if (!p || p.id !== e.pointerId) return;
-    if (!p.moved && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 5) return;
-    p.moved = true;
-    retarget(e.clientX, e.clientY);
-    if (p.touch) autoScroll(e.clientX, e.clientY);
-  };
-  const onUp = (e: ReactPointerEvent<HTMLButtonElement>) => {
-    const p = press.current;
-    if (!p || p.id !== e.pointerId) return;
-    press.current = null;
-    cancelAnimationFrame(scroll.current);
-    const d = drag;
-    setDrag(null);
-    if (!p.moved) {
-      const b = boxes[p.index];
-      if (b) onMenu(p.index, b.block, { x: e.clientX, y: e.clientY });
-      return;
+    const mousedown = (e: MouseEvent) => {
+      // 편집기 포커스·커서를 뺏지 않는다
+      if (target(e)) e.preventDefault();
+    };
+    const down = (e: PointerEvent) => {
+      const b = target(e);
+      if (!b || !b.hasAttribute('data-page-handle') || latest.current.locked || e.button !== 0) return;
+      e.preventDefault();
+      b.setPointerCapture(e.pointerId);
+      press.current = { index: Number(b.dataset.pageHandle), x: e.clientX, y: e.clientY, id: e.pointerId, moved: false, touch: e.pointerType !== 'mouse' };
+    };
+    const move = (e: PointerEvent) => {
+      const p = press.current;
+      if (!p || p.id !== e.pointerId) return;
+      if (!p.moved && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 5) return;
+      p.moved = true;
+      retarget(e.clientX, e.clientY);
+      if (p.touch) autoScroll(e.clientX, e.clientY);
+    };
+    const up = (e: PointerEvent) => {
+      const p = press.current;
+      if (!p || p.id !== e.pointerId) return;
+      press.current = null;
+      cancelAnimationFrame(scroll.current);
+      const d = latest.current.drag;
+      setDrag(null);
+      if (!p.moved) {
+        const b = blockOf(p.index);
+        if (b) latest.current.onMenu(p.index, b, { x: e.clientX, y: e.clientY });
+        return;
+      }
+      if (d?.drop && applyDrop(view, d.index, d.drop)) {
+        const b = blockOf(movedIndex(d.index, d.drop));
+        if (b) latest.current.onMoved?.({ from: b.from, to: b.to });
+      } else if (d) {
+        const b = blockOf(d.index);
+        if (b) latest.current.onMoved?.({ from: b.from, to: b.to });
+      }
+    };
+    const cancel = () => {
+      press.current = null;
+      cancelAnimationFrame(scroll.current);
+      setDrag(null);
+    };
+    const click = (e: MouseEvent) => {
+      const b = target(e);
+      if (!b || !b.hasAttribute('data-page-row-add') || latest.current.locked) return;
+      e.preventDefault();
+      latest.current.onAdd(Number(b.dataset.pageRowAdd));
+    };
+    const key = (e: KeyboardEvent) => {
+      const b = target(e);
+      if (!b || !b.hasAttribute('data-page-handle') || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const i = Number(b.dataset.pageHandle);
+      const blk = blockOf(i);
+      const r = b.getBoundingClientRect();
+      if (blk) latest.current.onMenu(i, blk, { x: r.right, y: r.bottom });
+    };
+    const menu = (e: Event) => {
+      if (target(e)) e.preventDefault();
+    };
+    el.addEventListener('mousedown', mousedown);
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', cancel);
+    el.addEventListener('click', click);
+    el.addEventListener('keydown', key);
+    el.addEventListener('contextmenu', menu);
+    return () => {
+      el.removeEventListener('mousedown', mousedown);
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', cancel);
+      el.removeEventListener('click', click);
+      el.removeEventListener('keydown', key);
+      el.removeEventListener('contextmenu', menu);
+    };
+  }, [wrap, view]);
+
+  // 보이기·잠금 — CodeMirror가 버튼을 새로 그릴 때마다(tick) 다시 단다
+  const focused = view ? focusIndex(view) : -1;
+  useLayoutEffect(() => {
+    if (!view) return;
+    for (const b of view.contentDOM.querySelectorAll<HTMLButtonElement>('[data-page-handle], [data-page-row-add]')) {
+      const i = Number(b.dataset.pageHandle ?? b.dataset.pageRowAdd);
+      const active = hover === i || focused === i || drag?.index === i;
+      b.toggleAttribute('data-active', active);
+      b.toggleAttribute('data-dragging', drag?.index === i && b.hasAttribute('data-page-handle'));
+      b.disabled = locked;
     }
-    if (d?.drop && applyDrop(view, d.index, d.drop)) {
-      const b = markdownBlocks(view.state.doc.toString())[movedIndex(d.index, d.drop)];
-      if (b) onMoved?.({ from: b.from, to: b.to });
-    } else if (d) {
-      const b = boxes[d.index];
-      if (b) onMoved?.({ from: b.block.from, to: b.block.to });
-    }
-  };
-  const onCancel = () => {
-    press.current = null;
-    cancelAnimationFrame(scroll.current);
-    setDrag(null);
-  };
+  });
+
+  if (!view || !drag) return null;
+  const origin = wrap.current?.getBoundingClientRect();
+  if (!origin) return null;
+  const boxes = drag.boxes;
 
   // 놓을 자리 표시
   let indicator: { left: number; top: number; width: number; height: number } | null = null;
-  if (drag?.drop) {
+  if (drag.drop) {
     const content = view.contentDOM.getBoundingClientRect();
     const d = drag.drop;
     if (d.kind === 'slot') {
@@ -254,16 +302,15 @@ export function PageBlockHandles({ view, wrap, tick, locked, onMenu, onAdd, onMo
     }
   }
 
-  const lifted = touch && drag ? boxes[drag.index] : undefined;
+  const lifted = touch ? boxes[drag.index] : undefined;
   const liftedBox = lifted && view.contentDOM.getBoundingClientRect();
-  const w = touch ? 22 : 20;
-  const h = touch ? 32 : 24;
+  void tick;
 
   return (
     <>
       {lifted && liftedBox && (
         <div
-          data-page-lifted={drag?.index}
+          data-page-lifted={drag.index}
           aria-hidden
           style={{
             left: liftedBox.left - origin.left - 4,
@@ -274,64 +321,8 @@ export function PageBlockHandles({ view, wrap, tick, locked, onMenu, onAdd, onMo
           className="pointer-events-none absolute z-10 rounded-lg bg-accent/10 ring-2 ring-accent"
         />
       )}
-      {boxes.map((b, i) => {
-        const active = hover === i || focused === i || drag?.index === i;
-        // 모바일은 고른 행·편집 중인 행만 그린다(손가락이 엉뚱한 버튼을 누르지 않게)
-        if (touch && !active) return null;
-        const top = b.mid - origin.top - h / 2;
-        return (
-          <div key={`${i}-${b.block.from}`} className="contents">
-            <button
-              type="button"
-              aria-label={`블록 ${i + 1} 아래에 행 추가`}
-              data-page-row-add={i}
-              data-active={active ? '' : undefined}
-              disabled={locked}
-              tabIndex={-1}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onAdd(i)}
-              style={{ top, height: h, width: w, left: 0 }}
-              className="page-handle page-row-add absolute z-10 grid place-items-center rounded text-muted hover:bg-surface-2 hover:text-fg-2"
-            >
-              <Plus size={touch ? 16 : 14} />
-            </button>
-            <button
-              type="button"
-              aria-label={`블록 ${i + 1} 옮기기·메뉴`}
-              data-page-handle={i}
-              data-block-kind={b.block.kind}
-              data-active={active ? '' : undefined}
-              disabled={locked}
-              onMouseDown={(e) => e.preventDefault()}
-              onPointerDown={onDown(i)}
-              onPointerMove={onMove}
-              onPointerUp={onUp}
-              onPointerCancel={onCancel}
-              onContextMenu={(e) => e.preventDefault()}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                e.preventDefault();
-                const r = e.currentTarget.getBoundingClientRect();
-                onMenu(i, b.block, { x: r.right, y: r.bottom });
-              }}
-              style={{ top, height: h, width: w, left: w }}
-              className={cn(
-                'page-handle absolute z-10 grid cursor-grab place-items-center rounded text-muted hover:bg-surface-2 hover:text-fg-2 active:cursor-grabbing',
-                drag?.index === i && 'bg-accent-soft text-accent',
-              )}
-            >
-              <GripVertical size={touch ? 16 : 14} />
-            </button>
-          </div>
-        );
-      })}
       {indicator && (
-        <div
-          data-page-drop={drag?.drop?.kind}
-          aria-hidden
-          style={indicator}
-          className="pointer-events-none absolute z-20 rounded-full bg-accent"
-        />
+        <div data-page-drop={drag.drop?.kind} aria-hidden style={indicator} className="pointer-events-none absolute z-20 rounded-full bg-accent" />
       )}
     </>
   );

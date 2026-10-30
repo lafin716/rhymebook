@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertRowAfter, rowPrefix, spaceShortcut } from '../src/pageRows';
+import { insertRowAfter, rowPrefix, shiftListLines, spaceShortcut } from '../src/pageRows';
 
 describe('rowPrefix — 공백까지 친 기호만 블록', () => {
   it('공백 없는 기호는 평범한 글', () => {
@@ -50,5 +50,38 @@ describe('insertRowAfter', () => {
   });
   it('없는 블록은 null', () => {
     expect(insertRowAfter('', 0)).toBeNull();
+  });
+});
+
+describe('shiftListLines — Tab·Shift+Tab 목록 들여쓰기', () => {
+  const apply = (text: string, first: number, last: number, dir: 1 | -1) => {
+    const lines = text.split('\n');
+    for (const e of shiftListLines(text, first, last, dir) ?? []) {
+      lines[e.line] = e.delta > 0 ? ' '.repeat(e.delta) + lines[e.line] : lines[e.line]!.slice(-e.delta);
+    }
+    return lines.join('\n');
+  };
+  it('위 항목의 기호 폭만큼 하위로 넣는다', () => {
+    expect(apply('- a\n- b', 1, 1, 1)).toBe('- a\n  - b');
+    expect(apply('1. a\n2. b', 1, 1, 1)).toBe('1. a\n   2. b');
+    expect(apply('- [ ] a\n- [ ] b', 1, 1, 1)).toBe('- [ ] a\n  - [ ] b');
+  });
+  it('첫 항목은 넣을 부모가 없어 그대로', () => {
+    expect(shiftListLines('- a\n- b', 0, 0, 1)).toEqual([]);
+    expect(shiftListLines('- a\n  - b\n  - c', 1, 1, 1)).toEqual([]);
+  });
+  it('하위 항목도 같이 움직인다', () => {
+    expect(apply('- a\n- b\n  - c\n- d', 1, 1, 1)).toBe('- a\n  - b\n    - c\n- d');
+    expect(apply('- a\n  - b\n    - c\n- d', 1, 1, -1)).toBe('- a\n- b\n  - c\n- d');
+  });
+  it('내어쓰기는 부모 깊이로, 맨 바깥은 그대로', () => {
+    expect(apply('1. a\n   - b', 1, 1, -1)).toBe('1. a\n- b');
+    expect(shiftListLines('- a', 0, 0, -1)).toEqual([]);
+  });
+  it('목록이 아니면 null', () => {
+    expect(shiftListLines('글\n# 제목', 0, 1, 1)).toBeNull();
+  });
+  it('여러 줄을 고르면 첫 목록 줄 기준으로 함께', () => {
+    expect(apply('- a\n- b\n- c', 1, 2, 1)).toBe('- a\n  - b\n  - c');
   });
 });
