@@ -472,7 +472,7 @@ function columnMarks(doc: Text): ColumnMarks[] {
  * 블록 옮기기·지우기 메뉴·AI·되돌리기처럼 묶음을 다시 쓰는 변경은 막지 않는다.
  */
 function protectColumnMarks(tr: Transaction): boolean | readonly number[] {
-  if (!((tr.isUserEvent('input') && !tr.isUserEvent('input.ai')) || (tr.isUserEvent('delete') && !tr.isUserEvent('delete.block')))) return true;
+  if (!((tr.isUserEvent('input') && !tr.isUserEvent('input.ai') && !tr.isUserEvent('input.row')) || (tr.isUserEvent('delete') && !tr.isUserEvent('delete.block')))) return true;
   const groups = columnMarks(tr.startState.doc);
   if (!groups.length) return true;
   const whole: [number, number][] = [];
@@ -563,6 +563,7 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
   };
   /** 기호 뒤 공백 한 칸까지 숨긴다 */
   const withSpace = (to: number) => (to < doc.length && doc.sliceString(to, to + 1) === ' ' ? to + 1 : to);
+  const spaceAt = (pos: number) => doc.sliceString(pos, pos + 1) === ' ';
 
   // 블록 수식 `$$ … $$` (코드 블록 밖)
   tree.iterate({
@@ -616,21 +617,32 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
     enter: (n) => {
       if (isCovered(n.from)) return false;
       const name = n.name;
-      const heading = /^(?:ATX|Setext)Heading(\d)$/.exec(name);
+      // 줄 머리 기호는 뒤에 공백까지 쳐야 블록이 된다 — `#`만 친 줄은 평범한 글. 바뀐 뒤엔 편집 중에도 기호를 숨긴다 (ADR-095)
+      // 밑줄(Setext) 제목은 그리지 않는다 — `---`를 치는 순간 윗줄이 커지지 않게
+      const heading = /^ATXHeading(\d)$/.exec(name);
       if (heading) {
-        out.push(lineDeco(`cm-lp-h${heading[1]}`).range(doc.lineAt(n.from).from));
-        if (!lineTouched(n.from)) {
-          const hm = n.node.getChild('HeaderMark');
-          if (hm && name.startsWith('ATX')) out.push(hide.range(hm.from, withSpace(hm.to)));
-        }
+        const hm = n.node.getChild('HeaderMark');
+        if (!hm || !spaceAt(hm.to)) return;
+        const line = doc.lineAt(n.from);
+        const empty = withSpace(hm.to) >= line.to;
+        out.push(Decoration.line({ class: `cm-lp-h${heading[1]}${empty ? ' cm-lp-ph' : ''}`, attributes: empty ? { 'data-ph': `제목 ${heading[1]}` } : {} }).range(line.from));
+        out.push(hide.range(hm.from, withSpace(hm.to)));
         return;
       }
       switch (name) {
-        case 'Blockquote':
-          lines(n.from, n.to, 'cm-lp-quote');
+        case 'Blockquote': {
+          const qm = n.node.getChild('QuoteMark');
+          if (!qm || !spaceAt(qm.to)) return false;
+          // 기호가 있는 줄만 인용으로 그린다 — 기호 없이 이어 붙은 줄(lazy)은 평범한 글로 보인다
+          for (let p = n.from; p <= n.to; ) {
+            const l = doc.lineAt(p);
+            if (/^\s*> /.test(l.text)) out.push(lineDeco('cm-lp-quote').range(l.from));
+            p = l.to + 1;
+          }
           return;
+        }
         case 'QuoteMark':
-          if (!lineTouched(n.from)) out.push(hide.range(n.from, withSpace(n.to)));
+          if (spaceAt(n.to)) out.push(hide.range(n.from, n.to + 1));
           return;
         case 'FencedCode': {
           const first = doc.lineAt(n.from).number;
@@ -674,19 +686,18 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
           const lm = n.node.getChild('ListMark');
           const task = n.node.getChild('Task');
           if (!lm) return;
+          if (!spaceAt(lm.to)) return;
           const marker = task?.getChild('TaskMarker');
           if (marker) {
-            if (!touches(marker.from, marker.to)) {
-              const checked = /x/i.test(doc.sliceString(marker.from, marker.to));
-              if (!lineTouched(lm.from)) out.push(hide.range(lm.from, withSpace(lm.to)));
-              out.push(Decoration.replace({ widget: new CheckboxWidget(checked, marker.from) }).range(marker.from, marker.to));
-              if (checked) {
-                const body = withSpace(marker.to);
-                const end = doc.lineAt(marker.from).to;
-                if (end > body) out.push(mark('cm-lp-done').range(body, end));
-              }
+            const checked = /x/i.test(doc.sliceString(marker.from, marker.to));
+            out.push(hide.range(lm.from, withSpace(lm.to)));
+            out.push(Decoration.replace({ widget: new CheckboxWidget(checked, marker.from) }).range(marker.from, marker.to));
+            if (checked) {
+              const body = withSpace(marker.to);
+              const end = doc.lineAt(marker.from).to;
+              if (end > body) out.push(mark('cm-lp-done').range(body, end));
             }
-          } else if (/^[-*+]$/.test(doc.sliceString(lm.from, lm.to)) && !lineTouched(lm.from)) {
+          } else if (/^[-*+]$/.test(doc.sliceString(lm.from, lm.to))) {
             out.push(Decoration.replace({ widget: new BulletWidget() }).range(lm.from, lm.to));
           } else {
             out.push(mark('cm-lp-listmark').range(lm.from, lm.to));

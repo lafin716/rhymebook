@@ -95,6 +95,20 @@ export function SelectionMenu() {
   const frozenRef = useRef(false);
   frozenRef.current = custom || memo !== null || palette !== null || draft !== null || edited !== null;
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  /** 모바일 키보드 높이 — 편집기에서 글을 고르면 하단 바를 키보드 위에 붙인다 (ADR-095) */
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!mobile || !vv) return;
+    const sync = () => setKb(Math.max(0, Math.round(window.innerHeight - (vv.offsetTop + vv.height))));
+    sync();
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    return () => {
+      vv.removeEventListener('resize', sync);
+      vv.removeEventListener('scroll', sync);
+    };
+  }, [mobile]);
 
   const dismiss = useCallback(() => {
     setPending(null);
@@ -646,12 +660,13 @@ export function SelectionMenu() {
   if (mobile) {
     // 하단 바가 선택을 가리면 위쪽으로 올린다
     const barH = size?.h ?? 170;
-    const atTop = pending.rect.bottom > window.innerHeight - barH - MENU_GAP && pending.rect.top > barH + MENU_GAP;
+    const atTop = pending.rect.bottom > window.innerHeight - kb - barH - MENU_GAP && pending.rect.top > barH + MENU_GAP;
     return createPortal(
       <div
         ref={menuRef}
         {...guard}
         data-placement={atTop ? 'top' : 'bottom'}
+        style={!atTop && kb > 0 ? { bottom: kb } : undefined}
         className={cn(
           'fixed inset-x-0 z-[70] bg-elev shadow-float',
           atTop ? 'safe-top top-0 border-b border-line' : 'animate-sheet-up safe-bottom bottom-0 border-t border-line',

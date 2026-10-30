@@ -16,6 +16,7 @@ export * from './canvas';
 export * from './pageAssist';
 export * from './pageFormat';
 export * from './pageColumns';
+export * from './pageRows';
 export * from './emoji';
 export * from './id';
 export * from './repo';

@@ -191,9 +191,9 @@ test('실시간 렌더 — 커서가 없는 줄은 마크다운 기호를 숨기
   await editor.locator('.cm-lp-check').click();
   await expect.poll(() => source(page)).toContain('- [x] 할 일');
 
-  // 커서를 제목 줄로 옮기면 그 줄만 원문(## )이 드러난다
+  // 커서를 제목 줄로 옮겨도 바뀐 줄 머리 기호(## )는 숨은 채다 (ADR-095)
   await heading.click();
-  await expect(editor.locator('.cm-line.cm-lp-h2')).toContainText('## ');
+  await expect(editor.locator('.cm-line.cm-lp-h2')).toHaveText('제목 줄');
   expect(await source(page)).toBe('## 제목 줄\n**굵게** 그리고 `코드`\n- [x] 할 일\n마지막 줄');
   await page.screenshot({ path: `test-results/page-live-${test.info().project.name}.png` });
   expect(errors).toEqual([]);

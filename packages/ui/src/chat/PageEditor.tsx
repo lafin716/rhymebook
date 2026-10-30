@@ -62,6 +62,8 @@ import { livePreview } from './livePreview';
 import { minimalChange } from './pageText';
 import { openBranch } from './open';
 import { PageBlockHandles } from './PageBlockHandles';
+import { PageRowSheet } from './PageRowSheet';
+import { blockAtPos, insertRowBelow, pageRowEditing, selectRow, selectedRowField, setRowKind } from './pageRowEditing';
 import { registerPageEditor } from './pageEditorBridge';
 import { getEmojiQuery } from './pageEmoji';
 
@@ -76,6 +78,16 @@ const lockField = StateField.define<boolean>({
   update: (v, tr) => tr.effects.reduce((acc, e) => (e.is(setLock) ? e.value : acc), v),
   provide: (f) => EditorState.readOnly.from(f),
 });
+/** 모바일 보기 상태 — 탭해도 키보드가 뜨지 않고, 행을 고른 뒤 다시 탭하면 편집한다 (ADR-095) */
+const setViewMode = StateEffect.define<boolean>();
+const viewModeField = StateField.define<boolean>({
+  create: () => false,
+  update: (v, tr) => tr.effects.reduce((acc, e) => (e.is(setViewMode) ? e.value : acc), v),
+  provide: (f) => EditorView.editable.from(f, (on) => !on),
+});
+/** 이만큼 안에서 떼면 탭 */
+const TAP_SLOP = 10;
+const TAP_MS = 500;
 /** 바깥에서 들어온 본문 — 다시 저장하지 않는다 */
 const external = Annotation.define<boolean>();
 
@@ -306,7 +318,7 @@ export function PageEditor({
   /** 핸들이 쓰는 편집기와 다시 잴 때를 알리는 값 */
   const [editor, setEditor] = useState<EditorView | null>(null);
   const [layoutTick, setLayoutTick] = useState(0);
-  /** 모바일: 핸들 없이 블록을 길게 눌러 옮긴다 (ADR-091) */
+  /** 모바일: 한 번 탭 = 행 고르기, 다시 탭 = 편집, 행 앞 핸들로 옮긴다 (ADR-095) */
   const touchBlocks = useBreakpoint() === 'mobile' || !!mobile;
   const [ask, setAsk] = useState('');
   const [slash, setSlash] = useState<Slash | null>(null);
@@ -324,10 +336,33 @@ export function PageEditor({
   /** 터치 입력인지 판정 (P10) */
   const lastPointerType = useRef<string>('mouse');
   const isTouchInput = () => lastPointerType.current !== 'mouse';
+  /** 고른 행(모바일) — 아래 시트를 띄운다 */
+  const [row, setRow] = useState<{ from: number; to: number } | null>(null);
+  const tap = useRef<{ x: number; y: number; t: number; id: number } | null>(null);
 
   // CodeMirror 확장은 한 번 만들고, 최신 콜백·상태는 ref로 읽는다
-  const latest = useRef({ onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex });
-  latest.current = { onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex };
+  const latest = useRef({ onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex, touchBlocks });
+  latest.current = { onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex, touchBlocks };
+
+  /** 보기 상태(모바일)에서는 포커스를 주지 않는다 — 키보드가 갑자기 뜨지 않게 */
+  const maybeFocus = (v: EditorView) => {
+    if (!v.state.field(viewModeField)) v.focus();
+  };
+  /** 보기 상태를 끝내고 pos에 커서를 두고 편집한다 (사용자 제스처 안에서 불러야 키보드가 뜬다) */
+  const startEditing = (v: EditorView, pos?: number) => {
+    v.dispatch({
+      effects: [setViewMode.of(false), selectRow.of(null)],
+      ...(pos === undefined ? {} : { selection: { anchor: Math.min(pos, v.state.doc.length) } }),
+    });
+    v.focus();
+  };
+  /** 행을 고른다 — 편집 중이면 키보드를 내리고 보기 상태로 */
+  const pickRow = (v: EditorView, r: { from: number; to: number } | null) => {
+    const effects = [selectRow.of(r)];
+    if (r && latest.current.touchBlocks) effects.push(setViewMode.of(true) as never);
+    v.dispatch({ effects });
+    if (r && v.hasFocus) v.contentDOM.blur();
+  };
 
   /** 커서 앞이 `/검색어`면 그 아래(공간이 없으면 위)에 블록 메뉴를 연다 */
   const syncSlash = (v: EditorView) => {
@@ -411,7 +446,7 @@ export function PageEditor({
     const r = toggleInlineFormat(before, sel.from, sel.to, kind);
     if (!r) return false;
     v.dispatch({ changes: minimalChange(before, r.text), selection: { anchor: r.selStart, head: r.selEnd }, userEvent: 'input.format' });
-    v.focus();
+    maybeFocus(v);
     return true;
   };
   const formatRef = useRef(applyFormat);
@@ -527,7 +562,13 @@ export function PageEditor({
       }
     }
     if (after !== before) v.dispatch({ changes: minimalChange(before, after), userEvent: action === 'delete' ? 'delete.block' : 'move.block' });
-    v.focus();
+    // 고른 행은 옮긴 자리를 따라가고, 지우면 풀린다
+    if (v.state.field(selectedRowField)) {
+      const at = after === before ? index : action === 'up' ? index - 1 : action === 'down' ? index + 1 : -1;
+      const b = at >= 0 && action !== 'delete' && action !== 'unwrap' ? markdownBlocks(after)[at] : undefined;
+      v.dispatch({ effects: selectRow.of(b ? { from: b.from, to: b.to } : null) });
+    }
+    maybeFocus(v);
   };
   const ctxRef = useRef(openCtx);
   ctxRef.current = openCtx;
@@ -557,7 +598,7 @@ export function PageEditor({
     if (!view.current) return;
     put('', false);
     if (final) put(joinPageFill(before, final, after), true);
-    view.current.focus();
+    maybeFocus(view.current);
   };
 
   useEffect(() => {
@@ -622,12 +663,14 @@ export function PageEditor({
               },
             ]),
           ),
+          pageRowEditing(),
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
           markdown({ base: markdownLanguage }),
           EditorView.lineWrapping,
           placeholder(placeholderEl),
           lockField,
+          viewModeField.init(() => latest.current.touchBlocks && !!initial.trim()),
           marksField,
           marksDecorations((a, rect) => latest.current.onNote?.(a, rect)),
           EditorView.contentAttributes.of({ 'aria-label': '페이지 본문 (마크다운)', spellcheck: 'false', 'aria-multiline': 'true' }),
@@ -647,17 +690,25 @@ export function PageEditor({
           EditorView.updateListener.of((u) => {
             if (u.docChanged && !u.transactions.some((t) => t.annotation(external))) latest.current.onChange(u.state.doc.toString());
             if (u.docChanged || u.selectionSet || u.focusChanged) syncRef.current(u.view);
-            if (u.docChanged || u.geometryChanged || u.viewportChanged) setLayoutTick((t) => t + 1);
+            const rowChanged = u.startState.field(selectedRowField) !== u.state.field(selectedRowField);
+            if (rowChanged) setRow(u.state.field(selectedRowField));
+            if (u.docChanged || u.geometryChanged || u.viewportChanged || u.selectionSet || u.focusChanged || rowChanged) setLayoutTick((t) => t + 1);
             // P2: onHistory 콜백 — undo/redo 깊이 추적 (A2 undo/redo 버튼이 의존)
             if (_onHistory && (u.docChanged || u.transactions.some((t) => t.isUserEvent('undo') || t.isUserEvent('redo')))) {
               _onHistory({ undo: undoDepth(u.state), redo: redoDepth(u.state) });
             }
           }),
           EditorView.domEventHandlers({
-            blur: () => {
+            blur: (_e, ed) => {
               setSlash(null);
               setEmo(null);
               latest.current.onBlur();
+              // 모바일에서 편집을 마치면 다시 보기 상태 — 다음 탭이 키보드를 띄우지 않게
+              if (latest.current.touchBlocks && isTouchInput() && !ed.state.field(viewModeField)) {
+                queueMicrotask(() => {
+                  if (!ed.hasFocus && view.current === ed) ed.dispatch({ effects: setViewMode.of(true) });
+                });
+              }
             },
             pointerdown: (e) => {
               // P10: 터치 입력 감지
@@ -761,35 +812,8 @@ export function PageEditor({
       },
       block: (kind) => {
         if (latest.current.locked) return false;
-        const marker = { h1: '# ', h2: '## ', h3: '### ', bullet: '- ', ordered: '1. ', todo: '- [ ] ' }[kind];
-        const sel = v.state.selection.main;
-        const doc = v.state.doc;
-        const first = doc.lineAt(sel.from).number;
-        const last = doc.lineAt(sel.to).number;
-        const re = /^(\s*)(#{1,6} |[-*+] \[[ xX]\] |[-*+] |\d+[.)] )?/;
-        const sameKind = (m: string | undefined) => {
-          if (!m) return false;
-          if (kind === 'ordered') return /^\d+[.)] $/.test(m);
-          if (kind === 'todo') return /^[-*+] \[[ xX]\] $/.test(m);
-          if (kind === 'bullet') return /^[-*+] $/.test(m);
-          return m === marker;
-        };
-        const lines = [];
-        for (let i = first; i <= last; i++) lines.push(doc.line(i));
-        const filled = lines.filter((l) => l.text.trim());
-        // 고른 줄이 모두 이미 그 모양이면 기호를 뗀다(되돌리기 토글)
-        const off = filled.length > 0 && filled.every((l) => sameKind(re.exec(l.text)?.[2]));
-        let n = 1;
-        const changes = lines
-          .filter((l) => l.text.trim() || lines.length === 1)
-          .map((l) => {
-            const m = re.exec(l.text)!;
-            const indent = m[1] ?? '';
-            const mark = off ? '' : kind === 'ordered' ? `${n++}. ` : marker;
-            return { from: l.from + indent.length, to: l.from + m[0].length, insert: mark };
-          });
-        v.dispatch({ changes, userEvent: 'input.format' });
-        v.focus();
+        setRowKind(v, kind);
+        maybeFocus(v);
         return true;
       },
       indent: (dir) => {
@@ -837,7 +861,56 @@ export function PageEditor({
 
   const closeCtx = () => {
     setCtx(null);
-    view.current?.focus();
+    if (view.current) maybeFocus(view.current);
+  };
+
+  // 고른 행 밖(편집기·시트 바깥)을 누르면 고르기를 푼다
+  useEffect(() => {
+    if (!row) return;
+    const off = (e: Event) => {
+      const t = e.target;
+      if (!(t instanceof Element) || wrap.current?.contains(t) || t.closest('[data-page-sheet]')) return;
+      view.current?.dispatch({ effects: selectRow.of(null) });
+    };
+    window.addEventListener('pointerdown', off, true);
+    return () => window.removeEventListener('pointerdown', off, true);
+  }, [row]);
+
+  /** 편집기 위 포인터 — 마우스는 바로 편집, 모바일 터치는 첫 탭에 행을 고르고 같은 행을 다시 탭하면 편집 */
+  const onHostPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const v = view.current;
+    tap.current = null;
+    if (!v || latest.current.locked) return;
+    lastPointerType.current = e.pointerType;
+    if (e.pointerType !== 'touch' || !touchBlocks) {
+      if (v.state.field(viewModeField)) v.dispatch({ effects: [setViewMode.of(false), selectRow.of(null)] });
+      return;
+    }
+    // 편집 중이면 평소대로(커서 옮기기·글 고르기). 체크박스·링크·버튼은 그대로 누른다
+    if (v.hasFocus || (e.target instanceof Element && e.target.closest('input, button, a'))) return;
+    // 탭이 포커스를 주기 전에 보기 상태로 — 키보드가 뜨지 않는다
+    if (!v.state.field(viewModeField)) v.dispatch({ effects: setViewMode.of(true) });
+    tap.current = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
+  };
+  const onHostPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = tap.current;
+    tap.current = null;
+    const v = view.current;
+    if (!v || !s || s.id !== e.pointerId) return;
+    if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > TAP_SLOP || Date.now() - s.t > TAP_MS) return;
+    // 글을 길게 눌러 고르는 중이면 행 고르기를 하지 않는다
+    if (!v.state.selection.main.empty && v.state.field(viewModeField)) {
+      const domSel = document.getSelection();
+      if (domSel && !domSel.isCollapsed) return;
+    }
+    const pos = v.posAtCoords({ x: e.clientX, y: e.clientY });
+    const b = pos === null ? null : blockAtPos(v.state, pos);
+    const cur = v.state.field(selectedRowField);
+    if (b && cur && cur.from <= b.to && cur.to >= b.from) startEditing(v, pos ?? undefined);
+    else if (b) pickRow(v, { from: b.from, to: b.to });
+    // 빈 자리: 고른 행이 있으면 풀고, 없으면 그 자리부터 쓴다
+    else if (cur) v.dispatch({ effects: selectRow.of(null) });
+    else startEditing(v, pos ?? v.state.doc.length);
   };
   const onCtxKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing) return;
@@ -877,15 +950,67 @@ export function PageEditor({
 
   return (
     <div ref={wrap} className="relative">
-      <div ref={host} data-page-editor="" data-session-id={sessionId} data-message-id={messageId} className={cn('page-editor min-h-[50vh]', touchBlocks ? 'pl-1' : 'pl-6')} />
+      <div
+        ref={host}
+        data-page-editor=""
+        data-session-id={sessionId}
+        data-message-id={messageId}
+        onPointerDownCapture={onHostPointerDown}
+        onPointerUpCapture={onHostPointerUp}
+        onPointerCancelCapture={() => (tap.current = null)}
+        className={cn('page-editor min-h-[50vh]', touchBlocks ? 'pl-11' : 'pl-12')}
+      />
       <PageBlockHandles
         view={editor}
         wrap={wrap}
         tick={layoutTick}
         locked={locked}
         touch={touchBlocks}
-        onMenu={(index, b, at) => showCtx({ pos: b.to, ask: false, block: { index, kind: b.kind } }, at.x, at.y)}
+        onMenu={(index, b, at) => {
+          const v = view.current;
+          if (touchBlocks && v) pickRow(v, { from: b.from, to: b.to });
+          else showCtx({ pos: b.to, ask: false, block: { index, kind: b.kind } }, at.x, at.y);
+        }}
+        onAdd={(index) => {
+          const v = view.current;
+          if (!v || latest.current.locked) return;
+          v.dispatch({ effects: [setViewMode.of(false), selectRow.of(null)] });
+          insertRowBelow(v, index);
+          v.focus();
+        }}
+        onMoved={(r) => {
+          const v = view.current;
+          if (!v) return;
+          if (touchBlocks) v.dispatch({ effects: selectRow.of(r) });
+          else v.focus();
+        }}
       />
+      {touchBlocks && row && editor && !locked && (
+        <PageRowSheet
+          view={editor}
+          row={row}
+          canFill={!!onFill}
+          onEdit={(pos) => startEditing(editor, pos)}
+          onAddBelow={(index) => {
+            editor.dispatch({ effects: [setViewMode.of(false), selectRow.of(null)] });
+            insertRowBelow(editor, index);
+            editor.focus();
+          }}
+          onAction={blockAction}
+          onKind={(kind, r) => {
+            setRowKind(editor, kind, r);
+            const b = blockAtPos(editor.state, editor.state.doc.lineAt(r.from).from + 0);
+            editor.dispatch({ effects: selectRow.of(b ? { from: b.from, to: b.to } : null) });
+          }}
+          onFill={(pos) => {
+            const c = editor.coordsAtPos(pos, -1);
+            const box = host.current?.getBoundingClientRect();
+            editor.dispatch({ effects: selectRow.of(null) });
+            showCtx({ pos, ask: true }, box?.left ?? 0, (c?.bottom ?? box?.top ?? 0) + 6);
+          }}
+          onClose={() => editor.dispatch({ effects: selectRow.of(null) })}
+        />
+      )}
       <input
         ref={fileInput}
         type="file"

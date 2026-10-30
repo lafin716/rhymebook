@@ -2,7 +2,7 @@ import type { InlineFormat } from '@branch/core';
 import type { EditorView } from '@codemirror/view';
 
 /** 키보드 단축키 바가 넣는 줄 서식 (ADR-087) */
-export type PageBlockKind = 'h1' | 'h2' | 'h3' | 'bullet' | 'ordered' | 'todo';
+export type PageBlockKind = 'paragraph' | 'h1' | 'h2' | 'h3' | 'bullet' | 'ordered' | 'todo' | 'quote';
 
 /**
  * 열린 페이지 편집기의 바깥 손잡이 — 선택 메뉴가 고른 글에 마크다운 서식을 넣거나(ADR-086)
@@ -16,7 +16,7 @@ export interface PageEditorApi {
   canFill(): boolean;
   /** 고른 글 끝(선택이 없으면 커서) 자리에 'AI로 내용 채우기' 입력 창을 연다 */
   openFill(): boolean;
-  /** 커서 줄(들)을 제목·목록·번호·할 일로 바꾸거나, 이미 그 서식이면 푼다 */
+  /** 커서 줄(들)을 본문·제목·목록·번호·할 일·인용으로 바꾸거나, 이미 그 서식이면 푼다 */
   block(kind: PageBlockKind): boolean;
   /** 들여쓰기(1)·내어쓰기(-1) */
   indent(dir: 1 | -1): boolean;

@@ -1,4 +1,4 @@
-import { Keyboard, Redo2, Undo2, List, ListOrdered, CheckSquare, Bold, Heading3, ChevronDown } from 'lucide-react';
+import { Keyboard, Redo2, Undo2, List, ListOrdered, CheckSquare, Bold, Heading3, ChevronDown, Pilcrow, Quote } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -6,7 +6,7 @@ import type { EditorView } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { caps } from '../app/capabilities';
 import { cn } from '../lib/cn';
-import { indentPage, pageBlock } from './pageEditorBridge';
+import { formatPage, indentPage, pageBlock } from './pageEditorBridge';
 import type { PageBlockKind } from './pageEditorBridge';
 
 interface PageKeyboardBarProps {
@@ -27,6 +27,17 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
   });
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [barPosition, setBarPosition] = useState<number | null>(null);
+  /** 글을 고른 동안은 숨긴다 — 선택 메뉴(가지·서식)가 키보드 위를 쓴다 (ADR-095) */
+  const [selecting, setSelecting] = useState(false);
+  useEffect(() => {
+    if (!view) return;
+    const onSel = () => {
+      const sel = document.getSelection();
+      setSelecting(!!sel && !sel.isCollapsed && !!sel.anchorNode && view.contentDOM.contains(sel.anchorNode));
+    };
+    document.addEventListener('selectionchange', onSel);
+    return () => document.removeEventListener('selectionchange', onSel);
+  }, [view]);
   const barPositionRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const maxInnerHeightRef = useRef(window.innerHeight);
@@ -86,7 +97,7 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
   }, [view]);
 
   // 모바일 기기가 아니거나 설정이 끌려 있으면 렌더하지 않음
-  if (caps.kind !== 'mobile' || !enabled || !view || !keyboardOpen || barPosition === null) return null;
+  if (caps.kind !== 'mobile' || !enabled || !view || !keyboardOpen || barPosition === null || selecting) return null;
 
   const handleIndent = (dir: 1 | -1) => {
     if (view && indentPage(view, dir)) {
@@ -101,11 +112,7 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
   };
 
   const handleFormat = () => {
-    // 굵게 서식은 pageEditorBridge의 formatPage로 처리하면 된다
-    // 하지만 여기서는 직접 구현해야 할 수도 있다
-    // 일단 view.dispatch를 직접 사용하여 구현
-    if (!view) return;
-    view.focus();
+    if (view && formatPage(view, 'bold')) view.focus();
   };
 
   const handleUndo = () => {
@@ -134,7 +141,9 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
       ref={containerRef}
       style={{
         position: 'fixed',
+        // 보이는 화면(키보드 위) 아래 끝에 바의 아래 끝을 맞춘다
         top: `${barPosition}px`,
+        transform: 'translateY(-100%)',
         left: 0,
         right: 0,
         zIndex: 50,
@@ -146,9 +155,11 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
         <KeyboardBarButton label="들여쓰기" icon={ChevronDown} onClick={() => handleIndent(1)} />
         <span className="w-px h-6 bg-line mx-1 shrink-0" />
 
+        <KeyboardBarButton label="본문" icon={Pilcrow} onClick={() => handleBlock('paragraph')} />
         <KeyboardBarButton label="글머리 목록" icon={List} onClick={() => handleBlock('bullet')} />
         <KeyboardBarButton label="번호 목록" icon={ListOrdered} onClick={() => handleBlock('ordered')} />
         <KeyboardBarButton label="할 일" icon={CheckSquare} onClick={() => handleBlock('todo')} />
+        <KeyboardBarButton label="인용" icon={Quote} onClick={() => handleBlock('quote')} />
         <span className="w-px h-6 bg-line mx-1 shrink-0" />
 
         <KeyboardBarButton label="제목" icon={Heading3} onClick={() => handleBlock('h3')} />

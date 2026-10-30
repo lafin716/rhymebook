@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest';
+import { insertRowAfter, rowPrefix, spaceShortcut } from '../src/pageRows';
+
+describe('rowPrefix — 공백까지 친 기호만 블록', () => {
+  it('공백 없는 기호는 평범한 글', () => {
+    expect(rowPrefix('#')).toBeNull();
+    expect(rowPrefix('#제목')).toBeNull();
+    expect(rowPrefix('-')).toBeNull();
+    expect(rowPrefix('1.')).toBeNull();
+    expect(rowPrefix('>')).toBeNull();
+    expect(rowPrefix('####### 일곱')).toBeNull();
+  });
+  it('기호 종류와 내용 시작', () => {
+    expect(rowPrefix('## 제목')).toEqual({ kind: 'heading', indent: 0, end: 3, level: 2 });
+    expect(rowPrefix('# ')).toMatchObject({ kind: 'heading', end: 2 });
+    expect(rowPrefix('  - [x] 끝')).toEqual({ kind: 'todo', indent: 2, end: 8 });
+    expect(rowPrefix('- 항목')).toEqual({ kind: 'bullet', indent: 0, end: 2 });
+    expect(rowPrefix('12) 번호')).toEqual({ kind: 'ordered', indent: 0, end: 4 });
+    expect(rowPrefix('> 인용')).toEqual({ kind: 'quote', indent: 0, end: 2 });
+  });
+});
+
+describe('spaceShortcut', () => {
+  it('[] 뒤 공백 → 할 일', () => {
+    expect(spaceShortcut('[] ')).toBe('- [ ] ');
+    expect(spaceShortcut('[ ] ')).toBe('- [ ] ');
+    expect(spaceShortcut('  [x] ')).toBe('  - [x] ');
+  });
+  it('그 밖은 없음', () => {
+    expect(spaceShortcut('a[] ')).toBeNull();
+    expect(spaceShortcut('[]')).toBeNull();
+    expect(spaceShortcut('# ')).toBeNull();
+  });
+});
+
+describe('insertRowAfter', () => {
+  it('문단 아래에 빈 행', () => {
+    expect(insertRowAfter('하나\n둘', 0)).toEqual({ text: '하나\n\n둘', cursor: 3 });
+    expect(insertRowAfter('# 제목', 0)).toEqual({ text: '# 제목\n', cursor: 5 });
+  });
+  it('목록은 같은 기호로 잇고 번호는 다음 수', () => {
+    expect(insertRowAfter('- 가\n- 나', 0)).toEqual({ text: '- 가\n- \n- 나', cursor: 6 });
+    expect(insertRowAfter('  2. 가', 0)).toEqual({ text: '  2. 가\n  3. ', cursor: 12 });
+    expect(insertRowAfter('- [x] 끝', 0)).toEqual({ text: '- [x] 끝\n- [ ] ', cursor: 14 });
+  });
+  it('인용·표·코드 뒤는 빈 줄로 띄운다', () => {
+    expect(insertRowAfter('> 인용', 0)).toEqual({ text: '> 인용\n\n', cursor: 6 });
+    expect(insertRowAfter('```\na\n```\n다음', 0)).toEqual({ text: '```\na\n```\n\n\n다음', cursor: 11 });
+    expect(insertRowAfter('|a|\n|-|\n\n끝', 0)).toEqual({ text: '|a|\n|-|\n\n\n끝', cursor: 9 });
+  });
+  it('없는 블록은 null', () => {
+    expect(insertRowAfter('', 0)).toBeNull();
+  });
+});

@@ -19,6 +19,7 @@ import { Button } from '../components/Button';
 import { IconButton } from '../components/Button';
 import { PanelFullToggle } from '../components/PanelFullToggle';
 import { cn } from '../lib/cn';
+import { useBreakpoint } from '../app/useBreakpoint';
 import type { PanelVariant } from './ChatPanel';
 import { AnnotationPopover } from './AnnotationPopover';
 import { FootnoteList } from './Footnotes';
@@ -61,6 +62,8 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
   const doc = useApp((s) => pageDoc(s.messages[sessionId]));
   const sessions = useApp((s) => s.sessions);
   const compact = variant !== 'main';
+  /** 좁은 화면 — 제목 바 버튼은 아이콘만 */
+  const narrow = useBreakpoint() === 'mobile';
   const content = doc?.content ?? '';
   const [draft, setDraft] = useState(content);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -192,6 +195,36 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
         handleClassName={handleClassName}
         actions={
           <>
+            {/* 되돌리기·다시 실행·설정은 제목 바에 (ADR-095). 누를 때 편집기 포커스를 뺏지 않는다 — 모바일 키보드가 그대로 */}
+            <IconButton
+              label="실행 취소"
+              size="sm"
+              disabled={!editorRef.current || history.undo === 0}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const v = editorRef.current;
+                if (v) undo({ state: v.state, dispatch: v.dispatch });
+              }}
+              data-page-undo=""
+            >
+              <Undo2 size={16} />
+            </IconButton>
+            <IconButton
+              label="다시 실행"
+              size="sm"
+              disabled={!editorRef.current || history.redo === 0}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                const v = editorRef.current;
+                if (v) redo({ state: v.state, dispatch: v.dispatch });
+              }}
+              data-page-redo=""
+            >
+              <Redo2 size={16} />
+            </IconButton>
+            <IconButton label="페이지 설정" size="sm" onClick={() => setSettingsOpen(true)} data-page-settings-open="">
+              <Settings size={16} />
+            </IconButton>
             {ai.busy === 'organize' ? (
               <Button size="sm" variant="soft" icon={<Square size={13} />} data-page-ai-stop="" onClick={ai.stop} title="정리 멈추기">
                 정리 중…
@@ -205,8 +238,9 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
                 disabled={!!ai.busy || !draft.trim()}
                 onClick={() => void organize()}
                 title="AI로 노트 내용을 읽기 좋게 정리해요"
+                aria-label="AI로 정리"
               >
-                {compact ? 'AI 정리' : 'AI로 정리'}
+                {narrow ? null : compact ? 'AI 정리' : 'AI로 정리'}
               </Button>
             )}
             {variant === 'main' && <PanelFullToggle />}
@@ -232,48 +266,6 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
         )}
       >
         <div className="relative mx-auto max-w-3xl">
-          {/* 상단 도구 줄: Undo/Redo (좌측) 및 설정 (우측) */}
-          <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="flex items-center gap-1" data-page-toolbar="">
-              <IconButton
-                label="실행 취소"
-                size="sm"
-                disabled={!editorRef.current || history.undo === 0}
-                onClick={() => {
-                  if (editorRef.current) {
-                    undo({ state: editorRef.current.state, dispatch: editorRef.current.dispatch });
-                    editorRef.current.focus();
-                  }
-                }}
-                data-page-undo=""
-              >
-                <Undo2 size={16} />
-              </IconButton>
-              <IconButton
-                label="다시 실행"
-                size="sm"
-                disabled={!editorRef.current || history.redo === 0}
-                onClick={() => {
-                  if (editorRef.current) {
-                    redo({ state: editorRef.current.state, dispatch: editorRef.current.dispatch });
-                    editorRef.current.focus();
-                  }
-                }}
-                data-page-redo=""
-              >
-                <Redo2 size={16} />
-              </IconButton>
-            </div>
-            <IconButton
-              label="페이지 설정"
-              size="sm"
-              onClick={() => setSettingsOpen(true)}
-              data-page-settings-open=""
-            >
-              <Settings size={16} />
-            </IconButton>
-          </div>
-
           {/* 편집기가 그리다 예외를 내도 화면 전체가 비지 않게 */}
           <ErrorBoundary key={sessionId} name="page-editor">
             <PageEditor
