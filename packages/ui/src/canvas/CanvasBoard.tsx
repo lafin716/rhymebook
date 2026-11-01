@@ -103,8 +103,26 @@ const scrollableAt = (target: EventTarget | null): HTMLElement | null => {
 /** 펜 뒤쪽 지우개(스테들러·S펜 등 EMR 펜): 버튼 5 또는 buttons 비트 32로 온다 */
 const isStylusEraser = (e: PointerEvent<HTMLDivElement>) => e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0);
 
-/** 태블릿처럼 화면이 큰 터치 기기 — 펜으로 쓰는 게 기본이라 손가락은 그리지 않고 화면을 옮긴다(쪽 넘김) */
-const isTabletTouch = () => typeof screen !== 'undefined' && Math.min(screen.width, screen.height) >= 600;
+/**
+ * 펜(S펜·애플 펜슬 등)을 쓰는 기기인지 — 웹은 펜 지원 여부를 알려 주지 않아, 펜이 한 번이라도 닿으면 기억해 둔다.
+ * 펜 기기에서는 손가락이 그리지 않고 화면을 옮긴다(쪽 넘김). 화면 크기로는 보지 않는다 — 펼친 폴드처럼
+ * 펜이 없는 큰 화면 기기는 손가락으로 쓴다 (ADR-102)
+ */
+const PEN_KEY = 'octobooks.penDevice';
+const readPenDevice = () => {
+  try {
+    return localStorage.getItem(PEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const rememberPenDevice = () => {
+  try {
+    localStorage.setItem(PEN_KEY, '1');
+  } catch {
+    /* 저장 못 해도 이번 실행에서는 쓴다 */
+  }
+};
 
 const local = (el: HTMLDivElement | null, clientX: number, clientY: number) => {
   const r = el?.getBoundingClientRect();
@@ -119,7 +137,7 @@ const coalesced = (e: PointerEvent<HTMLDivElement>): globalThis.PointerEvent[] =
 
 /**
  * 캔버스 판. 펜·형광펜·지우개·선택(이동·크기·앞으로)·화면 이동·확대를 포인터 이벤트로 처리한다.
- * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 뒤에는 터치가 화면을 옮긴다.
+ * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 기기에서는(기억해 둔다) 터치가 화면을 옮긴다.
  */
 export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser, onTwoFingerDoubleTap, eyeDrop, onEyeDrop }: CanvasBoardProps) {
   const [preview, setPreview] = useState<CanvasDoc | null>(null);
@@ -129,7 +147,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
 
   // 다른 손동작 상태는 ref로 두고, 렌더에 필요한 것만 state로 둔다
   const pointers = useMemo(() => new Map<number, { type: string; x: number; y: number }>(), []);
-  const penSeen = useMemo(() => ({ current: false }), []);
+  const penSeen = useMemo(() => ({ current: readPenDevice() }), []);
   const twoTap = useMemo(() => createTwoFingerTap(), []);
   const gestureRef = useMemo<{ current: Gesture | null }>(() => ({ current: null }), []);
   const setG = (g: Gesture | null) => {
@@ -216,6 +234,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     const bar = e.pointerType === 'mouse' && t === 'select' ? scrollableAt(e.target) : null;
     if (bar && e.target === bar && e.nativeEvent.offsetX > bar.clientWidth) return;
     if (e.pointerType === 'pen') {
+      if (!penSeen.current) rememberPenDevice();
       penSeen.current = true;
       twoTap.cancel();
       // 펜보다 먼저 닿은 손바닥의 획·확대는 버리고 펜이 이어받는다
@@ -242,8 +261,8 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     if (gestureRef.current) return;
 
     const w = toWorld(view, p.x, p.y);
-    // 펜을 쓴 기기나 태블릿에서는 그리기 도구여도 손가락이 화면을 옮긴다 (쪽 나눔 판은 손을 떼면 쪽을 넘긴다)
-    const panHere = e.button === 1 || (e.pointerType === 'touch' && t !== 'select' && (penSeen.current || isTabletTouch()));
+    // 펜을 쓰는 기기에서는 그리기 도구여도 손가락이 화면을 옮긴다 (쪽 나눔 판은 손을 떼면 쪽을 넘긴다)
+    const panHere = e.button === 1 || (e.pointerType === 'touch' && t !== 'select' && penSeen.current);
     // 선택 도구에서 손가락·펜으로 긴 글 카드 본문을 끌면 카드 안을 스크롤한다 (제목줄을 끌면 옮긴다)
     const sc = e.pointerType !== 'mouse' && t === 'select' ? scrollableAt(e.target) : null;
     if (sc) {

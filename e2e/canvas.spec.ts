@@ -448,3 +448,40 @@ test('캔버스 쪽: 쪽 밖에서는 펜이 안 써지고 쪽 끝에서 잘린�
   await expect(item).toContainText('1쪽');
   expect(errors).toEqual([]);
 });
+
+test.describe('펜 없는 큰 화면 터치 기기 (ADR-102)', () => {
+  test.use({ viewport: { width: 884, height: 1104 } });
+
+  test('펼친 폴드처럼 화면이 커도 펜을 쓰기 전에는 손가락으로 쓴다 · 펜이 한 번 닿으면 손가락은 화면을 옮긴다', async ({ page }, info) => {
+    test.skip(info.project.name !== 'mobile', '터치 프로젝트 전용');
+    const errors = collectErrors(page);
+    await onboard(page);
+    const board = await newCanvas(page, true);
+    const strokes = board.locator('svg path');
+    const cdp = await page.context().newCDPSession(page);
+    const r = (await board.boundingBox())!;
+    const finger = async (x: number, y: number) => {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + i * 12, y: y + i * 5 }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    };
+    const pen = async (x: number, y: number) => {
+      const ev = (type: string, px: number, py: number) =>
+        cdp.send('Input.dispatchMouseEvent', { type, x: px, y: py, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, pointerType: 'pen' });
+      await ev('mousePressed', x, y);
+      for (let i = 1; i <= 6; i++) await ev('mouseMoved', x + i * 12, y + i * 5);
+      await ev('mouseReleased', x + 72, y + 30);
+    };
+
+    await finger(r.x + r.width * 0.3, r.y + r.height * 0.3);
+    await expect(strokes).toHaveCount(1);
+    await pen(r.x + r.width * 0.3, r.y + r.height * 0.5);
+    await expect(strokes).toHaveCount(2);
+    await finger(r.x + r.width * 0.3, r.y + r.height * 0.7);
+    await page.waitForTimeout(300);
+    await expect(strokes).toHaveCount(2);
+    // 펜 기기임을 기억한다
+    expect(await page.evaluate(() => localStorage.getItem('octobooks.penDevice'))).toBe('1');
+    expect(errors).toEqual([]);
+  });
+});
