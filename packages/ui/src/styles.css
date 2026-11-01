@@ -792,8 +792,19 @@ span.annot[data-note-end='true']::after {
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+/*
+ * 행 높이는 최소 핸들 높이(--bh) — 짧은 행이 이어져도 핸들끼리 밀려 행과 어긋나지 않게 (ADR-101).
+ * 남는 높이는 위아래 여백(--pad)으로 나눠 글을 가운데 둔다. 제목·코드 줄은 자기 여백을 쓴다(아래에서 덮음).
+ */
+.page-editor {
+  --bh: 24px;
+  --pad: max(0px, calc((var(--bh) - 1.72em) / 2));
+}
+.page-touch.page-editor {
+  --bh: 32px;
+}
 .page-editor .cm-line {
-  padding: 0;
+  padding: var(--pad) 0;
 }
 .page-editor .cm-cursor {
   border-left-color: var(--fg);
@@ -911,6 +922,9 @@ span.annot[data-note-end='true']::after {
 .page-editor .cm-lp-column .cm-content {
   min-height: 1.72em;
 }
+.page-editor .cm-lp-column {
+  --pad: 0px;
+}
 .page-editor .cm-lp-column > .cm-lp-colbtns {
   --bh: 22px;
   right: auto;
@@ -928,6 +942,22 @@ span.annot[data-note-end='true']::after {
 .page-touch.page-editor .cm-lp-column:focus-within > .cm-lp-colbtns .page-handle {
   display: grid;
 }
+/* 칸 핸들로 끌어 순서 바꾸기 — 든 칸은 흐리게, 놓을 칸은 들어갈 쪽에 굵은 선 */
+.page-editor .cm-lp-column[data-col-lifted] {
+  opacity: 0.5;
+}
+.page-editor .cm-lp-column[data-col-drop] {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.page-editor .cm-lp-column[data-col-drop='before'] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.page-editor .cm-lp-column[data-col-drop='after'] {
+  box-shadow: inset -3px 0 0 var(--accent);
+}
+.page-editor .cm-lp-colbtns .page-grip {
+  cursor: grab;
+}
 /* 좁은 화면에서도 칸은 전체 너비를 똑같이 나눈다 — 틈만 좁힌다 */
 @media (max-width: 767px) {
   .page-editor .cm-lp-columns {
@@ -941,8 +971,7 @@ span.annot[data-note-end='true']::after {
 .page-editor .cm-lp-rowanchor {
   position: relative;
   height: 0;
-  --mid: 0.86em;
-  --bh: 24px;
+  --mid: calc(var(--pad) + 0.86em);
 }
 .page-editor .cm-lp-rowanchor[data-row-kind='h1'] {
   --mid: 1.6575em;
@@ -970,7 +999,6 @@ span.annot[data-note-end='true']::after {
 .page-editor .cm-lp-rowanchor[data-row-kind='math'] {
   --mid: calc(0.2em + 0.86em);
 }
-.page-touch .cm-lp-rowanchor,
 .page-touch .cm-lp-colbtns {
   --bh: 32px;
 }

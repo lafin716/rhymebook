@@ -225,6 +225,8 @@ test('캔버스 도구: 흰색 · 직접 고른 색 즐겨찾기 · 펜 굵기 �
   await page.getByRole('button', { name: '빈 페이지' }).click();
   const lines = Array.from({ length: 40 }, (_, i) => `${i + 1}번째 줄입니다.`).join('\n\n');
   await main.getByLabel('페이지 본문 (마크다운)').fill(`# 긴 노트\n\n${lines}`);
+  // 행이 핸들 높이 이상이라(ADR-101) 끝에 커서가 있으면 첫 줄이 그려지는 범위 밖일 수 있다 — 맨 위로
+  await page.keyboard.press('ControlOrMeta+Home');
   await page.keyboard.press('Escape');
   await expect(main.locator('.cm-line.cm-lp-h1')).toHaveText('긴 노트');
 

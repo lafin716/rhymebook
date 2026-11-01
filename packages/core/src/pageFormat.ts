@@ -66,10 +66,20 @@ function segments(text: string, from: number, to: number): [number, number][] {
 /**
  * 선택 [from, to)에 인라인 서식을 켜거나 끈다. 이미 그 서식으로 감싸여 있으면(표시가 선택 바깥이든 안쪽이든) 벗기고,
  * 아니면 줄마다 앞뒤 공백 안쪽을 감싼다. 링크는 `[글](|)` 꼴로 넣고 주소 자리에 커서를 둔다.
- * 선택이 비었으면 null.
+ * 선택이 비었으면 빈 표시 쌍을 넣고 그 안에 커서를 둔다(빈 쌍 안이면 걷는다). 공백만 골랐으면 null.
  */
 export function toggleInlineFormat(text: string, from: number, to: number, kind: InlineFormat): FormatResult | null {
   if (from > to) [from, to] = [to, from];
+  // 선택 없이 누르면 빈 표시 한 쌍을 넣고 커서를 그 안에 둔다 — 바로 이어 쓰면 서식이 붙는다. 빈 쌍 안에서 다시 누르면 걷는다
+  if (from === to) {
+    if (kind === 'link') return { text: `${text.slice(0, from)}[]()${text.slice(from)}`, selStart: from + 1, selEnd: from + 1 };
+    const mark = MARKS[kind];
+    const n = mark.length;
+    if (text.slice(from - n, from) === mark && text.slice(from, from + n) === mark) {
+      return { text: text.slice(0, from - n) + text.slice(from + n), selStart: from - n, selEnd: from - n };
+    }
+    return { text: text.slice(0, from) + mark + mark + text.slice(from), selStart: from + n, selEnd: from + n };
+  }
   const segs = segments(text, from, to);
   if (!segs.length) return null;
   if (kind === 'link') {

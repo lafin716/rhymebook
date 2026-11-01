@@ -262,6 +262,28 @@ test('칸 하나는 상자 하나 — 칸 안 편집은 그 칸에서만, 표·�
   expect(errors).toEqual([]);
 });
 
+test('칸 핸들을 끌어 다른 칸 자리에 놓으면 칸 순서가 바뀐다 · 메뉴는 열리지 않는다 (ADR-101)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await blankPage(page);
+  const doc = '<!-- columns -->\n가\n<!-- column -->\n나\n<!-- column -->\n다\n<!-- /columns -->\n\n아래';
+  await setDoc(page, doc, doc.length);
+  const columns = page.locator(`${MAIN} [data-page-columns]`);
+  const cols = columns.locator('[data-page-column]');
+  await expect(cols).toHaveCount(3);
+  await cols.nth(0).getByText('가', { exact: true }).click();
+  const grip = columns.locator('[data-column-handle]').nth(0);
+  const from = (await grip.boundingBox())!;
+  const to = (await cols.nth(2).boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + 10, { steps: 8 });
+  await expect(cols.nth(2)).toHaveAttribute('data-col-drop', 'after');
+  await page.mouse.up();
+  await expect.poll(() => source(page)).toBe('<!-- columns -->\n나\n<!-- column -->\n다\n<!-- column -->\n가\n<!-- /columns -->\n\n아래');
+  await expect(page.getByRole('menu', { name: '블록·AI 메뉴' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('Tab: 글에서는 공백, 목록에서는 들여쓰기 · Shift+Tab은 내어쓰기', async ({ page }) => {
   const errors = collectErrors(page);
   await blankPage(page);
@@ -276,6 +298,39 @@ test('Tab: 글에서는 공백, 목록에서는 들여쓰기 · Shift+Tab은 내
   // 포커스는 편집기에 남는다
   await expect(page.locator(CONTENT)).toBeFocused();
   expect(errors).toEqual([]);
+});
+
+test.describe('태블릿·펼친 폴드 (ADR-101)', () => {
+  test.use({
+    viewport: { width: 1024, height: 1366 },
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-F956N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+  });
+
+  test('넓은 화면 터치 기기도 첫 탭은 고르기·다시 탭은 편집 · 행은 핸들 높이 이상 · 키보드가 붙으면 바로 편집', async ({ page }, info) => {
+    test.skip(info.project.name !== 'mobile', '터치 프로젝트 전용');
+    const errors = collectErrors(page);
+    await blankPage(page);
+    await expect(page.locator(`${MAIN} .page-editor.page-touch`)).toHaveCount(1);
+    await setDoc(page, '첫째 문단\n\n둘째 문단', 0);
+    await page.locator(CONTENT).evaluate((el) => (el as HTMLElement).blur());
+    // 행 높이는 터치 핸들 높이(32px) 이상
+    const line = page.locator(CONTENT).locator('.cm-line', { hasText: '둘째 문단' });
+    expect((await line.boundingBox())!.height).toBeGreaterThanOrEqual(31.5);
+
+    await page.locator(CONTENT).getByText('둘째 문단', { exact: true }).tap();
+    await expect(page.locator(`${MAIN} [data-page-row-selected]`)).toHaveText('둘째 문단');
+    await expect(page.locator(CONTENT)).not.toBeFocused();
+    await page.locator(`${MAIN} [data-page-row-selected]`).tap();
+    await expect(page.locator(CONTENT)).toBeFocused();
+
+    // 하드웨어 키보드 입력이 한 번 들어오면 이후 첫 탭에 바로 편집
+    await page.locator(CONTENT).evaluate((el) => (el as HTMLElement).blur());
+    await page.keyboard.press('Shift');
+    await page.locator(CONTENT).getByText('첫째 문단', { exact: true }).tap();
+    await expect(page.locator(CONTENT)).toBeFocused();
+    await expect(page.locator(`${MAIN} [data-page-row-selected]`)).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
 });
 
 test('모바일: 한 번 탭하면 행을 고르고(핸들·시트), 핸들로 옮기고, 한 번 더 탭하면 편집 (ADR-095)', async ({ page }, info) => {

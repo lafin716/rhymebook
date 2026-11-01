@@ -17,6 +17,7 @@ import {
   moveColumnOut,
   removeColumn,
   reorderColumn,
+  moveColumnTo,
   markdownBlocks,
   type EmojiMatch,
   type MarkdownBlock,
@@ -57,7 +58,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { mobile } from '../app/runtime';
+import { isTouchDevice, useHardwareKeyboard } from '../app/touchDevice';
 import { actions } from '../app/store';
 import { pushNotice } from '../app/sync';
 import { useBreakpoint } from '../app/useBreakpoint';
@@ -93,6 +94,8 @@ const viewModeField = StateField.define<boolean>({
   provide: (f) => EditorView.editable.from(f, (on) => !on),
 });
 /** 이만큼 안에서 떼면 탭 */
+/** 휴대 기기(폰·태블릿·폴드)인지 — 실행 중에 바뀌지 않는다 */
+const touchDevice = isTouchDevice();
 const TAP_SLOP = 10;
 const TAP_MS = 500;
 /** 바깥에서 들어온 본문 — 다시 저장하지 않는다 */
@@ -327,8 +330,10 @@ export function PageEditor({
   /** 핸들이 쓰는 편집기와 다시 잴 때를 알리는 값 */
   const [editor, setEditor] = useState<EditorView | null>(null);
   const [layoutTick, setLayoutTick] = useState(0);
-  /** 모바일: 한 번 탭 = 행 고르기, 다시 탭 = 편집, 행 앞 핸들로 옮긴다 (ADR-095) */
-  const touchBlocks = useBreakpoint() === 'mobile' || !!mobile;
+  /** 모바일·태블릿·펼친 폴드: 한 번 탭 = 행 고르기, 다시 탭 = 편집, 행 앞 핸들로 옮긴다 (ADR-095 → ADR-101) */
+  const touchBlocks = useBreakpoint() === 'mobile' || touchDevice;
+  /** 하드웨어 키보드가 붙어 있으면 터치여도 첫 탭에 바로 편집한다 (ADR-101) */
+  const tapToEdit = useHardwareKeyboard();
   const [ask, setAsk] = useState('');
   const [slash, setSlash] = useState<Slash | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -350,8 +355,8 @@ export function PageEditor({
   const tap = useRef<{ x: number; y: number; t: number; id: number } | null>(null);
 
   // CodeMirror 확장은 한 번 만들고, 최신 콜백·상태는 ref로 읽는다
-  const latest = useRef({ onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex, touchBlocks });
-  latest.current = { onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex, touchBlocks };
+  const latest = useRef({ onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex, touchBlocks, tapToEdit });
+  latest.current = { onChange, onBlur, onNote, slash, slashOpen, items, slashIndex, locked, emoji, emo, emoOpen, emoIndex, touchBlocks, tapToEdit };
 
   /** 보기 상태(모바일)에서는 포커스를 주지 않는다 — 키보드가 갑자기 뜨지 않게 */
   const maybeFocus = (v: EditorView) => {
@@ -610,8 +615,22 @@ export function PageEditor({
       if (index < 0) return;
       showCtxRef.current({ pos: d.from, ask: false, column: { index, col: d.column, count: d.count } }, d.x, d.y + 4);
     };
+    const onMove = (e: Event) => {
+      const v = view.current;
+      const d = (e as CustomEvent<{ from: number; column: number; to: number }>).detail;
+      if (!v || latest.current.locked) return;
+      const before = v.state.doc.toString();
+      const index = markdownBlocks(before).findIndex((b) => b.from === d.from);
+      if (index < 0) return;
+      const after = moveColumnTo(before, index, d.column, d.to);
+      if (after !== before) v.dispatch({ changes: minimalChange(before, after), userEvent: 'move.block' });
+    };
     el.addEventListener('page-column-menu', onMenu);
-    return () => el.removeEventListener('page-column-menu', onMenu);
+    el.addEventListener('page-column-move', onMove);
+    return () => {
+      el.removeEventListener('page-column-menu', onMenu);
+      el.removeEventListener('page-column-move', onMove);
+    };
   }, []);
 
   /** 커서 자리에 AI 글을 흘려 넣고, 끝나면 되돌리기 한 번에 지워지도록 한 덩어리로 다시 넣는다 */
@@ -712,7 +731,7 @@ export function PageEditor({
           EditorView.lineWrapping,
           placeholder(placeholderEl),
           lockField,
-          viewModeField.init(() => latest.current.touchBlocks && !!initial.trim()),
+          viewModeField.init(() => latest.current.touchBlocks && !latest.current.tapToEdit && !!initial.trim()),
           marksField,
           marksDecorations((a, rect) => latest.current.onNote?.(a, rect)),
           EditorView.contentAttributes.of({ 'aria-label': '페이지 본문 (마크다운)', spellcheck: 'false', 'aria-multiline': 'true' }),
@@ -746,7 +765,7 @@ export function PageEditor({
               setEmo(null);
               latest.current.onBlur();
               // 모바일에서 편집을 마치면 다시 보기 상태 — 다음 탭이 키보드를 띄우지 않게
-              if (latest.current.touchBlocks && isTouchInput() && !ed.state.field(viewModeField)) {
+              if (latest.current.touchBlocks && !latest.current.tapToEdit && isTouchInput() && !ed.state.field(viewModeField)) {
                 queueMicrotask(() => {
                   if (!ed.hasFocus && view.current === ed) ed.dispatch({ effects: setViewMode.of(true) });
                 });
@@ -920,7 +939,7 @@ export function PageEditor({
     tap.current = null;
     if (!v || latest.current.locked) return;
     lastPointerType.current = e.pointerType;
-    if (e.pointerType !== 'touch' || !touchBlocks) {
+    if (e.pointerType !== 'touch' || !touchBlocks || tapToEdit) {
       if (v.state.field(viewModeField)) v.dispatch({ effects: [setViewMode.of(false), selectRow.of(null)] });
       return;
     }

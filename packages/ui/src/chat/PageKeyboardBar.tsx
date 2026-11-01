@@ -1,11 +1,10 @@
-import { Keyboard, Redo2, Undo2, List, ListOrdered, CheckSquare, Bold, Heading3, ChevronDown, Pilcrow, Quote } from 'lucide-react';
+import { Keyboard, Redo2, Undo2, List, ListOrdered, CheckSquare, Bold, Heading3, ListIndentDecrease, ListIndentIncrease, Pilcrow, Quote } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { EditorView } from '@codemirror/view';
 import { undo, redo } from '@codemirror/commands';
 import { caps } from '../app/capabilities';
-import { cn } from '../lib/cn';
 import { formatPage, indentPage, ownsKeyboard, pageBlock } from './pageEditorBridge';
 import type { PageBlockKind } from './pageEditorBridge';
 
@@ -164,8 +163,8 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
       className="bg-surface border-t border-line shadow-float safe-bottom"
     >
       <div className="flex items-center gap-1 px-2 py-2 max-w-full overflow-x-auto scrollbar-hide">
-        <KeyboardBarButton label="내어쓰기" icon={ChevronDown} rotate onClick={() => handleIndent(-1)} />
-        <KeyboardBarButton label="들여쓰기" icon={ChevronDown} onClick={() => handleIndent(1)} />
+        <KeyboardBarButton label="내어쓰기" icon={ListIndentDecrease} onClick={() => handleIndent(-1)} />
+        <KeyboardBarButton label="들여쓰기" icon={ListIndentIncrease} onClick={() => handleIndent(1)} />
         <span className="w-px h-6 bg-line mx-1 shrink-0" />
 
         <KeyboardBarButton label="본문" icon={Pilcrow} onClick={() => handleBlock('paragraph')} />
@@ -194,11 +193,10 @@ interface KeyboardBarButtonProps {
   label: string;
   icon: LucideIcon;
   disabled?: boolean;
-  rotate?: boolean;
   onClick(): void;
 }
 
-function KeyboardBarButton({ label, icon: Icon, disabled, rotate, onClick }: KeyboardBarButtonProps) {
+function KeyboardBarButton({ label, icon: Icon, disabled, onClick }: KeyboardBarButtonProps) {
   return (
     <button
       type="button"
@@ -210,10 +208,7 @@ function KeyboardBarButton({ label, icon: Icon, disabled, rotate, onClick }: Key
         e.preventDefault();
         onClick();
       }}
-      className={cn(
-        'inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-2 hover:bg-surface-2 hover:text-fg transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg-2',
-        rotate && 'rotate-90',
-      )}
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-fg-2 hover:bg-surface-2 hover:text-fg transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg-2"
     >
       <Icon size={18} />
     </button>

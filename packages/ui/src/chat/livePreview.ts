@@ -571,8 +571,68 @@ class ColumnsWidget extends WidgetType {
     wrap.addEventListener('mousedown', (e) => {
       if ((e.target as Element).closest('.cm-lp-colbtns')) e.preventDefault();
     });
+    // 칸 핸들을 끌면 칸 순서를 바꾼다 — 조금도 안 움직이고 떼면 아래 click이 메뉴를 연다
+    let dragged = false;
+    wrap.addEventListener('pointerdown', (e) => {
+      const grip = (e.target as Element).closest<HTMLElement>('[data-column-handle]');
+      if (!grip || e.button !== 0 || lockedOf(main)) return;
+      const col = Number(grip.dataset.columnHandle);
+      const cells = [...wrap.querySelectorAll<HTMLElement>(':scope > .cm-lp-column')];
+      const sx = e.clientX;
+      const sy = e.clientY;
+      let to = col;
+      let moving = false;
+      const mark = () => cells.forEach((c, i) => (i === to && to !== col ? (c.dataset.colDrop = to < col ? 'before' : 'after') : delete c.dataset.colDrop));
+      const slotAt = (x: number, y: number) => {
+        let best = to;
+        let dist = Infinity;
+        cells.forEach((c, i) => {
+          const r = c.getBoundingClientRect();
+          const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+          const dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+          const d = Math.hypot(dx, dy);
+          if (d < dist) [best, dist] = [i, d];
+        });
+        return best;
+      };
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== e.pointerId) return;
+        if (!moving) {
+          if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+          moving = true;
+          grip.dataset.dragging = '';
+          cells[col]?.setAttribute('data-col-lifted', '');
+        }
+        ev.preventDefault();
+        to = slotAt(ev.clientX, ev.clientY);
+        mark();
+      };
+      const end = (ev: PointerEvent) => {
+        if (ev.pointerId !== e.pointerId) return;
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        delete grip.dataset.dragging;
+        cells[col]?.removeAttribute('data-col-lifted');
+        for (const c of cells) delete c.dataset.colDrop;
+        if (!moving) return;
+        dragged = true;
+        setTimeout(() => (dragged = false), 0);
+        const g = groupOf(main, wrap);
+        if (ev.type !== 'pointerup' || !g || to === col) return;
+        wrap.dispatchEvent(new CustomEvent('page-column-move', { bubbles: true, detail: { from: g.from, column: col, to } }));
+      };
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    });
     wrap.addEventListener('click', (e) => {
       const t = e.target as Element;
+      if (dragged && t.closest('.cm-lp-colbtns')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       const add = t.closest<HTMLElement>('[data-column-add]');
       const grip = t.closest<HTMLElement>('[data-column-handle]');
       if (!add && !grip) return;

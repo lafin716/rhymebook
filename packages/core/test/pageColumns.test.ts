@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnSpans, markdownBlocks, moveColumnOut, moveMarkdownBlock, parseColumns, placeBlockBeside, removeColumn, reorderColumn, unwrapColumns, renumberOrderedLists } from '../src';
+import { columnSpans, markdownBlocks, moveColumnOut, moveColumnTo, moveMarkdownBlock, parseColumns, placeBlockBeside, removeColumn, reorderColumn, unwrapColumns, renumberOrderedLists } from '../src';
 
 describe('markdownBlocks', () => {
   it('최상위 블록 목록을 반환한다', () => {
@@ -181,6 +181,14 @@ describe('칸 단위 조작 (ADR-096)', () => {
     const out = reorderColumn(doc, block(), 0, 1);
     expect(parseColumns(out.slice(out.indexOf('<!-- columns -->'), out.indexOf('<!-- /columns -->') + 17))).toEqual(['| a |\n|---|\n| 1 |', 'A1\nA2', 'C']);
     expect(reorderColumn(doc, block(), 0, -1)).toBe(doc);
+  });
+
+  it('moveColumnTo는 칸을 끌어 놓은 자리로 옮긴다', () => {
+    const cols = (out: string) => parseColumns(out.slice(out.indexOf('<!-- columns -->'), out.indexOf('<!-- /columns -->') + 17));
+    expect(cols(moveColumnTo(doc, block(), 2, 0))).toEqual(['C', 'A1\nA2', '| a |\n|---|\n| 1 |']);
+    expect(cols(moveColumnTo(doc, block(), 0, 2))).toEqual(['| a |\n|---|\n| 1 |', 'C', 'A1\nA2']);
+    expect(moveColumnTo(doc, block(), 1, 1)).toBe(doc);
+    expect(moveColumnTo(doc, block(), 1, 5)).toBe(doc);
   });
 
   it('moveColumnOut은 칸을 묶음 아래로 꺼낸다', () => {

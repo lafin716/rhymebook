@@ -129,7 +129,7 @@ export function shiftIndent(view: EditorView, dir: 1 | -1): boolean {
       const l = state.doc.line(e.line + 1);
       return e.delta > 0 ? { from: l.from, insert: ' '.repeat(e.delta) } : { from: l.from, to: l.from - e.delta };
     });
-    view.dispatch({ changes, userEvent: 'input.indent', scrollIntoView: true });
+    view.dispatch({ changes, selection: state.selection.map(state.changes(changes), 1), userEvent: 'input.indent', scrollIntoView: true });
     return true;
   }
   if (dir === 1) {
@@ -205,7 +205,9 @@ export function setRowKind(view: EditorView, kind: RowKind, range?: { from: numb
       const mark = off ? '' : kind === 'ordered' ? `${n++}. ` : marker;
       return { from: l.from + indent.length, to: l.from + m[0].length, insert: mark };
     });
-  view.dispatch({ changes, userEvent: 'input.format' });
+  // 커서가 표시 자리에 있으면 새 표시 뒤로 — 버튼을 누르고 바로 이어 쓴다
+  const selection = range ? undefined : view.state.selection.map(view.state.changes(changes), 1);
+  view.dispatch({ changes, selection, userEvent: 'input.format' });
   return true;
 }
 

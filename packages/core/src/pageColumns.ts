@@ -311,6 +311,17 @@ export function reorderColumn(text: string, index: number, col: number, dir: -1 
   });
 }
 
+/** 칸을 끌어 원하는 자리(0..n-1)로 옮긴다 — 나머지 칸은 순서를 지킨 채 밀린다 */
+export function moveColumnTo(text: string, index: number, col: number, to: number): string {
+  return rewriteColumns(text, index, (cols) => {
+    if (col < 0 || col >= cols.length || to < 0 || to >= cols.length || to === col) return { cols };
+    const next = [...cols];
+    const [moved] = next.splice(col, 1);
+    next.splice(to, 0, moved!);
+    return { cols: next };
+  });
+}
+
 /** 칸을 묶음 밖(바로 아래)으로 꺼낸다 — 남은 칸이 하나면 묶음도 푼다 */
 export function moveColumnOut(text: string, index: number, col: number): string {
   return rewriteColumns(text, index, (cols) => {

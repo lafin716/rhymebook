@@ -58,6 +58,14 @@ describe('toggleInlineFormat', () => {
   it('공백뿐인 선택은 null', () => {
     expect(toggleInlineFormat('a   b', 1, 4, 'bold')).toBeNull();
   });
+
+  it('선택이 없으면 빈 표시 쌍을 넣고 커서를 안에 둔다 — 다시 누르면 걷는다', () => {
+    const r = toggleInlineFormat('가나 ', 3, 3, 'bold')!;
+    expect(r).toEqual({ text: '가나 ****', selStart: 5, selEnd: 5 });
+    expect(toggleInlineFormat(r.text, 5, 5, 'bold')).toEqual({ text: '가나 ', selStart: 3, selEnd: 3 });
+    expect(toggleInlineFormat('ab', 1, 1, 'code')).toEqual({ text: 'a``b', selStart: 2, selEnd: 2 });
+    expect(toggleInlineFormat('ab', 2, 2, 'link')).toEqual({ text: 'ab[]()', selStart: 3, selEnd: 3 });
+  });
 });
 
 describe('taskItemOffsets', () => {
