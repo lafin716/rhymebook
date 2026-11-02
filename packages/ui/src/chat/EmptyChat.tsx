@@ -1,12 +1,13 @@
 import { OctoGarden } from '../components/OctoMark';
 import { listedRootSessions, type ID } from '@branch/core';
-import { FileText, Laptop, Link2, List, PenLine, RefreshCw, Sparkles } from 'lucide-react';
+import { FileText, Laptop, Link2, List, PenLine, RefreshCw, Smartphone, Sparkles } from 'lucide-react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
-import { syncClient, useRemoteHosts, useSync } from '../app/sync';
+import { sessionWindowId } from '../app/runtime';
+import { chooseThisDevice, syncClient, useRemoteHosts, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
-import { HostList } from '../components/HostList';
+import { HostList, THIS_DEVICE } from '../components/HostList';
 import { usePcOnline } from '../components/PcStatus';
 import { startNewSession } from '../session/newSession';
 
@@ -132,15 +133,15 @@ export function NoSessions() {
           캔버스
         </button>
       </div>
-      {remoteMode && <RemoteHosts />}
+      <Profiles />
     </div>
   );
 }
 
-/** 원격 모드 메인 화면: 저장한 PC 목록에서 다른 PC로 전환한다 (ADR-063) */
-function RemoteHosts() {
+/** 메인 화면 프로필 목록: 이 기기 · 저장한 PC로 전환한다 (ADR-063·103) */
+function Profiles() {
   const count = useRemoteHosts((s) => s.hosts.length);
-  if (!count) return null;
+  if (remoteMode && !count) return null;
   return (
     <div className="mt-8 flex w-full justify-center">
       <HostList />
@@ -199,6 +200,17 @@ function PcNotConnected() {
             >
               <Link2 size={16} />
               {status === 'unpaired' ? 'PC와 페어링' : '연결 설정'}
+            </button>
+          )}
+          {/* PC 없이도 이 기기에서 학습하고 API 키로 답변받을 수 있다 (ADR-103) */}
+          {status !== 'connecting' && !sessionWindowId && (
+            <button
+              type="button"
+              onClick={chooseThisDevice}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2"
+            >
+              <Smartphone size={16} />
+              {THIS_DEVICE}에서 쓰기
             </button>
           )}
         </div>

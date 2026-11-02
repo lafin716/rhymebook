@@ -21,18 +21,25 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(
     ({ a, b }) => {
       // 목록 기능 전처럼 활성 페어링만 있고, 목록에는 다른 PC만 있다 → 둘 다 보여야 한다
-      const store = new Map<string, string>([
-        ['pairing:remote-bridge', JSON.stringify(a)],
-        ['pairing:remote-hosts', JSON.stringify([b])],
-      ]);
+      // 휴대폰 키체인처럼 다시 시작(reload)해도 남도록 테스트 세션 동안 sessionStorage에 둔다
+      const saved = sessionStorage.getItem('__secrets');
+      const store = new Map<string, string>(
+        saved
+          ? (JSON.parse(saved) as [string, string][])
+          : [
+              ['pairing:remote-bridge', JSON.stringify(a)],
+              ['pairing:remote-hosts', JSON.stringify([b])],
+            ],
+      );
+      const persist = () => sessionStorage.setItem('__secrets', JSON.stringify([...store]));
       (window as unknown as { __secrets: Map<string, string> }).__secrets = store;
       (window as unknown as { branchMobile: unknown }).branchMobile = {
         platform: 'ios',
         secrets: {
           persistent: true,
           get: async (k: string) => store.get(k) ?? null,
-          set: async (k: string, v: string) => void store.set(k, v),
-          delete: async (k: string) => void store.delete(k),
+          set: async (k: string, v: string) => (store.set(k, v), persist()),
+          delete: async (k: string) => (store.delete(k), persist()),
         },
         onPairLink: () => () => {},
       };
@@ -73,4 +80,23 @@ test('[PC 추가]는 메인 화면에서 페어링 폼을 연다', async ({ page
   await page.goto('/');
   await page.getByTestId('host-list').getByRole('button', { name: 'PC 추가' }).click();
   await expect(page.getByTestId('host-list').getByLabel('페어링 링크')).toBeVisible();
+});
+
+test('메인 화면에서 [이 기기에서 쓰기] → PC 없이 로컬 프로필, 저장한 PC를 고르면 다시 PC 프로필 (ADR-103)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '이 기기에서 쓰기' }).click();
+
+  // 다시 시작한 뒤 로컬 프로필: API 키 시작 안내가 뜨고, PC 목록은 그대로 남는다
+  await expect(page.getByRole('heading', { name: '이 기기에서 시작하기' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('branch.profile'))).toBe('local');
+  await page.getByRole('button', { name: '나중에 하기' }).click();
+  const list = page.getByTestId('host-list');
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  await expect(list.locator('li[data-active]')).toHaveCount(0);
+  await expect(list.getByRole('button', { name: '이 기기에서 쓰기' })).toBeDisabled();
+
+  // 저장한 PC를 고르면 PC 프로필로 돌아간다
+  await list.getByRole('button', { name: '회사 PC 연결' }).click();
+  await expect(page.getByRole('heading', { name: /회사 PC/ })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('branch.profile'))).toBe('remote');
 });

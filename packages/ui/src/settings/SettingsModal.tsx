@@ -1,12 +1,13 @@
 import { AppearanceSettings } from './AppearanceSettings';
 import type { ProviderId } from '@branch/core';
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { caps, remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { StatusDot } from '../components/Badge';
 import { IconButton } from '../components/Button';
+import { HostList } from '../components/HostList';
 import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
 import { Field, Section, Segmented } from './controls';
@@ -97,9 +98,10 @@ export function SettingsModal() {
 
 /**
  * PC 연결 구성 (ADR-025): 이 PC의 CLI · API 키 · 원격 페어링 열기 · 다른 PC에 연결.
- * 웹·모바일은 원격 전용이라 RemoteSettings를 쓴다 (ADR-026)
+ * 웹·모바일 PC 프로필은 RemoteSettings를 쓴다 (ADR-026)
  */
 function ConnectionsTab() {
+  if (!caps.localCli) return <DeviceConnections />;
   return (
     <div className="space-y-5">
       <Section title="이 PC의 에이전트 (공식 CLI)" hint="이 PC에 설치·로그인된 공식 CLI를 그대로 실행해요. 기본 모델·노력치를 여기서 정해요.">
@@ -119,6 +121,29 @@ function ConnectionsTab() {
         <BridgeCard />
       </Section>
       <PolicyNote />
+    </div>
+  );
+}
+
+/** 웹·모바일 이 기기 프로필 (ADR-103): API 키로 답하고, 저장한 PC 프로필로 바꿀 수 있다 */
+function DeviceConnections() {
+  const pairLink = useUi((s) => s.pairLink);
+  const [link, setLink] = useState('');
+  // 딥링크(branch://pair)로 열렸으면 PC 추가 폼에 채워 둔다. 연결은 사용자가 지문을 보고 누른다
+  useEffect(() => {
+    if (!pairLink) return;
+    useUi.setState({ pairLink: null });
+    setLink(pairLink);
+  }, [pairLink]);
+  return (
+    <div className="space-y-5">
+      <Section title="API 키" hint="학습은 이 기기에 저장하고, 답변은 API로 직접 받아요.">
+        <ApiCard id="anthropic-api" prefix="sk-ant-" />
+        <ApiCard id="openai-api" prefix="sk-" />
+      </Section>
+      <Section title="내 PC로 바꾸기" hint="PC를 고르면 그 PC의 학습을 보고 PC의 CLI로 답해요. 앱이 다시 시작돼요.">
+        <HostList key={link} device={false} initialLink={link} />
+      </Section>
     </div>
   );
 }

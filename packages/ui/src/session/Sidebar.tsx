@@ -1,10 +1,13 @@
 import { OctoMark } from '../components/OctoMark';
 import { childrenOf, listedRootSessions, type ID } from '@branch/core';
-import { ChevronRight, ChevronsDownUp, FileText, Folder, FolderOpen, GitBranch, MessageSquareText, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight, ChevronsDownUp, FileText, Folder, FolderOpen, GitBranch, MessageSquareText, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
+import { sessionWindowId } from '../app/runtime';
 import { useSync } from '../app/sync';
+import { THIS_DEVICE } from '../components/HostList';
+import { ProfileDialog } from '../components/ProfileDialog';
 import { SIDEBAR_WIDTH, useUi } from '../app/uiState';
 import { isMobileNow, useBreakpoint } from '../app/useBreakpoint';
 import { SESSION_DRAG_TYPE } from '../views/DropZone';
@@ -462,8 +465,20 @@ function SubSessionButton({ parentId, className }: { parentId: ID; className?: s
 }
 const PC_TONE = { online: 'ok', connecting: 'warn', offline: 'danger', unpaired: 'neutral', unsupported: 'danger' } as const;
 
+/** 사이드바 아래: 지금 프로필의 연결 상태 + 프로필 바꾸기 (ADR-103) */
 function ConnectionFooter() {
-  return remoteMode ? <PcFooter /> : <ProviderFooter />;
+  const [profiles, setProfiles] = useState(false);
+  return (
+    <div className="flex items-center border-t border-line">
+      {remoteMode ? <PcFooter /> : <ProviderFooter />}
+      {!sessionWindowId && (
+        <IconButton label="프로필 바꾸기" size="sm" className="mr-2 shrink-0" onClick={() => setProfiles(true)}>
+          <ArrowLeftRight size={15} />
+        </IconButton>
+      )}
+      <ProfileDialog open={profiles} onClose={() => setProfiles(false)} />
+    </div>
+  );
 }
 
 /** 원격 모드: 연결된 PC 상태 */
@@ -474,11 +489,11 @@ function PcFooter() {
     <button
       type="button"
       onClick={() => actions().setOverlay('settings')}
-      className="flex items-center gap-2 border-t border-line px-4 py-3 text-left text-[12.5px] text-fg-2 hover:bg-surface-2/60"
+      className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3 text-left text-[12.5px] text-fg-2 hover:bg-surface-2/60"
     >
       <StatusDot tone={PC_TONE[status]} className={status === 'connecting' ? 'animate-pulse' : undefined} />
       <span className="min-w-0 flex-1 truncate">
-        {status === 'online' && hostName ? `${hostName} · ${PC_STATUS_LABEL[status]}` : `PC ${PC_STATUS_LABEL[status]}`}
+        {status === 'online' && hostName ? `${hostName} · ${PC_STATUS_LABEL[status]}` : `${(status !== 'unpaired' && hostName) || 'PC'} ${PC_STATUS_LABEL[status]}`}
       </span>
       <Settings2 size={15} className="text-muted" />
     </button>
@@ -493,11 +508,11 @@ function ProviderFooter() {
     <button
       type="button"
       onClick={() => actions().setOverlay('settings')}
-      className="flex items-center gap-2 border-t border-line px-4 py-3 text-left text-[12.5px] text-fg-2 hover:bg-surface-2/60"
+      className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3 text-left text-[12.5px] text-fg-2 hover:bg-surface-2/60"
     >
       <StatusDot tone={statusTone(conns[def])} />
       <span className="min-w-0 flex-1 truncate">
-        기본: {providerLabel(def)} · 사용 가능 {usable.length}개
+        {THIS_DEVICE} · {providerLabel(def)} · 사용 가능 {usable.length}개
       </span>
       <Settings2 size={15} className="text-muted" />
     </button>

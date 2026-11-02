@@ -2,6 +2,7 @@ import { appendPageLink, MAX_SPLIT, NEW_CANVAS_TITLE, NEW_PAGE_TITLE, pageDoc, t
 import { AppWindow, Columns2, FileText, GitBranch, PenLine, Pencil, Rows2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { profile } from '../app/capabilities';
 import { desktop } from '../app/runtime';
 import { openBranch } from '../chat/open';
 import { flushPageDraft } from '../chat/PagePanel';
@@ -39,8 +40,8 @@ export function SessionMenu({
     if (!actions().dropToSplit(split, target, edge)) pushNotice(`분할은 최대 ${MAX_SPLIT}개까지예요.`);
     useUi.getState().setDrawer(false);
   };
-  /** 데스크톱 앱: 별도 창으로 열기 (같은 세션 창이 있어도 새로 연다, ADR-036) */
-  const win = sessionId && desktop?.windows ? sessionId : null;
+  /** 데스크톱 앱: 별도 창으로 열기 (같은 세션 창이 있어도 새로 연다, ADR-036). 다른 PC를 미러링할 때는 이 PC의 창이 없다 (ADR-103) */
+  const win = sessionId && desktop?.windows && profile !== 'remote' ? sessionId : null;
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();

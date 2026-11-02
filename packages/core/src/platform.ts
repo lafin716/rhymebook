@@ -7,6 +7,7 @@ import type { ProviderId } from './model';
  * - 데스크톱(PC): 이 기기의 공식 CLI 직접 실행 + API 키 + 원격 페어링 열기(호스트) + 다른 PC에 연결
  * - 웹·모바일: API 키 + 내 PC에 원격 페어링 연결만. CLI 직접 실행과 모델·노력치 선택은 막는다
  *   (원격 요청의 모델·노력치는 PC가 정한다)
+ * - 웹·모바일 로컬 프로필(ADR-103): API 키만, 모델은 이 기기에서 고른다
  */
 export type PlatformKind = 'desktop' | 'web' | 'mobile';
 
@@ -25,11 +26,26 @@ export interface PlatformCaps {
 // 'mock'(데모)은 개발용 시나리오 전용이라 사용자가 고르는 목록에 넣지 않는다
 const DESKTOP_PROVIDERS: ProviderId[] = ['claude-cli', 'codex-cli', 'anthropic-api', 'openai-api', 'remote-bridge'];
 const REMOTE_PROVIDERS: ProviderId[] = ['remote-bridge', 'anthropic-api', 'openai-api'];
+const LOCAL_API_PROVIDERS: ProviderId[] = ['anthropic-api', 'openai-api'];
 
-export function platformCaps(kind: PlatformKind, opts: { hostPairing?: boolean } = {}): PlatformCaps {
+/**
+ * 앱 프로필 (ADR-103). local = 이 기기에 학습을 저장하고 이 기기의 provider로 답한다,
+ * remote = 저장한 PC 하나를 미러링한다(어느 PC인지는 활성 페어링).
+ */
+export type AppProfile = 'local' | 'remote';
+
+/** 저장한 프로필을 읽는다. 없거나 잘못된 값이면 데스크톱은 이 PC, 웹·모바일은 기존처럼 PC 미러링 */
+export function resolveProfile(kind: PlatformKind, stored: string | null | undefined): AppProfile {
+  if (stored === 'local' || stored === 'remote') return stored;
+  return kind === 'desktop' ? 'local' : 'remote';
+}
+
+export function platformCaps(kind: PlatformKind, opts: { hostPairing?: boolean; profile?: AppProfile } = {}): PlatformCaps {
   if (kind === 'desktop') {
     return { kind, localCli: true, hostPairing: opts.hostPairing ?? true, modelChoice: true, providers: DESKTOP_PROVIDERS };
   }
+  // 웹·모바일 자체 사용: 학습은 이 기기에, 답변은 API 키로. 모델도 이 기기에서 고른다
+  if (opts.profile === 'local') return { kind, localCli: false, hostPairing: false, modelChoice: true, providers: LOCAL_API_PROVIDERS };
   return { kind, localCli: false, hostPairing: false, modelChoice: false, providers: REMOTE_PROVIDERS };
 }
 

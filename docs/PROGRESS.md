@@ -1,6 +1,6 @@
 # Project Progress
 
-Last Updated: 2026-10-30
+Last Updated: 2026-11-02
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
@@ -203,9 +203,12 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP30-T5 | IMP-30 | 통합·typecheck/lint/test/e2e·독립 리뷰 | lead+reviewer | MEDIUM | inherit | default | DONE | 100% | T1-T4 | PASS: typecheck·lint·test(core 552·ui 64·bridge 66·relay 9·server 10), e2e 167 passed(실패 2 = 기존 skill-sync-split), 리뷰 지적 5건 중 오탐 1·Known Issues 4 |
 | IMP30-T6 | IMP-30 | 스크린샷 390/768/1440·데스크톱 패키지 앱·ADR·문서·커밋 | lead | LOW | inherit | default | DONE | 100% | T5 | PASS: 페이지·캔버스·발표 스크린샷 3폭, `package:dir` 성공·OctoBooks.app 실행, ADR-087~089·B-13~15 |
 | FIX31-T1 | FIX-31 | 블록 핸들 글자 가운데·나란히 늘 반반·ErrorBoundary 안전망(길게 누르기 빈 화면) | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: e2e page-engine 8/8(핸들 가운데 ±3px·칸 반반 단언 추가, 이전 코드에서 실패 확인), typecheck·lint·test |
+| IMP103-T1 | IMP-103 | 프로필 core(`resolveProfile`·`platformCaps` profile)·ui capabilities/sync/ai/스킬/세션 메뉴 경계 | lead | HIGH | inherit | default | DONE | 100% | - | PASS: core platform 테스트, typecheck |
+| IMP103-T2 | IMP-103 | 프로필 목록 UI(HostList 이 기기 행·메인 화면·사이드바 [프로필 바꾸기]·온보딩·설정 연결) | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: e2e host-list 3건(desktop+mobile) |
+| IMP103-T3 | IMP-103 | 검증·독립 리뷰·스크린샷 390/768/1440·데스크톱 패키지·문서(ADR-103)·커밋 v0.46.0 | lead+reviewer | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: typecheck·lint·test(core 591·ui 72·bridge 66·relay 9·server 10), e2e 실패는 기존 skill-sync-split:64만, 독립 리뷰 차단 지적 없음, 스크린샷 390/768/1440, `package:dir`·OctoBooks.app 실행 |
 
 ## Active Work
-- 없음 (IMP-30 완료, v0.35.0)
+- 없음 (IMP-103 완료, v0.46.0)
 - 확인 필요: `e2e/skill-sync-split.spec.ts` '웹(원격): 스킬 관리에 PC 스킬 동기화 버튼…'이 HEAD(v0.30.0)에서도 실패 — `[data-skill-row="curriculum"]` 행이 없어 기다리다 시간 초과. 테스트가 오래된 것으로 보임, 미수정
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다

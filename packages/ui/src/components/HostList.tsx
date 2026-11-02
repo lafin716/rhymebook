@@ -1,49 +1,91 @@
 import { remoteRoute, type RemotePairing } from '@branch/core';
-import { Check, Laptop, Plus, Trash2 } from 'lucide-react';
+import { Check, Laptop, Monitor, Plus, Smartphone, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { forgetHost, setPairing, switchHost, useRemoteHosts, useSync } from '../app/sync';
+import { kind, remoteMode } from '../app/capabilities';
+import { sessionWindowId } from '../app/runtime';
+import { addHost, chooseThisDevice, choosePcProfile, forgetHost, openHost, pairingSurvivesRestart, useRemoteHosts, useSync } from '../app/sync';
 import { PairForm } from '../settings/connectionCards';
 import { StatusDot } from './Badge';
 import { confirm } from './ConfirmDialog';
 import { PC_STATUS_LABEL, PC_STATUS_TONE } from './PcStatus';
 
+/** 프로필 목록에서 이 기기를 부르는 이름 */
+export const THIS_DEVICE = kind === 'desktop' ? '이 PC' : '이 기기';
+
 /**
- * 저장한 PC 목록 (웹·모바일 원격 모드, ADR-063).
- * 줄을 누르면 그 PC로 전환하고, 끊긴 지금 PC는 다시 잇는다. [PC 추가]는 이 자리에서 페어링 폼을 연다.
+ * 프로필 목록 (ADR-063·103): [이 기기] · 저장한 PC들 · [PC 추가].
+ * PC 프로필에서는 줄을 누르면 그 PC로 바로 전환하고(끊긴 지금 PC는 다시 잇는다),
+ * 이 기기 프로필에서 PC를 고르면 그 PC 프로필로 다시 시작한다. [PC 추가]는 이 자리에서 페어링 폼을 연다.
  */
-export function HostList({ addable = true }: { addable?: boolean }) {
+export function HostList({ addable = true, device = true, initialLink = '' }: { addable?: boolean; device?: boolean; initialLink?: string }) {
   const hosts = useRemoteHosts((s) => s.hosts);
   const activeId = useRemoteHosts((s) => s.activeId);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(!!initialLink);
 
   const onPaired = async (p: RemotePairing | null) => {
-    if (p) await setPairing(p);
+    if (p) await addHost(p);
     setAdding(false);
   };
+  // 웹은 다시 시작하면 페어링이 사라지므로 PC 프로필로 먼저 바꾼 뒤 그 화면에서 페어링한다
+  const add = () => (!remoteMode && !pairingSurvivesRestart ? choosePcProfile() : setAdding(true));
 
   return (
-    <div className="w-full max-w-sm text-left" data-testid="host-list">
-      <p className="mb-1.5 px-1 text-[12px] font-medium text-muted">내 PC</p>
-      <ul className="space-y-1.5">
-        {hosts.map((h) => (
-          <HostRow key={h.bridgeId} host={h} active={h.bridgeId === activeId} />
-        ))}
-      </ul>
+    <div className="w-full max-w-sm space-y-3 text-left" data-testid="host-list">
+      {device && !sessionWindowId && <DeviceRow />}
+      {hosts.length > 0 && (
+        <div>
+          <p className="mb-1.5 px-1 text-[12px] font-medium text-muted">내 PC</p>
+          <ul className="space-y-1.5">
+            {hosts.map((h) => (
+              <HostRow key={h.bridgeId} host={h} active={remoteMode && h.bridgeId === activeId} />
+            ))}
+          </ul>
+        </div>
+      )}
       {addable &&
         (adding ? (
           <div className="mt-2 rounded-xl border border-line bg-surface p-3 text-[12.5px] text-fg-2">
-            <PairForm onPaired={onPaired} onCancel={() => setAdding(false)} />
+            <PairForm initialLink={initialLink} onPaired={onPaired} onCancel={() => setAdding(false)} />
           </div>
         ) : (
           <button
             type="button"
-            onClick={() => setAdding(true)}
-            className="mt-1.5 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong text-[14px] text-fg-2 hover:bg-surface-2"
+            onClick={add}
+            className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong text-[14px] text-fg-2 hover:bg-surface-2"
           >
             <Plus size={15} />
             PC 추가
           </button>
         ))}
+    </div>
+  );
+}
+
+/** 이 기기 프로필: 학습은 이 기기에 두고 답변은 이 기기의 연결(API 키 등)로 받는다 */
+function DeviceRow() {
+  const active = !remoteMode;
+  const Icon = kind === 'desktop' ? Monitor : Smartphone;
+  const sub = active ? '지금 쓰는 중 · 학습을 이 기기에 저장' : kind === 'desktop' ? '이 PC에 저장하고 이 PC의 CLI·API로 답변' : 'PC 없이 쓰기 · API 키로 답변';
+  return (
+    <div>
+      <p className="mb-1.5 px-1 text-[12px] font-medium text-muted">{THIS_DEVICE}</p>
+      <button
+        type="button"
+        onClick={chooseThisDevice}
+        disabled={active}
+        data-active={active || undefined}
+        aria-label={`${THIS_DEVICE}에서 쓰기`}
+        className={`flex min-h-14 w-full items-center gap-3 rounded-xl border bg-surface px-3 py-2 text-left ${active ? 'border-accent/60' : 'border-line hover:border-line-strong'}`}
+      >
+        <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${active ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-fg-2'}`}>
+          <Icon size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-medium">{THIS_DEVICE}에서 쓰기</span>
+          <span className="block truncate text-[12px] text-muted">{sub}</span>
+        </span>
+        {active && <Check size={16} className="shrink-0 text-accent" aria-hidden />}
+      </button>
     </div>
   );
 }
@@ -71,7 +113,7 @@ function HostRow({ host, active }: { host: RemotePairing; active: boolean }) {
     >
       <button
         type="button"
-        onClick={() => void switchHost(host.bridgeId)}
+        onClick={() => void openHost(host.bridgeId)}
         disabled={active && (status === 'online' || status === 'connecting')}
         aria-label={`${name} ${active ? sub : '연결'}`}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"

@@ -17,8 +17,8 @@ import { useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { isUsable } from '../lib/connection';
-import { remoteMode } from './capabilities';
-import { desktop, isDemo, mobile, loadRemoteHosts, loadRemotePairing, remoteLink, saveRemoteHosts, saveRemotePairing, sessionWindowId } from './runtime';
+import { remoteMode, switchProfile } from './capabilities';
+import { desktop, isDemo, mobile, loadRemoteHosts, loadRemotePairing, remoteLink, saveRemoteHosts, saveRemotePairing, secrets, sessionWindowId } from './runtime';
 import { appStore, loadPersisted } from './store';
 import { dropHostSkills, pullSkillsFromPc, switchSkillHost, syncSkillFolders, useSkills } from '../skills/skillsStore';
 
@@ -191,6 +191,41 @@ export async function forgetHost(bridgeId: string): Promise<void> {
   await dropHostSkills(bridgeId);
 }
 
+/* ── 프로필 전환 (ADR-103) ─────────────────────────────── */
+
+/**
+ * 다시 시작해도 페어링이 남는지. 웹은 비밀 값을 탭 메모리에만 두므로(정책) 다시 시작하면 사라진다
+ * → 웹에서는 PC 프로필로 먼저 바꾼 뒤 그 화면에서 페어링한다.
+ */
+export const pairingSurvivesRestart = secrets.kind !== 'memory';
+
+/** 이 기기 프로필로 바꾼다 (학습은 이 기기에, 답변은 이 기기의 연결로) */
+export function chooseThisDevice() {
+  if (remoteMode && !sessionWindowId) switchProfile('local', suspendData);
+}
+
+/** 저장한 PC를 연다. 이 기기 프로필이면 그 PC를 활성 페어링으로 두고 PC 프로필로 다시 시작한다 */
+export async function openHost(bridgeId: string): Promise<void> {
+  if (remoteMode) return switchHost(bridgeId);
+  const p = remoteHosts.getState().hosts.find((h) => h.bridgeId === bridgeId);
+  if (!p) return;
+  await saveRemotePairing(p);
+  switchProfile('remote', suspendData);
+}
+
+/** 새로 페어링한 PC를 목록에 넣고 바로 쓴다 */
+export async function addHost(p: RemotePairing): Promise<void> {
+  if (remoteMode) return setPairing(p);
+  await writeHosts(upsertHost(remoteHosts.getState().hosts, p), p.bridgeId);
+  await saveRemotePairing(p);
+  switchProfile('remote', suspendData);
+}
+
+/** 페어링 없이 PC 프로필로 바꾼다 (웹: 다시 시작한 뒤 PC 연결 화면에서 페어링) */
+export function choosePcProfile() {
+  if (!remoteMode) switchProfile('remote', suspendData);
+}
+
 /** 미러링한 PC 데이터를 화면에서 지운다 (페어링 해제) */
 function clearMirror() {
   const st = appStore.getState();
@@ -284,8 +319,8 @@ export function pushNotice(text: string) {
 
 const HOST_CLI_ORDER = ['claude-cli', 'codex-cli'] as const;
 
-/** 세션 창은 엔진이 아니다 (메인 창만 호스트를 연다) */
-const sync = sessionWindowId ? undefined : desktop?.host?.sync;
+/** 세션 창·다른 PC 프로필은 엔진이 아니다 (이 PC 프로필의 메인 창만 호스트를 연다, ADR-103) */
+const sync = remoteMode ? undefined : desktop?.host?.sync;
 
 /** 같은 PC의 세션 창 피어 (main 프로세스가 붙이는 접두사) */
 const isWindowPeer = (peerId: string) => peerId.startsWith('win-');
@@ -349,6 +384,8 @@ export async function startData(): Promise<void> {
   }
   await loadPersisted();
   if (isDemo()) return;
+  // 이 기기 프로필에서도 저장한 PC를 메인 화면의 프로필 목록에 보여 준다 (ADR-103)
+  void loadHosts();
   syncHost?.reset();
   sync?.ready(true);
 }

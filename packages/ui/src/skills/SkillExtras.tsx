@@ -11,7 +11,7 @@ import {
 } from '@branch/core';
 import { ChevronRight, FilePlus2, FileText, FolderOpen, Trash2, Upload } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
-import { caps } from '../app/capabilities';
+import { answersViaPc, caps } from '../app/capabilities';
 import { useApp } from '../app/store';
 import { Button, IconButton } from '../components/Button';
 import { pushNotice as toast } from '../app/sync';
@@ -184,8 +184,8 @@ export interface OptionsDraft {
   effort: string;
 }
 
-/** 웹·모바일은 PC 에이전트(CLI)만 고를 수 있다 (ADR-031) */
-const choices = (): ProviderId[] => (caps.localCli ? caps.providers : ['claude-cli', 'codex-cli']);
+/** 웹·모바일 PC 프로필은 PC 에이전트(CLI)만 고를 수 있다 (ADR-031) */
+const choices = (): ProviderId[] => (answersViaPc ? ['claude-cli', 'codex-cli'] : caps.providers);
 
 const SELECT = 'h-9 w-full rounded-lg border border-line bg-surface px-2.5 text-[13.5px] outline-none focus:border-accent disabled:opacity-50';
 
@@ -198,7 +198,7 @@ export function SkillOptionsField({ value, onChange }: { value: OptionsDraft; on
   const presets = cli ? CLI_MODEL_PRESETS[cli] : [];
   const efforts = cli ? effortsFor(cli, value.model || conn?.model) : [];
   const extraModel = cli && value.model && !presets.some((x) => x.id === value.model) ? value.model : undefined;
-  const remote = !caps.localCli;
+  const remote = answersViaPc;
   const label = (id: ProviderId) => (remote ? `PC · ${PROVIDER_LABELS[id]}` : PROVIDER_LABELS[id]);
   const summary = set ? [label(p as ProviderId), value.model, value.effort && (EFFORT_LABELS[value.effort] ?? value.effort)].filter(Boolean).join(' · ') : '세션 설정 따름';
 

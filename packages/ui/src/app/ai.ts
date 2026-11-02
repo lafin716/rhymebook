@@ -1,13 +1,14 @@
 import { collectStream, resolveModelOptions, type AppState, type ProviderError, type ProviderId, type StreamRequest } from '@branch/core';
+import { answersViaPc } from './capabilities';
 import { appStore, caps, registry } from './store';
 
 /**
  * 채팅 밖 AI 도우미(스킬 작성·페이지 정리)에 쓸 provider.
- * - 웹·모바일: 채팅과 같이 PC로 보낸다(원격 Bridge). 에이전트·모델·노력치는 PC의 원격 설정이 정한다
- * - PC: 기본 provider, 준비되지 않았으면 대체 순서에서 준비된 것
+ * - 웹·모바일 PC 프로필: 채팅과 같이 PC로 보낸다(원격 Bridge). 에이전트·모델·노력치는 PC의 원격 설정이 정한다
+ * - PC·이 기기 프로필: 기본 provider, 준비되지 않았으면 대체 순서에서 준비된 것
  */
 export function pickProvider({ settings, connections }: Pick<AppState, 'settings' | 'connections'>): ProviderId {
-  if (!caps.localCli) return 'remote-bridge';
+  if (answersViaPc) return 'remote-bridge';
   const order = [settings.defaultProviderId, ...settings.fallbackOrder].filter((id) => caps.providers.includes(id) || id === 'mock');
   const ready = order.find((id) => connections[id]?.enabled && connections[id]?.status === 'ready');
   return ready ?? settings.defaultProviderId;

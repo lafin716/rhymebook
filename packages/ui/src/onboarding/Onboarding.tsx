@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { caps, remoteMode } from '../app/capabilities';
 import { isDemo, useRuntime } from '../app/runtime';
 import { actions, useApp } from '../app/store';
-import { setPairing, useSync } from '../app/sync';
+import { chooseThisDevice, setPairing, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
@@ -14,7 +14,8 @@ import { ApiCard, CliCard, PairForm, PolicyNote } from '../settings/connectionCa
 /**
  * 첫 실행 안내 (ADR-025·026).
  * - PC: 쓸 수 있는 연결이 하나도 없을 때 한 번. 이 PC의 CLI(구독) 또는 API 키
- * - 웹·모바일(원격 전용): 페어링한 PC가 없으면 PC 페어링 화면
+ * - 웹·모바일 PC 프로필: 페어링한 PC가 없으면 PC 페어링 화면 (또는 이 기기에서 쓰기, ADR-103)
+ * - 웹·모바일 이 기기 프로필: API 키 등록
  */
 type Step = 'choose' | 'cli' | 'api';
 
@@ -47,7 +48,7 @@ function RemoteOnboarding() {
             <MonitorSmartphone size={20} />
           </span>
           <p className="text-[13.5px] text-fg-2">
-            octobooks {caps.kind === 'mobile' ? '앱' : '웹'}은 PC의 원격 화면이에요. PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 CLI로 답해요.
+            PC와 연결하면 PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 CLI로 답해요. PC 없이 이 기기에서 API 키로 쓸 수도 있어요.
           </p>
         </div>
         <ol className="space-y-1.5 text-[13px] text-fg-2">
@@ -60,13 +61,18 @@ function RemoteOnboarding() {
         </div>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <span className="flex items-center gap-1.5 text-[12px] text-muted">
-          <Laptop size={14} />
-          학습 기록은 PC에만 저장돼요
+        <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
+          <Laptop size={14} className="shrink-0" />
+          학습 기록은 PC에 저장돼요
         </span>
-        <Button variant="ghost" onClick={() => setDismissed(true)}>
-          나중에 하기
-        </Button>
+        <span className="flex shrink-0 gap-1">
+          <Button variant="ghost" onClick={() => setDismissed(true)}>
+            나중에 하기
+          </Button>
+          <Button variant="secondary" onClick={chooseThisDevice}>
+            이 기기에서 쓰기
+          </Button>
+        </span>
       </div>
     </Modal>
   );
@@ -89,13 +95,16 @@ function snapshot(st: { connections: Record<ProviderId, { status: string; enable
   };
 }
 
+// 웹·모바일 이 기기 프로필은 CLI를 실행할 수 없어 API 키만 등록한다
+const home: Step = caps.localCli ? 'choose' : 'api';
+
 function LocalOnboarding() {
   const demo = useRuntime((s) => s.demo);
   const setupDone = useApp((s) => !!s.settings.setupDone);
   const checking = useApp((s) => snapshot(s).checking);
   const ready = useApp((s) => snapshot(s).ready);
   const pairLink = useUi((s) => s.pairLink);
-  const [step, setStep] = useState<Step>('choose');
+  const [step, setStep] = useState<Step>(home);
   const [opened, setOpened] = useState(false);
 
   // 이미 연결이 준비돼 있으면(기존 사용자·복원) 안내 없이 완료 처리
@@ -123,7 +132,7 @@ function LocalOnboarding() {
     }
     st.updateSettings(patch);
     setOpened(false);
-    setStep('choose');
+    setStep(home);
   }
 
   if (!show || isDemo()) return null;
@@ -131,13 +140,13 @@ function LocalOnboarding() {
   const title: Record<Step, string> = {
     choose: 'octobooks 시작하기',
     cli: '이 PC의 CLI 연결',
-    api: 'API 키 등록',
+    api: caps.localCli ? 'API 키 등록' : '이 기기에서 시작하기',
   };
 
   return (
     <Modal open onClose={finish} label="시작하기" className="md:max-w-lg">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
-        {step !== 'choose' && (
+        {step !== home && (
           <button type="button" aria-label="뒤로" onClick={() => setStep('choose')} className="-ml-1 rounded-md p-1 text-muted hover:text-fg">
             <ArrowLeft size={18} />
           </button>
@@ -173,6 +182,7 @@ function LocalOnboarding() {
         )}
         {step === 'api' && (
           <>
+            {!caps.localCli && <p className="text-[13.5px] text-fg-2">학습은 이 기기에 저장되고, 답변은 등록한 API 키로 받아요.</p>}
             <ApiCard id="anthropic-api" prefix="sk-ant-" />
             <ApiCard id="openai-api" prefix="sk-" />
           </>

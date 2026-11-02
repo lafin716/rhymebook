@@ -1,10 +1,10 @@
 import { AppearanceSettings } from './AppearanceSettings';
 import { createSnapshot, keyFingerprint, remoteRoute, serializeBackup, backupFileName, type RemotePairing } from '@branch/core';
-import { Download, Info, Laptop, Link2, RefreshCw, Unlink } from 'lucide-react';
+import { Download, Info, Laptop, Link2, RefreshCw, Smartphone, Unlink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { caps } from '../app/capabilities';
 import { actions, persistence, useApp } from '../app/store';
-import { setPairing, syncClient, useRemoteHosts, useRemotePairing, useSync } from '../app/sync';
+import { chooseThisDevice, setPairing, syncClient, useRemoteHosts, useRemotePairing, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { StatusDot } from '../components/Badge';
 import { Button } from '../components/Button';
@@ -28,7 +28,7 @@ export function RemoteSettings() {
   const settings = useApp((s) => s.settings);
   return (
     <div className="space-y-6">
-      <Section title="연결된 PC" hint="이 기기는 PC의 학습 내용을 보여 주고, 질문은 PC로 보내요. 답변은 PC의 CLI가 만들어요.">
+      <Section title="연결된 PC" hint="이 기기는 PC의 학습 내용을 보여 주고, 질문은 PC로 보내요. 답변은 PC의 CLI가 만들어요. PC 없이 쓰려면 사이드바 아래 [프로필 바꾸기]에서 이 기기를 골라요.">
         <PcCard />
         <SavedHosts />
       </Section>
@@ -164,8 +164,8 @@ function PcCard() {
 }
 
 /**
- * 원격 전용 이전에 이 기기에 저장해 둔 학습(IndexedDB)이 있으면 파일로 내보낸다.
- * 내보낸 파일은 PC 앱의 설정 → 백업 → [파일 가져오기]로 옮길 수 있다.
+ * 이 기기 프로필에 저장한 학습(IndexedDB)이 있으면 알려 준다 (ADR-103).
+ * [이 기기에서 쓰기]로 돌아가 이어 쓰거나, 파일로 내보내 PC 앱의 설정 → 백업 → [파일 가져오기]로 옮길 수 있다.
  */
 function OldDataCard() {
   const [count, setCount] = useState(0);
@@ -198,8 +198,11 @@ function OldDataCard() {
   };
 
   return (
-    <Section title="이 기기에 남아 있는 이전 학습" hint={`원격 전용으로 바뀌기 전 이 ${caps.kind === 'mobile' ? '휴대폰' : '브라우저'}에 저장한 학습 ${count}개가 있어요. 지금은 화면에 나오지 않아요.`}>
+    <Section title="이 기기에 저장한 학습" hint={`이 ${caps.kind === 'mobile' ? '휴대폰' : '브라우저'}에 저장한 학습 ${count}개가 있어요. PC를 보는 동안에는 화면에 나오지 않아요.`}>
       <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="soft" icon={<Smartphone size={14} />} onClick={chooseThisDevice}>
+          이 기기에서 쓰기
+        </Button>
         <Button size="sm" icon={<Download size={14} />} onClick={() => void exportOld()}>
           파일로 내보내기
         </Button>

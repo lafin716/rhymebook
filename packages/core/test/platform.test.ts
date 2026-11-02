@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BridgeClientMsg } from '../src/bridge/protocol';
-import { applyHostPolicy, isHostPolicy, orderForPlatform, platformCaps } from '../src/platform';
+import { applyHostPolicy, isHostPolicy, orderForPlatform, platformCaps, resolveProfile } from '../src/platform';
 
 const start = (over: Partial<Extract<BridgeClientMsg, { type: 'chat.start' }>> = {}): BridgeClientMsg => ({
   type: 'chat.start',
@@ -23,6 +23,26 @@ describe('platformCaps', () => {
       expect(c.providers).not.toContain('codex-cli');
       expect(c.providers[0]).toBe('remote-bridge');
     }
+  });
+
+  it('웹·모바일 로컬 프로필은 API 키만·모델 선택 가능 (ADR-103)', () => {
+    for (const kind of ['web', 'mobile'] as const) {
+      const c = platformCaps(kind, { profile: 'local' });
+      expect(c).toMatchObject({ localCli: false, modelChoice: true, hostPairing: false });
+      expect(c.providers).toEqual(['anthropic-api', 'openai-api']);
+      expect(platformCaps(kind, { profile: 'remote' })).toEqual(platformCaps(kind));
+    }
+    // 데스크톱은 프로필과 상관없이 같은 능력 (원격 프로필에서도 이 PC의 CLI로 페이지 AI 등을 쓴다)
+    expect(platformCaps('desktop', { profile: 'remote' })).toEqual(platformCaps('desktop'));
+  });
+
+  it('프로필 기본값: 데스크톱은 이 PC, 웹·모바일은 PC 미러링. 저장값이 우선', () => {
+    expect(resolveProfile('desktop', null)).toBe('local');
+    expect(resolveProfile('web', null)).toBe('remote');
+    expect(resolveProfile('mobile', undefined)).toBe('remote');
+    expect(resolveProfile('mobile', 'local')).toBe('local');
+    expect(resolveProfile('desktop', 'remote')).toBe('remote');
+    expect(resolveProfile('desktop', 'bogus')).toBe('local');
   });
 
   it('호스트 기능이 없는 데스크톱 빌드', () => {

@@ -128,9 +128,15 @@ core(`anchor.ts`)는 세그먼트 맵 기반 변환/매칭만 담당하고, hast
 
 | 플랫폼 | 셸 | LLM 경로 | 비밀 저장 |
 |---|---|---|---|
-| 웹 | `apps/web` (Vite 정적 빌드) | **원격 전용**: PC 데스크톱 앱 스토어 미러 + 액션 신호(ADR-026) | 페어링은 탭 메모리(새로고침 시 다시 페어링) |
-| 데스크톱 | `apps/desktop` Electron | 내장 bridge(IPC/로컬 WS) → CLI, 또는 API | Electron `safeStorage` |
-| 모바일 | `apps/mobile` Capacitor | **원격 전용**: PC 스토어 미러 + 액션 신호(LAN·Tailscale·relay, ADR-026) | Capacitor secure storage(페어링 키) |
+| 웹 | `apps/web` (Vite 정적 빌드) | 프로필(ADR-103): **PC** = PC 데스크톱 앱 스토어 미러 + 액션 신호(ADR-026, 기본) · **이 기기** = IndexedDB + API 키 | 페어링은 탭 메모리(새로고침 시 다시 페어링) |
+| 데스크톱 | `apps/desktop` Electron | 프로필(ADR-103): **이 PC**(기본) = 내장 bridge(IPC/로컬 WS) → CLI, 또는 API · **다른 PC** = 그 PC 미러 | Electron `safeStorage` |
+| 모바일 | `apps/mobile` Capacitor | 프로필(ADR-103): **PC** = PC 스토어 미러 + 액션 신호(LAN·Tailscale·relay, ADR-026, 기본) · **이 기기** = IndexedDB + API 키 | Capacitor secure storage(페어링 키·API 키) |
+
+### 연결 프로필 (ADR-103)
+- localStorage `branch.profile` = `'local' | 'remote'`(비밀 아님). core `resolveProfile(kind, stored)` — 저장값 우선, 없으면 데스크톱 local / 웹·모바일 remote. core `platformCaps(kind, { profile })` — 웹·모바일 local은 `localCli:false`, API provider만.
+- ui `capabilities.ts`: `profile`·`caps`·`remoteMode = profile==='remote' || 세션 창`·`answersViaPc = remoteMode && !caps.localCli`(시작 시 고정). 전환은 `switchProfile` → 동기화·호스트 정지 → reload.
+- 원격일 때 PC = 활성 페어링(`REMOTE_PAIRING_SECRET`), 저장한 PC = `REMOTE_HOSTS_SECRET`. 프로필 목록 UI는 `components/HostList.tsx`(이 기기 행 + 내 PC 목록 + PC 추가), 메인 화면·사이드바 `ProfileDialog`·설정에서 쓴다.
+- 데스크톱 remote: syncHost 없음, 세션 창 열기 숨김, 백업 꺼짐.
 
 ### 원격 동기화 (ADR-026)
 - 진실 원천은 PC 데스크톱 renderer 스토어(Dexie) 하나. 웹·모바일 스토어는 메모리 미러(`remote: true`)이며 보기 상태와 테마만 로컬.
