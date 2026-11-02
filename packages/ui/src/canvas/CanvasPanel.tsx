@@ -50,7 +50,7 @@ import {
   loadPenNib,
   loadStrokeSizes,
   loadToolbarDock,
-  loadTwoFingerDoubleTap,
+  loadGestures,
   MAX_FAVORITE_INKS,
   saveFavoriteInks,
   savePaletteCount,
@@ -58,12 +58,14 @@ import {
   savePenNib,
   saveStrokeSizes,
   saveToolbarDock,
-  saveTwoFingerDoubleTap,
+  saveGestures,
   type StrokeKind,
   type ToolbarDock,
-  type TwoFingerDoubleTap,
+  type GestureAction,
+  type GestureMap,
 } from './canvasPrefs';
 import { centerView, fitView, toWorld, type CanvasView } from './view';
+import type { TouchGesture } from './touchGestures';
 
 const SAVE_DELAY = 500;
 const HISTORY_MAX = 100;
@@ -153,7 +155,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const [paletteOpen, setPaletteOpen] = useState(loadPaletteOpen);
   const [paletteCount, setPaletteCount] = useState(loadPaletteCount);
   const [toolbarDock, setToolbarDock] = useState<ToolbarDock>(loadToolbarDock);
-  const [twoFingerTap, setTwoFingerTap] = useState<TwoFingerDoubleTap>(loadTwoFingerDoubleTap);
+  const [gestures, setGestures] = useState<GestureMap>(loadGestures);
   // 화면 스포이드가 없는 기기: 판을 한 번 눌러 색을 따오는 중
   const [eyeDropping, setEyeDropping] = useState(false);
   const panelFull = useUi((s) => s.panelFull);
@@ -477,11 +479,29 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     if (tool !== 'select') lastTool.current.other = tool;
     if (tool === 'pen' || tool === 'marker') lastTool.current.ink = tool;
   }, [tool]);
-  const onTwoFingerDoubleTap = () => {
-    if (twoFingerTap === 'select-pen') pickTool(tool === 'select' ? lastTool.current.other : 'select');
-    else if (twoFingerTap === 'eraser-pen') pickTool(tool === 'eraser' ? lastTool.current.ink : 'eraser');
-    else if (twoFingerTap === 'undo') undo();
+  /** 두 손가락 손동작에 붙인 일 — 지금 할 수 없는 일(자유 판의 쪽 넘김 등)이면 null이라 손동작은 화면 옮기기로 남는다 (ADR-104) */
+  const gestureAction = (a: GestureAction): (() => void) | null => {
+    switch (a) {
+      case 'select-pen':
+        return () => pickTool(tool === 'select' ? lastTool.current.other : 'select');
+      case 'eraser-pen':
+        return () => pickTool(tool === 'eraser' ? lastTool.current.ink : 'eraser');
+      case 'pen-marker':
+        return () => pickTool(tool === 'pen' ? 'marker' : 'pen');
+      case 'undo':
+        return undo;
+      case 'redo':
+        return redo;
+      case 'prev-page':
+        return pageCount ? () => goPage(page - 1) : null;
+      case 'next-page':
+        return pageCount ? () => goPage(page + 1) : null;
+      default:
+        return null;
+    }
   };
+  const onGesture = (g: TouchGesture) =>
+    gestureAction(gestures[g.kind === 'double-tap' ? 'double-tap' : (`swipe-${g.dir}` as const)]);
 
   const deleteSelected = useCallback(() => {
     if (!selectedId) return;
@@ -652,7 +672,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           onSettle={settle}
           animate={animate}
           panAxis={panAxis}
-          onTwoFingerDoubleTap={onTwoFingerDoubleTap}
+          onGesture={onGesture}
           eyeDrop={eyeDropping}
           onEyeDrop={(hex) => {
             setColor(hex);
@@ -705,10 +725,10 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
             setPaletteCount(n);
             savePaletteCount(n);
           }}
-          twoFingerTap={twoFingerTap}
-          onTwoFingerTap={(a) => {
-            setTwoFingerTap(a);
-            saveTwoFingerDoubleTap(a);
+          gestures={gestures}
+          onGestures={(g) => {
+            setGestures(g);
+            saveGestures(g);
           }}
           paletteTotal={INK_COLORS.length + favorites.filter((h) => !INK_COLORS.some((c) => c.hex === h)).length}
           onClose={() => setDialog(null)}

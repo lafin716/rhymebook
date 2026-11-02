@@ -92,14 +92,38 @@ export function loadToolbarDock(): ToolbarDock {
 
 export const saveToolbarDock = (dock: ToolbarDock) => save(TOOLBAR_DOCK_KEY, dock);
 
-/** 두 손가락으로 두 번 톡 쳤을 때 할 일 (ADR-092) */
-export type TwoFingerDoubleTap = 'off' | 'select-pen' | 'eraser-pen' | 'undo';
-const TWO_FINGER_KEY = 'octobooks.canvas.twoFingerDoubleTap';
-const TWO_FINGER_ACTIONS: readonly TwoFingerDoubleTap[] = ['off', 'select-pen', 'eraser-pen', 'undo'];
+/** 두 손가락 손동작에 붙일 일 (ADR-092, ADR-104) */
+export type GestureAction = 'off' | 'select-pen' | 'eraser-pen' | 'pen-marker' | 'undo' | 'redo' | 'prev-page' | 'next-page';
+export const GESTURE_ACTIONS: readonly GestureAction[] = ['off', 'select-pen', 'eraser-pen', 'pen-marker', 'undo', 'redo', 'prev-page', 'next-page'];
 
-export function loadTwoFingerDoubleTap(): TwoFingerDoubleTap {
-  const v = load(TWO_FINGER_KEY);
-  return TWO_FINGER_ACTIONS.includes(v as TwoFingerDoubleTap) ? (v as TwoFingerDoubleTap) : 'select-pen';
+/** 두 손가락 손동작 — 두 번 톡, 위·아래·왼쪽·오른쪽으로 밀기 */
+export type GestureKey = 'double-tap' | 'swipe-up' | 'swipe-down' | 'swipe-left' | 'swipe-right';
+export const GESTURE_KEYS: readonly GestureKey[] = ['double-tap', 'swipe-up', 'swipe-down', 'swipe-left', 'swipe-right'];
+export type GestureMap = Record<GestureKey, GestureAction>;
+
+/** 밀기는 기본으로 꺼 두어 두 손가락으로 화면 옮기기·쪽 넘김이 예전처럼 동작한다 */
+export const DEFAULT_GESTURES: GestureMap = {
+  'double-tap': 'select-pen',
+  'swipe-up': 'off',
+  'swipe-down': 'off',
+  'swipe-left': 'off',
+  'swipe-right': 'off',
+};
+
+const GESTURES_KEY = 'octobooks.canvas.gestures';
+/** 예전(v0.37~) 두 번 톡 설정 — 새 설정이 없을 때만 읽어 옮긴다 */
+const LEGACY_TWO_FINGER_KEY = 'octobooks.canvas.twoFingerDoubleTap';
+
+const isAction = (v: unknown): v is GestureAction => GESTURE_ACTIONS.includes(v as GestureAction);
+
+export function loadGestures(): GestureMap {
+  const v = load(GESTURES_KEY);
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return Object.fromEntries(GESTURE_KEYS.map((k) => [k, isAction(o[k]) ? o[k] : DEFAULT_GESTURES[k]])) as GestureMap;
+  }
+  const legacy = load(LEGACY_TWO_FINGER_KEY);
+  return { ...DEFAULT_GESTURES, ...(isAction(legacy) ? { 'double-tap': legacy } : {}) };
 }
 
-export const saveTwoFingerDoubleTap = (a: TwoFingerDoubleTap) => save(TWO_FINGER_KEY, a);
+export const saveGestures = (g: GestureMap) => save(GESTURES_KEY, g);

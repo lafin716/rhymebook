@@ -274,21 +274,24 @@ test('색 직접 고르기: 채도·명도 판과 색상 띠로 고르고 처음
   expect(errors).toEqual([]);
 });
 
-test('설정: 두 손가락 두 번 톡 동작을 고르면 새로고침 후에도 남는다 (ADR-092)', async ({ page }, info) => {
+test('설정: 두 손가락 두 번 톡·밀기 동작을 고르면 새로고침 후에도 남는다 (ADR-092, ADR-104)', async ({ page }, info) => {
   const errors = collectErrors(page);
   await onboard(page);
   await newCanvas(page, info.project.name === 'mobile');
   await page.getByRole('button', { name: '캔버스 설정' }).click();
   const settings = page.getByRole('dialog', { name: '캔버스 설정' });
-  const group = settings.getByRole('radiogroup', { name: '두 손가락으로 두 번 톡' });
-  await expect(group.locator('[data-two-finger-tap="select-pen"]')).toHaveAttribute('aria-checked', 'true');
-  await group.locator('[data-two-finger-tap="undo"]').click();
-  await expect(group.locator('[data-two-finger-tap="undo"]')).toHaveAttribute('aria-checked', 'true');
+  const tap = settings.locator('select[data-canvas-gesture="double-tap"]');
+  const left = settings.locator('select[data-canvas-gesture="swipe-left"]');
+  await expect(tap).toHaveValue('select-pen');
+  await expect(left).toHaveValue('off');
+  await tap.selectOption('undo');
+  await left.selectOption('next-page');
   await page.reload();
   await page.getByRole('button', { name: '캔버스 설정' }).click();
-  await expect(
-    page.getByRole('dialog', { name: '캔버스 설정' }).locator('[data-two-finger-tap="undo"]'),
-  ).toHaveAttribute('aria-checked', 'true');
+  const again = page.getByRole('dialog', { name: '캔버스 설정' });
+  await expect(again.locator('select[data-canvas-gesture="double-tap"]')).toHaveValue('undo');
+  await expect(again.locator('select[data-canvas-gesture="swipe-left"]')).toHaveValue('next-page');
+  await expect(again.locator('select[data-canvas-gesture="swipe-up"]')).toHaveValue('off');
   expect(errors).toEqual([]);
 });
 

@@ -22,7 +22,7 @@ import { cn } from '../lib/cn';
 import type { CanvasToolId } from './CanvasToolbar';
 import { backgroundStyle } from './canvasBackground';
 import { strokeOpacity, strokePath } from './strokePath';
-import { createTwoFingerTap } from './twoFingerTap';
+import { createTouchGestures, type TouchGesture } from './touchGestures';
 import { clampZoom, toWorld, zoomAt, type CanvasView } from './view';
 
 /** 지우개 반경 (캔버스 px) */
@@ -85,8 +85,11 @@ export interface CanvasBoardProps {
   onPointer?: (p: { x: number; y: number } | null) => void;
   /** 렌더링할 레이저 점 좌표 (nullptr면 표시 없음) */
   laser?: { x: number; y: number } | null;
-  /** 두 손가락으로 두 번 톡 쳤을 때 */
-  onTwoFingerDoubleTap?(): void;
+  /**
+   * 두 손가락 손동작(두 번 톡·밀기)을 알아챘을 때 할 일 (없으면 null).
+   * 할 일이 있으면 그 손동작이 같이 일으킨 화면 이동·확대를 먼저 되돌린 뒤 실행한다 — 밀기가 쪽을 넘기지 않게 (ADR-104)
+   */
+  onGesture?(g: TouchGesture): (() => void) | null;
   /** 스포이드 모드: 판을 누르면 그리지 않고 그 자리 색을 onEyeDrop으로 알린다 */
   eyeDrop?: boolean;
   onEyeDrop?(hex: string): void;
@@ -139,7 +142,7 @@ const coalesced = (e: PointerEvent<HTMLDivElement>): globalThis.PointerEvent[] =
  * 캔버스 판. 펜·형광펜·지우개·선택(이동·크기·앞으로)·화면 이동·확대를 포인터 이벤트로 처리한다.
  * 손바닥 거부: 펜이 닿아 있으면 터치는 무시하고, 펜을 한 번이라도 쓴 기기에서는(기억해 둔다) 터치가 화면을 옮긴다.
  */
-export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser, onTwoFingerDoubleTap, eyeDrop, onEyeDrop }: CanvasBoardProps) {
+export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selectedId, onSelect, onCommit, boardRef, pages, onSettle, animate, panAxis, readOnly, pointer, onPointer, laser, onGesture, eyeDrop, onEyeDrop }: CanvasBoardProps) {
   const [preview, setPreview] = useState<CanvasDoc | null>(null);
   const [live, setLive] = useState<Live | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
@@ -148,7 +151,9 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
   // 다른 손동작 상태는 ref로 두고, 렌더에 필요한 것만 state로 둔다
   const pointers = useMemo(() => new Map<number, { type: string; x: number; y: number }>(), []);
   const penSeen = useMemo(() => ({ current: readPenDevice() }), []);
-  const twoTap = useMemo(() => createTwoFingerTap(), []);
+  const touchGestures = useMemo(() => createTouchGestures(), []);
+  // 두 손가락 확대가 끝났지만 아직 손가락이 남아 있다 — 다 떼고 손동작을 판정한 뒤에 쪽을 맞춘다
+  const pinchEnded = useMemo<{ current: CanvasView | null }>(() => ({ current: null }), []);
   const gestureRef = useMemo<{ current: Gesture | null }>(() => ({ current: null }), []);
   const setG = (g: Gesture | null) => {
     gestureRef.current = g;
@@ -236,7 +241,11 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     if (e.pointerType === 'pen') {
       if (!penSeen.current) rememberPenDevice();
       penSeen.current = true;
-      twoTap.cancel();
+      touchGestures.cancel();
+      if (pinchEnded.current) {
+        pinchEnded.current = null;
+        onSettle?.();
+      }
       // 펜보다 먼저 닿은 손바닥의 획·확대는 버리고 펜이 이어받는다
       const g0 = gestureRef.current;
       if (g0 && (g0.kind === 'pinch' || pointers.get(g0.pointerId)?.type === 'touch')) {
@@ -252,7 +261,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     const p = local(boardRef.current, e.clientX, e.clientY);
     pointers.set(e.pointerId, { type: e.pointerType, x: p.x, y: p.y });
     e.currentTarget.setPointerCapture(e.pointerId);
-    if (e.pointerType === 'touch') twoTap.down(e.pointerId, p.x, p.y, e.timeStamp);
+    if (e.pointerType === 'touch') touchGestures.down(e.pointerId, p.x, p.y, e.timeStamp);
 
     if (e.pointerType === 'touch' && [...pointers.values()].filter((q) => q.type === 'touch').length === 2) {
       startPinch();
@@ -332,7 +341,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     if (!q) return;
     q.x = p.x;
     q.y = p.y;
-    if (q.type === 'touch') twoTap.move(e.pointerId, p.x, p.y);
+    if (q.type === 'touch') touchGestures.move(e.pointerId, p.x, p.y);
     const g = gestureRef.current;
     if (!g) return;
 
@@ -405,21 +414,28 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
     }
     const q = pointers.get(e.pointerId);
     pointers.delete(e.pointerId);
+    let touchGesture: TouchGesture | null = null;
     if (q?.type === 'touch') {
-      if (e.type === 'pointercancel') twoTap.cancel();
-      else if (twoTap.up(e.pointerId, e.timeStamp)) onTwoFingerDoubleTap?.();
+      if (e.type === 'pointercancel') touchGestures.cancel();
+      touchGesture = touchGestures.up(e.pointerId, e.timeStamp);
     }
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    const touchesLeft = [...pointers.values()].filter((t) => t.type === 'touch').length;
     const g = gestureRef.current;
-    if (!g) return;
-    if (g.kind === 'pinch') {
-      // 두 손가락 중 하나라도 떼면 확대 동작은 끝난다
-      if ([...pointers.values()].filter((t) => t.type === 'touch').length < 2) {
-        setG(null);
-        onSettle?.();
-      }
-      return;
+    // 두 손가락 중 하나라도 떼면 확대 동작은 끝난다. 쪽 맞추기는 마지막 손가락을 뗄 때까지 미룬다
+    if (g?.kind === 'pinch' && touchesLeft < 2) {
+      setG(null);
+      pinchEnded.current = g.startView;
     }
+    const action = touchGesture ? (onGesture?.(touchGesture) ?? null) : null;
+    if (q?.type === 'touch' && touchesLeft === 0 && pinchEnded.current) {
+      const before = pinchEnded.current;
+      pinchEnded.current = null;
+      if (action) onView(() => before);
+      else onSettle?.();
+    }
+    action?.();
+    if (!g || g.kind === 'pinch') return;
     if (g.pointerId !== e.pointerId) return;
     setG(null);
     setLive(null);

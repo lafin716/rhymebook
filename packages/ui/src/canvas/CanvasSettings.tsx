@@ -6,7 +6,7 @@ import {
   type CanvasPattern,
 } from "@branch/core";
 import { ArrowLeftRight, ArrowUpDown, Check, FileType2 } from "lucide-react";
-import type { TwoFingerDoubleTap } from "./canvasPrefs";
+import { GESTURE_ACTIONS, GESTURE_KEYS, type GestureAction, type GestureKey, type GestureMap } from "./canvasPrefs";
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
 import { ImportDialog } from "./CanvasImport";
@@ -67,12 +67,27 @@ const FLOWS: { flow: CanvasFlow; label: string; hint: string; icon: ReactNode }[
   },
 ];
 
-const TWO_FINGER: { action: TwoFingerDoubleTap; label: string; hint: string }[] = [
-  { action: "select-pen", label: "선택 ↔ 펜", hint: "선택 도구와 마지막에 쓴 도구를 오가요" },
-  { action: "eraser-pen", label: "지우개 ↔ 펜", hint: "지우개와 마지막에 쓴 펜·형광펜을 오가요" },
-  { action: "undo", label: "실행 취소", hint: "방금 한 것을 되돌려요" },
-  { action: "off", label: "끄기", hint: "아무것도 하지 않아요" },
-];
+const GESTURE_LABEL: Record<GestureKey, string> = {
+  "double-tap": "두 번 톡",
+  "swipe-up": "위로 밀기",
+  "swipe-down": "아래로 밀기",
+  "swipe-left": "왼쪽으로 밀기",
+  "swipe-right": "오른쪽으로 밀기",
+};
+
+const ACTION_LABEL: Record<GestureAction, string> = {
+  off: "끄기",
+  "select-pen": "선택 ↔ 펜",
+  "eraser-pen": "지우개 ↔ 펜",
+  "pen-marker": "펜 ↔ 형광펜",
+  undo: "실행 취소",
+  redo: "다시 실행",
+  "prev-page": "이전 쪽",
+  "next-page": "다음 쪽",
+};
+
+const GESTURE_SELECT =
+  "h-10 w-40 shrink-0 rounded-lg border border-line bg-bg px-2 text-[14px] text-fg outline-none focus:border-accent md:h-9";
 
 const OPTION =
   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-1.5 text-left text-fg hover:bg-surface-2 md:min-h-9";
@@ -89,8 +104,8 @@ export function CanvasSettings({
   paletteCount,
   onPaletteCount,
   paletteTotal,
-  twoFingerTap,
-  onTwoFingerTap,
+  gestures,
+  onGestures,
   onClose,
 }: {
   layout: CanvasLayout;
@@ -105,9 +120,9 @@ export function CanvasSettings({
   onPaletteCount(n: number | null): void;
   /** 기본 색 + 즐겨찾는 색 수 */
   paletteTotal: number;
-  /** 두 손가락으로 두 번 톡 쳤을 때 할 일 (기기별) */
-  twoFingerTap: TwoFingerDoubleTap;
-  onTwoFingerTap(a: TwoFingerDoubleTap): void;
+  /** 두 손가락 손동작마다 할 일 (기기별) */
+  gestures: GestureMap;
+  onGestures(g: GestureMap): void;
   onClose(): void;
 }) {
   const color = bg?.color ?? CANVAS_PAPER;
@@ -313,30 +328,29 @@ export function CanvasSettings({
           <span className="font-mono" data-palette-count>{paletteCount === null ? `모두 (${paletteTotal})` : `${shownCount} / ${paletteTotal}`}</span>
         </div>
       </div>
-      <p className="px-3 pt-1 pb-2 text-[12px] text-muted">두 손가락으로 두 번 톡</p>
-      <ul role="radiogroup" aria-label="두 손가락으로 두 번 톡" className="flex flex-col gap-1 pb-1">
-        {TWO_FINGER.map((o) => {
-          const on = o.action === twoFingerTap;
-          return (
-            <li key={o.action}>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={on}
-                data-two-finger-tap={o.action}
-                title={o.hint}
-                onClick={() => onTwoFingerTap(o.action)}
-                className={cn(OPTION, on && 'bg-accent-soft hover:bg-accent-soft')}
-              >
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-[14px]">{o.label}</span>
-                  <span className="text-[12px] text-muted">{o.hint}</span>
-                </span>
-                {on && <Check size={18} className="shrink-0 text-accent" />}
-              </button>
-            </li>
-          );
-        })}
+      <p className="px-3 pt-1 text-[12px] text-muted">두 손가락 손동작</p>
+      <p className="px-3 pb-2 text-[12px] text-muted">
+        빠르게 밀면 고른 일을 하고, 천천히 끌면 화면을 옮겨요. '끄기'로 둔 방향은 예전처럼 화면을 옮기고 쪽을 넘겨요. 이전·다음 쪽은 쪽 나눔 판에서만 해요.
+      </p>
+      <ul aria-label="두 손가락 손동작" className="flex flex-col gap-1 pb-1">
+        {GESTURE_KEYS.map((k) => (
+          <li key={k} className="flex min-h-11 items-center gap-3 px-3 md:min-h-9">
+            <span className="min-w-0 flex-1 text-[14px] text-fg">{GESTURE_LABEL[k]}</span>
+            <select
+              value={gestures[k]}
+              aria-label={`두 손가락 ${GESTURE_LABEL[k]}`}
+              data-canvas-gesture={k}
+              onChange={(e) => onGestures({ ...gestures, [k]: e.target.value as GestureAction })}
+              className={GESTURE_SELECT}
+            >
+              {GESTURE_ACTIONS.map((a) => (
+                <option key={a} value={a}>
+                  {ACTION_LABEL[a]}
+                </option>
+              ))}
+            </select>
+          </li>
+        ))}
       </ul>
     </ImportDialog>
   );

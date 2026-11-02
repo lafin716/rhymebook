@@ -206,9 +206,11 @@ Decisions: no dependency/schema changes; UI-only color palette; independent prev
 | IMP103-T1 | IMP-103 | 프로필 core(`resolveProfile`·`platformCaps` profile)·ui capabilities/sync/ai/스킬/세션 메뉴 경계 | lead | HIGH | inherit | default | DONE | 100% | - | PASS: core platform 테스트, typecheck |
 | IMP103-T2 | IMP-103 | 프로필 목록 UI(HostList 이 기기 행·메인 화면·사이드바 [프로필 바꾸기]·온보딩·설정 연결) | lead | MEDIUM | inherit | default | DONE | 100% | T1 | PASS: e2e host-list 3건(desktop+mobile) |
 | IMP103-T3 | IMP-103 | 검증·독립 리뷰·스크린샷 390/768/1440·데스크톱 패키지·문서(ADR-103)·커밋 v0.46.0 | lead+reviewer | MEDIUM | inherit | default | DONE | 100% | T2 | PASS: typecheck·lint·test(core 591·ui 72·bridge 66·relay 9·server 10), e2e 실패는 기존 skill-sync-split:64만, 독립 리뷰 차단 지적 없음, 스크린샷 390/768/1440, `package:dir`·OctoBooks.app 실행 |
+| IMP104-T1 | IMP-104 | 캔버스 두 손가락 손동작: 태블릿 두 번 톡 원인(쥔 엄지·간격·허용 움직임) 고침, `touchGestures` 인식기(두 번 톡·4방향 밀기) + 테스트, 손동작별 동작 설정·예전 설정 이전, 보드 settle 미루기·화면 되돌리기, e2e 설정 유지, ADR-104 | lead | MEDIUM | inherit | default | DONE | 100% | - | PASS: typecheck·lint·test(core 591·ui 79·bridge 66·relay 9·server 10), e2e canvas*.spec 30 passed, 실기기 태블릿 확인은 사람 몫 |
 
 ## Active Work
-- 없음 (IMP-103 완료, v0.46.0)
+- 없음 (IMP-104 완료, v0.47.0)
+- 확인 필요(수동): 태블릿 실기기에서 두 손가락 두 번 톡·4방향 밀기(ADR-104)
 - 확인 필요: `e2e/skill-sync-split.spec.ts` '웹(원격): 스킬 관리에 PC 스킬 동기화 버튼…'이 HEAD(v0.30.0)에서도 실패 — `[data-skill-row="curriculum"]` 행이 없어 기다리다 시간 초과. 테스트가 오래된 것으로 보임, 미수정
 - 확인 필요(수동): iOS 실기기에서 무음 스위치 켠 상태로 [듣기], Android 실기기 베트남어 음성(B-08)
 - 병합 주의: 다른 세션의 IMP-13(브랜치 `imp-13`, ADR-039)이 sync host·client·`isSyncSkill`·skillsStore를 바꿨다 — 병합 시 IMP-12 Skill `files`/`options`가 그 검증을 통과해야 한다
