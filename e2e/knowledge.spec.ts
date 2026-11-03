@@ -28,7 +28,16 @@ function installFakeKnowledge() {
     for (const p of paths) b.files.set(p, `본문: ${p}`);
     return { added: paths, skipped: 0 };
   };
+  // 진행률·취소: 'slow/' 저장소는 진행률을 보낸 뒤 취소될 때까지 기다리고, 'broken/' 저장소는 실패한다
+  const listeners = new Set<(p: unknown) => void>();
+  let cancel: (() => void) | undefined;
+  const emit = (p: unknown) => listeners.forEach((l) => l(p));
   const api = {
+    onProgress: (l: (p: unknown) => void) => {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+    cancel: async () => cancel?.(),
     list: async () => [...bases.values()].map(info),
     create: async (name: string) => {
       const id = `kbfake${String(++seq).padStart(4, '0')}`;
@@ -51,7 +60,18 @@ function installFakeKnowledge() {
     addFiles: async (id: string, files: { name: string }[]) => put(get(id), files.map((f) => f.name)),
     pickFiles: async (id: string) => put(get(id), ['notes/intro.md']),
     addLink: async (id: string, url: string) => put(get(id), [`links/${url.split('/').pop()}.md`]),
-    cloneGit: async (id: string) => put(get(id), ['repos/repo/README.md']),
+    cloneGit: async (id: string, url: string) => {
+      if (url.includes('/broken/')) throw new Error("Error invoking remote method 'knowledge:clone-git': Error: 저장소를 받지 못했습니다 (Repository not found.)");
+      if (url.includes('/slow/')) {
+        emit({ phase: 'clone' });
+        await new Promise((r) => setTimeout(r, 50));
+        emit({ phase: 'clone', ratio: 0.45 });
+        await new Promise<void>((_, reject) => {
+          cancel = () => reject(new Error('가져오기를 취소했습니다'));
+        });
+      }
+      return put(get(id), ['repos/repo/README.md']);
+    },
     removeEntry: async (id: string, path: string) => {
       get(id).files.delete(path);
     },
@@ -103,7 +123,7 @@ test('학습에 지식베이스를 만들어 연결하고 자료를 넣고 지�
   const linkInput = dialog.getByLabel('웹 페이지 주소');
   await linkInput.fill('ftp://example.com/cell');
   await dialog.getByRole('button', { name: '가져오기' }).click();
-  await expect(dialog.getByRole('status')).toContainText('http(s) 주소만');
+  await expect(dialog.getByRole('alert')).toContainText('http(s) 주소만');
   await linkInput.fill('https://example.com/cell');
   await dialog.getByRole('button', { name: '가져오기' }).click();
   await expect(dialog.locator('[data-entry="links/cell.md"]')).toBeVisible();
@@ -118,6 +138,33 @@ test('학습에 지식베이스를 만들어 연결하고 자료를 넣고 지�
   });
   await dialog.locator('[data-knowledge-drop]').dispatchEvent('drop', { dataTransfer: dt });
   await expect(dialog.locator('[data-entry="drop.txt"]')).toBeVisible();
+
+  // GitHub: 받는 동안 진행 막대와 취소 버튼이 보이고, 취소하면 안내가 뜬다
+  const gitInput = dialog.getByLabel('GitHub 저장소');
+  await gitInput.fill('slow/repo');
+  await dialog.getByRole('button', { name: '클론' }).click();
+  const bar = dialog.getByRole('progressbar', { name: '가져오기 진행률' });
+  await expect(bar).toBeVisible();
+  await expect(bar).toHaveAttribute('aria-valuenow', '45');
+  await expect(dialog).toContainText('GitHub에서 받는 중… 45%');
+  // 받는 중에 놓은 파일은 넣지 않고 알린다
+  const dt2 = await page.evaluateHandle(() => {
+    const d = new DataTransfer();
+    d.items.add(new File(['x'], 'late.txt', { type: 'text/plain' }));
+    return d;
+  });
+  await dialog.locator('[data-knowledge-drop]').dispatchEvent('drop', { dataTransfer: dt2 });
+  await expect(dialog.getByRole('alert')).toContainText('아직 가져오는 중');
+  await dialog.getByRole('button', { name: '취소', exact: true }).click();
+  await expect(bar).toBeHidden();
+  await expect(dialog.getByRole('status')).toContainText('가져오기를 취소했어요.');
+  await expect(dialog.locator('[data-entry="late.txt"]')).toHaveCount(0);
+
+  // 실패하면 원인이 붉은 경고로 보인다
+  await gitInput.fill('broken/repo');
+  await dialog.getByRole('button', { name: '클론' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('추가하지 못했어요. 다시 시도해 주세요. (저장소를 받지 못했습니다 (Repository not found.))');
+  await expect(bar).toBeHidden();
 
   // 미리보기
   await dialog.locator('[data-entry="links/cell.md"]').getByRole('button', { name: 'cell.md', exact: true }).click();

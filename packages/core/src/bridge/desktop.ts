@@ -1,4 +1,4 @@
-import type { KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview } from '../knowledge';
+import type { KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview, KnowledgeProgress } from '../knowledge';
 import type { HostPolicy } from '../platform';
 import type { SkillFolder } from '../skillFolder';
 import type { SttModelId, SttState } from '../stt';
@@ -71,6 +71,10 @@ export interface DesktopKnowledgeApi {
   preview(id: string, path: string): Promise<KnowledgePreview>;
   /** OS 파일 탐색기로 연다 (path 없으면 지식베이스 폴더) */
   open(id: string, path?: string): Promise<void>;
+  /** 진행 중인 가져오기(추가·링크·클론)의 진행 상황. 해제 함수를 돌려준다 */
+  onProgress?(listener: (p: KnowledgeProgress) => void): () => void;
+  /** 진행 중인 가져오기를 취소한다 (해당 호출은 취소 문구로 reject) */
+  cancel?(): Promise<void>;
 }
 
 /** PC의 로컬 whisper.cpp 설정·모델 관리. 원격 기기는 이 설정을 따르기만 한다 */

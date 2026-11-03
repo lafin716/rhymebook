@@ -1,8 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, Menu, Tray, Notification, screen, type WebContents } from 'electron';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { mkdirSync } from 'node:fs';
-import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, type BridgeConnection } from '@branch/bridge';
-import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
+import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, type BridgeConnection, type KnowledgeTaskControl } from '@branch/bridge';
+import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type KnowledgeProgress, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { htmlToPdf } from './pdf';
@@ -16,6 +17,7 @@ import { createSecretVault } from './secrets';
  */
 const DEV_URL = process.env.BRANCH_DEV_URL;
 const RENDERER = path.join(__dirname, 'renderer', 'index.html');
+const RENDERER_URL = pathToFileURL(RENDERER).href;
 
 // 표시 이름은 OctoBooks지만 내부 앱 이름은 rhymebook 그대로 둔다(ADR-062):
 // userData 경로와 safeStorage 키체인 항목이 이름에 묶여 있어, 바꾸면 기존 학습 기록·API 키를 못 읽는다.
@@ -114,7 +116,9 @@ function isClientMsg(v: unknown): v is BridgeClientMsg {
 
 function isAppUrl(url: string): boolean {
   if (DEV_URL) return url.startsWith(DEV_URL);
-  return url.startsWith('file://');
+  // 패키지에서는 우리 renderer index.html만 (다른 file:// 페이지는 거부)
+  const base = url.split(/[?#]/)[0];
+  return base === RENDERER_URL;
 }
 
 /** 트레이 아이콘 경로 — build.mjs가 dist(main.cjs 옆)에 복사하고, 패키지에서는 app.asar 안에서 읽는다 */
@@ -390,10 +394,68 @@ void app.whenReady().then(() => {
   kbHandle(CH.knowledgeRename, (_e, id, name) => knowledge.rename(kbId(id), kbName(name)));
   kbHandle(CH.knowledgeRemove, (_e, id) => knowledge.remove(kbId(id)));
   kbHandle(CH.knowledgeTree, (_e, id) => knowledge.tree(kbId(id)));
-  kbHandle(CH.knowledgeAddPaths, (_e, id, paths, dest) => knowledge.addPaths(kbId(id), kbPaths(paths), kbDest(dest)));
-  kbHandle(CH.knowledgeAddFiles, (_e, id, files, dest) => {
+  // 가져오기 진행률·취소 (창마다 하나). 같은 창에서 새 가져오기를 시작하면 이전 것은 취소한다
+  const kbTasks = new Map<number, AbortController>();
+  const kbWatched = new Set<number>();
+  const kbTask = async <T>(e: Electron.IpcMainInvokeEvent, run: (ctl: KnowledgeTaskControl) => Promise<T>): Promise<T> => {
+    const sender = e.sender;
+    const wcId = sender.id;
+    kbTasks.get(wcId)?.abort();
+    const ac = new AbortController();
+    kbTasks.set(wcId, ac);
+    if (!kbWatched.has(wcId)) {
+      kbWatched.add(wcId);
+      sender.once('destroyed', () => {
+        kbTasks.get(wcId)?.abort();
+        kbTasks.delete(wcId);
+        kbWatched.delete(wcId);
+      });
+    }
+    let last = 0;
+    let pending: KnowledgeProgress | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const send = (p: KnowledgeProgress) => {
+      if (!sender.isDestroyed()) sender.send(CH.knowledgeProgress, p);
+      last = Date.now();
+    };
+    const onProgress = (p: KnowledgeProgress) => {
+      // 단계가 바뀌면 바로, 같은 단계는 100ms마다
+      const wait = pending && pending.phase === p.phase ? 100 - (Date.now() - last) : 0;
+      pending = p;
+      if (wait <= 0) {
+        if (timer) clearTimeout(timer);
+        timer = undefined;
+        pending = undefined;
+        send(p);
+      } else if (!timer) {
+        timer = setTimeout(() => {
+          timer = undefined;
+          if (pending) send(pending);
+          pending = undefined;
+        }, wait);
+      }
+    };
+    try {
+      return await run({ onProgress, signal: ac.signal });
+    } finally {
+      if (timer) clearTimeout(timer);
+      if (kbTasks.get(wcId) === ac) kbTasks.delete(wcId);
+    }
+  };
+  kbHandle(CH.knowledgeCancel, (e) => {
+    kbTasks.get(e.sender.id)?.abort();
+  });
+  kbHandle(CH.knowledgeAddPaths, (e, id, paths, dest) => {
+    const kid = kbId(id);
+    const list = kbPaths(paths);
+    const d = kbDest(dest);
+    return kbTask(e, (ctl) => knowledge.addPaths(kid, list, d, ctl));
+  });
+  kbHandle(CH.knowledgeAddFiles, (e, id, files, dest) => {
     if (!Array.isArray(files) || files.length > 500) throw new Error(t('bridge.knowledge.badPath'));
-    return knowledge.addFiles(kbId(id), files as { name: string; data: Uint8Array }[], kbDest(dest));
+    const kid = kbId(id);
+    const d = kbDest(dest);
+    return kbTask(e, (ctl) => knowledge.addFiles(kid, files as { name: string; data: Uint8Array }[], d, ctl));
   });
   // OS 파일 선택 창 (취소하면 빈 결과)
   kbHandle(CH.knowledgePickFiles, async (e, id, dest) => {
@@ -403,15 +465,17 @@ void app.whenReady().then(() => {
     const options: Electron.OpenDialogOptions = { properties: ['openFile', 'multiSelections'] };
     const r = win && !win.isDestroyed() ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     if (r.canceled || r.filePaths.length === 0) return { added: [], skipped: 0 };
-    return knowledge.addPaths(kid, r.filePaths, d);
+    return kbTask(e, (ctl) => knowledge.addPaths(kid, r.filePaths, d, ctl));
   });
-  kbHandle(CH.knowledgeAddLink, (_e, id, url) => {
+  kbHandle(CH.knowledgeAddLink, (e, id, url) => {
     if (!isKnowledgeLinkUrl(url)) throw new Error(t('bridge.knowledge.badUrl'));
-    return knowledge.addLink(kbId(id), url);
+    const kid = kbId(id);
+    return kbTask(e, (ctl) => knowledge.addLink(kid, url, ctl));
   });
-  kbHandle(CH.knowledgeCloneGit, (_e, id, url) => {
+  kbHandle(CH.knowledgeCloneGit, (e, id, url) => {
     if (typeof url !== 'string' || url.length > 2048) throw new Error(t('bridge.knowledge.badRepo'));
-    return knowledge.cloneGit(kbId(id), url);
+    const kid = kbId(id);
+    return kbTask(e, (ctl) => knowledge.cloneGit(kid, url, ctl));
   });
   kbHandle(CH.knowledgeRemoveEntry, (_e, id, p) => knowledge.removeEntry(kbId(id), kbPath(p)));
   kbHandle(CH.knowledgePreview, (_e, id, p) => knowledge.preview(kbId(id), kbPath(p)));

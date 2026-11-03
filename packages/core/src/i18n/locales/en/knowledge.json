@@ -62,14 +62,27 @@
     "gitLabel": "GitHub repository",
     "gitPlaceholder": "owner/repo or https://github.com/owner/repo",
     "gitSubmit": "Clone",
-    "busy": "Working…",
     "invalidUrl": "Only http(s) addresses can be used.",
     "invalidGit": "Only GitHub repository addresses can be used.",
     "done": "Added {count} items.",
     "skipped": "{count} items were skipped because of size or format.",
-    "failed": "Could not add it. Please try again."
+    "failed": "Could not add it. Please try again.",
+    "busyDrop": "Still importing. Drop again when it finishes.",
+    "dropEmpty": "No files found in what you dropped.",
+    "nothing": "Nothing was added. Check the file size or type."
   },
   "error": {
     "generic": "Something went wrong. Please try again."
+  },
+  "progress": {
+    "label": "Import progress",
+    "copy": "Copying files…",
+    "copied": "Copied {count} files ({size})",
+    "download": "Downloading page…",
+    "clone": "Downloading from GitHub…",
+    "save": "Saving…",
+    "elapsed": "{seconds}s",
+    "cancel": "Cancel",
+    "cancelled": "Import cancelled."
   }
 }

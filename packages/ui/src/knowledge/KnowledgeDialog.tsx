@@ -7,6 +7,7 @@ import {
   type KnowledgeBase,
   type KnowledgeEntry,
   type KnowledgePreview,
+  type KnowledgeProgress,
   type ID,
 } from '@branch/core';
 import { ArrowLeft, File, FileText, Folder, FolderOpen, Link2, Pencil, Plus, Trash2, Upload, X, GitBranch } from 'lucide-react';
@@ -23,6 +24,19 @@ export interface KnowledgeDialogProps {
   open: boolean;
   onClose(): void;
   sessionId: ID;
+}
+
+/** 안내 문구. 오류는 role=alert로 바로 읽히고 붉게 보인다 */
+interface NoticeState {
+  text: string;
+  tone: 'info' | 'error';
+}
+
+/** 진행 중인 가져오기 (진행 막대에 보인다) */
+type ImportKind = 'files' | 'link' | 'git';
+interface ImportTask {
+  kind: ImportKind;
+  startedAt: number;
 }
 
 interface PreviewState {
@@ -51,7 +65,11 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const [selected, setSelected] = useState<string | null>(null);
   const [tree, setTree] = useState<KnowledgeEntry[]>([]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNoticeState] = useState<NoticeState | null>(null);
+  const [task, setTask] = useState<ImportTask | null>(null);
+  const [progress, setProgress] = useState<KnowledgeProgress | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const cancelledRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState('');
@@ -60,6 +78,23 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const [gitUrl, setGitUrl] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const selectedRef = useRef<string | null>(null);
+
+  const setNotice = (text: string | null, tone: NoticeState['tone'] = 'info') => setNoticeState(text ? { text, tone } : null);
+  const setError = (text: string) => setNotice(text, 'error');
+
+  // 진행률 구독 (main이 가져오기 동안 보낸다)
+  useEffect(() => {
+    if (!open || !api?.onProgress) return;
+    return api.onProgress((p) => setProgress(p));
+  }, [open, api]);
+
+  // 가져오는 동안 경과 시간을 1초마다 갱신한다
+  useEffect(() => {
+    if (!task) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [task]);
 
   const current = bases.find((b) => b.id === selected);
   const remote = remoteMode;
@@ -75,7 +110,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     api
       .list()
       .then((list) => setBases(list))
-      .catch((e: unknown) => setNotice(withDetail(t('knowledge.error.generic'), e)))
+      .catch((e: unknown) => setError(withDetail(t('knowledge.error.generic'), e)))
       .finally(() => setLoaded(true));
     // 대화상자를 열 때만 목록을 새로 읽는다
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,11 +132,37 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     try {
       return await fn();
     } catch (e) {
-      setNotice(withDetail(failure, e));
+      setError(withDetail(failure, e));
       return undefined;
     } finally {
       setBusy(false);
     }
+  };
+
+  /** 가져오기: 진행 막대를 보이고, 사용자가 취소했으면 오류 대신 취소 안내를 보인다 */
+  const runImport = async <T,>(kind: ImportKind, fn: () => Promise<T>): Promise<T | undefined> => {
+    cancelledRef.current = false;
+    setProgress(null);
+    setTask({ kind, startedAt: Date.now() });
+    setBusy(true);
+    setNotice(null);
+    try {
+      return await fn();
+    } catch (e) {
+      if (cancelledRef.current) setNotice(t('knowledge.progress.cancelled'));
+      else setError(withDetail(t('knowledge.add.failed'), e));
+      return undefined;
+    } finally {
+      setBusy(false);
+      setTask(null);
+      setProgress(null);
+    }
+  };
+
+  const cancelImport = () => {
+    if (!api?.cancel) return;
+    cancelledRef.current = true;
+    void api.cancel().catch(() => undefined);
   };
 
   const select = (id: string | null) => {
@@ -129,8 +190,10 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
 
   const report = (r: KnowledgeAddResult | undefined) => {
     if (!r) return;
-    if (r.added.length) setNotice(t('knowledge.add.done', { count: r.added.length }));
-    if (r.skipped) setNotice((prev) => [prev, t('knowledge.add.skipped', { count: r.skipped })].filter(Boolean).join(' '));
+    const parts = [r.added.length ? t('knowledge.add.done', { count: r.added.length }) : '', r.skipped ? t('knowledge.add.skipped', { count: r.skipped }) : ''];
+    const text = parts.filter(Boolean).join(' ');
+    // 하나도 못 넣었으면 그대로 넘어가지 않고 알린다
+    setNotice(text || t('knowledge.add.nothing'), r.added.length ? 'info' : 'error');
   };
 
   const submitCreate = async (e: FormEvent) => {
@@ -198,24 +261,25 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const addDropped = async (e: DragEvent<HTMLElement>) => {
     e.preventDefault();
     setDragOver(false);
-    // 처리 중에 또 놓으면 무시한다 (같은 파일이 겹쳐 들어가지 않게)
-    if (!current || !api || busy) return;
-    const id = current.id;
+    if (!current || !api) return;
     const files = Array.from(e.dataTransfer.files);
-    if (!files.length) return;
-    const paths: string[] = [];
-    const blobs: { name: string; data: Uint8Array }[] = [];
-    for (const f of files) {
-      const p = api.pathForFile(f);
-      if (p) paths.push(p);
-      else blobs.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
-    }
-    const results = await run(async () => {
+    if (!files.length) return setError(t('knowledge.add.dropEmpty'));
+    // 처리 중에 또 놓으면 넣지 않고 알린다 (같은 파일이 겹쳐 들어가지 않게)
+    if (busy) return setError(t('knowledge.add.busyDrop'));
+    const id = current.id;
+    const results = await runImport('files', async () => {
+      const paths: string[] = [];
+      const blobs: { name: string; data: Uint8Array }[] = [];
+      for (const f of files) {
+        const p = api.pathForFile(f);
+        if (p) paths.push(p);
+        else blobs.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
+      }
       const out: KnowledgeAddResult[] = [];
       if (paths.length) out.push(await api.addPaths(id, paths));
       if (blobs.length) out.push(await api.addFiles(id, blobs));
       return out;
-    }, t('knowledge.add.failed'));
+    });
     if (results) {
       report(merge(results));
       await refresh(id);
@@ -225,7 +289,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const pickFiles = async () => {
     if (!current || !api) return;
     const id = current.id;
-    const r = await run(() => api.pickFiles(id), t('knowledge.add.failed'));
+    const r = await runImport('files', () => api.pickFiles(id));
     if (r) {
       report(r);
       await refresh(id);
@@ -236,9 +300,9 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     e.preventDefault();
     if (!current || !api) return;
     const url = linkUrl.trim();
-    if (!isKnowledgeLinkUrl(url)) return setNotice(t('knowledge.add.invalidUrl'));
+    if (!isKnowledgeLinkUrl(url)) return setError(t('knowledge.add.invalidUrl'));
     const id = current.id;
-    const r = await run(() => api.addLink(id, url), t('knowledge.add.failed'));
+    const r = await runImport('link', () => api.addLink(id, url));
     if (r) {
       setLinkUrl('');
       report(r);
@@ -250,9 +314,9 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     e.preventDefault();
     if (!current || !api) return;
     const repo = parseGitHubRepo(gitUrl);
-    if (!repo) return setNotice(t('knowledge.add.invalidGit'));
+    if (!repo) return setError(t('knowledge.add.invalidGit'));
     const id = current.id;
-    const r = await run(() => api.cloneGit(id, repo.url), t('knowledge.add.failed'));
+    const r = await runImport('git', () => api.cloneGit(id, repo.url));
     if (r) {
       setGitUrl('');
       report(r);
@@ -346,7 +410,18 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
           {!current ? (
             <div className="flex flex-1 items-center justify-center p-6 text-[14px] text-fg-2">{loaded && bases.length ? t('knowledge.tree.previewEmpty') : null}</div>
           ) : (
-            <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+            <div
+              className="scroll-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = busy ? 'none' : 'copy';
+                setDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
+              }}
+              onDrop={(e) => void addDropped(e)}
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <IconButton size="sm" label={t('knowledge.dialog.back')} className="md:hidden" onClick={() => select(null)}>
                   <ArrowLeft size={16} />
@@ -391,12 +466,6 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
 
               <div
                 data-knowledge-drop=""
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => void addDropped(e)}
                 className={cn(
                   'flex flex-col gap-3 rounded-xl border border-dashed border-line p-3 transition-colors',
                   dragOver && 'border-accent bg-accent-soft',
@@ -435,12 +504,15 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                     {t('knowledge.add.gitSubmit')}
                   </Button>
                 </form>
-                {busy && <p className="text-[12px] text-fg-2">{t('knowledge.add.busy')}</p>}
+                {task && <ImportProgress task={task} progress={progress} now={now} onCancel={api.cancel ? cancelImport : undefined} />}
               </div>
 
               {notice && (
-                <p role="status" className="text-[13px] text-fg-2">
-                  {notice}
+                <p
+                  role={notice.tone === 'error' ? 'alert' : 'status'}
+                  className={cn('rounded-lg px-3 py-2 text-[13px]', notice.tone === 'error' ? 'bg-danger-soft text-danger' : 'text-fg-2')}
+                >
+                  {notice.text}
                 </p>
               )}
 
@@ -514,6 +586,54 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
       {body}
     </Modal>
   );
+}
+
+/** 가져오기 진행 막대. 비율을 알면 채워지고, 모르면 움직이는 막대를 보인다 */
+function ImportProgress({ task, progress, now, onCancel }: { task: ImportTask; progress: KnowledgeProgress | null; now: number; onCancel?: () => void }) {
+  const ratio = progress?.ratio;
+  const percent = ratio === undefined ? undefined : Math.round(Math.min(1, Math.max(0, ratio)) * 100);
+  const phase = progress?.phase ?? (task.kind === 'git' ? 'clone' : task.kind === 'link' ? 'download' : 'copy');
+  let label: string;
+  if (phase === 'copy') label = progress?.files ? t('knowledge.progress.copied', { count: progress.files, size: formatBytes(progress.bytes ?? 0) }) : t('knowledge.progress.copy');
+  else label = t(`knowledge.progress.${phase}`);
+  if (percent !== undefined) label = `${label} ${percent}%`;
+  const seconds = Math.max(0, Math.floor((now - task.startedAt) / 1000));
+  return (
+    <div className="flex flex-col gap-1.5" data-knowledge-progress="">
+      <div className="flex items-center gap-2 text-[12px] text-fg-2">
+        <span className="min-w-0 flex-1 truncate" aria-live="polite">
+          {label}
+        </span>
+        <span className="shrink-0 tabular-nums">{t('knowledge.progress.elapsed', { seconds })}</span>
+        {onCancel && (
+          <Button size="sm" variant="ghost" onClick={onCancel}>
+            {t('knowledge.progress.cancel')}
+          </Button>
+        )}
+      </div>
+      <div
+        role="progressbar"
+        aria-label={t('knowledge.progress.label')}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-valuetext={label}
+        className="relative h-1.5 overflow-hidden rounded-full bg-surface-2"
+      >
+        {percent === undefined ? (
+          <div className="kb-indeterminate absolute inset-y-0 w-1/3 rounded-full bg-accent" />
+        ) : (
+          <div className="h-full rounded-full bg-accent transition-[width] duration-200" style={{ width: `${percent}%` }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function Notice({ text }: { text: string }) {

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { randomBytes } from 'node:crypto';
 import { constants as fsc } from 'node:fs';
@@ -13,11 +13,13 @@ import {
   isKnowledgePath,
   newId,
   parseGitHubRepo,
+  parseGitProgress,
   t,
   type KnowledgeAddResult,
   type KnowledgeBase,
   type KnowledgeEntry,
   type KnowledgePreview,
+  type KnowledgeProgress,
 } from '@branch/core';
 
 /**
@@ -41,8 +43,12 @@ const WIN_BAD_CHARS_RE = /[<>:"|?*\\/]|[\u0000-\u001f]/;
 const HTML_MAX_BYTES = 5 * 1024 * 1024;
 /** 링크 가져오기 제한 시간 */
 const FETCH_TIMEOUT_MS = 15_000;
-/** 클론 제한 시간 */
-const CLONE_TIMEOUT_MS = 120_000;
+/** 클론 전체 제한 시간 (진행 중이어도 이 시간을 넘으면 멈춘다) */
+const CLONE_TIMEOUT_MS = 10 * 60_000;
+/** 클론이 이 시간 동안 아무 출력이 없으면 멈춘 것으로 본다 */
+const CLONE_IDLE_MS = 60_000;
+/** 클론 종료 후 stderr가 닫히길 기다리는 최대 시간 (손자 프로세스가 붙잡고 있을 수 있다) */
+const CLONE_CLOSE_GRACE_MS = 500;
 /** 한 번에 훑을 항목 수 상한 (큰 폴더에서 멈추지 않게) */
 const WALK_MAX_ENTRIES = 20_000;
 /** 미리보기로 읽을 최대 바이트 (문자 수 * 4) */
@@ -204,7 +210,37 @@ export function htmlToMarkdown(html: string): string {
 
 /** 얕은 클론 인자 (shell 없이 spawn한다). 심볼릭 링크는 파일로 풀어 따라가지 못하게 한다 */
 export function gitCloneArgs(url: string, dest: string): string[] {
-  return ['-c', 'core.symlinks=false', 'clone', '--depth', '1', '--single-branch', '--no-tags', '--quiet', '--', url, dest];
+  return [
+    '-c',
+    'core.symlinks=false',
+    // 자격 증명 도우미(키체인·GCM 창)를 부르지 않는다: 공개 저장소만 받는다
+    '-c',
+    'credential.helper=',
+    'clone',
+    '--depth',
+    '1',
+    '--single-branch',
+    '--no-tags',
+    '--progress',
+    '--',
+    url,
+    dest,
+  ];
+}
+
+/** 가져오기 진행 알림·취소 (main이 렌더러 창마다 하나씩 만든다) */
+export interface KnowledgeTaskControl {
+  onProgress?: (p: KnowledgeProgress) => void;
+  signal?: AbortSignal;
+}
+
+const cancelledError = () => new Error(t('bridge.knowledge.cancelled'));
+
+/** git stderr 메시지 중 보여줄 한 줄: fatal/error 줄 → 마지막 줄 → 종료 코드 */
+export function gitErrorLine(messages: string[], code: number | null): string {
+  const pick =
+    messages.find((l) => /^fatal:/i.test(l)) ?? messages.find((l) => /^error:/i.test(l)) ?? messages.filter((l) => !/^Cloning into\b/.test(l)).pop();
+  return (pick ?? `exit ${code ?? '?'}`).replace(/^(fatal|error):\s*/i, '');
 }
 
 export interface KnowledgeStoreOptions {
@@ -219,6 +255,11 @@ export interface KnowledgeStoreOptions {
    * 기본은 DNS 조회. fetch를 바꾼 테스트에서는 조회하지 않는다.
    */
   lookup?: (hostname: string) => Promise<string[]>;
+  /** git 실행 파일 (테스트에서 가짜 git으로 바꾼다). 기본 'git' */
+  gitBin?: string;
+  /** 클론 무응답·전체 제한 시간 (테스트용) */
+  cloneIdleMs?: number;
+  cloneTimeoutMs?: number;
 }
 
 const dnsLookupAll = async (hostname: string): Promise<string[]> =>
@@ -233,10 +274,15 @@ export interface KnowledgeStore {
   rename(id: string, name: string): Promise<KnowledgeBase>;
   remove(id: string): Promise<void>;
   tree(id: string): Promise<KnowledgeEntry[]>;
-  addPaths(id: string, paths: string[], dest?: string): Promise<KnowledgeAddResult>;
-  addFiles(id: string, files: { name: string; data: Uint8Array }[], dest?: string): Promise<KnowledgeAddResult>;
-  addLink(id: string, url: string): Promise<KnowledgeAddResult>;
-  cloneGit(id: string, url: string): Promise<KnowledgeAddResult>;
+  addPaths(id: string, paths: string[], dest?: string, ctl?: KnowledgeTaskControl): Promise<KnowledgeAddResult>;
+  addFiles(
+    id: string,
+    files: { name: string; data: Uint8Array }[],
+    dest?: string,
+    ctl?: KnowledgeTaskControl,
+  ): Promise<KnowledgeAddResult>;
+  addLink(id: string, url: string, ctl?: KnowledgeTaskControl): Promise<KnowledgeAddResult>;
+  cloneGit(id: string, url: string, ctl?: KnowledgeTaskControl): Promise<KnowledgeAddResult>;
   removeEntry(id: string, relPath: string): Promise<void>;
   preview(id: string, relPath: string): Promise<KnowledgePreview>;
   /** 지식베이스 폴더(files/) 절대 경로. 답변 CLI의 작업 폴더로 쓴다 */
@@ -252,6 +298,10 @@ interface Budget {
   bytes: number;
   visited: number;
   skipped: number;
+  /** 이번 호출에서 복사한 파일 수·바이트 (진행 알림용) */
+  copied: number;
+  copiedBytes: number;
+  ctl?: KnowledgeTaskControl;
 }
 
 /** 디렉터리를 재귀로 훑어 항목을 모은다 (숨김·링크 제외) */
@@ -305,6 +355,9 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
   };
   const lookupAll = opts.lookup ?? (opts.fetch ? async () => [] : dnsLookupAll);
   const gitEnv = opts.env ?? process.env;
+  const gitBin = opts.gitBin ?? 'git';
+  const cloneIdleMs = opts.cloneIdleMs ?? CLONE_IDLE_MS;
+  const cloneTimeoutMs = opts.cloneTimeoutMs ?? CLONE_TIMEOUT_MS;
 
   // 변경 작업은 하나씩 (같은 지식베이스에 동시에 쓰지 않게)
   let chain: Promise<unknown> = Promise.resolve();
@@ -385,7 +438,14 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
   const relOf = (id: string, abs: string) => path.relative(filesDir(id), abs).split(path.sep).join('/');
 
   /** 디스크 항목 하나를 dstDir로 복사한다. 제한을 넘으면 건너뛰고 skipped를 센다 */
-  async function importEntry(src: string, name: string, dstDir: string, budget: Budget): Promise<string | null> {
+  async function importEntry(
+    src: string,
+    name: string,
+    dstDir: string,
+    budget: Budget,
+    onCreate?: (abs: string) => void,
+  ): Promise<string | null> {
+    if (budget.ctl?.signal?.aborted) throw cancelledError();
     if (budget.visited++ > WALK_MAX_ENTRIES) {
       budget.skipped++;
       return null;
@@ -402,6 +462,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     if (st.isDirectory()) {
       const target = path.join(dstDir, await uniqueName(dstDir, name));
       await mkdir(target);
+      onCreate?.(target);
       let kids: import('node:fs').Dirent[];
       try {
         kids = await readdir(src, { withFileTypes: true });
@@ -423,15 +484,28 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       return null;
     }
     const target = path.join(dstDir, await uniqueName(dstDir, name));
+    onCreate?.(target);
     await copyFile(src, target, fsc.COPYFILE_EXCL);
     budget.files++;
     budget.bytes += st.size;
+    reportCopy(budget, st.size);
     return target;
   }
 
-  async function budgetOf(id: string): Promise<Budget> {
+  async function budgetOf(id: string, ctl?: KnowledgeTaskControl): Promise<Budget> {
     const m = await measure(filesDir(id));
-    return { files: m.fileCount, bytes: m.totalBytes, visited: 0, skipped: 0 };
+    return { files: m.fileCount, bytes: m.totalBytes, visited: 0, skipped: 0, copied: 0, copiedBytes: 0, ctl };
+  }
+
+  function reportCopy(budget: Budget, size: number) {
+    budget.copied++;
+    budget.copiedBytes += size;
+    budget.ctl?.onProgress?.({ phase: 'copy', files: budget.copied, bytes: budget.copiedBytes });
+  }
+
+  /** 취소되면 이번 호출에서 만든 최상위 항목을 지운다 (반쯤 복사된 폴더를 남기지 않게) */
+  async function rollback(created: string[]) {
+    for (const abs of created.reverse()) await rm(abs, { recursive: true, force: true }).catch(() => undefined);
   }
 
   function checkBudget(b: { files: number; bytes: number }, adding: { files: number; bytes: number }) {
@@ -455,35 +529,126 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     }
   }
 
-  function runGit(args: string[], cwd: string): Promise<void> {
+  /** git 프로세스와 그 자식(git-remote-https 등)을 모두 끝낸다 */
+  function killTree(child: ChildProcess) {
+    const pid = child.pid;
+    if (!pid) return;
+    try {
+      if (process.platform === 'win32') {
+        spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).on('error', () => undefined);
+      } else {
+        process.kill(-pid, 'SIGKILL');
+      }
+    } catch {
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        // 이미 끝났다
+      }
+    }
+  }
+
+  /**
+   * git을 실행한다. stderr의 진행 줄을 진행률로 알리고, 무응답·전체 시간 초과·취소 시 프로세스 트리를 끝낸다.
+   * 'close'(stdio 닫힘)만 기다리면 손자 프로세스가 파이프를 붙잡아 영원히 끝나지 않을 수 있어 'exit'로 끝낸다.
+   */
+  function runGit(args: string[], cwd: string, ctl?: KnowledgeTaskControl): Promise<void> {
     return new Promise((resolve, reject) => {
-      const child = spawn('git', args, {
-        cwd,
-        shell: false,
-        stdio: ['ignore', 'ignore', 'pipe'],
-        env: { ...gitEnv, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_ASKPASS: '', SSH_ASKPASS: '' },
+      const signal = ctl?.signal;
+      if (signal?.aborted) return reject(cancelledError());
+      const win = process.platform === 'win32';
+      let child: ChildProcess;
+      try {
+        child = spawn(gitBin, args, {
+          cwd,
+          shell: false,
+          // posix: 새 프로세스 그룹으로 띄워 그룹째 끝낼 수 있게 한다
+          detached: !win,
+          windowsHide: true,
+          stdio: ['ignore', 'ignore', 'pipe'],
+          env: {
+            ...gitEnv,
+            GIT_TERMINAL_PROMPT: '0',
+            GCM_INTERACTIVE: 'never',
+            GIT_ASKPASS: '',
+            SSH_ASKPASS: '',
+            GIT_LFS_SKIP_SMUDGE: '1',
+          },
+        });
+      } catch {
+        return reject(new Error(t('bridge.knowledge.gitMissing')));
+      }
+      let done = false;
+      let tail = '';
+      const messages: string[] = [];
+      const handleLine = (raw: string) => {
+        const line = raw.trim();
+        if (!line) return;
+        const ratio = parseGitProgress(line);
+        if (ratio === null) {
+          if (messages.length < 20) messages.push(line);
+        } else {
+          ctl?.onProgress?.({ phase: 'clone', ratio });
+        }
+      };
+      const settle = (err?: Error) => {
+        if (done) return;
+        done = true;
+        clearTimeout(idle);
+        clearTimeout(hard);
+        clearTimeout(grace);
+        signal?.removeEventListener('abort', onAbort);
+        if (tail) handleLine(tail);
+        tail = '';
+        child.stderr?.destroy();
+        if (err) reject(err);
+        else resolve();
+      };
+      const stop = (err: Error) => {
+        killTree(child);
+        settle(err);
+      };
+      const onAbort = () => stop(cancelledError());
+      const idle = setTimeout(() => stop(new Error(t('bridge.knowledge.cloneStalled'))), cloneIdleMs);
+      const hard = setTimeout(() => stop(new Error(t('bridge.knowledge.cloneTimeout'))), cloneTimeoutMs);
+      let grace: ReturnType<typeof setTimeout> | undefined;
+      signal?.addEventListener('abort', onAbort, { once: true });
+      child.stderr?.setEncoding('utf8');
+      child.stderr?.on('data', (c: string) => {
+        idle.refresh();
+        tail += c;
+        const parts = tail.split(/[\r\n]+/);
+        tail = parts.pop() ?? '';
+        if (tail.length > 4000) tail = tail.slice(-4000);
+        for (const line of parts) handleLine(line);
       });
-      let stderr = '';
-      const timer = setTimeout(() => child.kill('SIGKILL'), CLONE_TIMEOUT_MS);
-      child.stderr.setEncoding('utf8');
-      child.stderr.on('data', (c: string) => {
-        if (stderr.length < 4000) stderr += c;
-      });
+      child.stderr?.on('error', () => undefined);
       child.on('error', (err: NodeJS.ErrnoException) => {
-        clearTimeout(timer);
-        reject(new Error(err.code === 'ENOENT' ? t('bridge.knowledge.gitMissing') : t('bridge.knowledge.cloneFailed', { error: err.code ?? 'error' })));
+        settle(
+          new Error(err.code === 'ENOENT' ? t('bridge.knowledge.gitMissing') : t('bridge.knowledge.cloneFailed', { error: err.code ?? 'error' })),
+        );
       });
-      child.on('close', (code) => {
-        clearTimeout(timer);
-        if (code === 0) return resolve();
-        const first = stderr.split('\n').find((l) => l.trim()) ?? `exit ${code}`;
-        reject(new Error(t('bridge.knowledge.cloneFailed', { error: first.slice(0, 200) })));
+      const finish = (code: number | null) => {
+        if (done) return;
+        if (tail) handleLine(tail);
+        tail = '';
+        if (code === 0) return settle();
+        // 남은 자식이 있으면 함께 끝낸다
+        killTree(child);
+        // 없는/비공개 저장소는 git이 인증을 요구하며 실패한다 (인증 프롬프트는 끈다)
+        const notFound = messages.some((m) => /could not read Username|Authentication failed|repository .*not found|terminal prompts disabled/i.test(m));
+        settle(new Error(notFound ? t('bridge.knowledge.repoNotFound') : t('bridge.knowledge.cloneFailed', { error: gitErrorLine(messages, code).slice(0, 200) })));
+      };
+      child.on('exit', (code) => {
+        // stderr 마지막 줄을 읽을 시간을 잠깐 준다
+        grace = setTimeout(() => finish(code), CLONE_CLOSE_GRACE_MS);
       });
+      child.on('close', (code) => finish(code));
     });
   }
 
   /** 링크 한 개를 가져온다 (네트워크, 큐 밖에서 실행). 마크다운 본문을 돌려준다 */
-  async function fetchPage(url: string): Promise<{ title: string; markdown: string; finalUrl: string }> {
+  async function fetchPage(url: string, outer?: AbortSignal): Promise<{ title: string; markdown: string; finalUrl: string }> {
     if (!isKnowledgeLinkUrl(url)) fail(t('bridge.knowledge.badUrl'));
     const first = new URL(url.trim());
     /** 호스트가 사설 주소이거나 사설 주소로 풀리면 막는다 */
@@ -502,7 +667,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     // 리디렉션은 직접 따라가며 매 단계 주소를 확인한다 (요청 전에)
     let current = first;
     let res: Response | null = null;
-    const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    const signal = outer ? AbortSignal.any([outer, AbortSignal.timeout(FETCH_TIMEOUT_MS)]) : AbortSignal.timeout(FETCH_TIMEOUT_MS);
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       await assertPublic(current);
       let r: Response;
@@ -513,6 +678,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
           headers: { accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' },
         });
       } catch {
+        if (outer?.aborted) throw cancelledError();
         return fail(t('bridge.knowledge.fetchFailed'));
       }
       const loc = r.status >= 300 && r.status < 400 ? r.headers.get('location') : null;
@@ -535,7 +701,13 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     if (type && !/text\/|html|xml/i.test(type)) fail(t('bridge.knowledge.notHtml'));
     const len = Number(res.headers.get('content-length') ?? '0');
     if (len > HTML_MAX_BYTES) fail(t('bridge.knowledge.htmlTooLarge'));
-    const buf = new Uint8Array(await res.arrayBuffer());
+    let buf: Uint8Array;
+    try {
+      buf = new Uint8Array(await res.arrayBuffer());
+    } catch {
+      if (outer?.aborted) throw cancelledError();
+      return fail(t('bridge.knowledge.fetchFailed'));
+    }
     if (buf.byteLength > HTML_MAX_BYTES) fail(t('bridge.knowledge.htmlTooLarge'));
     const html = new TextDecoder('utf-8').decode(buf);
     const title = extractTitle(html);
@@ -625,34 +797,51 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       return filesDir(id);
     },
 
-    addPaths(id, paths, dest) {
+    addPaths(id, paths, dest, ctl) {
       return serial(async () => {
+        if (ctl?.signal?.aborted) throw cancelledError();
         await existingKb(id);
         if (!Array.isArray(paths) || paths.length > 500) fail(t('bridge.knowledge.badPath'));
         const dstDir = await ensureDir(id, dest);
-        const budget = await budgetOf(id);
+        const budget = await budgetOf(id, ctl);
+        ctl?.onProgress?.({ phase: 'copy', files: 0, bytes: 0 });
         const added: string[] = [];
-        for (const p of paths) {
-          if (typeof p !== 'string' || !path.isAbsolute(p) || p.includes('\0') || overlapsRoot(p)) {
-            budget.skipped++;
-            continue;
+        const created: string[] = [];
+        try {
+          for (const p of paths) {
+            if (typeof p !== 'string' || !path.isAbsolute(p) || p.includes('\0') || overlapsRoot(p)) {
+              budget.skipped++;
+              continue;
+            }
+            let top = true;
+            const target = await importEntry(p, path.basename(p), dstDir, budget, (abs) => {
+              if (top) created.push(abs);
+              top = false;
+            });
+            if (target) added.push(relOf(id, target));
           }
-          const target = await importEntry(p, path.basename(p), dstDir, budget);
-          if (target) added.push(relOf(id, target));
+        } catch (e) {
+          await rollback(created);
+          throw e;
         }
         await touch(id);
         return { added, skipped: budget.skipped };
       });
     },
 
-    addFiles(id, files, dest) {
+    addFiles(id, files, dest, ctl) {
       return serial(async () => {
+        if (ctl?.signal?.aborted) throw cancelledError();
         await existingKb(id);
         if (!Array.isArray(files) || files.length > 500) fail(t('bridge.knowledge.badPath'));
         const dstDir = await ensureDir(id, dest);
-        const budget = await budgetOf(id);
+        const budget = await budgetOf(id, ctl);
         const added: string[] = [];
         for (const f of files) {
+          if (ctl?.signal?.aborted) {
+            await rollback(added.map((r) => path.join(filesDir(id), ...r.split('/'))));
+            throw cancelledError();
+          }
           const name = typeof f?.name === 'string' ? f.name.trim() : '';
           if (!isSafeSegment(name) || !(f.data instanceof Uint8Array) || f.data.byteLength > KNOWLEDGE_LIMITS.fileBytes) {
             budget.skipped++;
@@ -663,17 +852,21 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
             continue;
           }
           added.push(await addDocument(id, dstDir, name, f.data, budget));
+          reportCopy(budget, f.data.byteLength);
         }
         await touch(id);
         return { added, skipped: budget.skipped };
       });
     },
 
-    async addLink(id, url) {
+    async addLink(id, url, ctl) {
       await existingKb(id);
-      const page = await fetchPage(url);
+      ctl?.onProgress?.({ phase: 'download' });
+      const page = await fetchPage(url, ctl?.signal);
       return serial(async () => {
+        if (ctl?.signal?.aborted) throw cancelledError();
         await existingKb(id);
+        ctl?.onProgress?.({ phase: 'save' });
         const dstDir = await ensureDir(id, 'links');
         const budget = await budgetOf(id);
         const title = page.title || new URL(page.finalUrl).hostname;
@@ -685,17 +878,20 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       });
     },
 
-    async cloneGit(id, url) {
+    async cloneGit(id, url, ctl) {
       await existingKb(id);
       const repo = parseGitHubRepo(url);
       if (!repo) fail(t('bridge.knowledge.badRepo'));
       // 임시 클론은 지식베이스 폴더 안(files/ 밖)에 두고, 확인 후 files/repos/로 옮긴다
       const tmp = path.join(kbDir(id), `.clone-${randomBytes(6).toString('hex')}`);
       try {
-        await runGit(gitCloneArgs(repo.url, tmp), kbDir(id));
+        ctl?.onProgress?.({ phase: 'clone' });
+        await runGit(gitCloneArgs(repo.url, tmp), kbDir(id), ctl);
+        ctl?.onProgress?.({ phase: 'save' });
         await rm(path.join(tmp, '.git'), { recursive: true, force: true });
         await removeSymlinks(tmp);
         return await serial(async () => {
+          if (ctl?.signal?.aborted) throw cancelledError();
           await existingKb(id);
           await assertCloneFits(id, tmp);
           const reposDir = await ensureDir(id, 'repos');

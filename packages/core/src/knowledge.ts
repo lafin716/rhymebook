@@ -114,3 +114,41 @@ export function parseGitHubRepo(raw: unknown): { owner: string; repo: string; ur
   if (!seg.test(owner) || !seg.test(repo) || owner.startsWith('.') || repo.startsWith('.') || repo === '..') return null;
   return { owner, repo, url: `https://github.com/${owner}/${repo}.git` };
 }
+
+/** 가져오기 진행 단계 */
+export type KnowledgeProgressPhase = 'copy' | 'download' | 'clone' | 'save';
+
+/** 가져오기 진행 상황 (main → 렌더러). ratio가 없으면 진행률을 모르는 상태 */
+export interface KnowledgeProgress {
+  phase: KnowledgeProgressPhase;
+  /** 0~1 */
+  ratio?: number;
+  /** 지금까지 처리한 파일 수 */
+  files?: number;
+  /** 지금까지 처리한 바이트 */
+  bytes?: number;
+}
+
+/** git clone `--progress` 단계별 전체 진행률 구간 */
+const GIT_PROGRESS_SPANS: [RegExp, number, number][] = [
+  [/Receiving objects:\s+(\d{1,3})%/, 0, 0.85],
+  [/Resolving deltas:\s+(\d{1,3})%/, 0.85, 0.95],
+  [/Updating files:\s+(\d{1,3})%/, 0.95, 1],
+];
+
+/**
+ * git stderr 진행 줄 하나를 전체 진행률(0~1)로 바꾼다.
+ * 진행률이 없는 진행 줄(remote: Counting 등)은 undefined, 진행 줄이 아니면 null.
+ */
+export function parseGitProgress(line: string): number | undefined | null {
+  for (const [re, from, to] of GIT_PROGRESS_SPANS) {
+    const m = re.exec(line);
+    if (m) {
+      const pct = Math.min(100, Number(m[1]));
+      return from + ((to - from) * pct) / 100;
+    }
+  }
+  if (/^(remote:\s*)?(Enumerating|Counting|Compressing|Total)\b/.test(line.trim())) return undefined;
+  if (/^Cloning into\b/.test(line.trim())) return undefined;
+  return null;
+}

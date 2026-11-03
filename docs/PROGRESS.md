@@ -8,6 +8,15 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 지식베이스 가져오기 멈춤 수정 (2026-11-03)
+
+결정: ADR-108.
+- [x] 원인: git `close` 대기 중 손자 프로세스가 stderr를 쥐어 무한 대기, 진행 중 드롭 무시, 패키지 앱 file:// 이동 허용
+- [x] bridge: 프로세스 그룹 종료·유휴/전체 시간 초과·exit 후 유예, 진행 알림·취소·롤백, repoNotFound 안내
+- [x] desktop: knowledge:progress/cancel IPC, 100ms 진행 조절, isAppUrl을 renderer URL로 제한
+- [x] UI: 진행 막대(비율/무한)·경과 시간·취소, 오류 role=alert, 진행 중/빈 드롭 안내
+- [x] PASS: typecheck/lint, core698 + UI108 + bridge119(skip3) + relay9 + server10, e2e 218(skip22), 패키지 앱 smoke(Hello-World 클론, linux 클론 취소, 없는 저장소 오류, 드롭 추가)
+
 ## 학습별 지식베이스 (2026-11-03)
 
 계획: `docs/plans/knowledge-base-plan.md`, 결정: ADR-107. 프로젝트 모드(리더 계약 + bridge/desktop 1명 + core/UI 1명 병렬 + 독립 리뷰 1명).

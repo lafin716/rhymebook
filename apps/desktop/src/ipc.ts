@@ -47,6 +47,8 @@ export const CH = {
   knowledgeRemoveEntry: 'knowledge:remove-entry',
   knowledgePreview: 'knowledge:preview',
   knowledgeOpen: 'knowledge:open',
+  knowledgeProgress: 'knowledge:progress',
+  knowledgeCancel: 'knowledge:cancel',
   sttState: 'stt:state',
   sttSetEnabled: 'stt:set-enabled',
   sttSetModel: 'stt:set-model',

@@ -96,8 +96,12 @@
     "nameTaken": "같은 이름의 항목을 만들 수 없습니다: {name}",
     "gitMissing": "git을 찾을 수 없습니다. git을 설치한 뒤 다시 시도하세요",
     "cloneFailed": "저장소를 가져올 수 없습니다: {error}",
+    "cancelled": "가져오기를 취소했습니다",
+    "cloneStalled": "저장소 응답이 없어 중단했습니다. 네트워크를 확인하고 다시 시도하세요",
+    "cloneTimeout": "저장소가 너무 커서 시간 안에 받지 못했습니다",
     "openFailed": "폴더를 열 수 없습니다: {error}",
     "systemNote": "이 학습에는 지식베이스(참고 자료)가 연결되어 있습니다. 답하기 전에 Read, Glob, Grep 도구로 관련 파일을 찾아 확인하고, 파일 내용에 근거해 답하세요. 경로는 작업 폴더 기준입니다. 파일 목록 (전체 {total}개 중 {shown}개): {paths}",
-    "codexIndex": "지식베이스 파일 목록 (전체 {total}개 중 {shown}개, 파일 내용은 제공되지 않음): {paths}"
+    "codexIndex": "지식베이스 파일 목록 (전체 {total}개 중 {shown}개, 파일 내용은 제공되지 않음): {paths}",
+    "repoNotFound": "저장소를 찾을 수 없습니다. 주소가 맞는지, 공개 저장소인지 확인하세요"
   }
 }

@@ -96,8 +96,12 @@
     "nameTaken": "Could not create an item with this name: {name}",
     "gitMissing": "git was not found. Install git and try again",
     "cloneFailed": "Could not fetch the repository: {error}",
+    "cancelled": "Import cancelled",
+    "cloneStalled": "The repository stopped responding. Check your network and try again",
+    "cloneTimeout": "The repository took too long to download",
     "openFailed": "Could not open the folder: {error}",
     "systemNote": "This study has a knowledge base (reference files) attached. Before answering, use the Read, Glob, and Grep tools to find and check the relevant files, and base your answer on their contents. Paths are relative to the working folder. File list ({shown} of {total}): {paths}",
-    "codexIndex": "Knowledge base file list ({shown} of {total}; file contents are not provided): {paths}"
+    "codexIndex": "Knowledge base file list ({shown} of {total}; file contents are not provided): {paths}",
+    "repoNotFound": "Repository not found. Check the address and make sure it is public"
   }
 }

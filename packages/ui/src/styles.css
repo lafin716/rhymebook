@@ -741,6 +741,27 @@ span.annot[data-note-end='true']::after {
   }
 }
 
+/* 지식베이스 가져오기: 진행률을 모를 때 움직이는 막대 */
+@keyframes kb-indeterminate {
+  0% {
+    left: -35%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+.kb-indeterminate {
+  animation: kb-indeterminate 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kb-indeterminate {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 /* react-flow 테마 연동 */
 .react-flow {
   --xy-background-color: transparent;

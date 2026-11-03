@@ -62,14 +62,27 @@
     "gitLabel": "GitHub 저장소",
     "gitPlaceholder": "owner/repo 또는 https://github.com/owner/repo",
     "gitSubmit": "클론",
-    "busy": "가져오는 중…",
     "invalidUrl": "http(s) 주소만 쓸 수 있어요.",
     "invalidGit": "GitHub 저장소 주소만 쓸 수 있어요.",
     "done": "{count}개를 추가했어요.",
     "skipped": "{count}개는 크기나 형식 때문에 건너뛰었어요.",
-    "failed": "추가하지 못했어요. 다시 시도해 주세요."
+    "failed": "추가하지 못했어요. 다시 시도해 주세요.",
+    "busyDrop": "아직 가져오는 중이에요. 끝난 뒤에 다시 놓아 주세요.",
+    "dropEmpty": "놓은 항목에서 파일을 찾지 못했어요.",
+    "nothing": "추가된 파일이 없어요. 크기나 형식을 확인해 주세요."
   },
   "error": {
     "generic": "문제가 생겼어요. 다시 시도해 주세요."
+  },
+  "progress": {
+    "label": "가져오기 진행률",
+    "copy": "파일 복사하는 중…",
+    "copied": "파일 {count}개 복사함 ({size})",
+    "download": "웹 페이지 받는 중…",
+    "clone": "GitHub에서 받는 중…",
+    "save": "저장하는 중…",
+    "elapsed": "{seconds}초",
+    "cancel": "취소",
+    "cancelled": "가져오기를 취소했어요."
   }
 }

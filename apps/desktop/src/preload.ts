@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview, KnowledgeProgress, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
 import { CH } from './ipc';
 
 /** DesktopApi.sync with onPeerGone extension (ADR-026) */
@@ -149,6 +149,15 @@ const api: DesktopApiExt = {
     preview: (id: string, path: string) =>
       ipcRenderer.invoke(CH.knowledgePreview, id, path) as Promise<KnowledgePreview>,
     open: (id: string, path?: string) => ipcRenderer.invoke(CH.knowledgeOpen, id, path) as Promise<void>,
+    // 가져오기 진행률 (main이 100ms 간격으로 보낸다)
+    onProgress(listener: (p: KnowledgeProgress) => void) {
+      const h = (_e: unknown, p: KnowledgeProgress) => listener(p);
+      ipcRenderer.on(CH.knowledgeProgress, h);
+      return () => {
+        ipcRenderer.removeListener(CH.knowledgeProgress, h);
+      };
+    },
+    cancel: () => ipcRenderer.invoke(CH.knowledgeCancel) as Promise<void>,
   },
   // 음성 입력 관리 (ADR-045). 전사 자체는 bridge 메시지로 한다
   stt: {
