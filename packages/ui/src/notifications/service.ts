@@ -85,6 +85,7 @@ export function completionObserver(notify: (sessionId: string) => void) {
 export function startNotificationService(): () => void {
   if (sessionWindowId || presentWindowId) return () => {};
   const stopClick = desktop?.notifications?.onClick(openSession);
+  const stopWork = keepAliveWhileStreaming();
   let disposed = false;
   let stopStore: (() => void) | undefined;
   let stopConnection: (() => void) | undefined;
@@ -111,5 +112,25 @@ export function startNotificationService(): () => void {
     });
     stopStore = appStore.subscribe((state) => observe(state.messages, !online));
   }).catch((error: unknown) => console.warn('[notifications] Remote observer unavailable', error));
-  return () => { disposed = true; stopClick?.(); stopStore?.(); stopConnection?.(); stopMobile?.(); };
+  return () => { disposed = true; stopClick?.(); stopWork(); stopStore?.(); stopConnection?.(); stopMobile?.(); };
+}
+
+/**
+ * 모바일: 응답 생성 중에는 앱을 백그라운드로 보내도 실행을 이어 간다 (ADR-106).
+ * Android는 포그라운드 서비스, iOS는 OS가 허용하는 짧은 백그라운드 시간.
+ * 원격 모드는 PC가 생성하는 동안 소켓을 살려 완료 소식을 받는다.
+ */
+function keepAliveWhileStreaming(): () => void {
+  const work = mobile?.notifications?.setBackgroundWork?.bind(mobile.notifications);
+  if (!work) return () => {};
+  let active = false;
+  const sync = (streaming: Record<string, unknown>) => {
+    const next = Object.keys(streaming).length > 0;
+    if (next === active) return;
+    active = next;
+    void work(next).catch(() => {});
+  };
+  sync(appStore.getState().streaming);
+  const stop = appStore.subscribe((st) => sync(st.streaming));
+  return () => { stop(); if (active) void work(false).catch(() => {}); };
 }

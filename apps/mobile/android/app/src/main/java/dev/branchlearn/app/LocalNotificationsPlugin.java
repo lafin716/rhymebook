@@ -106,6 +106,20 @@ public class LocalNotificationsPlugin extends Plugin {
         } catch (Exception error) { call.reject("Could not show local notification", error); }
     }
 
+    /** 응답 생성 중에만 포그라운드 서비스를 켠다. 백그라운드에서 시작이 막히면(Android 12+) 조용히 넘어간다 */
+    @PluginMethod
+    public void setBackgroundWork(PluginCall call) {
+        boolean active = Boolean.TRUE.equals(call.getBoolean("active", false));
+        Intent intent = new Intent(getContext(), ResponseWorkService.class);
+        try {
+            if (active) getContext().startForegroundService(intent);
+            else getContext().stopService(intent);
+        } catch (Exception ignored) {
+            // ForegroundServiceStartNotAllowedException 등: 앱이 이미 백그라운드에서 시작한 생성
+        }
+        call.resolve();
+    }
+
     private synchronized void captureClick(Intent intent) {
         if (intent == null || !ACTION.equals(intent.getAction())) return;
         String session = intent.getStringExtra(SESSION);

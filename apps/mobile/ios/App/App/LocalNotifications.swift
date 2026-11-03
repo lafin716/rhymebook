@@ -1,5 +1,6 @@
 import Capacitor
 import Foundation
+import UIKit
 import UserNotifications
 
 /** A tap can launch the scene before Capacitor or its JavaScript listeners exist. */
@@ -50,9 +51,11 @@ public final class OctoNotificationsPlugin: CAPPlugin, CAPBridgedPlugin, Notific
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestPermission", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "show", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "takePendingClick", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "takePendingClick", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBackgroundWork", returnType: CAPPluginReturnPromise)
     ]
     private var clickObserver: NSObjectProtocol?
+    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
     public override func load() {
         // Capacitor remains UNUserNotificationCenter's delegate and continues routing push notifications.
@@ -126,6 +129,32 @@ public final class OctoNotificationsPlugin: CAPPlugin, CAPBridgedPlugin, Notific
             )
             center.add(request) { error in call.resolve(["shown": error == nil]) }
         }
+    }
+
+    /**
+     * 응답 생성 중 백그라운드 실행 시간 요청 (ADR-106). iOS가 허용하는 짧은 시간(대개 30초 안팎)만
+     * 이어지므로 긴 응답은 앱으로 돌아와야 끝난다. 앱이 꺼져 있을 때의 알림은 APNs 푸시가 필요하다 (BLOCKERS).
+     */
+    @objc public func setBackgroundWork(_ call: CAPPluginCall) {
+        let active = call.getBool("active") ?? false
+        DispatchQueue.main.async {
+            if active {
+                if self.backgroundTask == .invalid {
+                    self.backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "octobooks.response") { [weak self] in
+                        self?.endBackgroundWork()
+                    }
+                }
+            } else {
+                self.endBackgroundWork()
+            }
+            call.resolve()
+        }
+    }
+
+    private func endBackgroundWork() {
+        guard backgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTask)
+        backgroundTask = .invalid
     }
 
     @objc public func takePendingClick(_ call: CAPPluginCall) {

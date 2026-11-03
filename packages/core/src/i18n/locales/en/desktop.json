@@ -10,7 +10,7 @@
   },
   "notify": {
     "hiddenTitle": "octobooks is still running in the background",
-    "hiddenBody": "Paired devices can keep using it. To turn it off completely, choose [{quit}] from the tray icon."
+    "hiddenBody": "Responses, completion notifications, and schedules keep running. To turn it off completely, choose [{quit}] from the tray icon."
   },
   "errors": {
     "unknownModel": "Unknown model."

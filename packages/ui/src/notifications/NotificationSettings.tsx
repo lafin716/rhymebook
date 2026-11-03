@@ -31,7 +31,7 @@ export function NotificationSettings() {
     failed: text('알림 상태를 확인하지 못했어요. 시스템 설정을 확인한 뒤 다시 시도하세요.', 'Could not check notifications. Check system settings and try again.'),
   };
   return (
-    <Section title={label} hint={text('이 기기에서만 적용됩니다. 앱이 실행 중일 때 완료된 응답을 알려드려요.', 'Applies to this device. Notifies you of completed responses while the app is running.')}>
+    <Section title={label} hint={text('이 기기에서만 적용됩니다. 창을 닫거나 앱을 백그라운드로 보내도 생성 중인 응답이 끝나면 알려드려요. iOS는 백그라운드에서 짧은 시간만 이어집니다.', 'Applies to this device. Responses in progress keep running and notify you even after you close the window or background the app. On iOS, background time is short.')}>
       <div className="flex items-center justify-between gap-3">
         <span className="text-[13px]">{text('알림 켜기', 'Enable notifications')}</span>
         <Toggle label={label} checked={enabled} onChange={(value) => { setNotificationsEnabled(value); setEnabled(value); setResult(''); }} />

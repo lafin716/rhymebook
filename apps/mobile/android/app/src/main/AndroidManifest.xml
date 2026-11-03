@@ -33,6 +33,12 @@
 
         </activity>
 
+        <!-- 응답 생성 중에만 켜는 포그라운드 서비스 (ADR-106) -->
+        <service
+            android:name=".ResponseWorkService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -48,6 +54,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 백그라운드에서도 응답 생성을 이어 가기 위한 포그라운드 서비스 (ADR-106) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- 음성 입력 녹음 (ADR-045) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

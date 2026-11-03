@@ -6,6 +6,7 @@ export interface NativeNotifications {
   requestPermission(): Promise<{ permission: LocalNotificationPermission }>;
   show(input: Parameters<MobileNotifications['show']>[0]): Promise<{ shown: boolean }>;
   takePendingClick(): Promise<{ sessionId?: string; scope?: string }>;
+  setBackgroundWork?(input: { active: boolean }): Promise<void>;
   addListener(event: 'notificationClick', listener: () => void): Promise<PluginListenerHandle>;
 }
 
@@ -32,6 +33,7 @@ export function createMobileNotifications(native: NativeNotifications): MobileNo
     status: async () => permission((await native.status()).permission),
     requestPermission: async () => permission((await native.requestPermission()).permission),
     show: async (input) => (await native.show(input)).shown === true,
+    setBackgroundWork: async (active) => { await native.setBackgroundWork?.({ active }); },
     onClick(listener) {
       listeners.add(listener);
       if (listeners.size === 1) {

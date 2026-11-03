@@ -58,8 +58,8 @@ let syncReady = false;
 /** macOS: Cmd+Q 등 정상 종료 플래그. true면 close 이벤트에서 숨기지 않는다 */
 let quitting = false;
 
-/** 호스트 서버 활성화 상태 (백그라운드 스로틀링 제어용) */
-let hostEnabled = false;
+/** 표시 중인 응답 완료 알림 (GC 방지) */
+const liveNotifications = new Set<Notification>();
 
 /** 트레이 아이콘 */
 let tray: Tray | null = null;
@@ -231,18 +231,13 @@ function updateTrayMenu(trayIcon: Tray, hostState: HostState) {
   trayIcon.setContextMenu(menu);
 }
 
-/** Destroy tray */
-function destroyTray() {
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
-}
-
-/** Handle window close: hide if hostEnabled, otherwise use default behavior */
+/**
+ * 메인 창 닫기: 끝내지 않고 숨긴다 (ADR-106). 진행 중인 응답 생성·완료 알림·예약·원격 호스트가
+ * 계속 동작해야 하기 때문. 완전히 끄려면 트레이 메뉴의 [종료]나 ⌘Q.
+ */
 function attachCloseHandler(win: BrowserWindow) {
   win.on('close', (e) => {
-    if (hostEnabled && !quitting) {
+    if (!quitting) {
       e.preventDefault();
       hideWindow(win);
     }
@@ -326,6 +321,11 @@ void app.whenReady().then(() => {
     return new Promise<boolean>((resolve) => {
       try {
         const notification = new Notification({ title, body });
+        // 참조를 잡아 두지 않으면 GC가 거둬 클릭 처리가 사라진다 (macOS 알림 센터에 오래 남는 경우)
+        liveNotifications.add(notification);
+        const release = () => liveNotifications.delete(notification);
+        notification.once('close', release);
+        setTimeout(release, 10 * 60_000).unref();
         const timer = setTimeout(() => resolve(false), 5000);
         timer.unref();
         const finish = (shown: boolean) => { clearTimeout(timer); resolve(shown); };
@@ -333,11 +333,11 @@ void app.whenReady().then(() => {
         notification.once('failed', () => finish(false));
         notification.on('click', () => {
           if (e.sender.isDestroyed()) return;
+          release();
           const window = BrowserWindow.fromWebContents(e.sender);
           if (window && !window.isDestroyed()) {
             if (window.isMinimized()) window.restore();
-            window.show();
-            window.focus();
+            showWindow(window);
             e.sender.send(CH.notificationClick, sessionId);
           }
         });
@@ -519,14 +519,9 @@ void app.whenReady().then(() => {
 
   const broadcast = (state: HostState) => {
     for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(CH.hostChanged, state);
-    // 호스트 활성화 상태에 따라 트레이 생성/제거
-    if (state.enabled && !tray) {
-      tray = createTray(state);
-    } else if (!state.enabled && tray) {
-      destroyTray();
-    } else if (tray) {
-      updateTrayMenu(tray, state);
-    }
+    // 창을 닫아도 앱이 백그라운드에 남으므로 트레이는 항상 둔다 (다시 열기·종료 경로, ADR-106)
+    if (!tray) tray = createTray(state);
+    else updateTrayMenu(tray, state);
   };
   host = createHostService({
     dir: app.getPath('userData'),
@@ -573,7 +568,6 @@ void app.whenReady().then(() => {
   };
   ipcMain.handle(CH.hostGet, () => h.state());
   ipcMain.handle(CH.hostSetEnabled, (_e, on: unknown) => {
-    hostEnabled = on === true;
     applyThrottling();
     return changed(h.setEnabled(on === true));
   });
@@ -585,10 +579,9 @@ void app.whenReady().then(() => {
     if (isHostPolicy(policy)) h.setPolicy(policy);
   });
 
-  // 시작 시 호스트 상태 복원 및 hostEnabled 초기화 (켜져 있으면 트레이도 만든다)
+  // 시작 시 호스트 상태 복원 (트레이도 이때 만든다)
   void h.restore().then(async () => {
     const state = await h.state();
-    hostEnabled = state.enabled;
     applyThrottling();
     broadcast(state);
   });
@@ -618,8 +611,8 @@ void app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  // 호스트가 켜져 있고 창이 숨겨져 있으면 앱을 끝내지 않는다
-  if (hostEnabled && BrowserWindow.getAllWindows().some((w) => !w.isDestroyed())) {
+  // 메인 창이 숨겨져 있으면 앱을 끝내지 않는다
+  if (BrowserWindow.getAllWindows().some((w) => !w.isDestroyed())) {
     return;
   }
   if (process.platform !== 'darwin') app.quit();

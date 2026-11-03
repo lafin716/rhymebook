@@ -180,6 +180,8 @@ export interface MobileNotifications {
   requestPermission(): Promise<LocalNotificationPermission>;
   show(input: { sessionId: string; title: string; body: string; scope?: string }): Promise<boolean>;
   onClick(listener: (sessionId: string, scope?: string) => void): () => void;
+  /** 응답 생성 중 백그라운드 실행 유지 (Android 포그라운드 서비스, iOS 백그라운드 작업). ADR-106 */
+  setBackgroundWork?(active: boolean): Promise<void>;
 }
 
 export interface MobileSpeech {

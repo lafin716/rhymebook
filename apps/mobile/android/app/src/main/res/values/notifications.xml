@@ -1,4 +1,8 @@
 <resources>
     <string name="notification_channel_name">Response complete</string>
     <string name="notification_channel_description">Notifies you when a conversation response is complete.</string>
+    <string name="work_channel_name">Response in progress</string>
+    <string name="work_channel_description">Shown while a response is being generated so it can finish in the background.</string>
+    <string name="work_title">Generating a response</string>
+    <string name="work_body">You will be notified when it finishes.</string>
 </resources>
