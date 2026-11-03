@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getLocale, setLocale } from '../src/i18n';
-import { matchSkill } from '../src/skill-match';
+import { matchSkill, matchTaskSkill, matchTaskSkills } from '../src/skill-match';
 import { defaultSkills, SCHEDULE_SKILL_ID, skillsToSeed } from '../src/skills';
 import {
   hasScheduleIntent, nextScheduleRun, parseScheduleBlock, scheduleSystemHint,
@@ -185,4 +185,65 @@ describe('schedule builtin integration', () => {
     expect(scheduleSystemHint(NOW)).toContain('예약 요청');
     expect(defaultSkills().find((skill) => skill.id === SCHEDULE_SKILL_ID)!.title).toBe('작업 예약');
   });
+
+  it('attaches an optional skill to a schedule (ADR-110)', () => {
+    expect(validateScheduleInput({ ...INPUT, skill: '/Quiz ' })).toMatchObject({ skill: 'quiz' });
+    expect(validateScheduleInput({ ...INPUT, skill: null })).not.toHaveProperty('skill');
+    expect(validateScheduleInput({ ...INPUT, skill: '' })).not.toHaveProperty('skill');
+    expect(validateScheduleInput(INPUT)).not.toHaveProperty('skill');
+    expect(validateScheduleInput({ ...INPUT, skill: 'schedule' })).toBeNull();
+    expect(validateScheduleInput({ ...INPUT, skill: 'bad name!' })).toBeNull();
+    expect(validateScheduleInput({ ...INPUT, skill: 3 })).toBeNull();
+    expect(validateScheduleInput({ ...INPUT, extra: 1 })).toBeNull();
+    expect(parseScheduleBlock(block({ ...INPUT, skill: 'quiz' }))?.skill).toBe('quiz');
+  });
+
+  it('infers the task skill and never the schedule skill', () => {
+    const skills = defaultSkills();
+    expect(matchTaskSkill('매일 3시 퀴즈 내줘', skills)?.name).toBe('quiz');
+    expect(matchTaskSkill('영어 단어 퀴즈 3문제를 내줘', skills)?.name).toBe('quiz');
+    expect(matchTaskSkill('내일 9시에 예약해줘', skills)).toBeNull();
+  });
+
+  it('lists usable skills in the hint, excluding schedule', () => {
+    setLocale('ko');
+    const hint = scheduleSystemHint(NOW, [
+      { name: 'quiz', title: '퀴즈', description: '문제를 낸다' },
+      { name: 'schedule', title: '작업 예약' },
+    ]);
+    expect(hint).toContain('- quiz: 퀴즈 — 문제를 낸다');
+    expect(hint).not.toContain('- schedule:');
+    expect(scheduleSystemHint(NOW)).toContain('skill은 넣지 않는다');
+  });
+});
+
+describe('multi-skill requests (ADR-111)', () => {
+  const names = (text: string) => matchTaskSkills(text, defaultSkills()).map((s) => s.name);
+
+  it('a schedule with one task skill is not a multi-skill request', () => {
+    for (const text of ['매일 3시 퀴즈 내줘', '매일 오전 9시에 퀴즈 내도록 예약해줘', '내일 3시에 영어 단어 퀴즈 내줘', '매주 월요일 복습 퀴즈 예약해줘']) {
+      expect(names(text)).toEqual(['quiz']);
+      expect(matchSkill(text, defaultSkills())?.name).toBe('schedule');
+    }
+    expect(names('오늘 배운 내용으로 퀴즈 내줘')).toEqual(['quiz']);
+    expect(names('양자역학 설명해줘')).toEqual([]);
+  });
+
+  it('lists every task skill in request order, schedule excluded', () => {
+    expect(names('퀴즈 내고 발음도 들려줘')).toEqual(['quiz', 'speak']);
+    expect(names('커리큘럼 짜 주고 퀴즈도 내줘')).toEqual(['curriculum', 'quiz']);
+    expect(names('매일 3시에 퀴즈 내고 발음 들려줘')).toEqual(['quiz', 'speak']);
+    expect(names('퀴즈 풀기로 퀴즈 내줘')).toEqual(['quiz']);
+  });
+
+  it('the schedule hint pins the chosen skill', () => {
+    const hint = scheduleSystemHint(0, [{ name: 'quiz', title: '퀴즈 풀기' }, { name: 'speak', title: '소리 내어 읽기' }], { name: 'quiz', title: '퀴즈 풀기' });
+    expect(hint).toContain('"skill":"quiz"');
+    expect(hint).not.toContain('- speak:');
+  });
+});
+
+it('a schedule with two task skills is still a schedule request', () => {
+  expect(hasScheduleIntent('매일 3시에 퀴즈 내고 발음 들려줘')).toBe(true);
+  expect(matchSkill('매일 3시에 퀴즈 내고 발음 들려줘', defaultSkills())?.name).toBe('schedule');
 });

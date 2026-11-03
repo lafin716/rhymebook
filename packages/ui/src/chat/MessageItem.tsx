@@ -1,6 +1,6 @@
 import { t } from '../i18n';
-import { nextFallback, PROVIDER_LABELS, annotationsForMessage, planBranchSuggestions, stripBranchBlock, type Message, type SegmentMap, type Session } from '@branch/core';
-import { AlertTriangle, Archive, RefreshCw, RotateCcw, Shuffle, Sparkles, Square } from 'lucide-react';
+import { nextFallback, PROVIDER_LABELS, annotationsForMessage, planBranchSuggestions, stripBranchBlock, type Message, type SegmentMap, type Session, type SkillRef } from '@branch/core';
+import { AlertTriangle, Archive, CalendarClock, RefreshCw, RotateCcw, Shuffle, Sparkles, Square } from 'lucide-react';
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { actions, useApp } from '../app/store';
 import { Button } from '../components/Button';
@@ -22,23 +22,39 @@ export interface MessageItemProps {
   /** 이 메시지를 앵커로 가진 가지들 (생성 순) */
   branches: Session[];
   isLast: boolean;
+  /** 답변: 이 답변을 부른 질문에 쓴 스킬 (답변 위에 표시) */
+  skill?: SkillRef;
 }
 
 const FALLBACK_CODES = new Set(['offline', 'auth', 'cli']);
 
-export const MessageItem = memo(function MessageItem({ message, branches, isLast }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, branches, isLast, skill }: MessageItemProps) {
   if (message.role === 'user') {
     const files = message.attachments ?? [];
     // 스킬만 고르고 비워 보낸 질문은 본문이 스킬 제목이다
     const body = message.skill && message.content === message.skill.title ? '' : message.content;
     return (
       <div data-turn={message.id} tabIndex={-1} className="flex scroll-mt-3 flex-col items-end gap-1.5 focus:outline-none">
+        {(message.scheduleRun || message.skill || message.taskSkill) && <div className="flex flex-wrap justify-end gap-1">
+        {message.scheduleRun && (
+          <span data-schedule-run-badge title={t('chat.message.scheduleRunTitle')} className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[12px] font-medium text-fg-2">
+            <CalendarClock size={12} />
+            {t('chat.message.scheduleRun')}
+          </span>
+        )}
         {message.skill && (
           <span data-skill-badge={message.skill.name} title={t('chat.message.skillTitle', { name: message.skill.name })} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-medium text-accent">
             <Sparkles size={12} />
             {message.skill.title}
           </span>
         )}
+        {message.taskSkill && (
+          <span data-task-skill-badge={message.taskSkill.name} title={t('chat.composer.scheduleTaskSkill')} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-medium text-accent">
+            <CalendarClock size={12} />
+            {message.taskSkill.title}
+          </span>
+        )}
+        </div>}
         {files.length > 0 && <AttachmentList items={files} align="end" className="max-w-[85%]" />}
         {body && (
           <div className="max-w-[85%] rounded-2xl rounded-br-md bg-accent-soft px-3.5 py-2 text-[15px] leading-relaxed whitespace-pre-wrap text-fg">
@@ -48,10 +64,10 @@ export const MessageItem = memo(function MessageItem({ message, branches, isLast
       </div>
     );
   }
-  return <AssistantMessage message={message} branches={branches} isLast={isLast} />;
+  return <AssistantMessage message={message} branches={branches} isLast={isLast} skill={skill} />;
 });
 
-export function AssistantMessage({ message, branches, isLast }: MessageItemProps) {
+export function AssistantMessage({ message, branches, isLast, skill }: MessageItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [unlocated, setUnlocated] = useState<Set<string>>(new Set());
   const [noteOpen, setNoteOpen] = useState<{ id: string; rect: DOMRect } | null>(null);
@@ -111,6 +127,16 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
 
   return (
     <div className="group/msg space-y-2.5">
+      {skill && (
+        <div
+          data-skill-active={skill.name}
+          title={t('chat.message.skillTitle', { name: skill.name })}
+          className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent/30 bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent"
+        >
+          <Sparkles size={12} className="shrink-0" />
+          <span className="truncate">{t('chat.message.skillActive', { title: skill.title })}</span>
+        </div>
+      )}
       {tools.length > 0 && <ToolActivityList tools={tools} />}
       {streaming && !message.content ? (
         // 도구가 돌고 있으면 그 줄이 진행 표시다

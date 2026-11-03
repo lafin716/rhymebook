@@ -22,7 +22,8 @@ import { relativeTime } from '../lib/time';
 import { RenameInput, SessionMenu, SubCreateMenu, type MenuPoint } from './SessionMenu';
 import { startNewSession } from './newSession';
 import { renameSession } from '../chat/PagePanel';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, Loader2 } from 'lucide-react';
+import { useSchedules } from '../schedules/store';
 import { scheduleText } from '../schedules/scheduleText';
 import { useSessionActivity, useTreeActivity, type ActivityState } from './unread';
 
@@ -152,6 +153,7 @@ function SidebarResizer() {
 }
 
 function SidebarBody() {
+  const runningCount = useSchedules((state) => Object.keys(state.running).length);
   const roots = useAppShallow((s) => listedRootSessions(s.sessions, s.messages).map((r) => r.id));
   const close = () => useUi.getState().setDrawer(false);
   const pcOnline = usePcOnline();
@@ -194,7 +196,13 @@ function SidebarBody() {
       </nav>
       <button type="button" onClick={() => { actions().setOverlay('schedules'); close(); }} className="flex items-center gap-2 border-t border-line px-4 py-3 text-left text-[13px] text-fg-2 hover:bg-surface-2/60">
         <CalendarClock size={15} className="shrink-0 text-accent" />
-        {scheduleText('예약 관리', 'Schedules')}
+        <span className="flex-1">{scheduleText('예약 관리', 'Schedules')}</span>
+        {runningCount > 0 && (
+          <span data-schedule-running-count className="flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
+            <Loader2 size={11} className="animate-spin" />
+            {scheduleText(`실행 중 ${runningCount}`, `Running ${runningCount}`)}
+          </span>
+        )}
       </button>
       <div className="grid grid-cols-2 divide-x divide-line border-t border-line">
         <button

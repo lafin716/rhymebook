@@ -7,6 +7,7 @@ import {
   initialConnections,
   RUNTIME_SETTINGS,
   type AppState,
+  type ScheduleSkillOption,
 } from '@branch/core';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -35,11 +36,17 @@ export const registry = createRuntimeRegistry({
   overrides: platformProviders,
 });
 
+/** Skill list for the schedule hint. skillsStore registers it (it imports this module, so avoid a static cycle). */
+let scheduleSkillSource: () => readonly ScheduleSkillOption[] = () => [];
+export function setScheduleSkillSource(fn: () => readonly ScheduleSkillOption[]) { scheduleSkillSource = fn; }
+
 export const appStore = createAppStore({
   onResponseComplete(event) {
-    notifyResponseComplete(event.sessionId);
+    // A scheduled run gets its own start/finish notification (schedules/store).
+    if (!event.scheduleRun) notifyResponseComplete(event.sessionId);
     void import('../schedules/store').then(({ handleScheduleResponse }) => handleScheduleResponse(event)).catch(() => {});
   },
+  scheduleSkills: () => scheduleSkillSource(),
   registry,
   repo: gatedRepository(persistence, () => persistEnabled && !isDemo()),
   // 웹·모바일은 이 기기에 저장하지 않는다. 데이터는 PC에 있고 SyncClient가 미러링한다 (ADR-026)

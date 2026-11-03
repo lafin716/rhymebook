@@ -57,19 +57,51 @@ test('예약 요청 → 자동 저장 → 만료 실행 → 완료 알림, 재�
     const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!; const { db } = await import(path);
     const row = (await db.schedules.toArray())[0]; return !!row?.lastRunAt;
   })).toBe(true);
-  await expect.poll(() => page.evaluate(() => (window as unknown as { delivered: string[] }).delivered.length)).toBe(2);
+  // A scheduled run notifies its own start and finish instead of the generic completion (ADR-110).
+  await expect.poll(() => page.evaluate(() => (window as unknown as { delivered: string[] }).delivered)).toEqual(['응답이 완료되었어요', '예약 작업을 시작했어요', '예약 작업을 마쳤어요']);
   await expect(dialog.locator('[data-schedule-id]')).toHaveCount(1);
+  // "퀴즈" in the request attaches the quiz skill, shown on the card and sent with the run.
+  await expect(dialog.locator('[data-schedule-skill]')).toBeVisible();
   await page.evaluate(async () => {
     const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!; const { actions, db } = await import(path);
     const messages = actions().messages['schedule-chat-ai'];
     const scheduled = messages.filter((m: { scheduleRun?: boolean }) => m.scheduleRun);
     if (scheduled.length !== 1) throw new Error(`expected one dispatch, got ${scheduled.length}`);
+    if (scheduled[0].skill?.name !== 'quiz') throw new Error(`expected the quiz skill, got ${scheduled[0].skill?.name}`);
     const row = (await db.schedules.toArray())[0];
     if (row.nextRunAt <= Date.now()) throw new Error('recurring task was not advanced');
     actions().setOverlay('none');
   });
   await expect(page.getByText('오늘의 예약 퀴즈 응답입니다.', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-schedule-run-badge]')).toBeVisible();
+  // The finished run stays on the indicator until opened; clicks open finished conversations oldest first.
+  const indicator = page.locator('[data-schedule-finished]');
+  await expect(indicator).toContainText('예약 응답 완료');
   await page.screenshot({ path: info.outputPath(`schedule-result-${info.project.name}.png`) });
+  await page.evaluate(async () => {
+    const entries = performance.getEntriesByType('resource').map((entry) => entry.name);
+    const storePath = entries.find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const schedulesPath = entries.find((name) => new URL(name).pathname === '/src/schedules/store.ts')!;
+    const { actions } = await import(storePath);
+    const { useSchedules } = await import(schedulesPath);
+    actions().newRootSession('schedule-later');
+    actions().newRootSession('schedule-other');
+    const first = useSchedules.getState().finished[0];
+    useSchedules.setState({ finished: [first, { id: 'later', title: '나중 예약', sessionId: 'schedule-later', at: first.at + 1 }] });
+  });
+  await expect(indicator).toContainText('+1');
+  await indicator.click();
+  await expect.poll(() => page.evaluate(async () => {
+    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const { actions } = await import(path); return actions().view.activeSessionId;
+  })).toBe('schedule-chat-ai');
+  await expect(indicator).toContainText('나중 예약');
+  await indicator.click();
+  await expect.poll(() => page.evaluate(async () => {
+    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const { actions } = await import(path); return actions().view.activeSessionId;
+  })).toBe('schedule-later');
+  await expect(page.locator('[data-schedule-finished]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

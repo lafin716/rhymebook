@@ -39,6 +39,48 @@ export function matchSkill(text: string, skills: readonly Skill[]): Skill | null
     const schedule = skills.find((skill) => skill.name === 'schedule');
     if (schedule) return schedule;
   }
+  return pickSkill(t, skills);
+}
+
+/**
+ * 예약 작업에 붙일 스킬 (예: "매일 3시 퀴즈 내 줘" → quiz). 예약 스킬 자신은 고르지 않는다.
+ * 예약 의도가 있어도 작업 내용으로 판단한다.
+ */
+export function matchTaskSkill(text: string, skills: readonly Skill[]): Skill | null {
+  const t = text.trim();
+  if (t.length < 2) return null;
+  return pickSkill(t, skills);
+}
+
+/**
+ * 요청이 가리키는 작업 스킬 전부 (질문에서 나온 순서, 예약 스킬 제외).
+ * 둘 이상이면 여러 스킬을 순서대로·동시에 실행해 달라는 요청이다. 한 질문은 스킬 하나만 쓰므로
+ * 사용자가 하나를 고르게 한다 (ADR-111). "매일 3시 퀴즈 내 줘"는 퀴즈 하나라 해당하지 않는다.
+ */
+export function matchTaskSkills(text: string, skills: readonly Skill[]): Skill[] {
+  const t = text.trim();
+  if (t.length < 2) return [];
+  const hits: { skill: Skill; at: number }[] = [];
+  for (const skill of skills) {
+    if (skill.name === 'schedule') continue;
+    const m = INTENTS[skill.name]?.exec(t);
+    const at = m ? m.index : mentionAt(t, skill);
+    if (at >= 0) hits.push({ skill, at });
+  }
+  return hits.sort((a, b) => a.at - b.at).map((h) => h.skill);
+}
+
+/** 제목·명령 이름이 나온 위치 (없으면 -1) */
+function mentionAt(text: string, skill: Skill): number {
+  if (!mentions(text, skill)) return -1;
+  const lower = text.normalize('NFC').toLowerCase();
+  const i = lower.indexOf(skill.name.toLowerCase());
+  if (i >= 0) return i;
+  const j = lower.indexOf(skill.title.normalize('NFC').toLowerCase());
+  return j >= 0 ? j : 0;
+}
+
+function pickSkill(t: string, skills: readonly Skill[]): Skill | null {
   // 의도 표현이 맞는 기본 스킬이 먼저, 그다음 제목·이름이 나온 스킬. 같은 순위면 질문에서 먼저 나온 것
   let best: { skill: Skill; rank: number; at: number } | null = null;
   for (const skill of skills) {

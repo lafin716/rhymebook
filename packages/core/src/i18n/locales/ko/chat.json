@@ -94,6 +94,12 @@
     "autoSkillHint": "요청에 맞는 스킬을 자동으로 써요. 빼면 일반 질문으로 보내요.",
     "auto": "자동",
     "removeAutoSkill": "자동 스킬 빼기",
+    "skillChoiceLabel": "쓸 스킬 고르기",
+    "skillChoiceMulti": "여러 스킬을 순서대로 또는 동시에 실행할 수는 없어요. 이번 질문에 쓸 스킬 하나를 골라 주세요.",
+    "skillChoiceSchedule": "예약 작업 하나에는 스킬 하나만 쓸 수 있어요. 예약에 쓸 스킬 하나를 골라 주세요.",
+    "skillChoiceNone": "스킬 없이",
+    "skillChoiceRequired": "보내기 전에 쓸 스킬 하나를 골라 주세요.",
+    "scheduleTaskSkill": "예약에 쓸 스킬",
     "newlineHint": "Enter 줄바꿈 · Ctrl+Enter 보내기",
     "expandingHint": "자세히 입력하는 중…",
     "attachMenu": "첨부·스킬",
@@ -199,13 +205,16 @@
   },
   "message": {
     "skillTitle": "스킬: /{name}",
+    "skillActive": "{title} 스킬 사용 중",
     "thinking": "생각 중…",
     "stopped": "응답을 중지했습니다.",
     "regenerate": "다시 생성",
     "keep": "보관",
     "failed": "응답을 받지 못했습니다",
     "retry": "다시 시도",
-    "retryWith": "{provider}로 재시도"
+    "retryWith": "{provider}로 재시도",
+    "scheduleRun": "예약 실행",
+    "scheduleRunTitle": "예약 작업이 자동으로 보낸 질문"
   },
   "markdown": {
     "uncheck": "완료 취소",

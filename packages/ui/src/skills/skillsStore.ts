@@ -15,7 +15,7 @@ import {
   type SkillFolderFields,
 } from '@branch/core';
 import { create } from 'zustand';
-import { actions } from '../app/store';
+import { actions, setScheduleSkillSource } from '../app/store';
 import { remoteMode } from '../app/capabilities';
 import { desktop, sessionWindowId } from '../app/runtime';
 import type { BranchDB } from '../persist/db';
@@ -155,6 +155,11 @@ export const useSkills = create<SkillsState>((set, get) => ({
     for (const s of add) writeFolder(s);
   },
 }));
+
+// Scheduled tasks can carry a skill. The AI picks one from this list (ADR-110).
+setScheduleSkillSource(() => useSkills.getState().skills
+  .filter((s) => s.name !== 'schedule')
+  .map((s) => ({ name: s.name, title: s.title, ...(s.description ? { description: s.description } : {}) })));
 
 /** 폴더에서 읽은 내용을 앱에 반영한다 (폴더에 다시 쓰지 않는다) */
 function applyFolder(fields: SkillFolderFields & { id?: ID }) {

@@ -1,5 +1,5 @@
 import { parseScheduleBlock } from '@branch/core';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, Sparkles } from 'lucide-react';
 import { useContext } from 'react';
 import { actions, useApp } from '../app/store';
 import { QuizContext } from '../chat/QuizCard';
@@ -28,6 +28,7 @@ export function ScheduleCard({ source }: { source: string }) {
       <div className="flex items-center gap-2 text-[14px] font-semibold"><CalendarClock size={17} className="text-accent" />{input.title}</div>
       <p className="text-[13px] text-fg-2">{scheduleDate(Date.parse(input.runAt))} · {repeat}</p>
       <p className="whitespace-pre-wrap text-[13px] text-fg-2">{input.prompt}</p>
+      {(saved?.skill || input.skill) && <p data-schedule-skill className="flex items-center gap-1 text-[12px] text-accent"><Sparkles size={13} />{saved?.skill?.title ?? `/${input.skill}`}</p>}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[12px] text-muted">{saved ? tx('등록된 예약', 'Saved schedule') : tx('예약 관리에서 등록 상태를 확인해 주세요.', 'Check the saved status in Schedules.')}</span>
         <Button size="sm" variant="ghost" onClick={() => actions().setOverlay('schedules')}>{tx('예약 관리', 'Schedules')}</Button>

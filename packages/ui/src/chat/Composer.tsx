@@ -5,6 +5,7 @@ import {
   isCliId,
   isLongPaste,
   matchSkill,
+  matchTaskSkills,
   nextFallback,
   parseSlash,
   PROVIDER_LABELS,
@@ -15,7 +16,7 @@ import {
   type Skill,
   type SkillRef,
 } from '@branch/core';
-import { ArrowUp, ImagePlus, Maximize2, Minimize2, Paperclip, Plus, Settings2, Sparkles, Square, WandSparkles, WifiOff, X } from 'lucide-react';
+import { ArrowUp, CalendarClock, Check, ImagePlus, Maximize2, Minimize2, Paperclip, Plus, Settings2, Sparkles, Square, WandSparkles, WifiOff, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { actions, useApp } from '../app/store';
@@ -44,6 +45,8 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const [slashClosed, setSlashClosed] = useState(false);
   // 자동 스킬 칩을 뺀 스킬 id (입력창을 비우면 다시 고른다)
   const [dismissed, setDismissed] = useState<string | null>(null);
+  // 요청이 여러 스킬을 가리킬 때 사용자가 고른 스킬 id ('none' = 스킬 없이, ADR-111)
+  const [choice, setChoice] = useState<string | null>(null);
   // 자세히 입력하기: 입력창을 전체 화면으로 펼친다. Enter는 줄바꿈, Ctrl/⌘+Enter로 보낸다
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -95,7 +98,19 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
 
   // 슬래시 명령 없이 쓴 요청이 어떤 스킬의 용도와 맞으면 그 스킬을 자동으로 쓴다 (IMP-21)
   const matched = !skill && autoSkill && query === null && !parseSlash(text.trim()) ? matchSkill(text, skills) : null;
-  const auto = matched && matched.id !== dismissed ? matched : null;
+  // 여러 스킬을 순서대로·동시에 실행할 수는 없다: 요청이 스킬 둘 이상을 가리키면 하나를 고르게 한다 (ADR-111).
+  // 예약 요청은 예약 스킬 + 작업 스킬 하나라 해당하지 않고, 작업 스킬이 둘 이상일 때만 예약에 쓸 하나를 고른다.
+  const slashCmd = query === null ? parseSlash(text.trim()) : null;
+  const slashSkill = slashCmd ? skills.find((s) => s.name === slashCmd.name) : undefined;
+  const autoOn = !skill && !slashSkill && autoSkill && query === null;
+  const scheduling =
+    skill?.name === 'schedule' || slashSkill?.name === 'schedule' || (autoOn && matched?.name === 'schedule' && matched.id !== dismissed);
+  const candidates = scheduling || autoOn ? matchTaskSkills(slashSkill ? slashCmd!.rest : text, skills) : [];
+  const multi = candidates.length >= 2;
+  const chosen = multi && choice ? (choice === 'none' && !scheduling ? 'none' : (candidates.find((c) => c.id === choice) ?? null)) : null;
+  const needChoice = multi && !chosen;
+  const chosenSkill = chosen && chosen !== 'none' ? chosen : null;
+  const auto = multi && !scheduling ? chosenSkill : matched && matched.id !== dismissed ? matched : null;
 
   const addAttachment = (a: Attachment | string) => {
     if (typeof a === 'string') {
@@ -144,6 +159,10 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
 
   const send = () => {
     if (!canSend || streaming) return;
+    if (needChoice) {
+      pushNotice(t('chat.composer.skillChoiceRequired'));
+      return;
+    }
     let body = text.trim();
     let use = skill;
     // `/명령 나머지`로 보내면 그 스킬을 적용한다 (모르는 명령은 그대로 보낸다)
@@ -160,6 +179,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
     const ok = actions().sendMessage(sessionId, body, undefined, {
       ...(attachments.length ? { attachments } : {}),
       ...(use ? { skill: use } : {}),
+      ...(scheduling && chosenSkill ? { taskSkill: skillRef(chosenSkill) } : {}),
     });
     if (!ok) return;
     setText('');
@@ -167,6 +187,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
     setSkill(null);
     setSlashClosed(false);
     setDismissed(null);
+    setChoice(null);
     setExpanded(false);
   };
 
@@ -188,7 +209,10 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
       onChange={(e) => {
         setText(e.target.value);
         setSlashClosed(false);
-        if (!e.target.value.trim()) setDismissed(null);
+        if (!e.target.value.trim()) {
+          setDismissed(null);
+          setChoice(null);
+        }
       }}
       onPaste={(e) => {
         const files = Array.from(e.clipboardData.files);
@@ -353,7 +377,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
         }}
         className={cn('octo-composer rounded-2xl border border-line bg-surface p-1.5 shadow-pop focus-within:border-line-strong', expanded && 'flex min-h-0 flex-1 flex-col')}
       >
-        {(attachments.length > 0 || skill || auto) && (
+        {(attachments.length > 0 || skill || auto || multi) && (
           <div className="flex flex-col gap-1.5 px-1.5 pt-1.5 pb-1">
             {skill && (
               <span data-skill-chip={skill.name} className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-accent/40 bg-accent-soft pr-1 pl-2.5 text-[12.5px] text-accent">
@@ -381,10 +405,60 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
                 <span className="shrink-0 opacity-75">{t('chat.composer.auto')}</span>
                 <span className="truncate font-medium">{auto.title}</span>
                 <code className="text-[11.5px] opacity-75">/{auto.name}</code>
-                <button type="button" aria-label={t('chat.composer.removeAutoSkill')} onClick={() => setDismissed(auto.id)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
+                <button type="button" aria-label={t('chat.composer.removeAutoSkill')} onClick={() => (multi ? setChoice('none') : setDismissed(auto.id))} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
                   <X size={12} />
                 </button>
               </span>
+            )}
+            {multi && (
+              <div
+                role="group"
+                aria-label={t('chat.composer.skillChoiceLabel')}
+                data-skill-choice={scheduling ? 'schedule' : 'chat'}
+                className={cn('rounded-xl border px-2.5 py-2', needChoice ? 'border-warn/40 bg-warn-soft' : 'border-line bg-surface-2/60')}
+              >
+                <p className={cn('flex items-start gap-1.5 text-[12.5px] leading-5', needChoice ? 'text-warn' : 'text-fg-2')}>
+                  {scheduling ? <CalendarClock size={14} className="mt-0.5 shrink-0" /> : <Sparkles size={14} className="mt-0.5 shrink-0" />}
+                  <span>{scheduling ? t('chat.composer.skillChoiceSchedule') : t('chat.composer.skillChoiceMulti')}</span>
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {candidates.map((c) => {
+                    const on = chosenSkill?.id === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        data-skill-choice-option={c.name}
+                        aria-pressed={on}
+                        onClick={() => setChoice(c.id)}
+                        className={cn(
+                          'inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border px-3 text-[12.5px]',
+                          on ? 'border-accent bg-accent text-accent-fg' : 'border-accent/40 bg-surface text-accent hover:bg-accent-soft',
+                        )}
+                      >
+                        {on ? <Check size={13} /> : <Sparkles size={13} />}
+                        <span className="truncate font-medium">{c.title}</span>
+                        <code className="text-[11.5px] opacity-75">/{c.name}</code>
+                      </button>
+                    );
+                  })}
+                  {!scheduling && (
+                    <button
+                      type="button"
+                      data-skill-choice-option=""
+                      aria-pressed={chosen === 'none'}
+                      onClick={() => setChoice('none')}
+                      className={cn(
+                        'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px]',
+                        chosen === 'none' ? 'border-fg-2 bg-fg-2 text-bg' : 'border-line bg-surface text-fg-2 hover:bg-surface-2',
+                      )}
+                    >
+                      {chosen === 'none' && <Check size={13} />}
+                      {t('chat.composer.skillChoiceNone')}
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
             <AttachmentList items={attachments} onRemove={(id) => setAttachments((cur) => cur.filter((a) => a.id !== id))} />
           </div>

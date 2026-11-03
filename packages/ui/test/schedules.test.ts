@@ -26,6 +26,16 @@ describe('local schedule repository', () => {
     expect((await repo.list())[0]).toMatchObject({ title: '새 복습', enabled: true, repeat: 'weekly' });
     await repo.remove(row!.id); expect(await repo.list()).toEqual([]);
   });
+  it('keeps, replaces and removes the attached skill snapshot', async () => {
+    const { repo } = fixture();
+    const quiz = { id: 'k1', name: 'quiz', title: '퀴즈', prompt: '문제를 낸다' };
+    await repo.save(input(), 's', undefined, undefined, quiz); const [row] = await repo.list();
+    expect(row!.skill).toEqual(quiz);
+    await repo.save({ ...input(), title: '이름만' }, 's', row!.id);
+    expect((await repo.list())[0]!.skill).toEqual(quiz);
+    await repo.save(input(), 's', row!.id, undefined, null);
+    expect((await repo.list())[0]!.skill).toBeUndefined();
+  });
   it('deduplicates the source user message, including after deletion', async () => {
     const { repo } = fixture();
     await Promise.all([repo.save(input(), 's', undefined, 'user1'), repo.save(input(), 's', undefined, 'user1')]);
@@ -110,5 +120,23 @@ describe('schedule engine', () => {
     const engine = createScheduleEngine(store, repo, async () => {}, async () => {});
     await engine.tick(); await settle(async () => (await repo.list())[0]?.enabled === false);
     expect((await repo.list())[0]?.lastError).toContain('삭제'); engine.stop();
+  });
+  it('runs with the resolved skill and reports start and finish', async () => {
+    const { repo, db } = fixture(); const { store, sessionId } = storeFixture();
+    const snapshot = { id: 'k1', name: 'quiz', title: '퀴즈', prompt: 'old' };
+    await repo.save(input(), sessionId, undefined, undefined, snapshot); const [row] = await repo.list();
+    await db.schedules.update(row!.id, { nextRunAt: Date.now() - 100 });
+    const events: string[] = [];
+    const engine = createScheduleEngine(store, repo, async () => {}, async () => {}, undefined, {
+      resolveSkill: (r) => r.skill && { ...r.skill, prompt: 'live' },
+      onStart: (r) => events.push(`start:${r.title}`),
+      onFinish: (r, error) => events.push(`finish:${r.title}:${error ?? 'ok'}`),
+    });
+    await engine.tick();
+    await settle(async () => (await repo.list())[0]?.enabled === false);
+    await settle(() => events.length === 2);
+    expect(store.getState().messages[sessionId]?.[0]?.skill).toMatchObject({ name: 'quiz', prompt: 'live' });
+    expect(events).toEqual(['start:복습', 'finish:복습:ok']);
+    engine.stop();
   });
 });

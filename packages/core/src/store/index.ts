@@ -63,7 +63,7 @@ import { newCanvasTitle } from '../canvas';
 import { isKnowledgeId } from '../knowledge';
 import { newPageTitle, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
-import { hasScheduleIntent, scheduleSystemHint } from '../schedules';
+import { hasScheduleIntent, scheduleSystemHint, type ScheduleSkillOption } from '../schedules';
 
 /** 기본 학습 제목 (지금 언어) */
 export const newSessionTitle = (): string => t('core.session.newTitle');
@@ -108,6 +108,8 @@ export interface SendExtra {
   scheduleRun?: boolean;
   attachments?: Attachment[];
   skill?: SkillRef;
+  /** 예약 요청일 때 예약 작업에 쓸 스킬 (여러 스킬 중 사용자가 고른 것, ADR-111) */
+  taskSkill?: SkillRef;
 }
 
 const splitLayoutOf = (v: ViewState): SplitNode | undefined =>
@@ -266,6 +268,8 @@ export interface AppState extends AppData {
 export interface AppStoreOptions {
   /** 성공한 일반 채팅 응답마다 한 번. 로드/요약/제목 생성은 제외한다. */
   onResponseComplete?(event: ResponseComplete): void;
+  /** 예약 요청 시 시스템 지시에 보여 줄 스킬 목록 (예약 작업에 붙일 스킬을 AI가 고르게) */
+  scheduleSkills?(): readonly ScheduleSkillOption[];
   registry: ProviderRegistry;
   repo?: Repository;
   initial?: Partial<AppData>;
@@ -492,7 +496,10 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         });
       Object.assign(req, target.options);
       if (!custom && userMessage && !userMessage.scheduleRun && (userMessage.skill?.name === 'schedule' || hasScheduleIntent(userMessage.content))) {
-        req.system += `\n\n${scheduleSystemHint()}`;
+        let skills: readonly ScheduleSkillOption[] = [];
+        try { skills = opts.scheduleSkills?.() ?? []; } catch { /* 목록 없이도 예약은 된다 */ }
+        const chosen = userMessage.taskSkill;
+        req.system += `\n\n${scheduleSystemHint(Date.now(), skills, chosen ? { name: chosen.name, title: chosen.title } : undefined)}`;
       }
       // 일반 대화에만 웹 도구를 붙인다. 재정리 같은 내부 요청은 도구 없이 (ADR-070)
       if (!custom) {
@@ -1027,6 +1034,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           createdAt: Date.now(),
           ...(attachments ? { attachments } : {}),
           ...(extra?.skill ? { skill: extra.skill } : {}),
+          ...(extra?.taskSkill ? { taskSkill: extra.taskSkill } : {}),
           ...(extra?.scheduleRun ? { scheduleRun: true } : {}),
         });
         touch(sessionId);

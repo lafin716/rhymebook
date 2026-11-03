@@ -1,11 +1,12 @@
-import type { Schedule, ScheduleRepeat } from '@branch/core';
-import { ArrowLeft, CalendarClock, ExternalLink, Pause, Play, Plus, Save, Trash2 } from 'lucide-react';
+import { skillRef, type Schedule, type ScheduleRepeat } from '@branch/core';
+import { ArrowLeft, CalendarClock, ExternalLink, Loader2, Pause, Play, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { actions, appStore, useApp } from '../app/store';
 import { Badge } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
+import { useSkills } from '../skills/skillsStore';
 import { localScheduleDate, scheduleDate, scheduleText as tx } from './scheduleText';
 import { scheduleAvailable, useSchedules } from './store';
 
@@ -15,7 +16,7 @@ const repeatLabel = (repeat: ScheduleRepeat) => ({
   weekly: tx('매주', 'Weekly'), monthly: tx('매월', 'Monthly'),
 })[repeat];
 const fieldClass = 'min-w-0 w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-[14px] text-fg outline-none focus:border-accent';
-interface Draft { title: string; prompt: string; sessionId: string; runAt: string; repeat: ScheduleRepeat }
+interface Draft { title: string; prompt: string; sessionId: string; runAt: string; repeat: ScheduleRepeat; skillId: string }
 
 export function SchedulesPage() {
   const open = useApp((state) => state.overlay === 'schedules');
@@ -24,7 +25,8 @@ export function SchedulesPage() {
 
 function SchedulesPageBody() {
   const sessions = useApp((state) => state.sessions);
-  const { items, loaded, error, refresh, save, remove, toggle } = useSchedules();
+  const { items, loaded, error, running, refresh, save, remove, toggle } = useSchedules();
+  const skills = useSkills((state) => state.skills).filter((skill) => skill.name !== 'schedule');
   const chats = Object.values(sessions).filter((session) => !session.kind);
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -65,10 +67,10 @@ function SchedulesPageBody() {
     if (operation.current || !await leave()) return;
     const next: Draft = item ? {
       title: item.title, prompt: item.prompt, sessionId: item.sessionId,
-      runAt: localScheduleDate(item.nextRunAt), repeat: item.repeat,
+      runAt: localScheduleDate(item.nextRunAt), repeat: item.repeat, skillId: item.skill?.id ?? '',
     } : {
       title: '', prompt: '', sessionId: chats[0]?.id ?? '',
-      runAt: localScheduleDate(Date.now() + 60 * 60 * 1000), repeat: 'once',
+      runAt: localScheduleDate(Date.now() + 60 * 60 * 1000), repeat: 'once', skillId: '',
     };
     setSelected(item?.id ?? 'new'); setDraft(next); setBaseline(JSON.stringify(next)); setFailure(null);
   };
@@ -84,7 +86,10 @@ function SchedulesPageBody() {
     const previous = items.find((item) => item.id === selected);
     const at = previous && draft.runAt === localScheduleDate(previous.nextRunAt) ? previous.nextRunAt : new Date(draft.runAt).getTime();
     if (!Number.isFinite(at)) { setFailure(tx('실행 시간을 확인해 주세요.', 'Check the run time.')); return; }
-    const ok = await perform(() => save({ title: draft.title, prompt: draft.prompt, runAt: new Date(at).toISOString(), repeat: draft.repeat }, draft.sessionId, selected === 'new' ? undefined : selected));
+    const picked = skills.find((skill) => skill.id === draft.skillId);
+    // Unchanged choice keeps the saved snapshot even if that skill was deleted since.
+    const skill = previous && draft.skillId === (previous.skill?.id ?? '') ? undefined : picked ? skillRef(picked) : null;
+    const ok = await perform(() => save({ title: draft.title, prompt: draft.prompt, runAt: new Date(at).toISOString(), repeat: draft.repeat }, draft.sessionId, selected === 'new' ? undefined : selected, skill));
     if (ok) { setSelected(null); setDraft(null); }
   };
   const deleteItem = async (item: Schedule) => {
@@ -132,10 +137,12 @@ function SchedulesPageBody() {
             ) : <div className="space-y-3">{items.map((item) => {
               const finished = item.repeat === 'once' && !item.enabled && !!item.lastRunAt;
               const completed = finished && !item.lastError;
+              const isRunning = !!running[item.id];
               return <article key={item.id} data-schedule-id={item.id} className={cn('rounded-2xl border bg-surface p-4', selected === item.id ? 'border-accent' : 'border-line')}>
-                <div className="flex items-start justify-between gap-2"><h3 className="min-w-0 break-words text-[15px] font-semibold">{item.title}</h3><Badge tone={item.lastError ? 'danger' : item.enabled ? 'accent' : 'neutral'}>{item.lastError ? tx('실행 오류', 'Run error') : item.enabled ? tx('예약됨', 'Scheduled') : completed ? tx('완료', 'Completed') : tx('일시정지', 'Paused')}</Badge></div>
+                <div className="flex items-start justify-between gap-2"><h3 className="min-w-0 break-words text-[15px] font-semibold">{item.title}</h3>{isRunning ? <Badge tone="accent"><span data-schedule-running-badge className="inline-flex items-center gap-1"><Loader2 size={11} className="animate-spin" />{tx('실행 중', 'Running')}</span></Badge> : <Badge tone={item.lastError ? 'danger' : item.enabled ? 'accent' : 'neutral'}>{item.lastError ? tx('실행 오류', 'Run error') : item.enabled ? tx('예약됨', 'Scheduled') : completed ? tx('완료', 'Completed') : tx('일시정지', 'Paused')}</Badge>}</div>
                 <p className="mt-2 text-[13px] font-medium text-fg-2">{repeatLabel(item.repeat)} · {scheduleDate(item.nextRunAt)}</p>
                 <p className="mt-1 truncate text-xs text-muted">{sessions[item.sessionId]?.title ?? tx('삭제된 대화', 'Deleted conversation')}</p>
+                {item.skill && <p data-schedule-skill className="mt-1 flex items-center gap-1 text-xs text-accent"><Sparkles size={12} />{item.skill.title}</p>}
                 <p className="mt-3 line-clamp-3 break-words whitespace-pre-wrap text-[13px] leading-relaxed text-fg-2">{item.prompt}</p>
                 {item.lastRunAt && <p className="mt-2 text-xs text-muted">{tx('최근 실행', 'Last run')}: {scheduleDate(item.lastRunAt)}</p>}
                 {item.lastError && <p className="mt-2 break-words text-xs text-danger">{item.lastError}</p>}
@@ -158,6 +165,7 @@ function SchedulesPageBody() {
                 {!chats.length && <p className="text-xs text-warn">{tx('먼저 대화를 만든 뒤 예약을 추가하세요.', 'Create a conversation before adding a schedule.')}</p>}
                 <label className="flex min-w-0 flex-col gap-1.5 text-[13px] font-medium">{tx('다음 실행 시간', 'Next run time')}<input type="datetime-local" required value={draft.runAt} onChange={(event) => patch({ runAt: event.target.value })} className={fieldClass} /></label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-medium">{tx('반복', 'Repeat')}<select aria-label={tx('반복', 'Repeat')} value={draft.repeat} onChange={(event) => patch({ repeat: event.target.value as ScheduleRepeat })} className={fieldClass}>{repeats.map((repeat) => <option key={repeat} value={repeat}>{repeatLabel(repeat)}</option>)}</select></label>
+                <label className="flex flex-col gap-1.5 text-[13px] font-medium">{tx('사용할 스킬', 'Skill')}<select aria-label={tx('사용할 스킬', 'Skill')} value={draft.skillId} onChange={(event) => patch({ skillId: event.target.value })} className={fieldClass}><option value="">{tx('스킬 없음', 'No skill')}</option>{skills.map((skill) => <option key={skill.id} value={skill.id}>{skill.title} (/{skill.name})</option>)}{draft.skillId && !skills.some((skill) => skill.id === draft.skillId) && <option value={draft.skillId}>{items.find((item) => item.id === selected)?.skill?.title ?? tx('삭제된 스킬', 'Deleted skill')}</option>}</select><span className="text-xs font-normal text-muted">{tx('실행할 때 이 스킬의 지시를 함께 보내요. 예: 퀴즈 스킬로 매일 퀴즈 받기', 'Runs the question with this skill. e.g. a daily quiz with the quiz skill')}</span></label>
                 {draft.repeat === 'monthly' && <p className="text-xs leading-relaxed text-muted">{tx('해당 날짜가 없는 달에는 마지막 날에 실행합니다.', 'In months without that day, runs on the last day.')}</p>}
               </fieldset>
               <div className="flex justify-end gap-2 pb-4"><Button variant="ghost" disabled={busy} onClick={() => void cancelEditor()}>{tx('취소', 'Cancel')}</Button><Button type="submit" variant="primary" icon={<Save size={15} />} disabled={busy || !chats.length || (selected !== 'new' && !dirty)}>{busy ? tx('저장 중…', 'Saving…') : tx('저장', 'Save')}</Button></div>

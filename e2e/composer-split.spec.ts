@@ -180,12 +180,16 @@ test('슬래시·+ 메뉴로 스킬을 고르고, 스킬 관리 페이지에서 
   await ask(main, '러스트 입문');
   await expect(main.getByText('스킬 /curriculum 적용.')).toBeVisible();
   await expect(main.locator('[data-skill-badge="curriculum"]')).toBeVisible();
+  // 답변 위에는 활성화된 스킬이 표시된다
+  await expect(main.locator('[data-skill-active="curriculum"]')).toHaveCount(1);
+  await expect(main.locator('[data-skill-active="curriculum"]')).toContainText('스킬 사용 중');
   await expect(main.locator('[data-skill-chip]')).toHaveCount(0);
 
   // 다음 질문에는 스킬이 붙지 않는다
   await ask(main, '고마워');
   await expect(main.getByText('마지막 문장 [고마워].')).toBeVisible();
   await expect(main.getByText('스킬 /curriculum 적용.')).toHaveCount(1);
+  await expect(main.locator('[data-skill-active]')).toHaveCount(1);
 
   // + › 스킬 관리… → 새 스킬
   await main.getByRole('button', { name: '첨부·스킬' }).click();

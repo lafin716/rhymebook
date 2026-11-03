@@ -1,11 +1,12 @@
-import { newId, nextScheduleRun, validateScheduleInput, type Schedule, type ScheduleInput } from '@branch/core';
+import { newId, nextScheduleRun, validateScheduleInput, type Schedule, type ScheduleInput, type SkillRef } from '@branch/core';
 import type { BranchDB } from '../persist/db';
 
 /** All read/modify/write transitions use one transaction across browser tabs. */
 export function scheduleRepository(db: BranchDB) {
   return {
     list: () => db.schedules.orderBy('nextRunAt').toArray(),
-    async save(input: ScheduleInput, sessionId: string, id?: string, sourceMessageId?: string) {
+    /** skill: undefined keeps the previous skill, null removes it. */
+    async save(input: ScheduleInput, sessionId: string, id?: string, sourceMessageId?: string, skill?: SkillRef | null) {
       const now = Date.now();
       const valid = validateScheduleInput(input, now);
       if (!valid || !sessionId) throw new Error('예약 제목·작업·미래 날짜와 시간을 확인해 주세요.');
@@ -17,8 +18,9 @@ export function scheduleRepository(db: BranchDB) {
         const at = Date.parse(valid.runAt);
         // Title/task edits must not move a Jan 31 monthly anchor to Feb 28.
         const sameBasis = prev && at === prev.nextRunAt && valid.repeat === prev.repeat;
+        const nextSkill = skill === undefined ? prev?.skill : skill ?? undefined;
         await db.schedules.put({
-          ...prev, id: prev?.id ?? newId('sched'), sessionId,
+          ...prev, id: prev?.id ?? newId('sched'), sessionId, skill: nextSkill,
           title: valid.title, prompt: valid.prompt, repeat: valid.repeat,
           nextRunAt: at, originAt: sameBasis ? prev.originAt : at, anchorDay: sameBasis ? prev.anchorDay : new Date(at).getDate(),
           enabled: true, createdAt: prev?.createdAt ?? now, updatedAt: now,

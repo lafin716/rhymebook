@@ -94,6 +94,12 @@
     "autoSkillHint": "Uses a matching skill automatically. Remove it to send as a normal question.",
     "auto": "Auto",
     "removeAutoSkill": "Remove auto skill",
+    "skillChoiceLabel": "Choose a skill",
+    "skillChoiceMulti": "Several skills can't run in sequence or at the same time. Choose one skill for this question.",
+    "skillChoiceSchedule": "A scheduled task can use only one skill. Choose the skill for this schedule.",
+    "skillChoiceNone": "No skill",
+    "skillChoiceRequired": "Choose one skill before sending.",
+    "scheduleTaskSkill": "Skill for the schedule",
     "newlineHint": "Enter for new line · Ctrl+Enter to send",
     "expandingHint": "Expanding input…",
     "attachMenu": "Attach · Skills",
@@ -199,13 +205,16 @@
   },
   "message": {
     "skillTitle": "Skill: /{name}",
+    "skillActive": "Using skill: {title}",
     "thinking": "Thinking…",
     "stopped": "Response stopped.",
     "regenerate": "Regenerate",
     "keep": "Save",
     "failed": "Didn't get a response",
     "retry": "Try again",
-    "retryWith": "Retry with {provider}"
+    "retryWith": "Retry with {provider}",
+    "scheduleRun": "Scheduled",
+    "scheduleRunTitle": "Sent automatically by a scheduled task"
   },
   "markdown": {
     "uncheck": "Mark as not done",

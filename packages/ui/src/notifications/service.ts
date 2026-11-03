@@ -39,10 +39,21 @@ function openSession(sessionId: string) {
 }
 
 export async function showCompletionNotification(sessionId: string, test = false): Promise<boolean> {
-  if (!notificationsEnabled() || sessionWindowId || presentWindowId) return false;
-  const title = notificationText('응답이 완료되었어요', 'Response complete');
   const session = appStore.getState().sessions[sessionId];
-  const body = (test ? notificationText('로컬 알림 테스트입니다.', 'This is a local notification test.') : session?.title ?? '').slice(0, 240);
+  return showAppNotification({
+    sessionId,
+    title: notificationText('응답이 완료되었어요', 'Response complete'),
+    body: test ? notificationText('로컬 알림 테스트입니다.', 'This is a local notification test.') : session?.title ?? '',
+    tag: test ? 'notification-test' : `response-${sessionId}`,
+  });
+}
+
+/** System notification that opens the session on click. Respects the notification setting. */
+export async function showAppNotification(opts: { sessionId: string; title: string; body: string; tag: string }): Promise<boolean> {
+  if (!notificationsEnabled() || sessionWindowId || presentWindowId) return false;
+  const { sessionId } = opts;
+  const title = opts.title.slice(0, 120);
+  const body = opts.body.slice(0, 240);
   try {
     if (desktop?.notifications) return await desktop.notifications.show({ sessionId, title, body });
     if (mobile?.notifications) {
@@ -51,7 +62,7 @@ export async function showCompletionNotification(sessionId: string, test = false
       return await mobile.notifications.show({ sessionId, title, body, scope });
     }
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
-    const notification = new Notification(title, { body, tag: test ? 'notification-test' : `response-${sessionId}` });
+    const notification = new Notification(title, { body, tag: opts.tag });
     notification.onclick = () => { window.focus(); openSession(sessionId); notification.close(); };
     return true;
   } catch { return false; }

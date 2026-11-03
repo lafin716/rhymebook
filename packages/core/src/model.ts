@@ -59,6 +59,8 @@ export interface Message {
   attachments?: Attachment[];
   /** 사용자 메시지에 적용한 스킬 (보낸 시점 사본) */
   skill?: SkillRef;
+  /** 예약 요청에서 여러 스킬 중 사용자가 예약 작업에 쓰라고 고른 스킬 (ADR-111) */
+  taskSkill?: SkillRef;
   /** 응답 중 쓴 도구 (웹 검색·페이지 읽기, ADR-070) */
   tools?: ToolActivity[];
 }
