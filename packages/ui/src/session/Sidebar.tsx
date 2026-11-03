@@ -24,6 +24,7 @@ import { startNewSession } from './newSession';
 import { renameSession } from '../chat/PagePanel';
 import { CalendarClock } from 'lucide-react';
 import { scheduleText } from '../schedules/scheduleText';
+import { useSessionActivity, useTreeActivity, type ActivityState } from './unread';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
 
@@ -295,8 +296,24 @@ function TreeChevron({ open, show, label, onToggle }: { open: boolean; show: boo
 const rowCls = (active: boolean) =>
   cn('group flex h-7 items-center gap-1 rounded-md pl-1 pr-0.5', active ? 'bg-accent-soft text-fg' : 'text-fg-2 hover:bg-surface-2/70');
 
+/** 응답 생성 중(깜빡임)·안 읽은 응답(점) 인디케이터 */
+function ActivityDot({ state }: { state: ActivityState }) {
+  if (!state) return null;
+  const label = state === 'streaming' ? t('session.tree.streaming') : t('session.tree.unread');
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      data-activity={state}
+      className={cn('size-2 shrink-0 rounded-full bg-accent', state === 'streaming' && 'animate-session-pulse')}
+    />
+  );
+}
+
 function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
   const s = useApp((st) => st.sessions[id]);
+  const activity = useTreeActivity(id);
   const active = useApp((st) => st.view.activeSessionId === id);
   const containsActive = useApp((st) => {
     const a = st.view.activeSessionId;
@@ -349,6 +366,8 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
             <KindIcon kind={s.kind} root open={open && childCount > 0} />
             <span data-tree-title className={cn('truncate', (active || containsActive) && 'font-medium', containsActive ? 'text-accent' : 'text-fg')}>{s.title}</span>
             {childCount > 0 && !open && <span className="shrink-0 text-[11px] text-muted tabular-nums">+{childCount}</span>}
+            <span className="ml-auto" />
+            <ActivityDot state={activity} />
           </button>
         )}
         <IconButton
@@ -381,6 +400,7 @@ function BranchTree({ parentId, depth, onPick }: { parentId: ID; depth: number; 
 
 function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): void }) {
   const s = useApp((st) => st.sessions[id]);
+  const activity = useSessionActivity(id);
   const active = useApp((st) => st.view.activeSessionId === id);
   const kidCount = useApp((st) => childrenOf(st.sessions, id).length);
   const hasKids = kidCount > 0;
@@ -429,7 +449,9 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
             <KindIcon kind={s.kind} />
             <span className="truncate">{s.title}</span>
             {hasKids && !open && <span className="shrink-0 text-[11px] text-muted tabular-nums">+{kidCount}</span>}
-            {s.summary && <span title={t('session.tree.summarized')} className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
+            <span className="ml-auto" />
+            {s.summary && <span title={t('session.tree.summarized')} className="h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
+            <ActivityDot state={activity} />
           </button>
           <SubSessionButton parentId={id} className="!size-6 !rounded-md" />
         </div>

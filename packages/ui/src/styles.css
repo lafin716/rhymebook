@@ -726,6 +726,21 @@ span.annot[data-note-end='true']::after {
   animation: pop-in 140ms ease-out;
 }
 
+/* 사이드바: 응답 생성 중 세션 인디케이터 깜빡임 */
+@keyframes session-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+.animate-session-pulse {
+  animation: session-pulse 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-session-pulse {
+    animation: none;
+  }
+}
+
 /* react-flow 테마 연동 */
 .react-flow {
   --xy-background-color: transparent;

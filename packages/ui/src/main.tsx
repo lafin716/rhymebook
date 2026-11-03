@@ -18,6 +18,7 @@ import { startScheduleService } from './schedules/store';
 import { startNotificationService } from './notifications/service';
 import { SessionWindowApp } from './window/SessionWindowApp';
 import { PresentAudienceApp } from './window/PresentAudienceApp';
+import { startUnreadTracker } from './session/unread';
 import './styles.css';
 
 async function boot() {
@@ -40,6 +41,7 @@ async function boot() {
   } else startSkills();
   if (!sessionWindowId && !presentWindowId) {
     startNotificationService();
+    startUnreadTracker();
     void startScheduleService();
   }
   actions().updateSettings({ theme: initialThemePref() });

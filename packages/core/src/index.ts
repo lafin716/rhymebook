@@ -1,6 +1,7 @@
 export * from './i18n';
 export * from './model';
 export * from './tree';
+export * from './unread';
 export * from './anchor';
 export * from './annotations';
 export * from './attachments';

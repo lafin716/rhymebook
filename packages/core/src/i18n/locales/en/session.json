@@ -53,6 +53,8 @@
     "rowTitle": "{title} · {time}",
     "rowTitleKids": "{title} · {time} · {count} branches",
     "rowTitleKids_one": "{title} · {time} · 1 branch",
-    "summarized": "Summarized"
+    "summarized": "Summarized",
+    "streaming": "Generating a response",
+    "unread": "Unread response"
   }
 }
