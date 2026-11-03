@@ -8,6 +8,16 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 완료 알림 백그라운드 유지·모바일 로컬 기본 스킬·사이드바 생성 중/안 읽음 표시 (2026-11-03)
+
+결정: ADR-106, 사람 조치: B-16(iOS APNs).
+- [x] 데스크톱: 창 닫기는 숨기기, 트레이 상시, 알림 참조 유지, 클릭 시 창·Dock 복귀
+- [x] Android 응답 생성 중 포그라운드 서비스(ResponseWorkService), iOS beginBackgroundTask
+- [x] 모바일 로컬 모드 기본 스킬을 데스크톱과 동일하게 다시 채움(`localSkillsSeeded`) + 테스트
+- [x] 사이드바 생성 중 깜빡임(최상위 세션 포함)·안 읽음 점(열면 사라짐) — core `nextUnread` + 테스트
+- [x] PASS: typecheck/lint, core690 + UI105 + bridge66 + relay9 + server10
+- [ ] 실기기 확인(Android 백그라운드 완료 알림, iOS 30초 내 완료) — Android/iOS 네이티브 재빌드 필요
+
 ## v0.48.0 릴리즈 검증 (2026-11-03)
 
 - 포함: 한국어·영어와 언어 파일 분리, 기본 예약 스킬/관리 페이지, desktop·Android·iOS 응답 완료 로컬 알림.
