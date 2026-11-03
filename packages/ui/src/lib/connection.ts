@@ -1,16 +1,18 @@
+import { t } from '../i18n';
 import { caps } from '../app/capabilities';
 import { PROVIDER_LABELS, type ConnectionState, type ConnectionStatus, type ProviderId } from '@branch/core';
 
 export type Tone = 'neutral' | 'ok' | 'warn' | 'danger';
 
+/** 렌더 시점에 번역되는 getter (STATUS_LABEL[status] 형태 그대로 쓴다) */
 export const STATUS_LABEL: Record<ConnectionStatus, string> = {
-  ready: '연결됨',
-  'not-installed': '미설치',
-  'not-logged-in': '로그인 필요',
-  'no-key': '키 없음',
-  offline: '오프라인',
-  unpaired: '페어링 안 됨',
-  checking: '확인 중…',
+  get ready() { return t('app.connection.status.ready'); },
+  get 'not-installed'() { return t('app.connection.status.notInstalled'); },
+  get 'not-logged-in'() { return t('app.connection.status.notLoggedIn'); },
+  get 'no-key'() { return t('app.connection.status.noKey'); },
+  get offline() { return t('app.connection.status.offline'); },
+  get unpaired() { return t('app.connection.status.unpaired'); },
+  get checking() { return t('app.connection.status.checking'); },
 };
 
 export function statusTone(c: ConnectionState | undefined): Tone {

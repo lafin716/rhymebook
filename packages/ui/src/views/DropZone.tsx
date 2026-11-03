@@ -4,6 +4,7 @@ import { actions, useApp } from '../app/store';
 import { pushNotice } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { cn } from '../lib/cn';
+import { t } from '../i18n';
 
 /** 사이드바 세션을 끌 때 dataTransfer에 싣는 형식 */
 export const SESSION_DRAG_TYPE = 'application/x-rhymebook-session';
@@ -19,22 +20,26 @@ const PREVIEW: Record<DropEdge, string> = {
   center: 'inset-1',
 };
 
-const LABEL: Record<DropEdge, string> = {
-  left: '왼쪽에 열기',
-  right: '오른쪽에 열기',
-  top: '위에 열기',
-  bottom: '아래에 열기',
-  center: '이 자리에 열기',
-};
+function openLabels(): Record<DropEdge, string> {
+  return {
+    left: t('views.drop.open.left'),
+    right: t('views.drop.open.right'),
+    top: t('views.drop.open.top'),
+    bottom: t('views.drop.open.bottom'),
+    center: t('views.drop.open.center'),
+  };
+}
 
 /** 분할 안의 패널을 옮길 때 (패널 헤더 이동 버튼 끌기) */
-const MOVE_LABEL: Record<DropEdge, string> = {
-  left: '왼쪽으로 옮기기',
-  right: '오른쪽으로 옮기기',
-  top: '위로 옮기기',
-  bottom: '아래로 옮기기',
-  center: '자리 바꾸기',
-};
+function moveLabels(): Record<DropEdge, string> {
+  return {
+    left: t('views.drop.move.left'),
+    right: t('views.drop.move.right'),
+    top: t('views.drop.move.top'),
+    bottom: t('views.drop.move.bottom'),
+    center: t('views.drop.move.center'),
+  };
+}
 
 /** 포인터 위치로 놓을 자리를 고른다 (순수 함수, 테스트용 export) */
 export function edgeAt(x: number, y: number, allowSplit: boolean): DropEdge {
@@ -88,7 +93,7 @@ export function DropZone({ targetId }: { targetId: ID }) {
         setEdge(null);
         useUi.getState().setDragSession(null);
         if (!actions().dropToSplit(id, targetId, where)) {
-          pushNotice(`분할은 최대 ${MAX_SPLIT}개까지예요. 가운데에 놓으면 그 패널을 바꿔요.`);
+          pushNotice(t('views.drop.maxSplit', { max: MAX_SPLIT }));
         }
       }}
     >
@@ -99,7 +104,7 @@ export function DropZone({ targetId }: { targetId: ID }) {
             PREVIEW[edge],
           )}
         >
-          <span className="rounded-lg bg-accent px-2.5 py-1 text-[12.5px] font-medium text-accent-fg shadow-pop">{(inSplit ? MOVE_LABEL : LABEL)[edge]}</span>
+          <span className="rounded-lg bg-accent px-2.5 py-1 text-[12.5px] font-medium text-accent-fg shadow-pop">{(inSplit ? moveLabels() : openLabels())[edge]}</span>
         </div>
       )}
     </div>

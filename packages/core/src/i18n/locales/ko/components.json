@@ -1,0 +1,86 @@
+{
+  "confirm": {
+    "cancel": "취소",
+    "ok": "확인"
+  },
+  "error": {
+    "body": "작성한 내용은 저장돼 있어요. 다시 시도해 주세요.",
+    "retry": "다시 시도",
+    "title": "화면을 그리다 문제가 생겼어요"
+  },
+  "host": {
+    "addPc": "PC 추가",
+    "ariaForget": "{name} 목록에서 지우기",
+    "ariaRow": "{name} {sub}",
+    "connect": "연결",
+    "deviceActive": "지금 쓰는 중 · 학습을 이 기기에 저장",
+    "deviceDesktop": "이 PC에 저장하고 이 PC의 CLI·API로 답변",
+    "deviceOther": "PC 없이 쓰기 · API 키로 답변",
+    "forgetConfirm": "지우기",
+    "forgetMessage": "PC의 학습 내용은 그대로 남아요. 다시 쓰려면 PC에서 새 페어링 코드를 받아야 해요.",
+    "forgetTitle": "{name}을(를) 목록에서 지울까요?",
+    "myPcs": "내 PC",
+    "thisDevice": "이 기기",
+    "thisPc": "이 PC",
+    "useHere": "{device}에서 쓰기"
+  },
+  "panel": {
+    "exitFull": "전체 화면 끝내기",
+    "fullScreen": "전체 화면"
+  },
+  "pcStatus": {
+    "ariaConnected": "연결된 PC: {host} · {status}",
+    "bannerConnecting": "{host}에 연결하는 중…",
+    "bannerOffline": "{host}와 연결이 끊겼어요 — PC 앱이 켜져 있는지 확인하세요",
+    "bannerUnpaired": "PC와 페어링하면 PC에서 학습 중인 내용을 보고 질문할 수 있어요",
+    "bannerUnsupported": "PC 앱을 최신 버전으로 업데이트해 주세요",
+    "connectSettings": "연결 설정",
+    "connecting": "연결 중",
+    "connectingTo": "{host} 연결 중",
+    "none": "없음",
+    "offline": "연결 끊김",
+    "online": "연결됨",
+    "pair": "페어링",
+    "reconnect": "다시 연결",
+    "title": "연결된 PC · {status}",
+    "unpaired": "페어링 필요",
+    "unsupported": "PC 앱 업데이트 필요"
+  },
+  "profile": {
+    "close": "닫기",
+    "heading": "프로필",
+    "intro": "학습을 어디에 저장하고 누가 답할지 골라요. 이 기기와 PC 사이를 바꾸면 앱이 다시 시작돼요.",
+    "title": "프로필 고르기"
+  },
+  "toast": {
+    "busy": "이 세션은 아직 답변 중이에요. 끝난 뒤 다시 시도하세요.",
+    "conflict": "다른 기기에서 먼저 바뀌었어요. 최신 내용으로 맞췄어요.",
+    "failed": "PC에서 처리하지 못했어요.",
+    "forbidden": "PC 설정에서 원격 삭제를 허용하지 않았어요.",
+    "invalid": "요청을 처리할 수 없어요.",
+    "notFound": "PC에 해당 세션이 없어요. 목록을 새로 받아 왔어요.",
+    "notReady": "PC 앱이 아직 준비 중이에요. 잠시 후 다시 시도하세요.",
+    "offline": "PC와 연결되어 있지 않아 보내지 못했어요.",
+    "outdated": "PC 앱이 이 기능을 아직 몰라요. PC 앱(또는 octobooks serve)을 최신 버전으로 업데이트해 주세요.",
+    "rateLimit": "요청이 너무 잦아요. 잠시 후 다시 시도하세요.",
+    "resumeFailed": "{host}에 다시 연결하지 못했어요. PC 앱이 켜져 있는지 확인하고 [다시 연결]을 눌러 주세요.",
+    "timeout": "PC가 응답하지 않아 취소했어요. 연결을 확인해 주세요."
+  },
+  "top": {
+    "closeMindmap": "마인드맵 닫기",
+    "listCollapse": "세션 목록 접기",
+    "listExpand": "세션 목록 펼치기",
+    "listToggleTitle": "{label} ({shortcut})",
+    "mindmap": "마인드맵",
+    "notes": "이해 노트",
+    "search": "검색",
+    "sessionList": "세션 목록",
+    "sessionSearch": "세션 검색",
+    "settings": "설정",
+    "theme": "테마: {mode}",
+    "themeDark": "다크",
+    "themeLight": "라이트",
+    "themeSystem": "시스템",
+    "vault": "보관함"
+  }
+}

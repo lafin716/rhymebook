@@ -1,3 +1,4 @@
+import { t, intlLocale } from '../i18n';
 import {
   addVaultPageBlock,
   createVaultFolder,
@@ -65,7 +66,7 @@ export function VaultOverlay() {
     actions().setOverlay('none');
   };
   return (
-    <Modal open={open} onClose={() => void close()} label="보관함" size={full ? 'full' : 'tall'} className="md:max-w-5xl">
+    <Modal open={open} onClose={() => void close()} label={t('vault.overlay.label')} size={full ? 'full' : 'tall'} className="md:max-w-5xl">
       {open && <VaultBody dirty={dirty} onClose={() => void close()} />}
     </Modal>
   );
@@ -124,7 +125,7 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
     const parentId = selected ? (isVaultFolder(selected) ? selected.id : selected.parentId) : null;
     const id = newId('v');
     const now = Date.now();
-    put(kind === 'folder' ? createVaultFolder(id, parentId, '새 폴더', now) : createVaultPage(id, parentId, '새 페이지', now));
+    put(kind === 'folder' ? createVaultFolder(id, parentId, t('vault.defaults.newFolder'), now) : createVaultPage(id, parentId, t('vault.defaults.newPage'), now));
     expand(parentId);
     setSelectedId(id);
     setFresh(id);
@@ -134,7 +135,7 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
     if (to === node.parentId) return;
     put(moveVaultNode(node, to, Date.now()));
     expand(to);
-    pushNotice(to ? `'${vaultRef.current[to]?.name ?? '폴더'}' 폴더로 옮겼어요.` : '보관함 맨 위로 옮겼어요.');
+    pushNotice(to ? t('vault.move.toFolder', { name: vaultRef.current[to]?.name ?? t('vault.defaults.folder') }) : t('vault.move.toTop'));
   };
 
   /**
@@ -212,7 +213,7 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
         const parentId = v[to.id]?.parentId ?? null;
         if (parentId !== node.parentId) {
           expand(parentId);
-          pushNotice(parentId ? `'${v[parentId]?.name ?? '폴더'}' 폴더로 옮겼어요.` : '보관함 맨 위로 옮겼어요.');
+          pushNotice(parentId ? t('vault.move.toFolder', { name: v[parentId]?.name ?? t('vault.defaults.folder') }) : t('vault.move.toTop'));
         }
       },
       onCancel: end,
@@ -227,19 +228,19 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
     <>
       <div className={cn('flex h-13 shrink-0 items-center gap-1 border-b border-line px-2 md:px-4', full && 'md:px-5')}>
         {mobile && selected ? (
-          <IconButton label="보관함 목록으로" onClick={() => void select(null)}>
+          <IconButton label={t('vault.overlay.backToList')} onClick={() => void select(null)}>
             <ArrowLeft size={18} />
           </IconButton>
         ) : (
           <span className="w-1 md:hidden" />
         )}
-        <h2 className="min-w-0 flex-1 truncate text-[16px] font-semibold">보관함</h2>
+        <h2 className="min-w-0 flex-1 truncate text-[16px] font-semibold">{t('vault.overlay.label')}</h2>
         {!mobile && (
-          <IconButton label={full ? '창으로 보기' : '전체 화면으로 보기'} title={full ? '창으로 보기' : '전체 화면으로 보기'} onClick={() => useUi.getState().toggleVaultFull()}>
+          <IconButton label={full ? t('vault.overlay.windowed') : t('vault.overlay.fullScreen')} title={full ? t('vault.overlay.windowed') : t('vault.overlay.fullScreen')} onClick={() => useUi.getState().toggleVaultFull()}>
             {full ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
           </IconButton>
         )}
-        <IconButton label="보관함 닫기" onClick={onClose}>
+        <IconButton label={t('vault.overlay.close')} onClick={onClose}>
           <X size={18} />
         </IconButton>
       </div>
@@ -248,10 +249,10 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
           <div data-vault-tree className={cn('flex min-h-0 w-full flex-col md:w-[280px] md:shrink-0 md:border-r md:border-line', full && 'lg:w-[320px]')}>
             <div className="flex shrink-0 gap-1.5 border-b border-line px-3 py-2">
               <Button size="sm" variant="ghost" icon={<FolderPlus size={14} />} onClick={() => void create('folder')}>
-                새 폴더
+                {t('vault.defaults.newFolder')}
               </Button>
               <Button size="sm" variant="ghost" icon={<FilePlus2 size={14} />} onClick={() => void create('page')}>
-                새 페이지
+                {t('vault.defaults.newPage')}
               </Button>
             </div>
             <div
@@ -262,11 +263,11 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
                 drag?.to && 'into' in drag.to && drag.to.into === null && 'shadow-[inset_0_0_0_2px_var(--color-accent)]',
               )}
               role="tree"
-              aria-label="보관함 폴더"
+              aria-label={t('vault.overlay.folderAria')}
             >
               {Object.keys(vault).length === 0 ? (
                 <p className="px-3 py-8 text-center text-[13.5px] leading-relaxed text-muted">
-                  아직 담은 조각이 없어요. 답변 아래 [보관]이나 글을 선택한 뒤 [보관]을 눌러 담아 보세요.
+                  {t('vault.overlay.empty')}
                 </p>
               ) : (
                 <>
@@ -281,7 +282,7 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
                     onToggle={toggle}
                     onDragStart={startDrag}
                   />
-                  {drag && <p className="px-3 pt-3 pb-6 text-center text-[12px] text-muted">줄 사이에 놓으면 그 자리로, 폴더 가운데에 놓으면 폴더 안으로, 빈 곳에 놓으면 맨 위로 옮겨요.</p>}
+                  {drag && <p className="px-3 pt-3 pb-6 text-center text-[12px] text-muted">{t('vault.overlay.dropHint')}</p>}
                 </>
               )}
             </div>
@@ -306,7 +307,7 @@ function VaultBody({ dirty, onClose }: { dirty: { current: boolean }; onClose():
               />
             ) : (
               <div className="grid flex-1 place-items-center px-6 text-center text-[14px] text-muted">
-                왼쪽에서 폴더·조각·페이지를 고르세요. 항목을 끌어 폴더에 놓으면 옮길 수 있고, [새 페이지]로 조각들을 엮어 한 페이지로 만들 수 있어요.
+                {t('vault.overlay.pickHint')}
               </div>
             )}
           </div>
@@ -369,7 +370,7 @@ function TreeRows(props: {
               {folder ? (
                 <button
                   type="button"
-                  aria-label={open ? `${n.name} 접기` : `${n.name} 펼치기`}
+                  aria-label={open ? t('vault.tree.collapse', { name: n.name }) : t('vault.tree.expand', { name: n.name })}
                   onClick={() => onToggle(n.id)}
                   className="grid size-7 shrink-0 place-items-center rounded text-muted hover:text-fg"
                 >
@@ -467,7 +468,7 @@ function Detail({
     const now = Date.now();
     let next: VaultNode = nextName === node.name ? node : renameVaultNode(node, nextName, now);
     if (next.kind === 'item' && next.item.type !== 'image' && text !== next.item.text) {
-      if (!text.trim()) return pushNotice('내용이 비어 있어요.');
+      if (!text.trim()) return pushNotice(t('vault.notice.emptyContent'));
       next = { ...next, item: { ...next.item, text }, updatedAt: now };
     }
     if (next.kind === 'page') {
@@ -476,7 +477,7 @@ function Detail({
     }
     if (next !== node) {
       put(next);
-      if (node.kind === 'page') pushNotice('저장했어요.');
+      if (node.kind === 'page') pushNotice(t('vault.notice.saved'));
     }
     setName(next.name);
     setEditing(false);
@@ -485,9 +486,9 @@ function Detail({
   const remove = async () => {
     const inside = isVaultFolder(node) ? vaultDescendants(vault, node.id).length : 0;
     const ok = await confirm({
-      title: `'${node.name}'을(를) 지울까요?`,
-      message: inside ? `안에 든 ${inside}개도 함께 지워져요.` : '지운 뒤에는 되돌릴 수 없어요.',
-      confirmLabel: '지우기',
+      title: t('vault.delete.title', { name: node.name }),
+      message: inside ? t('vault.delete.withContents', { count: inside }) : t('vault.delete.irreversible'),
+      confirmLabel: t('vault.delete.confirm'),
       tone: 'danger',
     });
     if (!ok) return;
@@ -497,49 +498,49 @@ function Detail({
 
   const addToPage = (page: VaultPage) => {
     setPicker(null);
-    if (page.blocks.length >= VAULT_LIMITS.blocks) return pushNotice('페이지에 더 넣을 수 없어요.');
+    if (page.blocks.length >= VAULT_LIMITS.blocks) return pushNotice(t('vault.notice.pageFull'));
     put(addVaultPageBlock(page, newId('b'), { itemId: node.id }, Date.now()));
-    pushNotice(`'${page.name}'에 넣었어요.`);
+    pushNotice(t('vault.notice.addedToPage', { name: page.name }));
   };
 
   const copy = (item: VaultItem) => {
     const c = item.item;
     if (c.type === 'image') return void saveBase64File(c.attachment.name, c.attachment.data, c.attachment.mime).catch(() => {});
     void navigator.clipboard.writeText(c.text).then(
-      () => pushNotice('복사했어요.'),
-      () => pushNotice('복사하지 못했어요.'),
+      () => pushNotice(t('vault.notice.copied')),
+      () => pushNotice(t('vault.notice.copyFailed')),
     );
   };
 
   const toolbar = editing ? (
     <>
       <Button size="sm" variant="primary" icon={<Save size={14} />} onClick={save}>
-        저장
+        {t('vault.item.save')}
       </Button>
       <Button size="sm" variant="ghost" onClick={() => void cancel()}>
-        취소
+        {t('vault.item.cancel')}
       </Button>
     </>
   ) : (
     <>
       {node.kind === 'item' && (
         <Tool icon={<LayoutTemplate size={14} />} onClick={() => setPicker('page')}>
-          페이지에 넣기
+          {t('vault.item.addToPage')}
         </Tool>
       )}
       <Tool icon={<FolderInput size={14} />} onClick={() => setPicker('folder')}>
-        이동
+        {t('vault.item.move')}
       </Tool>
       {node.kind === 'item' && (
         <Tool icon={node.item.type === 'image' ? <Download size={14} /> : <Copy size={14} />} onClick={() => copy(node)}>
-          {node.item.type === 'image' ? '이미지 저장' : '복사'}
+          {node.item.type === 'image' ? t('vault.item.saveImage') : t('vault.item.copy')}
         </Tool>
       )}
       <Tool icon={<Trash2 size={14} />} danger onClick={() => void remove()}>
-        지우기
+        {t('vault.delete.confirm')}
       </Tool>
       <Tool icon={<Pencil size={14} />} onClick={startEdit}>
-        수정하기
+        {t('vault.item.edit')}
       </Tool>
       {node.kind === 'page' && (
         <Tool
@@ -547,7 +548,7 @@ function Detail({
           disabled={!node.blocks.length}
           onClick={() => void saveTextFile(`${node.name}.md`, pageMarkdown(node, vault), 'text/markdown').catch(() => {})}
         >
-          Markdown 저장
+          {t('vault.item.saveMarkdown')}
         </Tool>
       )}
       {source && hasSource && (
@@ -558,7 +559,7 @@ function Detail({
             onClose();
           }}
         >
-          원래 대화 열기
+          {t('vault.item.openChat')}
         </Tool>
       )}
     </>
@@ -567,14 +568,14 @@ function Detail({
   return (
     <>
       <div className="shrink-0 space-y-1.5 border-b border-line px-3 py-2.5 md:px-4">
-        <div data-vault-toolbar role="toolbar" aria-label="항목 도구" className="scroll-thin -mx-1 flex items-center gap-0.5 overflow-x-auto px-1 md:flex-wrap md:overflow-visible">
+        <div data-vault-toolbar role="toolbar" aria-label={t('vault.item.toolbarAria')} className="scroll-thin -mx-1 flex items-center gap-0.5 overflow-x-auto px-1 md:flex-wrap md:overflow-visible">
           {toolbar}
         </div>
         <div className="flex min-h-10 items-center gap-2 px-1">
           <NodeIcon node={node} size={17} />
           {editing ? (
             <input
-              aria-label="이름"
+              aria-label={t('vault.item.nameAria')}
               data-vault-name
               value={name}
               autoFocus={fresh || node.kind !== 'page'}
@@ -609,7 +610,7 @@ function Detail({
           <div className="space-y-4">
             {editing && editableText ? (
               <textarea
-                aria-label="내용"
+                aria-label={t('vault.item.contentAria')}
                 value={text}
                 rows={Math.min(18, Math.max(5, text.split('\n').length + 1))}
                 maxLength={VAULT_LIMITS.text}
@@ -619,7 +620,7 @@ function Detail({
             ) : (
               <ItemContent item={node.item} playKey={`vault:${node.id}`} />
             )}
-            <p className="text-[12px] text-muted">{new Date(node.createdAt).toLocaleString('ko-KR')}에 담음</p>
+            <p className="text-[12px] text-muted">{t('vault.item.savedOn', { date: new Date(node.createdAt).toLocaleString(intlLocale()) })}</p>
           </div>
         ) : (
           <PageEditor page={node} vault={vault} editing={editing} blocks={blocks} onChange={setBlocks} />
@@ -644,7 +645,7 @@ function Detail({
 function FolderView({ vault, folderId, onSelect }: { vault: Record<ID, VaultNode>; folderId: ID; onSelect(id: ID): void }) {
   const children = vaultChildren(vault, folderId);
   if (!children.length) {
-    return <p className="py-8 text-center text-[14px] text-muted">빈 폴더예요. 왼쪽 목록에서 항목을 끌어다 놓거나 항목의 [이동]으로 옮길 수 있어요.</p>;
+    return <p className="py-8 text-center text-[14px] text-muted">{t('vault.folder.empty')}</p>;
   }
   return (
     <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { ed25519, x25519 } from '@noble/curves/ed25519.js';
 import { hkdf } from '@noble/hashes/hkdf.js';
@@ -38,7 +39,7 @@ export function fromB64u(text: string): Uint8Array {
   let j = 0;
   for (const ch of clean) {
     const v = B64.indexOf(ch);
-    if (v < 0) throw new Error('잘못된 base64url 문자열');
+    if (v < 0) throw new Error(t('errors.secure.badBase64'));
     acc = (acc << 6) | v;
     bits += 6;
     if (bits >= 8) {
@@ -191,10 +192,10 @@ export class SecureChannel {
 
   /** 복호화 실패·순번 오류면 throw */
   open(frame: WireFrame): unknown {
-    if (frame.t !== 'e') throw new Error('암호화되지 않은 프레임');
+    if (frame.t !== 'e') throw new Error(t('errors.secure.notEncrypted'));
     const plain = xchacha20poly1305(this.recvKey, fromB64u(frame.n)).decrypt(fromB64u(frame.c));
     const body = JSON.parse(textDecoder.decode(plain)) as { s: number; m: unknown };
-    if (body.s !== this.recvSeq) throw new Error('프레임 순서 오류');
+    if (body.s !== this.recvSeq) throw new Error(t('errors.secure.frameOrder'));
     this.recvSeq++;
     return body.m;
   }
@@ -235,17 +236,17 @@ export function startClientHandshake(): ClientHandshake {
   return {
     hello: { t: 'hello', v: 1, eph: toB64u(eph.publicKey) },
     finish(challenge, expectedKey) {
-      if (challenge.t !== 'challenge' || challenge.v !== 1) return { ok: false, reason: '지원하지 않는 bridge 버전입니다.' };
+      if (challenge.t !== 'challenge' || challenge.v !== 1) return { ok: false, reason: t('errors.secure.badVersion') };
       if (expectedKey && challenge.key !== expectedKey) {
-        return { ok: false, reason: 'bridge 키가 페어링한 값과 다릅니다. 다른 기기이거나 중간자 공격일 수 있습니다.' };
+        return { ok: false, reason: t('errors.secure.keyMismatch') };
       }
       try {
         const bridgeEph = fromB64u(challenge.eph);
         const transcript = transcriptOf(eph.publicKey, bridgeEph, fromB64u(challenge.key));
-        if (!verifyTranscript(challenge.key, transcript, challenge.sig)) return { ok: false, reason: 'bridge 서명이 올바르지 않습니다.' };
+        if (!verifyTranscript(challenge.key, transcript, challenge.sig)) return { ok: false, reason: t('errors.secure.badSignature') };
         return { ok: true, channel: deriveChannel(eph.secretKey, bridgeEph, transcript, 'client'), transcript, bridgeKey: challenge.key };
       } catch {
-        return { ok: false, reason: 'bridge 응답을 해석할 수 없습니다.' };
+        return { ok: false, reason: t('errors.secure.unparseable') };
       }
     },
   };

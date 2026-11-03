@@ -1,0 +1,28 @@
+{
+  "pdf": {
+    "failed": "Couldn't create the book PDF.",
+    "save": "Save book as PDF",
+    "waitTitle": "You can save after the reply finishes",
+    "saveTitle": "Save this book as a PDF with cover, contents, and page numbers",
+    "label": "Book PDF"
+  },
+  "html": {
+    "chapterLabel": "Chapter {number}",
+    "runningHead": "{label}  {title}",
+    "coverKicker": "A book compiled from learning records",
+    "compiledFrom": "Compiled from octobooks learning records",
+    "toc": "Contents",
+    "editedOn": "Compiled on",
+    "editedAt": "Compiled at",
+    "colophonNote": "This book is AI-written text based on the learner's questions and understanding. Check the facts against the original text."
+  },
+  "export": {
+    "noContent": "There is no book content yet. Save after you finish writing the book.",
+    "noChapters": "Could not find the book body. You need an answer written with chapter headings like \"## Chapter 1. Title\".",
+    "defaultTitle": "Book",
+    "printWindow": "Could not open the print window.",
+    "savedPdf": "Saved the book as a PDF.",
+    "savedFile": "Saved the print-ready book file. Open it in a browser and print › Save as PDF.",
+    "pickSaveInPrint": "Choose 'Save as PDF' in the print window."
+  }
+}

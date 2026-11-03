@@ -33,12 +33,13 @@ import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { pushNotice, syncClient } from '../app/sync';
 import { cn } from '../lib/cn';
+import { t } from '../i18n';
 import { CanvasBoard } from './CanvasBoard';
 import { CanvasPresentation } from './CanvasPresentation';
 import { ImportMenu, ImportPicker, type ImportEntry, type ImportSource } from './CanvasImport';
 import { CanvasSettings } from './CanvasSettings';
 import { confirm } from '../components/ConfirmDialog';
-import { CanvasToolbar, INK_COLORS, type CanvasToolId } from './CanvasToolbar';
+import { CanvasToolbar, INK_HEXES, type CanvasToolId } from './CanvasToolbar';
 import { pictureFromFile, type CanvasPicture } from './canvasImage';
 import { canvasPageAttachment } from './canvasPageImage';
 import { pdfFromFile } from './canvasPdf';
@@ -74,8 +75,13 @@ const PICTURE_MAX = 360;
 const TEXT_CARD = { w: 320, h: 260 };
 /** 같은 자리에 연달아 가져올 때 살짝 어긋나게 */
 const CASCADE = 24;
-const TOO_BIG = '캔버스가 너무 커서 저장하지 못했어요. 이미지를 줄이거나 나눠서 쓰세요.';
-const SAVE_FAIL = '캔버스를 저장하지 못했어요. 잠시 후 다시 시도하세요.';
+function tooBigMessage(): string {
+  return t('canvas.panel.tooBig');
+}
+
+function saveFailMessage(): string {
+  return t('canvas.panel.saveFail');
+}
 
 /** 쪽 나눔 판에서 화면 너비(위아래 방향이면 높이)의 이 비율(최대 SWIPE_MAX px) 넘게 밀면 쪽을 넘긴다 */
 const SWIPE_RATIO = 0.15;
@@ -124,7 +130,7 @@ export function CanvasPanel({ sessionId, variant = 'main', headerActions, handle
   }, [sessionId]);
 
   return (
-    <section className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg', className)} data-panel={variant} data-canvas="" aria-label="캔버스">
+    <section className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg', className)} data-panel={variant} data-canvas="" aria-label={t('canvas.panel.label')}>
       {!panelFull && (
         <SessionHeader
           sessionId={sessionId}
@@ -143,7 +149,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
   const [doc, setDoc] = useState<CanvasDoc>(() => parseCanvas(content));
   const [view, setView] = useState<CanvasView>({ x: 0, y: 0, k: 1 });
   const [tool, setTool] = useState<CanvasToolId>('pen');
-  const [color, setColor] = useState<string>(INK_COLORS[0]?.hex ?? '#1f2937');
+  const [color, setColor] = useState<string>(INK_HEXES[0] ?? '#1f2937');
   const [sizes, setSizes] = useState(loadStrokeSizes);
   const [nib, setNib] = useState(loadPenNib);
   const [favorites, setFavorites] = useState(loadFavoriteInks);
@@ -227,7 +233,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
       refusedRef.current = false;
       return;
     }
-    if (!refusedRef.current) pushNotice(json.length > CANVAS_MAX_CHARS ? TOO_BIG : SAVE_FAIL);
+    if (!refusedRef.current) pushNotice(json.length > CANVAS_MAX_CHARS ? tooBigMessage() : saveFailMessage());
     refusedRef.current = true;
   }, [sessionId]);
 
@@ -330,9 +336,9 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     setSavingPage(true);
     try {
       const attachment = await canvasPageAttachment(doc, rect, page, title);
-      saveToVault({ type: 'image', attachment }, undefined, `${title.trim() || '캔버스'} ${page + 1}쪽`);
+      saveToVault({ type: 'image', attachment }, undefined, t('canvas.panel.pageTitle', { title: title.trim() || t('canvas.panel.defaultTitle'), page: page + 1 }));
     } catch (e) {
-      pushNotice(e instanceof Error ? e.message : '쪽을 보관함에 담지 못했어요.');
+      pushNotice(e instanceof Error ? e.message : t('canvas.panel.pageSaveFail'));
     } finally {
       setSavingPage(false);
     }
@@ -380,9 +386,9 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     setDialog(null);
     if (docRef.current.pdf && next !== 'pdf') {
       const ok = await confirm({
-        title: 'PDF 모드를 끝낼까요?',
-        message: '가져온 PDF 쪽은 캔버스에서 빠지고, 그 위에 쓴 필기와 카드는 남아요.',
-        confirmLabel: '바꾸기',
+        title: t('canvas.panel.pdfEndTitle'),
+        message: t('canvas.panel.pdfEndMessage'),
+        confirmLabel: t('canvas.panel.confirmChange'),
         tone: 'danger',
       });
       if (!ok) return;
@@ -438,39 +444,39 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
     if (!f || pdfBusy.current) return;
     if (docRef.current.pdf) {
       const ok = await confirm({
-        title: 'PDF를 바꿀까요?',
-        message: `지금 PDF(${docRef.current.pdf.name}) 대신 ${f.name} 을(를) 놓아요. 필기와 카드는 그대로 남아요.`,
-        confirmLabel: '바꾸기',
+        title: t('canvas.panel.pdfReplaceTitle'),
+        message: t('canvas.panel.pdfReplaceMessage', { current: docRef.current.pdf.name, next: f.name }),
+        confirmLabel: t('canvas.panel.confirmChange'),
       });
       if (!ok) return;
     }
     pdfBusy.current = true;
-    pushNotice('PDF 불러오는 중…');
+    pushNotice(t('canvas.panel.pdfLoading'));
     try {
       const { pdf: _old, ...others } = docRef.current;
       const used = serializeCanvas(others).length;
       const budget = Math.min(PDF_BUDGET, CANVAS_MAX_CHARS - used - PDF_MARGIN);
-      if (budget <= 0) throw new Error(TOO_BIG);
+      if (budget <= 0) throw new Error(tooBigMessage());
       const { pdf, total, truncated } = await pdfFromFile(f, budget);
       const d = setCanvasPdf(docRef.current, pdf);
-      if (d === docRef.current) throw new Error(`${f.name} 에 쪽이 없어요.`);
+      if (d === docRef.current) throw new Error(t('canvas.panel.pdfNoPages', { name: f.name }));
       show(d);
       setSelectedId(null);
       setPageIdx(0);
       const v = fitFor(boardRef.current, d, 0);
       if (v) glideTo(v);
-      if (truncated) pushNotice(`${total}쪽 중 앞 ${pdf.pages.length}쪽만 가져왔어요.`);
+      if (truncated) pushNotice(t('canvas.panel.pdfTruncated', { total, shown: pdf.pages.length }));
     } catch (err) {
-      pushNotice(err instanceof Error ? err.message : `${f.name} 을(를) 가져오지 못했어요.`);
+      pushNotice(err instanceof Error ? err.message : t('canvas.panel.importFail', { name: f.name }));
     } finally {
       pdfBusy.current = false;
     }
   };
 
   /** 펜·형광펜·지우개로 바꾸면 고른 항목을 놓는다 — 그리는 중에 그림이 잡히지 않게 */
-  const pickTool = (t: CanvasToolId) => {
-    setTool(t);
-    if (t !== 'select') setSelectedId(null);
+  const pickTool = (next: CanvasToolId) => {
+    setTool(next);
+    if (next !== 'select') setSelectedId(null);
   };
 
   // 두 손가락 두 번 톡으로 돌아갈 도구: 마지막에 쓴 선택 아닌 도구, 마지막에 쓴 펜·형광펜
@@ -555,7 +561,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         const p: CanvasPicture = await pictureFromFile(f);
         entries.push({ kind: 'image', ...p, name: f.name });
       } catch (err) {
-        pushNotice(err instanceof Error ? err.message : `${f.name} 을(를) 가져오지 못했어요.`);
+        pushNotice(err instanceof Error ? err.message : t('canvas.panel.importFail', { name: f.name }));
       }
     }
     if (entries.length) addEntries(entries);
@@ -572,9 +578,9 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
+      const target = e.target as HTMLElement | null;
       // 글 입력 중에는 단축키를 가로채지 않는다
-      if (t?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      if (target?.closest?.('input, textarea, [contenteditable="true"]')) return;
       const mod = e.metaKey || e.ctrlKey;
       // 발표 중에는 Escape를 포함한 모든 단축키를 CanvasPresentation에 위임한다
       if (presenting) return;
@@ -633,7 +639,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         onUndo={undo}
         onRedo={redo}
         onFit={fit}
-        fitLabel={pageCount ? '쪽 맞춤' : '전체 보기'}
+        fitLabel={pageCount ? t('canvas.panel.fitPage') : t('canvas.panel.fitAll')}
         onSettings={() => setDialog('settings')}
         onImport={() => setDialog('menu')}
         hasSelection={selectedId !== null}
@@ -687,10 +693,10 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
           >
             <span className="pointer-events-auto flex items-center gap-2 rounded-full border border-line bg-surface py-1 pr-1 pl-3 text-[13px] text-fg shadow-md">
               <Pipette size={16} className="text-accent" aria-hidden />
-              판을 눌러 색을 따오세요
+              {t('canvas.panel.eyedropHint')}
               <button
                 type="button"
-                aria-label="스포이드 그만두기"
+                aria-label={t('canvas.panel.eyedropStop')}
                 onClick={() => setEyeDropping(false)}
                 className="grid size-9 place-items-center rounded-full text-muted hover:bg-surface-2"
               >
@@ -707,10 +713,10 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
         accept="image/png,image/jpeg,image/gif,image/webp"
         multiple
         hidden
-        aria-label="가져올 이미지 파일"
+        aria-label={t('canvas.panel.imageFiles')}
         onChange={(e) => onFiles(e.target.files)}
       />
-      <input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden aria-label="가져올 PDF 파일" onChange={(e) => onPdf(e.target.files)} />
+      <input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden aria-label={t('canvas.panel.pdfFile')} onChange={(e) => onPdf(e.target.files)} />
       {dialog === 'settings' && (
         <CanvasSettings
           layout={layout}
@@ -730,7 +736,7 @@ function CanvasEditor({ sessionId, content }: { sessionId: ID; content: string |
             setGestures(g);
             saveGestures(g);
           }}
-          paletteTotal={INK_COLORS.length + favorites.filter((h) => !INK_COLORS.some((c) => c.hex === h)).length}
+          paletteTotal={INK_HEXES.length + favorites.filter((h) => !INK_HEXES.includes(h)).length}
           onClose={() => setDialog(null)}
         />
       )}
@@ -781,18 +787,18 @@ function PageNav({
   const last = end && canAdd;
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center pb-[env(safe-area-inset-bottom)]">
-      <nav aria-label="쪽 넘김" data-canvas-pages="" className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-line bg-surface/95 px-1 shadow-md">
-        <button type="button" aria-label="이전 쪽" title="이전 쪽" disabled={page === 0} onClick={() => onGo(page - 1)} className={NAV_BTN}>
+      <nav aria-label={t('canvas.pageNav.label')} data-canvas-pages="" className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-line bg-surface/95 px-1 shadow-md">
+        <button type="button" aria-label={t('canvas.pageNav.prev')} title={t('canvas.pageNav.prev')} disabled={page === 0} onClick={() => onGo(page - 1)} className={NAV_BTN}>
           {vertical ? <ChevronUp size={18} /> : <ChevronLeft size={18} />}
         </button>
         <span className="min-w-12 text-center text-[13px] text-fg-2 tabular-nums" aria-live="polite">
           {page + 1} / {count}
         </span>
-        <button type="button" aria-label={last ? '새 쪽' : '다음 쪽'} title={last ? '새 쪽' : '다음 쪽'} disabled={end && !canAdd} onClick={() => onGo(page + 1)} className={NAV_BTN}>
+        <button type="button" aria-label={last ? t('canvas.pageNav.add') : t('canvas.pageNav.next')} title={last ? t('canvas.pageNav.add') : t('canvas.pageNav.next')} disabled={end && !canAdd} onClick={() => onGo(page + 1)} className={NAV_BTN}>
           {last ? <Plus size={18} /> : vertical ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         </button>
         <span aria-hidden className="mx-0.5 h-5 w-px bg-line" />
-        <button type="button" aria-label="이 쪽 보관함에 담기" title="이 쪽 보관함에 담기" disabled={saving} onClick={onSave} className={NAV_BTN}>
+        <button type="button" aria-label={t('canvas.pageNav.save')} title={t('canvas.pageNav.save')} disabled={saving} onClick={onSave} className={NAV_BTN}>
           <Archive size={17} />
         </button>
       </nav>

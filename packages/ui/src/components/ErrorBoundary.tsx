@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { RotateCcw } from 'lucide-react';
 import { Component, Fragment, type ErrorInfo, type ReactNode } from 'react';
 import { cn } from '../lib/cn';
@@ -48,15 +49,15 @@ export class ErrorBoundary extends Component<Props, State> {
           this.props.full ? 'h-dvh' : 'rounded-xl border border-line py-8',
         )}
       >
-        <p className="text-[15px] font-semibold">화면을 그리다 문제가 생겼어요</p>
-        <p className="max-w-xs text-[13px] text-muted">작성한 내용은 저장돼 있어요. 다시 시도해 주세요.</p>
+        <p className="text-[15px] font-semibold">{t('components.error.title')}</p>
+        <p className="max-w-xs text-[13px] text-muted">{t('components.error.body')}</p>
         <button
           type="button"
           onClick={this.props.full ? () => window.location.reload() : this.retry}
           className="mt-2 inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-[14px] font-medium text-accent-fg"
         >
           <RotateCcw size={15} />
-          다시 시도
+          {t('components.error.retry')}
         </button>
       </div>
     );

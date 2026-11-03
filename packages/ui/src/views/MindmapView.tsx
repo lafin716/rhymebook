@@ -20,6 +20,7 @@ import { useBreakpoint } from '../app/useBreakpoint';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
 import { isMac } from '../lib/platform';
+import { t } from '../i18n';
 
 const NODE_W = 220;
 const NODE_H = 84;
@@ -47,7 +48,7 @@ function SessionNode({ data }: NodeProps<MindNode>) {
   const { session, active, depth, vertical, expanded, toggle, openTurn } = data;
   const list = useApp((s) => s.messages[session.id]);
   const turns = useMemo(() => turnsOf(list), [list]);
-  const label = expanded ? '질문 목록 접기' : '질문 목록 펼치기';
+  const label = expanded ? t('views.mindmap.collapseQuestions') : t('views.mindmap.expandQuestions');
   // 페이지는 질문이 없으니 문서 아이콘만 (ADR-072)
   const page = session.kind === 'page' || session.kind === 'canvas';
   const canvas = session.kind === 'canvas';
@@ -63,10 +64,10 @@ function SessionNode({ data }: NodeProps<MindNode>) {
     >
       <Handle type="target" position={vertical ? Position.Top : Position.Left} className="!h-1.5 !w-1.5 !border-0 !bg-line-strong" />
       <div className="flex items-start gap-1.5">
-        {page && (canvas ? <PenLine size={14} aria-label="캔버스" className="mt-0.5 shrink-0 text-muted" /> : <FileText size={14} aria-label="페이지" className="mt-0.5 shrink-0 text-muted" />)}
+        {page && (canvas ? <PenLine size={14} aria-label={t('views.mindmap.canvas')} className="mt-0.5 shrink-0 text-muted" /> : <FileText size={14} aria-label={t('views.mindmap.page')} className="mt-0.5 shrink-0 text-muted" />)}
         <span className="line-clamp-2 flex-1 text-[13.5px] leading-snug font-semibold text-fg">{session.title}</span>
         {session.summary && (
-          <span title="요약 있음" className="mt-0.5 shrink-0 text-anchor-line">
+          <span title={t('views.mindmap.hasSummary')} className="mt-0.5 shrink-0 text-anchor-line">
             <CheckCircle2 size={14} />
           </span>
         )}
@@ -91,36 +92,36 @@ function SessionNode({ data }: NodeProps<MindNode>) {
           <span className="rounded bg-anchor/70 px-1 text-fg-2">“{session.anchor.text}”</span>
         </div>
       ) : (
-        <div className="mt-1 text-[11.5px] text-muted">{session.parentId ? '각주 세션' : canvas ? '캔버스' : page ? '페이지' : '루트 세션'}</div>
+        <div className="mt-1 text-[11.5px] text-muted">{session.parentId ? t('views.mindmap.footnote') : canvas ? t('views.mindmap.canvas') : page ? t('views.mindmap.page') : t('views.mindmap.root')}</div>
       )}
       {expanded && !page && (
         <ul
-          aria-label={`${session.title} 질문 목록`}
+          aria-label={t('views.mindmap.questionListOf', { title: session.title })}
           style={{ maxHeight: TURN_MAX * TURN_H }}
           className="nowheel nodrag scroll-thin mt-2 -mx-1 overflow-y-auto border-t border-line pt-1"
         >
           {turns.length ? (
-            turns.map((t) => (
-              <li key={t.questionId}>
+            turns.map((turn) => (
+              <li key={turn.questionId}>
                 <button
                   type="button"
-                  data-mind-turn={t.questionId}
-                  title={t.question}
+                  data-mind-turn={turn.questionId}
+                  title={turn.question}
                   onClick={(e) => {
                     e.stopPropagation();
-                    openTurn(session.id, t.questionId);
+                    openTurn(session.id, turn.questionId);
                   }}
                   onDoubleClick={(e) => e.stopPropagation()}
                   style={{ height: TURN_H }}
                   className="flex w-full items-center gap-1.5 rounded-md px-1 text-left text-[12px] text-fg-2 hover:bg-surface-2 hover:text-fg"
                 >
-                  <span className="w-4 shrink-0 text-right text-[11px] text-muted tabular-nums">{t.index + 1}</span>
-                  <span className="min-w-0 flex-1 truncate">{t.question || '(빈 질문)'}</span>
+                  <span className="w-4 shrink-0 text-right text-[11px] text-muted tabular-nums">{turn.index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate">{turn.question || t('views.mindmap.emptyQuestion')}</span>
                 </button>
               </li>
             ))
           ) : (
-            <li className="px-1 py-1.5 text-[12px] text-muted">{list ? '아직 질문이 없어요.' : '불러오는 중…'}</li>
+            <li className="px-1 py-1.5 text-[12px] text-muted">{list ? t('views.mindmap.noQuestions') : t('common.loading')}</li>
           )}
         </ul>
       )}
@@ -233,7 +234,7 @@ export function MindmapView() {
         <Controls showInteractive={false} position="bottom-right" />
       </ReactFlow>
       <div className="pointer-events-none absolute top-3 left-3 max-w-[70%] rounded-lg bg-surface/90 px-3 py-2 text-[12px] text-muted shadow-pop">
-        {mobile ? '탭: 시트로 열기 · 두 번 탭: 전체 화면 · ▾: 질문 목록' : `클릭: 팝업 · ${isMac ? '⇧' : 'Shift'}+클릭: 분할에 추가 · 더블클릭: 메인 · ▾: 질문 목록`}
+        {mobile ? t('views.mindmap.hintTouch') : t('views.mindmap.hintMouse', { mod: isMac ? '⇧' : 'Shift' })}
       </div>
     </div>
   );
@@ -242,8 +243,8 @@ export function MindmapView() {
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-bg pt-[env(safe-area-inset-top)]">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3">
-        <span className="flex-1 truncate text-[15px] font-semibold">마인드맵</span>
-        <IconButton label="마인드맵 닫기" onClick={() => actions().closeMindmap()}>
+        <span className="flex-1 truncate text-[15px] font-semibold">{t('views.mindmap.title')}</span>
+        <IconButton label={t('views.mindmap.close')} onClick={() => actions().closeMindmap()}>
           <X size={18} />
         </IconButton>
       </div>

@@ -29,6 +29,7 @@ import { Badge, StatusDot } from '../components/Badge';
 import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
 import { providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
+import { t, tx } from '../i18n';
 import { Segmented, Toggle } from './controls';
 
 /**
@@ -50,17 +51,17 @@ export function CardShell({ id, icon, children }: { id: ProviderId; icon: ReactN
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[14.5px] font-medium">{providerLabel(id)}</span>
-            {isDefault && <Badge tone="accent">기본</Badge>}
+            {isDefault && <Badge tone="accent">{t('settings.card.defaultBadge')}</Badge>}
           </div>
           <div className="flex items-center gap-1.5 text-[12.5px] text-muted">
             <StatusDot tone={statusTone(c)} />
-            <span className="shrink-0 whitespace-nowrap">{c.enabled || c.status !== 'ready' ? STATUS_LABEL[c.status] : '꺼짐'}</span>
+            <span className="shrink-0 whitespace-nowrap">{c.enabled || c.status !== 'ready' ? STATUS_LABEL[c.status] : t('settings.card.off')}</span>
             {c.detail && <span className="min-w-0 truncate">· {c.detail}</span>}
           </div>
         </div>
         <Toggle
           checked={c.enabled}
-          label={`${providerLabel(id)} 사용`}
+          label={t('settings.card.useLabel', { label: providerLabel(id) })}
           onChange={(enabled) => actions().setConnection(id, { enabled })}
         />
       </div>
@@ -69,11 +70,12 @@ export function CardShell({ id, icon, children }: { id: ProviderId; icon: ReactN
   );
 }
 
-/** 데모 모드의 목업 CLI 감지 결과 (실제 감지는 플랫폼 provider의 available()) */
-const CLI_MOCK: Record<'claude-cli' | 'codex-cli', Pick<ConnectionState, 'status' | 'detail'>> = {
-  'claude-cli': { status: 'ready', detail: 'claude 2.1.4 · 로그인됨' },
-  'codex-cli': { status: 'not-logged-in', detail: 'codex 0.48.0' },
-};
+/** 데모 모드의 목업 CLI 감지 결과 (실제 감지는 플랫폼 provider의 available()). 번역은 렌더·실행 때 읽는다 */
+function cliMock(id: 'claude-cli' | 'codex-cli'): Pick<ConnectionState, 'status' | 'detail'> {
+  return id === 'claude-cli'
+    ? { status: 'ready', detail: t('settings.card.mockClaudeDetail') }
+    : { status: 'not-logged-in', detail: 'codex 0.48.0' };
+}
 
 export function CliCard({ id, install, login }: { id: 'claude-cli' | 'codex-cli'; install: string; login: string }) {
   const c = useConn(id);
@@ -82,19 +84,19 @@ export function CliCard({ id, install, login }: { id: 'claude-cli' | 'codex-cli'
       void actions().refreshConnections([id]);
       return;
     }
-    actions().setConnection(id, { status: 'checking', detail: 'PATH에서 찾는 중…' });
-    window.setTimeout(() => actions().setConnection(id, CLI_MOCK[id]), 800);
+    actions().setConnection(id, { status: 'checking', detail: t('settings.card.mockChecking') });
+    window.setTimeout(() => actions().setConnection(id, cliMock(id)), 800);
   };
   return (
     <CardShell id={id} icon={<TerminalSquare size={18} />}>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" icon={<RefreshCw size={14} className={c.status === 'checking' ? 'animate-spin' : ''} />} onClick={detect} disabled={c.status === 'checking'}>
-          다시 감지
+          {t('settings.card.redetect')}
         </Button>
-        {c.status === 'not-installed' && <Hint label="설치" cmd={install} />}
-        {c.status === 'not-logged-in' && <Hint label="로그인" cmd={login} />}
-        {c.status === 'offline' && <span className="text-[12.5px] text-danger">CLI 프로세스에 연결할 수 없어요. 앱을 재시작하거나 bridge를 확인하세요.</span>}
-        {c.status === 'ready' && <span className="text-[12.5px] text-muted">도구 비활성화 · 매 요청 무상태 실행</span>}
+        {c.status === 'not-installed' && <Hint label={t('settings.card.install')} cmd={install} />}
+        {c.status === 'not-logged-in' && <Hint label={t('settings.card.login')} cmd={login} />}
+        {c.status === 'offline' && <span className="text-[12.5px] text-danger">{t('settings.card.cliOffline')}</span>}
+        {c.status === 'ready' && <span className="text-[12.5px] text-muted">{t('settings.card.cliReady')}</span>}
       </div>
       <CliDefaults id={id} model={c.model} effort={c.effort} />
     </CardShell>
@@ -120,9 +122,9 @@ function CliDefaults({ id, model, effort }: { id: 'claude-cli' | 'codex-cli'; mo
   return (
     <div className="mt-3 grid gap-2 border-t border-line pt-3 text-[12.5px] text-muted">
       <label className="flex items-center gap-2">
-        <span className="w-14 shrink-0">기본 모델</span>
+        <span className="w-14 shrink-0">{t('settings.card.defaultModel')}</span>
         <select
-          aria-label={`${label} 기본 모델`}
+          aria-label={t('settings.card.ariaDefaultModel', { label })}
           value={custom ? CUSTOM : (model ?? '')}
           onChange={(e) => {
             const v = e.target.value;
@@ -136,18 +138,18 @@ function CliDefaults({ id, model, effort }: { id: 'claude-cli' | 'codex-cli'; mo
           }}
           className={selectCls}
         >
-          <option value="">CLI 기본</option>
+          <option value="">{t('settings.card.cliDefault')}</option>
           {presets.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label} ({p.id})
             </option>
           ))}
-          <option value={CUSTOM}>직접 입력…</option>
+          <option value={CUSTOM}>{t('settings.card.custom')}</option>
         </select>
       </label>
       {custom && (
         <label className="flex items-center gap-2">
-          <span className="w-14 shrink-0">모델 이름</span>
+          <span className="w-14 shrink-0">{t('settings.card.modelName')}</span>
           <input
             key={model ?? ''}
             defaultValue={isPreset ? '' : (model ?? '')}
@@ -161,7 +163,7 @@ function CliDefaults({ id, model, effort }: { id: 'claude-cli' | 'codex-cli'; mo
               setBad(false);
               setModel(v || undefined);
             }}
-            aria-label={`${label} 모델 이름`}
+            aria-label={t('settings.card.ariaModelName', { label })}
             aria-invalid={bad}
             autoComplete="off"
             spellCheck={false}
@@ -172,16 +174,16 @@ function CliDefaults({ id, model, effort }: { id: 'claude-cli' | 'codex-cli'; mo
           />
         </label>
       )}
-      {bad && <p className="text-[12px] text-danger">영문·숫자·. _ - : / [ ] 만 쓸 수 있어요.</p>}
+      {bad && <p className="text-[12px] text-danger">{t('settings.card.invalidModel')}</p>}
       <label className="flex items-center gap-2">
-        <span className="w-14 shrink-0">노력치</span>
+        <span className="w-14 shrink-0">{t('settings.card.effort')}</span>
         <select
-          aria-label={`${label} 기본 노력치`}
+          aria-label={t('settings.card.ariaEffort', { label })}
           value={effort && efforts.includes(effort) ? effort : ''}
           onChange={(e) => actions().setConnection(id, { effort: e.target.value || undefined })}
           className={selectCls}
         >
-          <option value="">CLI 기본</option>
+          <option value="">{t('settings.card.cliDefault')}</option>
           {efforts.map((x) => (
             <option key={x} value={x}>
               {EFFORT_LABELS[x] ?? x} ({x})
@@ -189,7 +191,7 @@ function CliDefaults({ id, model, effort }: { id: 'claude-cli' | 'codex-cli'; mo
           ))}
         </select>
       </label>
-      <p className="text-[12px]">채팅 입력창 아래에서 대화마다 바꿀 수 있어요.</p>
+      <p className="text-[12px]">{t('settings.card.effortHint')}</p>
     </div>
   );
 }
@@ -197,7 +199,10 @@ function CliDefaults({ id, model, effort }: { id: 'claude-cli' | 'codex-cli'; mo
 function Hint({ label, cmd }: { label: string; cmd: string }) {
   return (
     <span className="text-[12.5px] text-fg-2">
-      {label}: <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px]">{cmd}</code>
+      {tx('settings.card.hintLine', {
+        label,
+        cmd: <code className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[12px]">{cmd}</code>,
+      })}
     </span>
   );
 }
@@ -226,7 +231,7 @@ export function ApiCard({ id, prefix }: { id: 'anthropic-api' | 'openai-api'; pr
     }
     // 키는 SecretStore(웹: 탭 메모리, 데스크톱: OS 보안 저장소)에 둔다. 상태/로그에는 마스킹된 값만 남긴다
     setBusy(true);
-    actions().setConnection(id, { status: 'checking', detail: '키 확인 중…' });
+    actions().setConnection(id, { status: 'checking', detail: t('settings.card.keyChecking') });
     const r = await API_META[id].verify(k, { baseUrl: baseUrls[id] });
     if (!r.ok && r.error.code === 'auth') {
       setNote({ tone: 'danger', text: r.error.message });
@@ -235,7 +240,7 @@ export function ApiCard({ id, prefix }: { id: 'anthropic-api' | 'openai-api'; pr
       secrets.set(secretName.apiKey(id), k);
       actions().setConnection(id, { enabled: true });
       await actions().refreshConnections([id]);
-      if (!r.ok) setNote({ tone: 'warn', text: `키를 저장했지만 확인하지 못했어요: ${r.error.message}` });
+      if (!r.ok) setNote({ tone: 'warn', text: t('settings.card.keyUnverified', { message: r.error.message }) });
       setKey('');
     }
     setBusy(false);
@@ -264,30 +269,30 @@ export function ApiCard({ id, prefix }: { id: 'anthropic-api' | 'openai-api'; pr
           type="password"
           value={key}
           onChange={(e) => setKey(e.target.value)}
-          placeholder={hasKey ? '새 키로 교체' : `${prefix}…`}
-          aria-label={`${providerLabel(id)} 키`}
+          placeholder={hasKey ? t('settings.card.keyReplace') : `${prefix}…`}
+          aria-label={t('settings.card.keyAria', { label: providerLabel(id) })}
           autoComplete="off"
           className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-bg px-3 font-mono text-[13px] outline-none placeholder:font-sans focus:border-accent"
         />
         <Button size="sm" variant="primary" type="submit" disabled={!key.trim() || busy} className="h-9">
-          {busy ? '확인 중' : '저장'}
+          {busy ? t('settings.card.checking') : t('common.save')}
         </Button>
         {hasKey && (
           <Button size="sm" variant="ghost" className="h-9" onClick={remove}>
-            삭제
+            {t('common.delete')}
           </Button>
         )}
       </form>
       {note && <p className={cn('mt-2 text-[12.5px]', note.tone === 'danger' ? 'text-danger' : 'text-warn')}>{note.text}</p>}
       {caps.modelChoice ? (
         <label className="mt-2 flex items-center gap-2 text-[12.5px] text-muted">
-          <span className="shrink-0">모델</span>
+          <span className="shrink-0">{t('settings.card.model')}</span>
           <input
             key={c.model ?? ''}
             defaultValue={c.model ?? ''}
             placeholder={API_META[id].model}
             onBlur={(e) => actions().setConnection(id, { model: e.target.value.trim() || undefined })}
-            aria-label={`${providerLabel(id)} 모델`}
+            aria-label={t('settings.card.ariaModel', { label: providerLabel(id) })}
             autoComplete="off"
             spellCheck={false}
             className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-bg px-2.5 font-mono text-[12.5px] text-fg outline-none placeholder:text-muted focus:border-accent"
@@ -295,20 +300,18 @@ export function ApiCard({ id, prefix }: { id: 'anthropic-api' | 'openai-api'; pr
         </label>
       ) : (
         <p className="mt-2 text-[12.5px] text-muted">
-          모델 <span className="font-mono text-fg-2">{API_META[id].model}</span> (기본값 고정 · 모델은 PC 앱에서 고를 수 있어요)
+          {tx('settings.card.modelFixed', { model: <span className="font-mono text-fg-2">{API_META[id].model}</span> })}
         </p>
       )}
       {secrets.kind === 'os' ? (
         <p className="mt-2 flex items-start gap-1.5 text-[12px] text-muted">
           <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-          키는 이 기기의 OS 보안 저장소에 암호화해 보관합니다.
+          {t('settings.card.keyOsNote')}
         </p>
       ) : (
         <p className="mt-2 flex items-start gap-1.5 text-[12px] text-warn">
           <TriangleAlert size={13} className="mt-0.5 shrink-0" />
-          {desktop || mobile
-            ? '이 기기에서 OS 보안 저장소를 쓸 수 없어 키를 메모리에만 보관합니다. 앱을 다시 열면 지워집니다.'
-            : '웹에서는 키를 이 탭의 메모리에만 보관하고 새로고침하면 지워집니다. 데스크톱·모바일 앱은 OS 보안 저장소에 저장합니다.'}
+          {desktop || mobile ? t('settings.card.keyMemoryNative') : t('settings.card.keyMemoryWeb')}
         </p>
       )}
     </CardShell>
@@ -317,8 +320,8 @@ export function ApiCard({ id, prefix }: { id: 'anthropic-api' | 'openai-api'; pr
 
 function deviceLabel(): string {
   const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
-  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '기기';
-  const app = desktop ? '데스크톱 앱' : mobile ? '앱' : '브라우저';
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : t('settings.card.deviceOther');
+  const app = desktop ? t('settings.card.appDesktop') : mobile ? t('settings.card.appMobile') : t('settings.card.appBrowser');
   return `${os} ${app}`;
 }
 
@@ -356,7 +359,7 @@ export function BridgeCard() {
 
   const onPaired = async (p: RemotePairing | null) => {
     if (!p) {
-      actions().setConnection('remote-bridge', { status: 'ready', enabled: true, detail: 'MacBook-Pro · LAN 직접 연결 · 지연 18ms' });
+      actions().setConnection('remote-bridge', { status: 'ready', enabled: true, detail: t('settings.card.mockBridgeDetail') });
       close();
       return;
     }
@@ -386,20 +389,20 @@ export function BridgeCard() {
           <div className="flex flex-wrap items-center gap-2">
             {c.status !== 'ready' && (
               <Button size="sm" variant="soft" icon={<RefreshCw size={13} />} onClick={() => void actions().refreshConnections(BRIDGE_IDS)}>
-                다시 연결
+                {t('settings.card.reconnect')}
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={() => void unpair()}>
-              연결 해제
+              {t('settings.card.disconnect')}
             </Button>
           </div>
           {pairing && <FingerprintNote pairing={pairing} />}
         </div>
       ) : (
         <div className="space-y-2 text-[12.5px] text-fg-2">
-          <p>다른 PC의 octobooks 앱에서 [원격 페어링 열기]를 켜면 나오는 QR 링크나 주소·코드로 연결해요.</p>
+          <p>{t('settings.card.bridgeIntro')}</p>
           <Button size="sm" variant="soft" icon={<Smartphone size={14} />} onClick={() => setForm(true)}>
-            페어링 시작
+            {t('settings.card.startPairing')}
           </Button>
         </div>
       )}
@@ -410,8 +413,8 @@ export function BridgeCard() {
 export function FingerprintNote({ pairing }: { pairing: RemotePairing }) {
   return (
     <p className="text-muted">
-      PC 지문 <span className="font-mono">{keyFingerprint(pairing.bridgeKey)}</span>
-      {pairing.trust === 'code' && ' · 코드로 연결했어요. PC 화면의 지문과 같은지 확인하세요.'}
+      {tx('settings.card.fingerprint', { fp: <span className="font-mono">{keyFingerprint(pairing.bridgeKey)}</span> })}
+      {pairing.trust === 'code' && t('settings.card.codeTrust')}
     </p>
   );
 }
@@ -442,12 +445,12 @@ export function PairForm({
     let offer: PairingOffer | null;
     if (mode === 'link') {
       offer = parsePairingUri(link);
-      if (!offer) return setNote({ tone: 'danger', text: 'branch://pair 로 시작하는 페어링 링크를 그대로 붙여 넣어 주세요.' });
+      if (!offer) return setNote({ tone: 'danger', text: t('settings.card.linkInvalid') });
     } else {
       const url = normalizeBridgeUrl(addr);
       const token = code.replace(/\s+/g, '');
-      if (!url) return setNote({ tone: 'danger', text: 'PC 주소를 확인해 주세요. 예: 100.64.0.1:7777' });
-      if (!/^\d{6}$/.test(token)) return setNote({ tone: 'danger', text: '6자리 숫자 코드를 입력해 주세요.' });
+      if (!url) return setNote({ tone: 'danger', text: t('settings.card.addrInvalid') });
+      if (!/^\d{6}$/.test(token)) return setNote({ tone: 'danger', text: t('settings.card.codeInvalid') });
       offer = { url, token };
     }
     if (isDemo()) return void (await onPaired(null));
@@ -456,7 +459,7 @@ export function PairForm({
       const p = await pairWithBridge({ offer, deviceName: deviceLabel(), wsFactory: (url) => new WebSocket(url) });
       await onPaired(p);
     } catch (e) {
-      setNote({ tone: 'danger', text: e instanceof RemoteBridgeError ? e.message : '페어링하지 못했어요. PC 앱에서 원격 페어링이 열려 있는지 확인하세요.' });
+      setNote({ tone: 'danger', text: e instanceof RemoteBridgeError ? e.message : t('settings.card.pairFailed') });
     } finally {
       setBusy(false);
     }
@@ -468,10 +471,10 @@ export function PairForm({
     try {
       const text = await mobile?.scanQr?.();
       if (!text) return;
-      if (!parsePairingUri(text)) return setNote({ tone: 'danger', text: 'octobooks 페어링 QR이 아니에요. PC 앱의 [휴대폰·웹 연결] 화면을 스캔해 주세요.' });
+      if (!parsePairingUri(text)) return setNote({ tone: 'danger', text: t('settings.card.scanInvalid') });
       setLink(text);
     } catch {
-      setNote({ tone: 'danger', text: '카메라를 열지 못했어요. 설정에서 카메라 권한을 허용해 주세요.' });
+      setNote({ tone: 'danger', text: t('settings.card.cameraFailed') });
     }
   };
 
@@ -489,8 +492,8 @@ export function PairForm({
       <Segmented
         value={mode}
         options={[
-          ['link', '페어링 링크'],
-          ['code', '주소 + 코드'],
+          ['link', t('settings.card.modeLink')],
+          ['code', t('settings.card.modeCode')],
         ]}
         onChange={(m) => {
           setMode(m);
@@ -499,37 +502,33 @@ export function PairForm({
       />
       {mode === 'link' ? (
         <>
-          <p>
-            {mobile?.scanQr
-              ? '[QR 스캔]으로 PC 화면의 QR을 찍거나, 표시된 링크를 붙여 넣으세요.'
-              : 'PC 화면의 QR을 휴대폰 카메라로 스캔하거나, 표시된 링크를 붙여 넣으세요.'}
-          </p>
+          <p>{mobile?.scanQr ? t('settings.card.linkHintScan') : t('settings.card.linkHint')}</p>
           <div className="flex gap-2">
             <input
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="branch://pair?u=…"
-              aria-label="페어링 링크"
+              aria-label={t('settings.card.ariaLink')}
               autoComplete="off"
               spellCheck={false}
               className={cn(input, 'flex-1')}
             />
             {mobile?.scanQr && (
               <Button size="sm" className="h-9" icon={<ScanLine size={14} />} onClick={() => void scan()} disabled={busy}>
-                QR 스캔
+                {t('settings.card.scanQr')}
               </Button>
             )}
           </div>
         </>
       ) : (
         <>
-          <p>PC 화면에 표시된 주소와 6자리 코드를 입력하세요.</p>
+          <p>{t('settings.card.codeHint')}</p>
           <div className="flex flex-wrap gap-2">
             <input
               value={addr}
               onChange={(e) => setAddr(e.target.value)}
               placeholder="100.64.0.1:7777"
-              aria-label="PC 주소"
+              aria-label={t('settings.card.ariaAddr')}
               autoComplete="off"
               spellCheck={false}
               className={cn(input, 'flex-[2_1_10rem]')}
@@ -538,7 +537,7 @@ export function PairForm({
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="123 456"
-              aria-label="페어링 코드"
+              aria-label={t('settings.card.ariaCode')}
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={7}
@@ -550,19 +549,19 @@ export function PairForm({
       {note && <p className={cn(note.tone === 'danger' ? 'text-danger' : 'text-warn')}>{note.text}</p>}
       <div className="flex gap-2">
         <Button size="sm" variant="primary" type="submit" disabled={busy || (mode === 'link' ? !link.trim() : !addr.trim() || !code.trim())}>
-          {busy ? '연결 중' : '연결'}
+          {busy ? t('settings.card.connecting') : t('settings.card.connect')}
         </Button>
         {onCancel && (
           <Button size="sm" variant="ghost" onClick={onCancel}>
-            취소
+            {t('common.cancel')}
           </Button>
         )}
       </div>
-      <p className="text-muted">1회용 코드는 5분 후 만료돼요. 연결은 기기 키로 서명하고 종단간 암호화합니다.</p>
+      <p className="text-muted">{t('settings.card.oneTimeNote')}</p>
       {secrets.kind !== 'os' && (
         <p className="flex items-start gap-1.5 text-[12px] text-warn">
           <TriangleAlert size={13} className="mt-0.5 shrink-0" />
-          웹에서는 기기 키를 이 탭의 메모리에만 보관해 새로고침하면 다시 페어링해야 합니다.
+          {t('settings.card.webKeyNote')}
         </p>
       )}
     </form>
@@ -571,19 +570,19 @@ export function PairForm({
 
 export function PolicyNote() {
   const items = [
-    '구독 계정은 내가 설치하고 로그인한 공식 CLI를 실행하는 방식으로만 연결합니다.',
-    '앱은 로그인 토큰 파일을 읽거나 복사하지 않고, 클라이언트 헤더를 흉내 내지 않습니다.',
-    '대화 기록과 가지 맥락은 앱이 보관하며, CLI는 요청마다 새로 실행됩니다 (도구 비활성화, 읽기 전용).',
-    '원격 페어링을 열면 페어링한 기기의 요청도 이 PC의 CLI로 실행되고, 에이전트·모델·노력치는 기본으로 이 PC 설정을 따르고, 페어링한 기기가 채팅별로 이 PC의 CLI 중에서 바꿀 수 있습니다.',
+    t('settings.card.policy1'),
+    t('settings.card.policy2'),
+    t('settings.card.policy3'),
+    t('settings.card.policy4'),
   ];
   return (
     <div className="flex gap-2.5 rounded-xl bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-fg-2">
       <ShieldCheck size={17} className="mt-0.5 shrink-0 text-accent" />
       <div>
-        <p className="font-medium text-fg">연결 정책</p>
+        <p className="font-medium text-fg">{t('settings.card.policyTitle')}</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-4">
-          {items.map((t) => (
-            <li key={t}>{t}</li>
+          {items.map((text) => (
+            <li key={text}>{text}</li>
           ))}
         </ul>
       </div>

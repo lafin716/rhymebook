@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { buildTurns, type ID, type Session, type Turn } from '@branch/core';
 import { ChevronDown, ChevronUp, EyeOff, GitBranch, GripHorizontal, ListOrdered, LocateFixed, NotebookPen, Sparkles, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
@@ -324,13 +325,13 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
           if (e.target === e.currentTarget) setSnapping(false);
         }}
         role="toolbar"
-        aria-label="질문 이동"
+        aria-label={t('chat.nav.navigateQuestions')}
         data-nav-dock={mobile ? dock.side : undefined}
       >
         {mobile && (
           <button
             type="button"
-            aria-label="내비게이션 핸들 (끌어서 옮기기, 눌러서 메뉴)"
+            aria-label={t('chat.nav.handle')}
             aria-haspopup="menu"
             aria-expanded={handleMenu}
             data-nav-handle=""
@@ -361,7 +362,7 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
               }}
               className="flex h-10 items-center gap-2 rounded-lg px-3 text-[14px] text-fg hover:bg-surface-2"
             >
-              <EyeOff size={15} className="text-muted" /> 숨기기
+              <EyeOff size={15} className="text-muted" /> {t('chat.nav.hide')}
             </button>
           </div>
         )}
@@ -371,7 +372,7 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
               <IconButton
                 ref={branchToggleRef}
                 size={btnSize}
-                label={`이 페이지의 가지 ${linked}개`}
+                label={t('chat.nav.pageBranches', { count: linked })}
                 active={panel === 'branches'}
                 aria-expanded={panel === 'branches'}
                 onClick={() => setPanel((p) => (p === 'branches' ? null : 'branches'))}
@@ -390,7 +391,7 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
             <IconButton
               ref={toggleRef}
               size={btnSize}
-              label="대화 목차"
+              label={t('chat.nav.toc')}
               active={panel === 'toc'}
               aria-expanded={panel === 'toc'}
               onClick={() => setPanel((p) => (p === 'toc' ? null : 'toc'))}
@@ -398,13 +399,13 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
               <ListOrdered size={16} />
             </IconButton>
             <div className="my-0.5 h-px w-5 bg-line" />
-            <IconButton size={btnSize} label={`이전 질문 (${alt}↑)`} disabled={!canPrev} onClick={goPrev}>
+            <IconButton size={btnSize} label={t('chat.nav.prevQuestion', { alt })} disabled={!canPrev} onClick={goPrev}>
               <ChevronUp size={18} />
             </IconButton>
             <span className="py-0.5 text-[11px] leading-none text-muted tabular-nums" aria-live="polite">
               {position}
             </span>
-            <IconButton size={btnSize} label={`다음 질문 (${alt}↓)`} disabled={!canNext} onClick={goNext}>
+            <IconButton size={btnSize} label={t('chat.nav.nextQuestion', { alt })} disabled={!canNext} onClick={goNext}>
               <ChevronDown size={18} />
             </IconButton>
           </>
@@ -417,7 +418,7 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
         <div
           ref={panelRef}
           role="dialog"
-          aria-label={panel === 'toc' ? '대화 목차' : '가지 목록'}
+          aria-label={panel === 'toc' ? t('chat.nav.toc') : t('chat.nav.branchList')}
           className={cn(
             'animate-pop-in absolute z-20 flex flex-col overflow-hidden rounded-xl border border-line bg-elev shadow-float',
             'inset-x-2 bottom-2 max-h-[72%]',
@@ -428,9 +429,9 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
             <>
               <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-3.5">
                 <ListOrdered size={15} className="text-muted" />
-                <span className="flex-1 text-[14px] font-semibold">대화 목차</span>
-                <span className="text-[12px] text-muted">질문 {turns.length}개</span>
-                <IconButton size="sm" label="목차 닫기" onClick={() => setPanel(null)}>
+                <span className="flex-1 text-[14px] font-semibold">{t('chat.nav.toc')}</span>
+                <span className="text-[12px] text-muted">{t('chat.nav.questionCount', { count: turns.length })}</span>
+                <IconButton size="sm" label={t('chat.nav.closeToc')} onClick={() => setPanel(null)}>
                   <X size={16} />
                 </IconButton>
               </div>
@@ -457,9 +458,9 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
             <>
               <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line pr-1 pl-3.5">
                 <GitBranch size={15} className="text-anchor-line" />
-                <span className="flex-1 text-[14px] font-semibold">이 페이지의 가지</span>
-                <span className="text-[12px] text-muted">{linked}개</span>
-                <IconButton size="sm" label="가지 목록 닫기" onClick={() => setPanel(null)}>
+                <span className="flex-1 text-[14px] font-semibold">{t('chat.nav.pageBranchesTitle')}</span>
+                <span className="text-[12px] text-muted">{t('chat.nav.countOnly', { count: linked })}</span>
+                <IconButton size="sm" label={t('chat.nav.closeBranches')} onClick={() => setPanel(null)}>
                   <X size={16} />
                 </IconButton>
               </div>
@@ -490,7 +491,7 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
                   className={cn('flex min-h-0 flex-col', branches.length > 0 ? 'max-h-[45%] shrink-0 border-t border-line' : 'flex-1')}
                 >
                   <div className="flex h-9 shrink-0 items-center gap-1.5 px-3.5 text-[12.5px] font-semibold text-muted">
-                    <NotebookPen size={13} /> 각주 {notes.length}
+                    <NotebookPen size={13} /> {t('chat.nav.footnotes', { count: notes.length })}
                   </div>
                   <ol className="scroll-thin min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
                     {notes.map((n, i) => (
@@ -508,7 +509,7 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
                             <span className="line-clamp-1 text-[13.5px] leading-snug font-medium text-fg">{n.title}</span>
                             {n.summary && (
                               <span className="mt-0.5 inline-flex items-center gap-0.5 text-[11.5px] text-anchor-line">
-                                <Sparkles size={11} /> 요약됨
+                                <Sparkles size={11} /> {t('chat.nav.summarized')}
                               </span>
                             )}
                           </span>
@@ -526,11 +527,11 @@ export function ChatNav({ sessionId, scrollRef, keyboard = false, rail = true }:
   );
 }
 
-function answerLine(t: Turn): string {
-  if (t.answerStatus === 'streaming') return '응답 생성 중…';
-  if (!t.answerId) return '답변 없음';
-  if (t.answerStatus === 'error') return t.answerPreview || '응답 오류';
-  return t.answerPreview || '(빈 답변)';
+function answerLine(turn: Turn): string {
+  if (turn.answerStatus === 'streaming') return t('chat.nav.answerGenerating');
+  if (!turn.answerId) return t('chat.nav.noAnswer');
+  if (turn.answerStatus === 'error') return turn.answerPreview || t('chat.nav.answerError');
+  return turn.answerPreview || t('chat.nav.emptyAnswer');
 }
 
 function TurnItem({
@@ -557,8 +558,8 @@ function TurnItem({
           type="button"
           onClick={onDelete}
           disabled={deleteDisabled}
-          aria-label={`Q${turn.index + 1} 질문 삭제`}
-          title={deleteDisabled ? '답변이 끝난 뒤 삭제할 수 있어요' : '질문 삭제'}
+          aria-label={t('chat.nav.deleteQuestion', { n: turn.index + 1 })}
+          title={deleteDisabled ? t('chat.nav.deleteAfterAnswer') : t('chat.nav.deleteQuestionTitle')}
           className={cn(
             'my-1.5 mr-1 inline-flex w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-danger-soft hover:text-danger disabled:pointer-events-none disabled:opacity-40',
             'opacity-100 @md:opacity-0 @md:group-hover/t:opacity-100 @md:focus-visible:opacity-100',
@@ -599,7 +600,7 @@ function TurnButton({ turn, active, branches, onClick }: { turn: Turn; active: b
         </span>
       </span>
       {branches > 0 && (
-        <span title={`가지 ${branches}개`} className="mt-0.5 flex h-5 shrink-0 items-center gap-0.5 text-[11.5px] text-anchor-line">
+        <span title={t('chat.nav.branchesCount', { count: branches })} className="mt-0.5 flex h-5 shrink-0 items-center gap-0.5 text-[11.5px] text-anchor-line">
           <GitBranch size={12} />
           {branches}
         </span>
@@ -634,11 +635,11 @@ function BranchItem({
             <mark className="rounded bg-anchor px-0.5 text-fg-2">{quote}</mark>
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-x-2 text-[11.5px] text-muted">
-            {turn !== undefined && <span className="tabular-nums">Q{turn + 1} 답변</span>}
-            {sub > 0 && <span>하위 가지 {sub}</span>}
+            {turn !== undefined && <span className="tabular-nums">{t('chat.nav.turnAnswer', { n: turn + 1 })}</span>}
+            {sub > 0 && <span>{t('chat.nav.subBranches', { count: sub })}</span>}
             {session.summary && (
               <span className="inline-flex items-center gap-0.5 text-anchor-line">
-                <Sparkles size={11} /> 요약됨
+                <Sparkles size={11} /> {t('chat.nav.summarized')}
               </span>
             )}
           </span>
@@ -647,8 +648,8 @@ function BranchItem({
       <button
         type="button"
         onClick={onReveal}
-        aria-label={`"${session.title}" 원문 위치로 이동`}
-        title="본문에서 위치 보기"
+        aria-label={t('chat.nav.gotoSource', { title: session.title })}
+        title={t('chat.nav.viewInBody')}
         className="my-1.5 mr-1 inline-flex w-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface hover:text-fg"
       >
         <LocateFixed size={15} />
@@ -661,7 +662,7 @@ function BranchItem({
 function TurnRail({ turns, active, onJump }: { turns: Turn[]; active: number; onJump: (i: number) => void }) {
   return (
     <nav
-      aria-label="질문 레일"
+      aria-label={t('chat.nav.questionRail')}
       className="absolute top-1/2 right-1 z-10 hidden max-h-[calc(100%-180px)] @3xl:flex -translate-y-1/2 flex-col items-end overflow-hidden py-1"
     >
       {turns.map((t) => {

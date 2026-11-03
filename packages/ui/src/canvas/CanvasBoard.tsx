@@ -24,6 +24,7 @@ import { backgroundStyle } from './canvasBackground';
 import { strokeOpacity, strokePath } from './strokePath';
 import { createTouchGestures, type TouchGesture } from './touchGestures';
 import { clampZoom, toWorld, zoomAt, type CanvasView } from './view';
+import { t } from '../i18n';
 
 /** 지우개 반경 (캔버스 px) */
 const ERASER_RADIUS = 12;
@@ -494,7 +495,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
       data-canvas-board=""
       data-tool={tool}
       role="application"
-      aria-label="캔버스 그림판"
+      aria-label={t('canvas.board.label')}
       data-paged={pages.length ? '' : undefined}
       className={cn('relative min-h-0 flex-1 touch-none select-none overflow-hidden', pages.length && 'bg-[#e6e2d9]', cursor)}
       style={pages.length ? undefined : backgroundStyle(doc.bg, view.k, view.x, view.y)}
@@ -549,7 +550,7 @@ export function CanvasBoard({ doc, view, onView, tool, color, size, nib, selecte
           )}
         </svg>
       </div>
-      {gesture?.kind === 'pinch' && <span className="sr-only">확대·이동 중</span>}
+      {gesture?.kind === 'pinch' && <span className="sr-only">{t('canvas.board.gesturing')}</span>}
     </div>
   );
 }
@@ -560,7 +561,7 @@ const ItemView = memo(function ItemView({ item, selected, movable, k }: { item: 
   const handle = selected && (
     <span
       data-canvas-resize=""
-      aria-label="크기 조절"
+      aria-label={t('canvas.board.resize')}
       className="absolute cursor-nwse-resize rounded-full bg-accent"
       style={{ width: 12 / k, height: 12 / k, right: -6 / k, bottom: -6 / k }}
     />
@@ -568,7 +569,7 @@ const ItemView = memo(function ItemView({ item, selected, movable, k }: { item: 
   const frame = cn('absolute', movable && 'cursor-move', selected && 'outline-2 outline-offset-2 outline-accent outline-solid');
   if (item.type === 'image') {
     return (
-      <div data-canvas-item={item.id} data-selected={selected || undefined} role="img" aria-label={item.name ?? '가져온 이미지'} className={frame} style={box}>
+      <div data-canvas-item={item.id} data-selected={selected || undefined} role="img" aria-label={item.name ?? t('canvas.board.importedImage')} className={frame} style={box}>
         <img src={item.src} alt="" draggable={false} className="pointer-events-none size-full object-contain" />
         {handle}
       </div>

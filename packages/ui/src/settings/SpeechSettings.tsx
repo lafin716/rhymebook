@@ -20,22 +20,27 @@ import { actions } from '../app/store';
 import { useUi } from '../app/uiState';
 import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
+import { t, type MessageKey } from '../i18n';
 import { speak, stopSpeaking, useSpeech } from '../voice/speak';
 import { Field, Section, Segmented } from './controls';
 
 const KEY = secretName.apiKey('openai-api');
 
-const SAMPLES: [SpeechLang, string, string][] = [
-  ['vi', '베트남어', 'Xin chào, rất vui được gặp bạn.'],
-  ['en', '영어', 'Nice to meet you. How have you been?'],
-  ['ko', '한국어', '만나서 반가워요. 잘 지냈어요?'],
+/**
+ * 샘플 문장은 그 언어 목소리를 들려 주는 용도라 언어 이름만 번역하고 문장은 원어 그대로 둔다.
+ * 이름은 렌더 때 t()로 읽는다 (모듈 상수에 번역 문자열을 넣지 않는다).
+ */
+const SAMPLES: [SpeechLang, MessageKey, string][] = [
+  ['vi', 'settings.speech.langVi', 'Xin chào, rất vui được gặp bạn.'],
+  ['en', 'settings.speech.langEn', 'Nice to meet you. How have you been?'],
+  ['ko', 'settings.speech.langKo', '만나서 반가워요. 잘 지냈어요?'],
 ];
 
-const MODEL_LABEL: Record<OpenAITtsModel, string> = {
-  'gpt-4o-mini-tts': 'gpt-4o-mini-tts (기본 · 억양 지시)',
-  'gpt-4o-mini-tts-2025-12-15': 'gpt-4o-mini-tts-2025-12-15 (스냅샷 · 억양 지시)',
-  'tts-1': 'tts-1 (빠름 · 억양 지시 없음)',
-  'tts-1-hd': 'tts-1-hd (고음질 · 억양 지시 없음)',
+const MODEL_LABEL_KEY: Record<OpenAITtsModel, MessageKey> = {
+  'gpt-4o-mini-tts': 'settings.speech.modelMini',
+  'gpt-4o-mini-tts-2025-12-15': 'settings.speech.modelMiniSnapshot',
+  'tts-1': 'settings.speech.modelTts1',
+  'tts-1-hd': 'settings.speech.modelTts1Hd',
 };
 
 const SELECT = 'h-10 w-full rounded-lg border border-line bg-bg px-3 text-[14px] outline-none focus:border-accent';
@@ -48,48 +53,44 @@ export function SpeechSettings() {
   const tts = useUi((s) => s.tts);
   const setTts = useUi((s) => s.setTts);
   return (
-    <Section title="읽어 주기" hint="답변에서 글을 선택하고 [듣기]를 누르면 읽어 줘요. 베트남어·영어·한국어를 알아서 골라요. 이 기기에만 저장돼요.">
+    <Section title={t('settings.speech.title')} hint={t('settings.speech.hint')}>
       <Field
-        label="음성 엔진"
-        hint={
-          tts.engine === 'device'
-            ? '기기에 내장된 음성으로 읽어요. 무료이고 인터넷이 없어도 돼요. 억양은 기기에 설치된 음성을 따라요.'
-            : 'OpenAI 음성으로 읽어요. 키 없음·사용 한도 부족·연결 오류가 나면 기기 음성으로 대신 읽어요.'
-        }
+        label={t('settings.speech.engine')}
+        hint={tts.engine === 'device' ? t('settings.speech.engineDeviceHint') : t('settings.speech.engineOpenaiHint')}
       >
         <Segmented<TtsEngine>
           value={tts.engine}
           options={[
-            ['device', '기기 음성 (기본)'],
-            ['openai', 'OpenAI'],
+            ['device', t('settings.speech.engineDevice')],
+            ['openai', t('settings.speech.engineOpenai')],
           ]}
           onChange={(engine) => setTts({ engine })}
         />
       </Field>
       {tts.engine === 'openai' ? (
         <>
-          <Field label="모델" hint="공통 설정이에요. tts-1 계열은 억양·말투 지시를 받지 않아요.">
+          <Field label={t('settings.speech.model')} hint={t('settings.speech.modelHint')}>
             <select
               value={tts.openaiModel}
               onChange={(e) => {
                 const openaiModel = e.target.value as OpenAITtsModel;
                 setTts({ openaiModel, openaiVoice: fitVoiceToModel(openaiModel, tts.openaiVoice) });
               }}
-              aria-label="OpenAI 음성 모델"
+              aria-label={t('settings.speech.modelAria')}
               className={SELECT}
             >
               {OPENAI_TTS_MODELS.map((m) => (
                 <option key={m} value={m}>
-                  {MODEL_LABEL[m]}
+                  {t(MODEL_LABEL_KEY[m])}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="OpenAI 음성" hint="고른 음성 하나만 써요. 같은 글을 다시 들으면 저장해 둔 소리를 재생해요.">
+          <Field label={t('settings.speech.openaiVoice')} hint={t('settings.speech.openaiVoiceHint')}>
             <select
               value={tts.openaiVoice}
               onChange={(e) => setTts({ openaiVoice: e.target.value as OpenAIVoice })}
-              aria-label="OpenAI 음성"
+              aria-label={t('settings.speech.openaiVoice')}
               className={SELECT}
             >
               {openaiVoicesFor(tts.openaiModel).map((v) => (
@@ -104,9 +105,9 @@ export function SpeechSettings() {
         </>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {SAMPLES.map(([lang, label, text]) => (
+          {SAMPLES.map(([lang, labelKey, text]) => (
             <Button key={lang} size="sm" variant="soft" icon={<Volume2 size={14} />} onClick={() => speak(text, { lang })}>
-              {label} 들어 보기
+              {t('settings.speech.listen', { label: t(labelKey) })}
             </Button>
           ))}
           <StopButton />
@@ -121,7 +122,7 @@ function StopButton() {
   if (!speaking) return null;
   return (
     <Button size="sm" variant="ghost" icon={<Square size={13} />} onClick={stopSpeaking}>
-      멈춤
+      {t('settings.speech.stop')}
     </Button>
   );
 }
@@ -133,11 +134,11 @@ function LangTabs() {
   const [tab, setTab] = useState<SpeechLang>('vi');
   const sample = SAMPLES.find(([l]) => l === tab)!;
   const takes = ttsModelTakesInstructions(tts.openaiModel);
-  const off = takes ? undefined : '지금 모델(tts-1 계열)은 억양 지시를 받지 않아요. 억양을 바꾸려면 gpt-4o-mini-tts를 골라 주세요.';
+  const off = takes ? undefined : t('settings.speech.accentNote');
   return (
     <div className="rounded-lg border border-line">
-      <div role="tablist" aria-label="언어별 설정" className="flex border-b border-line px-1">
-        {SAMPLES.map(([lang, label]) => (
+      <div role="tablist" aria-label={t('settings.speech.langsAria')} className="flex border-b border-line px-1">
+        {SAMPLES.map(([lang, labelKey]) => (
           <button
             key={lang}
             type="button"
@@ -149,39 +150,39 @@ function LangTabs() {
               tab === lang ? 'border-accent font-medium text-fg' : 'border-transparent text-muted hover:text-fg',
             )}
           >
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </div>
       <div role="tabpanel" className="space-y-3 p-3">
         {tab === 'vi' && (
-          <Field label="억양" hint={off ?? '북부는 하노이 표준, 남부는 호찌민(사이공) 억양으로 읽어요.'}>
+          <Field label={t('settings.speech.accent')} hint={off ?? t('settings.speech.viAccentHint')}>
             <Segmented<ViAccent>
               value={tts.viAccent}
               options={[
-                ['north', '북부 (하노이)'],
-                ['south', '남부 (호찌민)'],
+                ['north', t('settings.speech.viNorth')],
+                ['south', t('settings.speech.viSouth')],
               ]}
               onChange={(viAccent) => setTts({ viAccent })}
             />
           </Field>
         )}
         {tab === 'en' && (
-          <Field label="억양" hint={off}>
+          <Field label={t('settings.speech.accent')} hint={off}>
             <Segmented<EnAccent>
               value={tts.enAccent}
               options={[
-                ['us', '미국'],
-                ['uk', '영국'],
+                ['us', t('settings.speech.enUs')],
+                ['uk', t('settings.speech.enUk')],
               ]}
               onChange={(enAccent) => setTts({ enAccent })}
             />
           </Field>
         )}
-        {tab === 'ko' && <p className="text-[12.5px] text-muted">한국어는 표준어로 또박또박 읽어요.</p>}
+        {tab === 'ko' && <p className="text-[12.5px] text-muted">{t('settings.speech.koNote')}</p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="soft" icon={<Volume2 size={14} />} onClick={() => speak(sample[2], { lang: tab })}>
-            {sample[1]} 들어 보기
+            {t('settings.speech.listen', { label: t(sample[1]) })}
           </Button>
           <StopButton />
         </div>
@@ -216,16 +217,16 @@ function OpenAIKeyField() {
   if (saved === undefined) return null;
   return (
     <Field
-      label="OpenAI API 키"
+      label={t('settings.speech.keyLabel')}
       hint={
         saved
-          ? `저장됨 (${maskSecret(saved)})${remoteMode ? '' : ' · 연결 탭의 OpenAI 키와 같아요.'}`
-          : `키가 없으면 기기 음성으로 읽어요.${secrets.kind === 'memory' ? ' 웹에서는 탭을 닫으면 지워져요.' : ''}`
+          ? t(remoteMode ? 'settings.speech.keySavedRemote' : 'settings.speech.keySavedLocal', { key: maskSecret(saved) })
+          : t(secrets.kind === 'memory' ? 'settings.speech.keyMissingWeb' : 'settings.speech.keyMissing')
       }
     >
       {saved ? (
         <Button size="sm" variant="ghost" onClick={() => void remove()}>
-          키 지우기
+          {t('settings.speech.keyRemove')}
         </Button>
       ) : (
         <form
@@ -240,12 +241,12 @@ function OpenAIKeyField() {
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="sk-…"
-            aria-label="OpenAI API 키"
+            aria-label={t('settings.speech.keyLabel')}
             autoComplete="off"
             className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-bg px-3 font-mono text-[13px] outline-none placeholder:font-sans focus:border-accent"
           />
           <Button type="submit" size="sm" variant="soft" disabled={!key.trim()}>
-            저장
+            {t('common.save')}
           </Button>
         </form>
       )}

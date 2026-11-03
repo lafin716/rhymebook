@@ -31,6 +31,7 @@ class AppViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(TextMenuPlugin())
+        bridge?.registerPluginInstance(OctoNotificationsPlugin())
     }
 }
 

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { breadcrumb, effectiveProviderId, excerptAround, type ID, type ProviderId } from '@branch/core';
 import { ChevronDown, ChevronRight, ChevronUp, Compass, CornerLeftUp, ListRestart, Quote, Sparkles } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -56,7 +57,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
 
   const isBranch = !!session.parentId;
   const summaryButton = isBranch && !hasDraft;
-  const summaryLabel = session.summary ? '요약 다시 만들기' : '부모에 요약 붙이기';
+  const summaryLabel = session.summary ? t('chat.session.resummarize') : t('chat.session.summarizeToParent');
   const requestSummary = () => void actions().requestSummary(sessionId);
   const ex =
     session.anchor && anchorMsg
@@ -64,12 +65,14 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
       : null;
   /** 접으면 부모 원문 인용과 요약 버튼 줄을 모두 숨긴다 (기기별 저장). 앵커 없는 하위 세션은 요약 버튼 줄만 */
   const collapsible = isBranch && (!!ex || summaryButton);
-  const foldLabel = ex ? (quoteCollapsed ? '부모 원문 펼치기' : '부모 원문 접기') : quoteCollapsed ? '요약 버튼 펼치기' : '요약 버튼 접기';
+  const foldLabel = ex
+    ? quoteCollapsed ? t('chat.session.expandQuote') : t('chat.session.collapseQuote')
+    : quoteCollapsed ? t('chat.session.expandSummaryButton') : t('chat.session.collapseSummaryButton');
 
   return (
     <header className={cn('shrink-0 border-b border-line bg-surface', compact ? 'px-3 pt-2 pb-2' : 'px-4 pt-3 pb-3 md:px-6')}>
       {isBranch && crumbs.length > 0 && (
-        <nav aria-label="가지 경로" className={cn('mb-1 flex min-w-0 items-center gap-0.5 text-[12px] text-muted', handleClassName)}>
+        <nav aria-label={t('chat.session.pathLabel')} className={cn('mb-1 flex min-w-0 items-center gap-0.5 text-[12px] text-muted', handleClassName)}>
           {crumbs.slice(0, -1).map((c, i) => (
             <span key={`${c.id}-${i}`} className="flex min-w-0 items-center gap-0.5">
               {c.ellipsis ? (
@@ -102,7 +105,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
           </div>
         ) : page ? (
           <h1 className={cn('min-w-0 flex-1 truncate font-semibold text-fg', compact ? 'text-[15px]' : 'text-[17px]')}>
-            <button type="button" title="제목 바꾸기" data-page-title="" onClick={() => setRenaming(true)} className="max-w-full truncate rounded px-0.5 text-left hover:bg-surface-2">
+            <button type="button" title={t('chat.session.renameTitle')} data-page-title="" onClick={() => setRenaming(true)} className="max-w-full truncate rounded px-0.5 text-left hover:bg-surface-2">
               {session.title}
             </button>
           </h1>
@@ -113,7 +116,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
         )}
         {session.summary && (
           <Badge tone="anchor" className="hidden sm:inline-flex">
-            <Sparkles size={11} /> 요약됨
+            <Sparkles size={11} /> {t('chat.session.summarized')}
           </Badge>
         )}
         {summaryButton && collapsible && quoteCollapsed && (
@@ -122,7 +125,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
           </IconButton>
         )}
         {answered && !page && (
-          <IconButton size="sm" label="세션 재정리" data-reorganize="" disabled={streaming} onClick={() => void reorganizeSession(sessionId)}>
+          <IconButton size="sm" label={t('chat.session.reorganize')} data-reorganize="" disabled={streaming} onClick={() => void reorganizeSession(sessionId)}>
             <ListRestart size={14} />
           </IconButton>
         )}
@@ -171,7 +174,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
             onClick={() => revealAnchor(sessionId)}
             className="inline-flex shrink-0 items-center gap-0.5 rounded px-1 text-[12px] font-medium text-accent hover:bg-accent-soft"
           >
-            <CornerLeftUp size={12} /> 원문
+            <CornerLeftUp size={12} /> {t('chat.session.original')}
           </button>
         </div>
       )}
@@ -199,7 +202,7 @@ function NavRestoreButton() {
   const setNavDock = useUi((s) => s.setNavDock);
   if (!mobile || !hidden) return null;
   return (
-    <IconButton size="sm" label="내비게이션 보이기" data-nav-restore="" onClick={() => setNavDock({ hidden: false })}>
+    <IconButton size="sm" label={t('chat.session.showNav')} data-nav-restore="" onClick={() => setNavDock({ hidden: false })}>
       <Compass size={15} />
     </IconButton>
   );
@@ -217,21 +220,21 @@ function ProviderSelect({ sessionId, compact }: { sessionId: ID; compact?: boole
         'relative inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-2 text-[12px] text-fg-2 hover:bg-surface-2',
         compact ? 'h-7' : 'h-8',
       )}
-      title="이 세션의 provider"
+      title={t('chat.session.providerTitle')}
     >
       <StatusDot tone={tone} />
       <span className={cn('max-w-[7.5rem] truncate', compact && 'hidden sm:inline')}>{providerLabel(eff)}</span>
       <select
-        aria-label="세션 provider 선택"
+        aria-label={t('chat.session.providerSelect')}
         value={own ?? ''}
         onChange={(e) => actions().setSessionProvider(sessionId, (e.target.value || undefined) as ProviderId | undefined)}
         className="absolute inset-0 cursor-pointer opacity-0"
       >
-        <option value="">기본값 ({providerLabel(def)})</option>
+        <option value="">{t('chat.session.defaultProvider', { provider: providerLabel(def) })}</option>
         {(own && !PROVIDER_ORDER.includes(own) ? [...PROVIDER_ORDER, own] : PROVIDER_ORDER).map((id) => (
           <option key={id} value={id}>
             {providerLabel(id)} — {STATUS_LABEL[connections[id].status]}
-            {connections[id].enabled ? '' : ' (꺼짐)'}
+            {connections[id].enabled ? '' : t('chat.session.providerOff')}
           </option>
         ))}
       </select>

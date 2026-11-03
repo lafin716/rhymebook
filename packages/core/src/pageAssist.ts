@@ -1,26 +1,33 @@
-import { DEFAULT_PROMPTS, promptText, type PromptOverrides } from './prompts';
+import { defaultPrompt, promptText, type PromptOverrides } from './prompts';
+import { t } from './i18n';
 import type { StreamRequest } from './provider';
 
 /* ── 페이지 AI 도우미 (ADR-076) ── */
 
-export const PAGE_ORGANIZE_SYSTEM = DEFAULT_PROMPTS.pageOrganize;
+/** 노트 정리 지시 (지금 언어) */
+export function pageOrganizeSystem(): string {
+  return defaultPrompt('pageOrganize');
+}
 
-export const PAGE_FILL_SYSTEM = DEFAULT_PROMPTS.pageFill;
+/** 빈자리 채우기 지시 (지금 언어) */
+export function pageFillSystem(): string {
+  return defaultPrompt('pageFill');
+}
 
 const FILL_MARK = '[여기에 채우기]';
 const LIST = /^\s*(?:[-*+]|\d+[.)]) /;
 
 /** 노트 전체를 정리해 달라는 요청 */
 export function buildPageOrganizeRequest(input: { title: string; content: string; request?: string; prompts?: PromptOverrides }): StreamRequest {
-  const parts = [`## 페이지 제목\n${input.title}`, '', '## 노트', input.content];
-  if (input.request?.trim()) parts.push('', '## 추가 요청', input.request.trim());
+  const parts = [`${t('llm.page.titleHeading')}\n${input.title}`, '', t('llm.page.noteHeading'), input.content];
+  if (input.request?.trim()) parts.push('', t('llm.page.extraRequest'), input.request.trim());
   return { system: promptText('pageOrganize', input.prompts), messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'page' };
 }
 
 /** 커서 자리(before|after 사이)에 내용을 채워 달라는 요청 */
 export function buildPageFillRequest(input: { title: string; before: string; after: string; request?: string; prompts?: PromptOverrides }): StreamRequest {
-  const parts = [`## 페이지 제목\n${input.title}`, '', '## 노트', `${input.before}${FILL_MARK}${input.after}`, '', '## 요청'];
-  parts.push(input.request?.trim() || '앞뒤 맥락에 맞는 내용을 채워 줘.');
+  const parts = [`${t('llm.page.titleHeading')}\n${input.title}`, '', t('llm.page.noteHeading'), `${input.before}${FILL_MARK}${input.after}`, '', t('llm.page.requestHeading')];
+  parts.push(input.request?.trim() || t('llm.page.fillDefault'));
   return { system: promptText('pageFill', input.prompts), messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'page' };
 }
 

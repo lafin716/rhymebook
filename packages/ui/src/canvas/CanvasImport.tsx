@@ -16,6 +16,7 @@ import { IconButton } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
 import { pictureFromAttachment } from './canvasImage';
+import { intlLocale, t } from '../i18n';
 
 /** 캔버스로 가져올 수 있는 것 */
 export type ImportSource = 'image' | 'pdf' | 'session' | 'page' | 'vault';
@@ -27,13 +28,15 @@ export type ImportEntry =
 
 const LOAD_TIMEOUT_MS = 20_000;
 
-const OFFLINE = 'PC와 연결되어 있지 않아요. 연결된 뒤 다시 가져오세요.';
+function offlineMessage(): string {
+  return t('canvas.import.offline');
+}
 
 /** 원격 기기: 가져올 대화를 PC에서 받아 올 때까지 기다린다 (notes/study.ts loadTree와 같은 방식) */
 export async function ensureLoaded(id: ID): Promise<void> {
   const c = syncClient;
   if (!c || c.state.getState().loaded[id]) return;
-  if (c.state.getState().status !== 'online') throw new Error(OFFLINE);
+  if (c.state.getState().status !== 'online') throw new Error(offlineMessage());
   c.ensureMessages(id);
   await new Promise<void>((resolve, reject) => {
     let unsub = () => {};
@@ -46,9 +49,9 @@ export async function ensureLoaded(id: ID): Promise<void> {
       if (err) reject(err);
       else resolve();
     };
-    const timer = setTimeout(() => finish(new Error('PC에서 대화를 다 받지 못했어요. 잠시 후 다시 시도하세요.')), LOAD_TIMEOUT_MS);
+    const timer = setTimeout(() => finish(new Error(t('canvas.import.timeout'))), LOAD_TIMEOUT_MS);
     unsub = c.state.subscribe((s) => {
-      if (s.status !== 'online') finish(new Error(OFFLINE));
+      if (s.status !== 'online') finish(new Error(offlineMessage()));
       else if (s.loaded[id]) finish();
     });
     if (c.state.getState().loaded[id]) finish();
@@ -60,7 +63,7 @@ export function ImportDialog({ label, title, onClose, children }: { label: strin
     <Modal open onClose={onClose} label={label} className="md:max-w-md">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line pr-2 pl-4">
         <h3 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h3>
-        <IconButton label="닫기" onClick={onClose}>
+        <IconButton label={t('common.close')} onClick={onClose}>
           <X size={18} />
         </IconButton>
       </div>
@@ -69,20 +72,22 @@ export function ImportDialog({ label, title, onClose, children }: { label: strin
   );
 }
 
-const SOURCES: { source: ImportSource; label: string; hint: string; icon: ReactNode }[] = [
-  { source: 'image', label: '이미지', hint: 'PNG·JPG·GIF·WebP 파일', icon: <ImagePlus size={18} /> },
-  { source: 'pdf', label: 'PDF', hint: '쪽마다 한 장씩 · 캔버스가 PDF 모드로 바뀌어요', icon: <FileType2 size={18} /> },
-  { source: 'session', label: '세션 내용', hint: '대화 한 개를 글 카드로', icon: <MessageSquare size={18} /> },
-  { source: 'page', label: '페이지 내용', hint: '페이지 한 장을 글 카드로', icon: <FileText size={18} /> },
-  { source: 'vault', label: '보관함', hint: '보관한 글이나 그림 고르기', icon: <Archive size={18} /> },
-];
+function sourceOptions(): { source: ImportSource; label: string; hint: string; icon: ReactNode }[] {
+  return [
+    { source: 'image', label: t('canvas.import.sources.image.label'), hint: t('canvas.import.sources.image.hint'), icon: <ImagePlus size={18} /> },
+    { source: 'pdf', label: t('canvas.import.sources.pdf.label'), hint: t('canvas.import.sources.pdf.hint'), icon: <FileType2 size={18} /> },
+    { source: 'session', label: t('canvas.import.sources.session.label'), hint: t('canvas.import.sources.session.hint'), icon: <MessageSquare size={18} /> },
+    { source: 'page', label: t('canvas.import.sources.page.label'), hint: t('canvas.import.sources.page.hint'), icon: <FileText size={18} /> },
+    { source: 'vault', label: t('canvas.import.sources.vault.label'), hint: t('canvas.import.sources.vault.hint'), icon: <Archive size={18} /> },
+  ];
+}
 
 /** 가져오기 종류 고르기 */
 export function ImportMenu({ onPick, onClose }: { onPick(source: ImportSource): void; onClose(): void }) {
   return (
-    <ImportDialog label="가져오기 종류" title="캔버스에 가져오기" onClose={onClose}>
+    <ImportDialog label={t('canvas.import.menu.label')} title={t('canvas.import.menu.title')} onClose={onClose}>
       <ul data-canvas-import-menu className="flex flex-col gap-1">
-        {SOURCES.map((o) => (
+        {sourceOptions().map((o) => (
           <li key={o.source}>
             <button
               type="button"
@@ -126,7 +131,7 @@ export function ImportPicker({ source, onPick, onClose }: { source: Exclude<Impo
         .map((n) => ({
           id: n.id,
           title: n.name,
-          sub: n.item.type === 'image' ? '그림' : '글',
+          sub: n.item.type === 'image' ? t('canvas.import.sub.image') : t('canvas.import.sub.text'),
           load: async (): Promise<ImportEntry> => {
             if (n.item.type === 'image') {
               const p = await pictureFromAttachment(n.item.attachment);
@@ -142,7 +147,7 @@ export function ImportPicker({ source, onPick, onClose }: { source: Exclude<Impo
     return list.map((s) => ({
       id: s.id,
       title: s.title,
-      sub: new Date(s.updatedAt).toLocaleDateString('ko-KR'),
+      sub: new Date(s.updatedAt).toLocaleDateString(intlLocale()),
       load: async (): Promise<ImportEntry> => {
         await ensureLoaded(s.id);
         const msgs = actions().messages[s.id] ?? [];
@@ -161,27 +166,29 @@ export function ImportPicker({ source, onPick, onClose }: { source: Exclude<Impo
     try {
       onPick(await row.load());
     } catch (e) {
-      setError(e instanceof Error ? e.message : '가져오지 못했어요.');
+      setError(e instanceof Error ? e.message : t('canvas.import.failed'));
       setBusy(null);
     }
   };
 
-  const label = source === 'session' ? '세션 내용 가져오기' : source === 'page' ? '페이지 내용 가져오기' : '보관함에서 가져오기';
-  const empty = source === 'page' ? '아직 페이지가 없어요.' : source === 'session' ? '가져올 대화가 없어요.' : '보관한 항목이 없어요.';
+  const label =
+    source === 'session' ? t('canvas.import.picker.session') : source === 'page' ? t('canvas.import.picker.page') : t('canvas.import.picker.vault');
+  const empty =
+    source === 'page' ? t('canvas.import.empty.page') : source === 'session' ? t('canvas.import.empty.session') : t('canvas.import.empty.vault');
 
   return (
     <ImportDialog label={label} title={label} onClose={onClose}>
       <input
-        aria-label="찾기"
+        aria-label={t('canvas.import.search')}
         value={q}
         autoFocus
         onChange={(e) => setQ(e.target.value)}
-        placeholder="이름으로 찾기"
+        placeholder={t('canvas.import.searchPlaceholder')}
         className="mb-1.5 h-10 w-full rounded-lg border border-line bg-bg px-2.5 text-[15px] outline-none focus:border-accent md:h-9 md:text-sm"
       />
       {error && <p role="alert" className="px-2 py-1.5 text-[13px] text-danger">{error}</p>}
       {shown.length === 0 ? (
-        <p className="px-3 py-6 text-center text-[13.5px] text-muted">{q.trim() ? '찾는 항목이 없어요.' : empty}</p>
+        <p className="px-3 py-6 text-center text-[13.5px] text-muted">{q.trim() ? t('canvas.import.noMatch') : empty}</p>
       ) : (
         <ul data-canvas-import-picker>
           {shown.map((r) => (
@@ -195,7 +202,7 @@ export function ImportPicker({ source, onPick, onClose }: { source: Exclude<Impo
                 )}
               >
                 <span className="min-w-0 flex-1 truncate">{r.title}</span>
-                <span className="shrink-0 text-[12px] text-muted">{busy === r.id ? '가져오는 중…' : r.sub}</span>
+                <span className="shrink-0 text-[12px] text-muted">{busy === r.id ? t('canvas.import.busy') : r.sub}</span>
               </button>
             </li>
           ))}

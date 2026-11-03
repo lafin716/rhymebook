@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { providerError, type Availability, type ChatTurn, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
 import { readSse } from '../sse';
 import { resolveBase, verifyGet, type ApiProviderOptions } from './anthropic';
@@ -21,7 +22,7 @@ export function createOpenAIProvider(opts: ApiProviderOptions): LLMProvider {
     async *stream(req: StreamRequest): AsyncIterable<StreamEvent> {
       const key = await opts.getKey();
       if (!key) {
-        yield { type: 'error', error: providerError('auth', 'OpenAI API 키가 설정되지 않았습니다.') };
+        yield { type: 'error', error: providerError('auth', t('errors.openai.noKey')) };
         return;
       }
       const messages = [
@@ -64,7 +65,7 @@ export function createOpenAIProvider(opts: ApiProviderOptions): LLMProvider {
             continue;
           }
           if (data.error) {
-            yield { type: 'error', error: providerError('network', `OpenAI 오류: ${data.error.message ?? ''}`) };
+            yield { type: 'error', error: providerError('network', t('errors.openai.error', { message: data.error.message ?? '' })) };
             return;
           }
           const choice = data.choices?.[0];
@@ -77,7 +78,7 @@ export function createOpenAIProvider(opts: ApiProviderOptions): LLMProvider {
         return;
       }
       if (stopReason) yield { type: 'done', stopReason };
-      else yield { type: 'error', error: providerError('network', '응답 스트림이 완료 전에 끊겼습니다.') };
+      else yield { type: 'error', error: providerError('network', t('errors.streamCut')) };
     },
   };
 }

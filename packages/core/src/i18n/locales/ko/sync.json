@@ -1,0 +1,11 @@
+{
+  "cliElsewhere": "웹·모바일에서는 이 기기에서 CLI를 직접 실행할 수 없습니다. 데스크톱 앱이나 원격 Bridge로 연결하세요.",
+  "noResponse": "PC에서 응답이 없습니다.",
+  "disconnected": "PC와 연결이 끊겼습니다.",
+  "skillListTooLarge": "PC 스킬 목록이 너무 큽니다.",
+  "unsupported": "이 PC는 동기화를 지원하지 않습니다.",
+  "hostRestarted": "PC가 다시 시작했습니다. 다시 시도하세요.",
+  "stopped": "동기화를 멈췄습니다.",
+  "reconnecting": "PC에 다시 연결하는 중입니다.",
+  "notOnline": "PC와 연결되어 있지 않습니다."
+}

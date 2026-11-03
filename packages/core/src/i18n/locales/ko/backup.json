@@ -1,0 +1,23 @@
+{
+  "google": {
+    "loadFailed": "Google 로그인 모듈을 불러오지 못했어요.",
+    "loadFailedNetwork": "Google 로그인 모듈을 불러오지 못했어요. 네트워크를 확인하세요.",
+    "cancelled": "Google 계정 연결이 취소되었어요."
+  },
+  "drive": {
+    "mockLabel": "구글 드라이브(모의)",
+    "mockAccount": "모의 드라이브 (클라이언트 ID 없음)",
+    "defaultAccount": "Google 계정"
+  },
+  "err": {
+    "passphrase": "암호화가 켜져 있어요. 백업 암호를 입력하세요."
+  },
+  "notice": {
+    "autoDone": "자동 백업했어요.",
+    "done": "백업했어요.",
+    "merged": "백업을 합쳤어요. 복원 전 상태는 이 기기에 백업해 두었어요.",
+    "replaced": "백업으로 교체했어요. 복원 전 상태는 이 기기에 백업해 두었어요.",
+    "exported": "백업 파일을 내보냈어요.",
+    "imported": "가져온 백업을 목록에 추가했어요. 복원 방법을 고르세요."
+  }
+}

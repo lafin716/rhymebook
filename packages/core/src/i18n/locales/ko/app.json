@@ -1,0 +1,157 @@
+{
+  "ai": {
+    "noProvider": "쓸 수 있는 AI 연결이 없어요. 설정에서 연결을 확인하세요.",
+    "noResponse": "AI 응답을 받지 못했어요."
+  },
+  "connection": {
+    "status": {
+      "checking": "확인 중…",
+      "noKey": "키 없음",
+      "notInstalled": "미설치",
+      "notLoggedIn": "로그인 필요",
+      "offline": "오프라인",
+      "ready": "연결됨",
+      "unpaired": "페어링 안 됨"
+    }
+  },
+  "palette": {
+    "abyss": {
+      "description": "고요한 심해의 보랏빛",
+      "name": "어비스"
+    },
+    "coral": {
+      "description": "따뜻한 산호초의 분홍빛",
+      "name": "코랄"
+    },
+    "lagoon": {
+      "description": "햇살이 스미는 민트빛 물결",
+      "name": "라군"
+    },
+    "ocean": {
+      "description": "선명한 파란빛의 깊은 바다",
+      "name": "오션"
+    },
+    "pearl": {
+      "description": "조개껍질처럼 차분한 모래빛",
+      "name": "펄"
+    },
+    "vscode": {
+      "description": "코드 편집기처럼 차분한 회색 화면",
+      "name": "VS Code"
+    }
+  },
+  "runtime": {
+    "localOffline": "내장 bridge에 연결할 수 없습니다. 앱을 재시작하세요.",
+    "remoteOffline": "원격 Bridge와 연결이 끊어졌습니다."
+  },
+  "scenarios": {
+    "branch-select": {
+      "hint": "답변의 “가중합”이 선택된 상태. 플로팅 액션에서 가지를 만든다",
+      "label": "선택→가지"
+    },
+    "deep": {
+      "hint": "루트 › Q/K/V › 내적 › 코사인 유사도 (breadcrumb + 앵커 인용)",
+      "label": "3단계 가지"
+    },
+    "empty": {
+      "hint": "새 학습 세션의 빈 화면과 추천 질문",
+      "label": "빈 상태"
+    },
+    "error": {
+      "hint": "응답 도중 스트림이 끊김 → 다시 시도",
+      "label": "에러"
+    },
+    "home": {
+      "hint": "시드 세션 “트랜스포머 어텐션”",
+      "label": "홈"
+    },
+    "mindmap": {
+      "hint": "세션 트리. 클릭=열기, Shift+클릭=분할",
+      "label": "마인드맵"
+    },
+    "offline": {
+      "hint": "Claude CLI 오프라인 → 대체 provider 제안",
+      "label": "Provider 오프라인"
+    },
+    "popup": {
+      "hint": "가지를 플로팅 팝업으로 (모바일은 바텀시트)",
+      "label": "팝업/시트"
+    },
+    "search": {
+      "hint": "⌘K 세션 검색",
+      "label": "검색"
+    },
+    "settings": {
+      "hint": "연결 카드, CLI 상태, API 키, 페어링 QR",
+      "label": "설정"
+    },
+    "split": {
+      "hint": "루트 | Q/K/V | 내적 3패널 (모바일은 탭)",
+      "label": "분할"
+    },
+    "streaming": {
+      "hint": "느린 속도로 응답 생성 중 (중지 버튼)",
+      "label": "스트리밍"
+    },
+    "summary": {
+      "hint": "“스케일링” 가지에서 요약 초안 생성 → 부모에 붙이기",
+      "label": "요약 되돌리기"
+    }
+  },
+  "search": {
+    "close": "닫기",
+    "count": "결과 {count}개",
+    "inputAria": "검색어",
+    "label": "세션 검색",
+    "noMatch": "“{q}”와 일치하는 세션이 없어요",
+    "placeholder": "세션 제목이나 대화 내용으로 검색",
+    "recent": "최근 세션",
+    "resultsAria": "검색 결과"
+  },
+  "sync": {
+    "added": "{n}개 추가",
+    "op": {
+      "annotDelete": "메모를 삭제했어요",
+      "annotSet": "메모를 추가했어요",
+      "branch": "가지를 만들었어요",
+      "delete": "세션을 삭제했어요",
+      "newRoot": "새 학습을 시작했어요",
+      "pageEdit": "페이지·캔버스를 고쳤어요",
+      "pageNew": "새 페이지·캔버스를 만들었어요",
+      "rename": "세션 이름을 바꿨어요",
+      "retry": "다시 답변을 요청했어요",
+      "send": "질문을 보냈어요",
+      "sessionAgent": "답할 에이전트·모델을 바꿨어요",
+      "sessionChild": "하위 세션을 만들었어요",
+      "sessionReorganize": "세션 재정리를 요청했어요",
+      "stop": "응답을 멈췄어요",
+      "studyImport": "학습을 가져왔어요",
+      "subsession": "하위 세션을 만들었어요",
+      "summaryAttach": "요약을 붙였어요",
+      "summaryDiscard": "요약 초안을 버렸어요",
+      "summaryRemove": "요약을 떼어 냈어요",
+      "summaryRequest": "요약을 요청했어요",
+      "turnDelete": "질문을 삭제했어요",
+      "turnMove": "질문을 다른 세션으로 옮겼어요",
+      "turnSplit": "질문을 하위 세션으로 분리했어요",
+      "turnSplitOut": "질문을 별도 세션으로 분리했어요",
+      "vaultDelete": "보관함에서 삭제했어요",
+      "vaultPut": "보관함을 정리했어요"
+    },
+    "remoteDevice": "원격 기기",
+    "skillsSynced": "{host} 스킬을 동기화했어요 ({parts})",
+    "updated": "{n}개 갱신"
+  },
+  "time": {
+    "justNow": "방금"
+  },
+  "window": {
+    "loadingBody": "메인 창에서 세션을 가져오고 있어요.",
+    "loadingTitle": "불러오는 중",
+    "notFoundBody": "삭제되었거나 메인 창에서 사라진 세션이에요. 이 창을 닫아 주세요.",
+    "notFoundTitle": "세션을 찾을 수 없어요",
+    "offlineBody": "octobooks 메인 창이 열려 있는지 확인하세요.",
+    "offlineTitle": "메인 창과 연결이 끊겼어요",
+    "reconnect": "다시 연결"
+  }
+}

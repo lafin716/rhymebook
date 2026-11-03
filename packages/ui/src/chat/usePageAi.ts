@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { StreamRequest } from '@branch/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AiError, pickProvider, runAi } from '../app/ai';
@@ -26,7 +27,7 @@ export function usePageAi() {
     if (ctrl.current) return null;
     const { providerId: pid, pcOnline: online } = latest.current;
     if (pid === 'remote-bridge' && !caps.localCli && !online) {
-      setError('PC와 연결되어 있지 않아요. 먼저 PC에 연결하세요.');
+      setError(t('chat.pageAi.noPc'));
       return null;
     }
     const c = new AbortController();
@@ -36,7 +37,7 @@ export function usePageAi() {
     try {
       return await runAi(pid, req, c.signal, onDelta);
     } catch (e) {
-      if (!(e instanceof AiError && e.aborted)) setError(e instanceof Error && e.message ? e.message : 'AI 응답을 받지 못했어요.');
+      if (!(e instanceof AiError && e.aborted)) setError(e instanceof Error && e.message ? e.message : t('chat.pageAi.failed'));
       return null;
     } finally {
       if (ctrl.current === c) ctrl.current = null;

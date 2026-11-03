@@ -1,0 +1,53 @@
+{
+  "importFail": {
+    "offline": "PC와 연결되어 있지 않아요. 연결된 뒤 다시 가져오세요.",
+    "timeout": "PC가 응답하지 않아요. 잠시 후 다시 시도하세요.",
+    "conflict": "같은 id를 쓰는 다른 학습이 PC에 있어 가져오지 않았어요.",
+    "forbidden": "이미 있는 학습을 덮어쓰려면 PC 설정에서 원격 삭제를 허용해야 해요.",
+    "invalid": "이 파일은 원격으로 보내기에 너무 크거나 형식이 맞지 않아요. PC 앱에서 가져오세요.",
+    "rateLimit": "요청이 너무 잦아요. 잠시 후 다시 시도하세요.",
+    "fallback": "PC에서 가져오지 못했어요."
+  },
+  "study": {
+    "loadTimeout": "PC에서 대화를 다 받지 못했어요. 잠시 후 다시 시도하세요.",
+    "notFound": "학습을 찾지 못했어요.",
+    "exported": "학습 꾸러미(zip)를 저장했어요. 다른 기기의 이해 노트 › [학습 가져오기]로 불러오세요.",
+    "tooBig": "파일이 너무 커요.",
+    "name": "“{title}”",
+    "importedToPc": "{name} 학습을 PC로 가져왔어요.",
+    "partAdded": "추가 {count}",
+    "partUpdated": "갱신 {count}",
+    "partKept": "유지 {count}",
+    "partSkipped": "생성 중이라 건너뜀 {count}",
+    "imported": "{name} 학습을 가져왔어요 — 가지 {parts}.",
+    "importFailPc": "PC에서 가져오지 못했어요.",
+    "bookSessionTitle": "📖 {title}",
+    "digestFileName": "{title} 학습 원문.md",
+    "makeBookPrompt": "이 학습 기록을 책으로 만들어 줘.",
+    "newSessionFail": "새 세션을 만들지 못했어요.",
+    "sendFail": "질문을 보내지 못했어요."
+  },
+  "modal": {
+    "label": "이해 노트",
+    "close": "이해 노트 닫기",
+    "titleWith": "이해 노트 · {title}",
+    "emptyImport": "열린 학습이 없어요. 다른 기기에서 [학습 내보내기]로 저장한 zip을 가져와 이어서 학습할 수 있어요.",
+    "summaryLine": "가지 {cards}개 · 요약 {summarized}개. 가지에서 이해한 내용을 모아 복습하거나 파일로 내보냅니다.",
+    "noBranches": "아직 가지가 없어요. 답변에서 모르는 부분을 선택해 가지를 만들어 보세요.",
+    "noSummary": "요약 없음 — 가지에서 [부모에 요약 붙이기]를 하면 채워집니다.",
+    "makeBookHint": "학습 전체를 목차부터 구조적으로 정리해 책으로 엮어요 (/book 스킬)",
+    "makeBook": "책으로 만들기",
+    "exportStudyHint": "다른 기기에서 이어서 학습할 수 있게 대화 전체를 zip으로 저장해요",
+    "exportStudy": "학습 내보내기",
+    "importStudy": "학습 가져오기",
+    "importFileLabel": "학습 꾸러미 파일 선택",
+    "open": "열기",
+    "saveMarkdown": "Markdown 저장",
+    "markdownSaved": "Markdown 노트를 저장했어요.",
+    "noCardsHint": "요약이 있는 가지만 카드가 됩니다",
+    "ankiCards": "Anki 카드",
+    "ankiSaved": "Anki 카드 {count}장을 저장했어요. Anki › 파일 › 가져오기로 불러오세요.",
+    "copy": "복사",
+    "markdownCopied": "Markdown을 클립보드에 복사했어요."
+  }
+}

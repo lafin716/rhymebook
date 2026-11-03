@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { StoredData } from '../persist';
 import { backupToMarkdown } from './markdown';
 import { applyBackup, createSnapshot, openBackup, serializeBackup, type BackupSnapshot, type RestoreMode } from './snapshot';
@@ -84,9 +85,9 @@ export function createBackupManager(o: BackupManagerOptions) {
   }
 
   async function open(entry: BackupEntry, passphrase?: string): Promise<BackupSnapshot> {
-    const t = targetOf(entry.targetId);
-    if (!t) throw new Error('백업 위치가 연결되어 있지 않아요.');
-    return openBackup(await t.get(entry.id), passphrase);
+    const target = targetOf(entry.targetId);
+    if (!target) throw new Error(t('errors.backup.noTarget'));
+    return openBackup(await target.get(entry.id), passphrase);
   }
 
   /**
@@ -100,7 +101,7 @@ export function createBackupManager(o: BackupManagerOptions) {
   ): Promise<{ data: StoredData; preBackup: BackupEntry | null }> {
     const snapshot = await open(entry, opt.passphrase);
     const pre = await backupNow({ keep: opt.keep + 1, remote: false, ...(opt.preBackupPassphrase ? { passphrase: opt.preBackupPassphrase } : {}) });
-    if (pre.failures.length) throw new Error(`복원 전 자동 백업에 실패해 복원을 멈췄어요: ${pre.failures[0]!.message}`);
+    if (pre.failures.length) throw new Error(t('errors.backup.preBackupFailed', { message: pre.failures[0]!.message }));
     return { data: applyBackup(o.getData(), snapshot.data, mode), preBackup: pre.entries[0] ?? null };
   }
 

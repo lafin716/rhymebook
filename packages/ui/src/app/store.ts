@@ -14,6 +14,7 @@ import { BranchDB, createDexieRepository } from '../persist/db';
 import { hydrate } from '../persist/hydrate';
 import { caps, remoteMode, sanitizeSettings } from './capabilities';
 import { baseUrls, isDemo, platformProviders, secrets } from './runtime';
+import { notifyResponseComplete } from '../notifications/service';
 
 /** IndexedDB 저장소. 데모 모드와 불러오기 실패 시에는 쓰지 않는다 */
 export const db = new BranchDB();
@@ -35,6 +36,10 @@ export const registry = createRuntimeRegistry({
 });
 
 export const appStore = createAppStore({
+  onResponseComplete(event) {
+    notifyResponseComplete(event.sessionId);
+    void import('../schedules/store').then(({ handleScheduleResponse }) => handleScheduleResponse(event)).catch(() => {});
+  },
   registry,
   repo: gatedRepository(persistence, () => persistEnabled && !isDemo()),
   // 웹·모바일은 이 기기에 저장하지 않는다. 데이터는 PC에 있고 SyncClient가 미러링한다 (ADR-026)

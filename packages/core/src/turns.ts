@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { ID, Message, MessageStatus, Session } from './model';
 import { descendantIds } from './tree';
 
@@ -34,7 +35,7 @@ export function buildTurns(messages: readonly Message[]): Turn[] {
   for (const m of messages) {
     if (m.role === 'user') {
       // 첨부만 보낸 질문은 첨부 이름으로 목차에 보인다
-      const question = m.content.trim() || (m.attachments?.length ? `[첨부] ${m.attachments.map((a) => a.name).join(', ')}` : '');
+      const question = m.content.trim() || (m.attachments?.length ? t('core.turns.attachments', { names: m.attachments.map((a) => a.name).join(', ') }) : '');
       turns.push({ index: turns.length, questionId: m.id, question, answerPreview: '' });
       continue;
     }
@@ -91,7 +92,7 @@ export function planTurnSplit(sessions: Record<ID, Session>, messages: readonly 
       return !!at && moved.has(at);
     })
     .map((s) => s.id);
-  const question = q.content.trim() || (q.attachments?.length ? `[첨부] ${q.attachments.map((a) => a.name).join(', ')}` : '분리한 질문');
+  const question = q.content.trim() || (q.attachments?.length ? t('core.turns.attachments', { names: q.attachments.map((a) => a.name).join(', ') }) : t('core.turns.splitQuestion'));
   return { messageIds, childIds, question, createdAt: q.createdAt - 1 };
 }
 

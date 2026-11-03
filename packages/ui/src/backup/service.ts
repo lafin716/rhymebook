@@ -24,6 +24,7 @@ import { appStore, applyPlatformSettings, db, persistence } from '../app/store';
 import { googleClientId, requestDriveToken, revokeDriveToken } from './google';
 import { saveTextFile } from '../lib/download';
 import { dexieBackupTarget } from './targets';
+import { t } from '../i18n';
 
 /**
  * 백업 서비스 (ADR-015). 백업 탭과 자동 백업이 함께 쓴다.
@@ -78,7 +79,7 @@ let drive: BackupTarget | null = null;
 let github: BackupTarget | null = null;
 
 const device = (): BackupTarget => (isDemo() ? demoDevice : dexieBackupTarget(db, 'file'));
-const remotes = () => [drive, github].filter((t): t is BackupTarget => !!t);
+const remotes = () => [drive, github].filter((x): x is BackupTarget => !!x);
 
 const manager = createBackupManager({
   device: lazy(device),
@@ -103,7 +104,7 @@ function lazy(pick: () => BackupTarget): BackupTarget {
 function passphraseOrThrow(): string | undefined {
   const s = get();
   if (!s.encrypt) return undefined;
-  if (!s.passphrase) throw new Error('암호화가 켜져 있어요. 백업 암호를 입력하세요.');
+  if (!s.passphrase) throw new Error(t('backup.err.passphrase'));
   return s.passphrase;
 }
 
@@ -150,7 +151,7 @@ async function runBackup(auto: boolean) {
     const passphrase = passphraseOrThrow();
     const r = await manager.backupNow({ keep: get().keep, ...(passphrase ? { passphrase } : {}) });
     const at = r.entries[0]?.at ?? Date.now();
-    set({ lastBackupAt: at, error: failureText(r), notice: r.entries.length > 1 || !r.failures.length ? (auto ? '자동 백업했어요.' : '백업했어요.') : null });
+    set({ lastBackupAt: at, error: failureText(r), notice: r.entries.length > 1 || !r.failures.length ? (auto ? t('backup.notice.autoDone') : t('backup.notice.done')) : null });
     void savePrefs();
     await refreshList();
   } catch (e) {
@@ -182,7 +183,7 @@ export async function restore(entry: BackupEntry, mode: RestoreMode, passphrase?
     applyPlatformSettings();
     app.setOverlay('settings');
     lastChangeAt = 0;
-    set({ notice: mode === 'merge' ? '백업을 합쳤어요. 복원 전 상태는 이 기기에 백업해 두었어요.' : '백업으로 교체했어요. 복원 전 상태는 이 기기에 백업해 두었어요.' });
+    set({ notice: mode === 'merge' ? t('backup.notice.merged') : t('backup.notice.replaced') });
     await refreshList();
     return true;
   } catch (e) {
@@ -202,7 +203,7 @@ export async function exportFile() {
     const snap = createSnapshot(toStoredData(appStore.getState()));
     const body = await serializeBackup(snap, passphrase);
     await saveTextFile(backupFileName(snap.createdAt, !!passphrase), body, 'application/json');
-    set({ notice: '백업 파일을 내보냈어요.' });
+    set({ notice: t('backup.notice.exported') });
   } catch (e) {
     set({ error: message(e) });
   }
@@ -216,7 +217,7 @@ export async function importFile(file: File): Promise<BackupEntry | null> {
     const header = readBackupHeader(body);
     const entry = await device().put(body, { at: header.createdAt, encrypted: header.encrypted });
     await refreshList();
-    set({ notice: '가져온 백업을 목록에 추가했어요. 복원 방법을 고르세요.' });
+    set({ notice: t('backup.notice.imported') });
     return entry;
   } catch (e) {
     set({ error: message(e) });
@@ -229,9 +230,9 @@ export async function importFile(file: File): Promise<BackupEntry | null> {
 const tokenOf = (id: 'github' | 'gdrive') => () => secrets.get(secretName.backupToken(id));
 
 async function attachGithub(repo: string) {
-  const t = createGithubTarget({ repo, getToken: tokenOf('github') });
-  await t.verify();
-  github = t;
+  const gt = createGithubTarget({ repo, getToken: tokenOf('github') });
+  await gt.verify();
+  github = gt;
   set({ github: repo, githubRepo: repo });
 }
 
@@ -264,14 +265,14 @@ export async function connectDrive() {
   set({ busy: 'connect', error: null, notice: null });
   try {
     if (!googleClientId) {
-      drive = isDemo() ? demoDrive : dexieBackupTarget(db, 'gdrive', '구글 드라이브(모의)');
-      set({ gdrive: '모의 드라이브 (클라이언트 ID 없음)' });
+      drive = isDemo() ? demoDrive : dexieBackupTarget(db, 'gdrive', t('backup.drive.mockLabel'));
+      set({ gdrive: t('backup.drive.mockAccount') });
     } else {
       await secrets.set(secretName.backupToken('gdrive'), await requestDriveToken(googleClientId));
-      const t = createDriveTarget({ getToken: tokenOf('gdrive') });
-      const account = await t.account();
-      drive = t;
-      set({ gdrive: account || 'Google 계정' });
+      const dt = createDriveTarget({ getToken: tokenOf('gdrive') });
+      const account = await dt.account();
+      drive = dt;
+      set({ gdrive: account || t('backup.drive.defaultAccount') });
     }
     await refreshList();
   } catch (e) {

@@ -12,6 +12,7 @@ import {
   type StoredData,
   type ViewState,
   type VaultNode,
+  type Schedule,
 } from '@branch/core';
 import Dexie, { type Table } from 'dexie';
 
@@ -51,6 +52,8 @@ export class BranchDB extends Dexie {
   backups!: Table<BackupRow, string>;
   skills!: Table<Skill, ID>;
   hostSkills!: Table<HostSkillRow, [string, ID]>;
+  schedules!: Table<Schedule, ID>;
+  scheduleSources!: Table<{ id: string }, string>;
 
   constructor(name = 'branch-learn') {
     super(name);
@@ -69,6 +72,8 @@ export class BranchDB extends Dexie {
     this.version(5).stores({ vault: 'id, parentId' });
     // v6 (ADR-064): 웹·모바일 스킬을 PC별로. 옛 기기 전체 목록(skills)은 처음 연결한 PC로 옮긴다
     this.version(6).stores({ hostSkills: '[hostId+id], hostId' });
+    // 예약은 이 기기에만 저장. 삭제한 자동 예약도 재생성하지 않도록 원본 질문을 기록한다.
+    this.version(7).stores({ schedules: 'id, sessionId, nextRunAt, &sourceMessageId', scheduleSources: 'id' });
   }
 }
 

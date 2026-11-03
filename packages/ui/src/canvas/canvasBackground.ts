@@ -1,16 +1,19 @@
 import { CANVAS_PAPER, CANVAS_PATTERN_STEP, type CanvasBackground } from '@branch/core';
 import type { CSSProperties } from 'react';
+import { t } from '../i18n';
 
-/** 바탕색 고르기 기본값 */
-export const BG_COLORS: { label: string; hex: string }[] = [
-  { label: '종이', hex: CANVAS_PAPER },
-  { label: '흰색', hex: '#ffffff' },
-  { label: '크림', hex: '#fdf3d8' },
-  { label: '연두', hex: '#e9f5e1' },
-  { label: '하늘', hex: '#e3f0fb' },
-  { label: '회색', hex: '#eceef1' },
-  { label: '칠판', hex: '#24332b' },
-];
+/** 바탕색 고르기 기본값 (이름은 렌더 시점에 번역한다) */
+export function getBgColors(): { label: string; hex: string }[] {
+  return [
+    { label: t('canvas.bg.paper'), hex: CANVAS_PAPER },
+    { label: t('canvas.bg.white'), hex: '#ffffff' },
+    { label: t('canvas.bg.cream'), hex: '#fdf3d8' },
+    { label: t('canvas.bg.lightGreen'), hex: '#e9f5e1' },
+    { label: t('canvas.bg.sky'), hex: '#e3f0fb' },
+    { label: t('canvas.bg.gray'), hex: '#eceef1' },
+    { label: t('canvas.bg.chalkboard'), hex: '#24332b' },
+  ];
+}
 
 /** 어두운 색인가 (상대 휘도) — 무늬 선을 밝게 그린다 */
 export function isDark(hex: string): boolean {

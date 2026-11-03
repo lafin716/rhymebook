@@ -1,3 +1,4 @@
+import { t, tx } from '../i18n';
 import {
   effectiveProviderId,
   filterSkills,
@@ -242,8 +243,8 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
           send();
         }
       }}
-      placeholder={skill ? `${skill.title}: 주제나 요청을 적어 주세요…` : isBranch ? '이 가지에서 더 물어보기…' : '무엇이든 물어보세요… (/ 스킬)'}
-      aria-label="메시지 입력"
+      placeholder={skill ? t('chat.composer.placeholderSkill', { title: skill.title }) : isBranch ? t('chat.composer.placeholderBranch') : t('chat.composer.placeholder')}
+      aria-label={t('chat.composer.messageInput')}
       className={cn(
         'flex-1 resize-none bg-transparent text-[15px] leading-6 outline-none placeholder:text-muted',
         expanded ? 'scroll-thin min-h-0 w-full px-2 py-2' : 'max-h-[180px] min-h-9 py-1.5',
@@ -253,7 +254,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const sendButton = streaming ? (
     <button
       type="button"
-      aria-label="응답 중지"
+      aria-label={t('chat.composer.stop')}
       onClick={() => actions().stopStream(sessionId)}
       className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-fg text-bg"
     >
@@ -262,7 +263,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   ) : (
     <button
       type="submit"
-      aria-label="보내기"
+      aria-label={t('chat.composer.send')}
       disabled={!canSend}
       className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-fg transition-opacity disabled:opacity-35"
     >
@@ -272,8 +273,8 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
   const expandButton = (
     <button
       type="button"
-      aria-label={expanded ? '입력창 접기' : '자세히 입력하기'}
-      title={expanded ? '입력창 접기 (Esc)' : '자세히 입력하기 — 전체 화면, Ctrl+Enter로 보내기'}
+      aria-label={expanded ? t('chat.composer.collapseInput') : t('chat.composer.expandInput')}
+      title={expanded ? t('chat.composer.collapseTitle') : t('chat.composer.expandTitle')}
       aria-pressed={expanded}
       onClick={() => setExpanded(!expanded)}
       className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg"
@@ -286,7 +287,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
     <div className={cn('relative mx-auto', expanded ? 'flex min-h-0 w-full max-w-4xl flex-1 flex-col' : 'max-w-3xl')}>
       {expanded && (
         <div className="mb-2 flex items-center gap-2 px-1">
-          <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-fg">자세히 입력하기</h2>
+          <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-fg">{t('chat.composer.expandInput')}</h2>
           {expandButton}
         </div>
       )}
@@ -296,16 +297,16 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
         <div role="status" className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-warn/30 bg-warn-soft px-3 py-2 text-[13px] text-warn">
           <WifiOff size={15} className="shrink-0" />
           <span className="min-w-[14rem] flex-1">
-            <b className="font-semibold">{providerLabel(eff)}</b> {conn?.enabled === false ? '꺼짐' : STATUS_LABEL[conn?.status ?? 'offline']} — 지금은 응답을 받을 수 없어요
+            {tx('chat.composer.unreachable', { provider: <b className="font-semibold">{providerLabel(eff)}</b>, status: conn?.enabled === false ? t('chat.composer.disabled') : STATUS_LABEL[conn?.status ?? 'offline'] })}
           </span>
           <span className="ml-auto flex gap-1.5">
             {fallback && (
               <Button size="sm" variant="secondary" onClick={() => actions().setSessionProvider(sessionId, fallback)}>
-                {providerLabel(fallback)}로 전환
+                {t('chat.composer.switchTo', { provider: providerLabel(fallback) })}
               </Button>
             )}
             <Button size="sm" variant="ghost" icon={<Settings2 size={14} />} onClick={() => actions().setOverlay('settings')}>
-              설정
+              {t('chat.composer.settings')}
             </Button>
           </span>
         </div>
@@ -314,10 +315,10 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
       {slashOpen && (
         <div
           role="listbox"
-          aria-label="스킬"
+          aria-label={t('chat.composer.skills')}
           className={cn('animate-pop-in absolute inset-x-0 z-20 overflow-hidden rounded-xl border border-line bg-elev p-1 shadow-float', expanded ? 'top-12' : 'bottom-full mb-1.5')}
         >
-          <div className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">스킬 · ↑↓ 선택 · Enter</div>
+          <div className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">{t('chat.composer.skillHint')}</div>
           {slashItems.map((s, i) => (
             <button
               key={s.id}
@@ -361,11 +362,11 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
                 <code className="text-[11.5px] opacity-75">/{skill.name}</code>
                 {/* 웹·모바일에서 PC CLI가 아닌 설정은 PC가 따르지 않아 보이지 않는다 */}
                 {skill.options && (!answersViaPc || isCliId(skill.options.providerId)) && (
-                  <span className="truncate text-[11.5px] opacity-75" title="이 스킬 전용 설정으로 답해요">
+                  <span className="truncate text-[11.5px] opacity-75" title={t('chat.composer.skillOptions')}>
                     · {[PROVIDER_LABELS[skill.options.providerId], skill.options.model, skill.options.effort].filter(Boolean).join(' · ')}
                   </span>
                 )}
-                <button type="button" aria-label="스킬 빼기" onClick={() => setSkill(null)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
+                <button type="button" aria-label={t('chat.composer.removeSkill')} onClick={() => setSkill(null)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
                   <X size={12} />
                 </button>
               </span>
@@ -373,14 +374,14 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
             {auto && (
               <span
                 data-auto-skill={auto.name}
-                title="요청에 맞는 스킬을 자동으로 써요. 빼면 일반 질문으로 보내요."
+                title={t('chat.composer.autoSkillHint')}
                 className="inline-flex h-7 max-w-full items-center gap-1.5 self-start rounded-full border border-dashed border-accent/50 bg-accent-soft/50 pr-1 pl-2.5 text-[12.5px] text-accent"
               >
                 <WandSparkles size={13} />
-                <span className="shrink-0 opacity-75">자동</span>
+                <span className="shrink-0 opacity-75">{t('chat.composer.auto')}</span>
                 <span className="truncate font-medium">{auto.title}</span>
                 <code className="text-[11.5px] opacity-75">/{auto.name}</code>
-                <button type="button" aria-label="자동 스킬 빼기" onClick={() => setDismissed(auto.id)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
+                <button type="button" aria-label={t('chat.composer.removeAutoSkill')} onClick={() => setDismissed(auto.id)} className="grid size-5 place-items-center rounded-full hover:bg-accent/15">
                   <X size={12} />
                 </button>
               </span>
@@ -394,7 +395,7 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
             <div className="flex items-center gap-1.5 pt-1">
               {plusMenu}
               <span className="min-w-0 flex-1 truncate px-1 text-[12px] text-muted">
-                <span className="max-md:hidden">Enter 줄바꿈 · Ctrl+Enter 보내기</span>
+                <span className="max-md:hidden">{t('chat.composer.newlineHint')}</span>
               </span>
               <MicButton disabled={remoteMode && !pcOnline} onText={appendSpoken} />
               {sendButton}
@@ -450,14 +451,14 @@ export function Composer({ sessionId, compact }: { sessionId: ID; compact?: bool
           className="mx-auto flex w-full max-w-3xl items-center gap-2 rounded-2xl border border-dashed border-line px-3 py-2.5 text-left text-[13px] text-muted hover:border-line-strong"
         >
           <Maximize2 size={14} className="shrink-0" />
-          <span className="truncate">{text.trim() ? text.trim().split('\n')[0] : '자세히 입력하는 중…'}</span>
+          <span className="truncate">{text.trim() ? text.trim().split('\n')[0] : t('chat.composer.expandingHint')}</span>
         </button>
       </div>
       {createPortal(
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="자세히 입력하기"
+          aria-label={t('chat.composer.expandInput')}
           className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-bg px-3 pt-[max(env(safe-area-inset-top),0.75rem)] pb-[max(env(safe-area-inset-bottom),0.75rem)] md:px-8 md:py-6"
         >
           {body}
@@ -514,8 +515,8 @@ function PlusMenu({
     <div ref={box} className="relative shrink-0">
       <button
         type="button"
-        aria-label="첨부·스킬"
-        title="사진·파일 첨부, 스킬"
+        aria-label={t('chat.composer.attachMenu')}
+        title={t('chat.composer.attachMenuTitle')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
@@ -527,17 +528,17 @@ function PlusMenu({
         <Plus size={19} className={cn('transition-transform', open && 'rotate-45')} />
       </button>
       {open && (
-        <div role="menu" aria-label="첨부·스킬" className="animate-pop-in absolute bottom-full left-0 z-30 mb-2 w-64 rounded-xl border border-line bg-elev p-1 shadow-float">
+        <div role="menu" aria-label={t('chat.composer.attachMenu')} className="animate-pop-in absolute bottom-full left-0 z-30 mb-2 w-64 rounded-xl border border-line bg-elev p-1 shadow-float">
           <MenuItem className={item} icon={<ImagePlus size={16} className="text-muted" />} onClick={run(onPhoto)}>
-            사진 첨부
+            {t('chat.composer.photo')}
           </MenuItem>
           <MenuItem className={item} icon={<Paperclip size={16} className="text-muted" />} onClick={run(onFile)}>
-            파일 첨부
+            {t('chat.composer.file')}
           </MenuItem>
           <div className="my-1 h-px bg-line" />
-          <div className="px-2.5 pt-1 pb-1 text-[11.5px] font-medium text-muted">스킬</div>
+          <div className="px-2.5 pt-1 pb-1 text-[11.5px] font-medium text-muted">{t('chat.composer.skills')}</div>
           <div className="scroll-thin max-h-56 overflow-y-auto">
-            {skills.length === 0 && <div className="px-2.5 py-1.5 text-[12.5px] text-muted">스킬이 없어요</div>}
+            {skills.length === 0 && <div className="px-2.5 py-1.5 text-[12.5px] text-muted">{t('chat.composer.noSkills')}</div>}
             {skills.map((s) => (
               <MenuItem key={s.id} className={item} icon={<Sparkles size={16} className="text-accent" />} onClick={run(() => onSkill(s))}>
                 <span className="min-w-0 flex-1">
@@ -548,10 +549,10 @@ function PlusMenu({
             ))}
           </div>
           <MenuItem className={item} icon={<WandSparkles size={16} className="text-accent" />} onClick={run(openSkillsWithAI)}>
-            AI로 스킬 만들기…
+            {t('chat.composer.createSkillWithAi')}
           </MenuItem>
           <MenuItem className={item} icon={<Settings2 size={16} className="text-muted" />} onClick={run(() => actions().setOverlay('skills'))}>
-            스킬 관리…
+            {t('chat.composer.manageSkills')}
           </MenuItem>
         </div>
       )}

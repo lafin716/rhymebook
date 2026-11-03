@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { CLI_MODEL_PRESETS, EFFORT_LABELS, effortsFor, modelLabel, PROVIDER_LABELS, type CliId, type ID } from '@branch/core';
 import { ChevronDown, Cpu, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -22,7 +23,7 @@ export function RemoteAgentPicker({ sessionId, compact }: { sessionId: ID; compa
 
   const agent = own === 'claude-cli' || own === 'codex-cli' ? own : undefined;
   const mine = agent && pref?.providerId === agent ? pref : undefined;
-  const text = agent ? [SHORT[agent], mine?.model && modelLabel(agent, mine.model)].filter(Boolean).join(' · ') : 'PC 기본';
+  const text = agent ? [SHORT[agent], mine?.model && modelLabel(agent, mine.model)].filter(Boolean).join(' · ') : t('chat.remote.pcDefault');
 
   useEffect(() => {
     if (!box) return;
@@ -58,10 +59,10 @@ export function RemoteAgentPicker({ sessionId, compact }: { sessionId: ID; compa
       <button
         ref={btn}
         type="button"
-        aria-label={`답할 에이전트·모델: ${text}`}
+        aria-label={t('chat.remote.replyAria', { text })}
         aria-expanded={!!box}
         aria-haspopup="dialog"
-        title="이 채팅을 답할 PC의 에이전트·모델·노력치"
+        title={t('chat.remote.titleAttr')}
         onClick={() => setBox((b) => (b ? null : btn.current!.getBoundingClientRect()))}
         className={cn(
           'inline-flex max-w-[9.5rem] shrink-0 items-center gap-1 rounded-lg border px-2 text-[12px] transition-colors',
@@ -78,7 +79,7 @@ export function RemoteAgentPicker({ sessionId, compact }: { sessionId: ID; compa
           <div
             ref={panel}
             role="dialog"
-            aria-label="답할 에이전트·모델"
+            aria-label={t('chat.remote.replyDialog')}
             style={{
               top: box.bottom + 6,
               left: Math.max(8, Math.min(window.innerWidth - width - 8, box.right - width)),
@@ -87,19 +88,19 @@ export function RemoteAgentPicker({ sessionId, compact }: { sessionId: ID; compa
             className="animate-pop-in fixed z-[80] space-y-3 rounded-xl border border-line bg-elev p-3 shadow-float"
           >
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-[13.5px] font-semibold">이 채팅을 답할 PC 에이전트</span>
-              <IconButton size="sm" label="닫기" onClick={() => setBox(null)}>
+              <span className="flex-1 text-[13.5px] font-semibold">{t('chat.remote.panelTitle')}</span>
+              <IconButton size="sm" label={t('chat.remote.close')} onClick={() => setBox(null)}>
                 <X size={15} />
               </IconButton>
             </div>
-            <Row label="에이전트">
+            <Row label={t('chat.remote.agent')}>
               <select
-                aria-label="에이전트"
+                aria-label={t('chat.remote.agent')}
                 value={agent ?? ''}
                 onChange={(e) => actions().setSessionProvider(sessionId, (e.target.value || undefined) as CliId | undefined)}
                 className={SELECT}
               >
-                <option value="">PC 기본 (PC 설정)</option>
+                <option value="">{t('chat.remote.pcDefaultSetting')}</option>
                 {AGENTS.map((id) => (
                   <option key={id} value={id}>
                     {PROVIDER_LABELS[id]}
@@ -107,15 +108,15 @@ export function RemoteAgentPicker({ sessionId, compact }: { sessionId: ID; compa
                 ))}
               </select>
             </Row>
-            <Row label="모델">
+            <Row label={t('chat.remote.model')}>
               <select
-                aria-label="모델"
+                aria-label={t('chat.remote.model')}
                 disabled={!agent}
                 value={mine?.model ?? ''}
                 onChange={(e) => actions().setSessionModel(sessionId, { model: e.target.value || undefined })}
                 className={SELECT}
               >
-                <option value="">PC 기본 모델</option>
+                <option value="">{t('chat.remote.pcDefaultModel')}</option>
                 {presets.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.label}
@@ -124,15 +125,15 @@ export function RemoteAgentPicker({ sessionId, compact }: { sessionId: ID; compa
                 {extraModel && <option value={extraModel}>{extraModel}</option>}
               </select>
             </Row>
-            <Row label="노력치">
+            <Row label={t('chat.remote.effort')}>
               <select
-                aria-label="노력치"
+                aria-label={t('chat.remote.effort')}
                 disabled={!agent}
                 value={mine?.effort ?? ''}
                 onChange={(e) => actions().setSessionModel(sessionId, { effort: e.target.value || undefined })}
                 className={SELECT}
               >
-                <option value="">PC 기본 노력치</option>
+                <option value="">{t('chat.remote.pcDefaultEffort')}</option>
                 {efforts.map((x) => (
                   <option key={x} value={x}>
                     {EFFORT_LABELS[x] ?? x}
@@ -142,8 +143,8 @@ export function RemoteAgentPicker({ sessionId, compact }: { sessionId: ID; compa
             </Row>
             <p className="text-[12px] leading-snug text-muted">
               {agent
-                ? 'PC에 설치·로그인된 CLI로 답해요. 비워 두면 PC 설정의 기본값을 써요.'
-                : '에이전트를 고르면 모델·노력치도 바꿀 수 있어요. PC 기본은 PC 설정을 따라요.'}
+                ? t('chat.remote.cliHint')
+                : t('chat.remote.pickAgentHint')}
             </p>
           </div>,
           document.body,

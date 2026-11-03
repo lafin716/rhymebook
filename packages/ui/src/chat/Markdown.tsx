@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { pageLinkId, type ID, type SegmentMap, type Annotation } from '@branch/core';
 import 'katex/dist/katex.min.css';
 import { FileText } from 'lucide-react';
@@ -10,7 +11,8 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { rehypeAnchors, rehypeMathSource, type AnchorMark } from './anchorPlugin';
 import { rehypeSvgPreview, svgRanges } from './svgPlugin';
-import { QuizBlock, QuizContext, quizSource } from './QuizCard';
+import { codeSource, QuizBlock, QuizContext, quizSource } from './QuizCard';
+import { ScheduleCard } from '../schedules/ScheduleCard';
 import { SpeakBlock, speakSource } from './SpeakCard';
 import { SvgPreview } from './SvgPreview';
 import { branchesSource, chapterHeading, ChapterListItem } from './BranchSuggest';
@@ -29,6 +31,8 @@ export interface MarkdownProps {
 const remarkPlugins: Options['remarkPlugins'] = [remarkGfm, remarkCjkFriendly, remarkMath];
 /** ```quiz 블록은 퀴즈 카드, ```speak 블록은 읽기 카드, ```branches 블록은 숨김(추천 가지), 나머지 코드 블록은 SVG 미리보기/일반 코드 */
 function Pre(props: ComponentProps<'pre'> & ExtraProps) {
+  const schedule = codeSource(props.node, 'schedule');
+  if (schedule !== null) return <ScheduleCard source={schedule} />;
   if (branchesSource(props.node) !== null) {
     // 원문 오프셋을 맞추려고 블록은 남기고 숨긴다 (ADR-094)
     const { node: _node, ...rest } = props;
@@ -65,7 +69,7 @@ function Input({ node: _node, ...rest }: ComponentProps<'input'> & ExtraProps) {
       {...rest}
       disabled={false}
       data-task-toggle=""
-      aria-label={rest.checked ? '완료 취소' : '완료'}
+      aria-label={rest.checked ? t('chat.markdown.uncheck') : t('chat.markdown.check')}
       onChange={(e) => toggle(e.currentTarget, e.currentTarget.checked)}
     />
   );
@@ -91,7 +95,7 @@ function Anchor({ node: _node, href, children, ...rest }: ComponentProps<'a'> & 
       href={href}
       data-page-link={id}
       aria-disabled={!exists || undefined}
-      title={exists ? '하위 페이지 열기' : '지워진 페이지'}
+      title={exists ? t('chat.markdown.openPage') : t('chat.markdown.missingPage')}
       className={exists ? 'page-link' : 'page-link page-link-missing'}
       onClick={(e) => {
         e.preventDefault();

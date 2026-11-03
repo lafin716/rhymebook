@@ -1,0 +1,35 @@
+{
+  "lang": {
+    "vi": "Vietnamese",
+    "en": "English",
+    "ko": "Korean"
+  },
+  "speak": {
+    "noSupport": "This device can't read text aloud.",
+    "noVoice": "This device has no {lang} voice. Adding one in the device settings makes pronunciation more accurate.",
+    "noVoiceFail": "Couldn't read aloud because this device has no {lang} voice. Add {lang} in the device's text-to-speech settings.",
+    "failed": "Couldn't read aloud with the device voice."
+  },
+  "recorder": {
+    "permission": "Microphone permission is not granted. Allow the microphone in the system or browser settings.",
+    "noDevice": "No microphone is available.",
+    "busy": "Another app is using the microphone.",
+    "openFailed": "Couldn't open the microphone.",
+    "insecure": "The microphone can't be used at this address (HTTP). Open it over HTTPS or in the app.",
+    "unsupported": "Microphone recording isn't supported on this device."
+  },
+  "mic": {
+    "tooShort": "The recording is too short.",
+    "silent": "No sound was picked up. Check the microphone and try speaking again.",
+    "noText": "No speech was recognized. Please speak again.",
+    "failed": "Speech-to-text conversion failed.",
+    "stop": "Stop recording and transcribe",
+    "transcribing": "Transcribing",
+    "start": "Voice input",
+    "recordingTitle": "Recording {secs}s · press to finish",
+    "seconds": "{secs}s"
+  },
+  "stt": {
+    "stateError": "Couldn't load the voice settings."
+  }
+}

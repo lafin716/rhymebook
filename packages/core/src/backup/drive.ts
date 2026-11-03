@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { defaultFetch, type FetchLike } from '../providers/http';
 import {
   BackupTargetError,
@@ -22,7 +23,7 @@ export interface DriveTargetOptions {
   uploadBase?: string;
 }
 
-const LABEL = '구글 드라이브';
+const label = (): string => t('core.backupTargets.gdrive');
 
 export function createDriveTarget(o: DriveTargetOptions): BackupTarget & { account(): Promise<string> } {
   const f = o.fetch ?? defaultFetch();
@@ -31,22 +32,22 @@ export function createDriveTarget(o: DriveTargetOptions): BackupTarget & { accou
 
   const request = async (url: string, init: RequestInit = {}) => {
     const token = await o.getToken();
-    if (!token) throw new BackupTargetError('gdrive', 401, targetHttpMessage(LABEL, 401));
+    if (!token) throw new BackupTargetError('gdrive', 401, targetHttpMessage(label(), 401));
     let res: Response;
     try {
       res = await f(url, { ...init, headers: { Authorization: `Bearer ${token}`, ...(init.headers as Record<string, string> | undefined) } });
     } catch {
-      throw new BackupTargetError('gdrive', 0, targetHttpMessage(LABEL, 0));
+      throw new BackupTargetError('gdrive', 0, targetHttpMessage(label(), 0));
     }
     if (!res.ok && !(init.method === 'DELETE' && res.status === 404)) {
-      throw new BackupTargetError('gdrive', res.status, targetHttpMessage(LABEL, res.status));
+      throw new BackupTargetError('gdrive', res.status, targetHttpMessage(label(), res.status));
     }
     return res;
   };
 
   return {
     id: 'gdrive',
-    label: LABEL,
+    label: label(),
     async available() {
       return !!(await o.getToken());
     },

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ID } from '@branch/core';
 import { AlertTriangle, Sparkles, X } from 'lucide-react';
 import { actions, useApp } from '../app/store';
@@ -21,9 +22,9 @@ export function SummaryDraftPanel({ sessionId, compact }: { sessionId: ID; compa
         <div className="mb-2 flex items-center gap-2 text-[13px]">
           <Sparkles size={15} className="text-anchor-line" />
           <span className="min-w-0 flex-1 truncate font-medium">
-            {draft.status === 'generating' ? '요약 만드는 중…' : `"${parentTitle ?? '부모'}"에 붙일 요약`}
+            {draft.status === 'generating' ? t('chat.summaryDraft.generating') : t('chat.summaryDraft.title', { parent: parentTitle ?? t('chat.summaryDraft.parentFallback') })}
           </span>
-          <button type="button" aria-label="요약 취소" onClick={close} className="rounded p-1 text-muted hover:bg-surface-2">
+          <button type="button" aria-label={t('chat.summaryDraft.cancel')} onClick={close} className="rounded p-1 text-muted hover:bg-surface-2">
             <X size={15} />
           </button>
         </div>
@@ -39,21 +40,21 @@ export function SummaryDraftPanel({ sessionId, compact }: { sessionId: ID; compa
               value={draft.text}
               onChange={(e) => actions().updateSummaryDraft(sessionId, e.target.value)}
               rows={3}
-              aria-label="요약 편집"
+              aria-label={t('chat.summaryDraft.edit')}
               className="w-full resize-none rounded-lg border border-line bg-bg px-2.5 py-2 text-[14px] leading-relaxed outline-none focus:border-accent"
             />
             <div className="mt-2 flex items-center justify-end gap-1.5">
-              <span className="mr-auto text-[12px] text-muted">직접 다듬은 뒤 붙일 수 있어요</span>
+              <span className="mr-auto text-[12px] text-muted">{t('chat.summaryDraft.hint')}</span>
               <Button size="sm" variant="ghost" onClick={close}>
-                취소
+                {t('chat.summaryDraft.cancelText')}
               </Button>
               {hasSummary && (
                 <Button size="sm" variant="ghost" onClick={() => { actions().removeSummary(sessionId); close(); }}>
-                  기존 요약 제거
+                  {t('chat.summaryDraft.removeExisting')}
                 </Button>
               )}
               <Button size="sm" variant="primary" disabled={!draft.text.trim()} onClick={() => actions().attachSummary(sessionId)}>
-                {hasSummary ? '요약 교체' : '부모에 붙이기'}
+                {hasSummary ? t('chat.summaryDraft.replace') : t('chat.summaryDraft.attach')}
               </Button>
             </div>
           </>
@@ -64,7 +65,7 @@ export function SummaryDraftPanel({ sessionId, compact }: { sessionId: ID; compa
             <AlertTriangle size={14} />
             <span className="flex-1">{draft.message}</span>
             <Button size="sm" onClick={() => void actions().requestSummary(sessionId)}>
-              다시 시도
+              {t('chat.summaryDraft.retry')}
             </Button>
           </div>
         )}

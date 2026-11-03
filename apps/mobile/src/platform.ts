@@ -1,11 +1,14 @@
 import { SecureStorage } from '@aparajita/capacitor-secure-storage';
 import { App } from '@capacitor/app';
 import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capacitor/barcode-scanner';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
-import type { MobileApi, MobileSpeech } from '@branch/core';
+import { t, type MobileApi, type MobileSpeech } from '@branch/core';
+import { createMobileNotifications, type NativeNotifications } from './notifications';
+
+const localNotifications = registerPlugin<NativeNotifications>('OctoNotifications');
 
 /**
  * Capacitor 네이티브 기능을 ui가 아는 MobileApi 형태로 감싼다 (ADR-019).
@@ -59,7 +62,7 @@ export function createMobileApi(): MobileApi | null {
       try {
         const r = await CapacitorBarcodeScanner.scanBarcode({
           hint: CapacitorBarcodeScannerTypeHint.QR_CODE,
-          scanInstructions: 'PC 화면의 페어링 QR을 비춰 주세요',
+          scanInstructions: t('mobile.scanInstructions'),
           scanButton: false,
         });
         return r.ScanResult?.trim() || null;
@@ -80,6 +83,7 @@ export function createMobileApi(): MobileApi | null {
       await shareFile(name, uri);
     },
     speech: createSpeech(),
+    notifications: createMobileNotifications(localNotifications),
   };
 }
 

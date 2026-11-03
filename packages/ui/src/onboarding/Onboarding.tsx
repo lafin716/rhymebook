@@ -9,6 +9,7 @@ import { chooseThisDevice, setPairing, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
+import { t } from '../i18n';
 import { ApiCard, CliCard, PairForm, PolicyNote } from '../settings/connectionCards';
 
 /**
@@ -38,23 +39,21 @@ function RemoteOnboarding() {
   if (demo || dismissed || status !== 'unpaired') return null;
 
   return (
-    <Modal open onClose={() => setDismissed(true)} label="PC와 연결하기" className="md:max-w-lg">
+    <Modal open onClose={() => setDismissed(true)} label={t('onboarding.remote.label')} className="md:max-w-lg">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
-        <h2 className="flex-1 text-[16px] font-semibold">내 PC와 연결하기</h2>
+        <h2 className="flex-1 text-[16px] font-semibold">{t('onboarding.remote.title')}</h2>
       </div>
       <div className="scroll-thin min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 md:px-5">
         <div className="flex gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
             <MonitorSmartphone size={20} />
           </span>
-          <p className="text-[13.5px] text-fg-2">
-            PC와 연결하면 PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 CLI로 답해요. PC 없이 이 기기에서 API 키로 쓸 수도 있어요.
-          </p>
+          <p className="text-[13.5px] text-fg-2">{t('onboarding.remote.intro')}</p>
         </div>
         <ol className="space-y-1.5 text-[13px] text-fg-2">
-          <StepItem n={1}>PC에서 octobooks 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.</StepItem>
-          <StepItem n={2}>[휴대폰·웹 연결]을 누르면 QR과 6자리 코드가 나와요.</StepItem>
-          <StepItem n={3}>아래에서 QR을 찍거나 링크·주소와 코드를 입력해요.</StepItem>
+          <StepItem n={1}>{t('onboarding.remote.step1')}</StepItem>
+          <StepItem n={2}>{t('onboarding.remote.step2')}</StepItem>
+          <StepItem n={3}>{t('onboarding.remote.step3')}</StepItem>
         </ol>
         <div className="rounded-xl border border-line bg-surface p-3.5">
           <PairForm onPaired={(p) => (p ? setPairing(p) : undefined)} />
@@ -63,14 +62,14 @@ function RemoteOnboarding() {
       <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
           <Laptop size={14} className="shrink-0" />
-          학습 기록은 PC에 저장돼요
+          {t('onboarding.remote.storeNote')}
         </span>
         <span className="flex shrink-0 gap-1">
           <Button variant="ghost" onClick={() => setDismissed(true)}>
-            나중에 하기
+            {t('onboarding.remote.later')}
           </Button>
           <Button variant="secondary" onClick={chooseThisDevice}>
-            이 기기에서 쓰기
+            {t('onboarding.remote.useThisDevice')}
           </Button>
         </span>
       </div>
@@ -138,16 +137,16 @@ function LocalOnboarding() {
   if (!show || isDemo()) return null;
 
   const title: Record<Step, string> = {
-    choose: 'octobooks 시작하기',
-    cli: '이 PC의 CLI 연결',
-    api: caps.localCli ? 'API 키 등록' : '이 기기에서 시작하기',
+    choose: t('onboarding.local.titleChoose'),
+    cli: t('onboarding.local.titleCli'),
+    api: caps.localCli ? t('onboarding.local.titleApi') : t('onboarding.local.titleDevice'),
   };
 
   return (
-    <Modal open onClose={finish} label="시작하기" className="md:max-w-lg">
+    <Modal open onClose={finish} label={t('onboarding.local.label')} className="md:max-w-lg">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
         {step !== home && (
-          <button type="button" aria-label="뒤로" onClick={() => setStep('choose')} className="-ml-1 rounded-md p-1 text-muted hover:text-fg">
+          <button type="button" aria-label={t('onboarding.local.back')} onClick={() => setStep('choose')} className="-ml-1 rounded-md p-1 text-muted hover:text-fg">
             <ArrowLeft size={18} />
           </button>
         )}
@@ -156,21 +155,19 @@ function LocalOnboarding() {
       <div className="scroll-thin min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 md:px-5">
         {step === 'choose' && (
           <>
-            <p className="text-[13.5px] text-fg-2">
-              호기심이 뻗는 만큼, 나의 배움도 깊어져요. 답변 속 궁금한 문장에서 새 가지를 펼쳐 보세요. 먼저 함께 배울 AI를 연결해요.
-            </p>
+            <p className="text-[13.5px] text-fg-2">{t('onboarding.local.choosePitch')}</p>
             <Choice
-                  icon={<TerminalSquare size={18} />}
-                  title="이 PC의 CLI (구독 계정)"
-                  desc="설치·로그인된 Claude Code·Codex CLI를 그대로 실행해요. 모델·노력치도 고를 수 있어요."
-                  badge="추천"
-                  onClick={() => setStep('cli')}
-                />
-                <Choice icon={<KeyRound size={18} />} title="API 키" desc="Anthropic·OpenAI API 키로 직접 호출해요." onClick={() => setStep('api')} />
-                <p className="flex gap-2 rounded-lg bg-surface-2 p-3 text-[12.5px] text-fg-2">
-                  <MonitorSmartphone size={16} className="mt-0.5 shrink-0 text-accent" />
-                  휴대폰·웹에서도 이 PC의 CLI로 쓰려면 연결 후 설정 → 연결 → [원격 페어링 열기]를 켜세요.
-                </p>
+              icon={<TerminalSquare size={18} />}
+              title={t('onboarding.local.cliChoice')}
+              desc={t('onboarding.local.cliDesc')}
+              badge={t('onboarding.local.recommended')}
+              onClick={() => setStep('cli')}
+            />
+            <Choice icon={<KeyRound size={18} />} title={t('onboarding.local.apiChoice')} desc={t('onboarding.local.apiDesc')} onClick={() => setStep('api')} />
+            <p className="flex gap-2 rounded-lg bg-surface-2 p-3 text-[12.5px] text-fg-2">
+              <MonitorSmartphone size={16} className="mt-0.5 shrink-0 text-accent" />
+              {t('onboarding.local.remoteTip')}
+            </p>
           </>
         )}
         {step === 'cli' && (
@@ -182,7 +179,7 @@ function LocalOnboarding() {
         )}
         {step === 'api' && (
           <>
-            {!caps.localCli && <p className="text-[13.5px] text-fg-2">학습은 이 기기에 저장되고, 답변은 등록한 API 키로 받아요.</p>}
+            {!caps.localCli && <p className="text-[13.5px] text-fg-2">{t('onboarding.local.apiNote')}</p>}
             <ApiCard id="anthropic-api" prefix="sk-ant-" />
             <ApiCard id="openai-api" prefix="sk-" />
           </>
@@ -190,10 +187,10 @@ function LocalOnboarding() {
       </div>
       <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <Button variant="ghost" onClick={finish}>
-          나중에 하기
+          {t('onboarding.local.later')}
         </Button>
         <Button variant="primary" disabled={!ready} onClick={finish}>
-          {ready ? '시작하기' : '연결을 기다리는 중'}
+          {ready ? t('onboarding.local.start') : t('onboarding.local.waiting')}
         </Button>
       </div>
     </Modal>

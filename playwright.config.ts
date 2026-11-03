@@ -16,7 +16,15 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   outputDir: 'test-results',
-  use: { baseURL: `http://localhost:${APP_PORT}`, trace: 'retain-on-failure' },
+  use: {
+    baseURL: `http://localhost:${APP_PORT}`,
+    trace: 'retain-on-failure',
+    // 언어는 이미 고른 상태로 시작한다 (첫 실행 언어 창은 e2e/language.spec.ts에서 따로 본다, ADR-105)
+    storageState: {
+      cookies: [],
+      origins: [{ origin: `http://localhost:${APP_PORT}`, localStorage: [{ name: 'octobooks.locale', value: 'ko' }] }],
+    },
+  },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'mobile', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, hasTouch: true } },

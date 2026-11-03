@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import {
   movePageBlock,
   newId,
@@ -120,11 +121,11 @@ export function PageEditor({
   };
 
   if (!editing && !page.blocks.length) {
-    return <p className="py-8 text-center text-[14px] text-muted">빈 페이지예요. 위쪽 [수정하기]에서 조각과 글을 넣어 보세요.</p>;
+    return <p className="py-8 text-center text-[14px] text-muted">{t('vault.page.empty')}</p>;
   }
 
   const dragging = drag ? shown.find((b) => b.id === drag.id) : undefined;
-  const nameOf = (b: VaultPageBlock) => ('text' in b ? '글' : (vault[b.itemId]?.name ?? '지워진 조각'));
+  const nameOf = (b: VaultPageBlock) => ('text' in b ? t('vault.page.text') : (vault[b.itemId]?.name ?? t('vault.page.removedFragment')));
 
   return (
     <div ref={rootRef} data-vault-page={page.id} className="mx-auto max-w-4xl">
@@ -138,11 +139,11 @@ export function PageEditor({
               'text' in b ? (
                 editing ? (
                   <textarea
-                    aria-label="글"
+                    aria-label={t('vault.page.text')}
                     value={b.text}
                     rows={Math.min(12, Math.max(3, b.text.split('\n').length))}
                     maxLength={VAULT_LIMITS.text}
-                    placeholder="이 자리에 넣을 글 (Markdown)"
+                    placeholder={t('vault.page.textPlaceholder')}
                     onChange={(e) => setText(b.id, e.target.value)}
                     className="w-full resize-y rounded-lg border border-line bg-bg px-2.5 py-2 text-[15px] leading-relaxed outline-none focus:border-accent md:text-sm"
                   />
@@ -154,7 +155,7 @@ export function PageEditor({
               ) : node?.kind === 'item' ? (
                 <ItemContent item={node.item} playKey={`page:${page.id}:${b.id}`} />
               ) : (
-                <p className="rounded-xl border border-dashed border-line px-3 py-3 text-[13px] text-muted">지워진 조각이에요.</p>
+                <p className="rounded-xl border border-dashed border-line px-3 py-3 text-[13px] text-muted">{t('vault.page.removedFragmentNote')}</p>
               );
             if (!editing) return body ? <div key={b.id} className="min-w-0 md:flex-1">{body}</div> : null;
             const side = drag?.target?.id === b.id && (drag.target.where === 'left' || drag.target.where === 'right') ? drag.target.where : null;
@@ -170,8 +171,8 @@ export function PageEditor({
                   <span
                     role="button"
                     tabIndex={-1}
-                    aria-label="끌어서 옮기기"
-                    title="끌어서 옮기기"
+                    aria-label={t('vault.page.dragAria')}
+                    title={t('vault.page.dragAria')}
                     data-vault-handle
                     onPointerDown={(e) => startDrag(e, b.id)}
                     className="-ml-1 grid size-8 shrink-0 cursor-grab touch-none place-items-center rounded text-muted hover:bg-surface-2 hover:text-fg active:cursor-grabbing"
@@ -180,26 +181,26 @@ export function PageEditor({
                   </span>
                   {'text' in b ? <Type size={13} className="shrink-0" /> : node ? <NodeIcon node={node} size={13} /> : <FileText size={13} className="shrink-0" />}
                   <span className="ml-1 min-w-0 flex-1 truncate">{nameOf(b)}</span>
-                  <IconButton size="sm" label="위로" disabled={idx === 0} onClick={() => onChange(movePageBlock(blocks, b.id, 'up'))}>
+                  <IconButton size="sm" label={t('vault.page.up')} disabled={idx === 0} onClick={() => onChange(movePageBlock(blocks, b.id, 'up'))}>
                     <ArrowUp size={14} />
                   </IconButton>
-                  <IconButton size="sm" label="아래로" disabled={idx === blocks.length - 1} onClick={() => onChange(movePageBlock(blocks, b.id, 'down'))}>
+                  <IconButton size="sm" label={t('vault.page.down')} disabled={idx === blocks.length - 1} onClick={() => onChange(movePageBlock(blocks, b.id, 'down'))}>
                     <ArrowDown size={14} />
                   </IconButton>
                   {row.length > 1 ? (
-                    <IconButton size="sm" label="나란히 풀기" className="max-md:hidden" onClick={() => onChange(setPageBlockBeside(blocks, b.id, false))}>
+                    <IconButton size="sm" label={t('vault.page.unpairBeside')} className="max-md:hidden" onClick={() => onChange(setPageBlockBeside(blocks, b.id, false))}>
                       <Rows2 size={14} />
                     </IconButton>
                   ) : (
                     ci === 0 &&
                     prevRow &&
                     prevRow.length < PAGE_ROW_MAX && (
-                      <IconButton size="sm" label="앞 블록 옆에 나란히" className="max-md:hidden" onClick={() => onChange(setPageBlockBeside(blocks, b.id, true))}>
+                      <IconButton size="sm" label={t('vault.page.pairBeside')} className="max-md:hidden" onClick={() => onChange(setPageBlockBeside(blocks, b.id, true))}>
                         <Columns2 size={14} />
                       </IconButton>
                     )
                   )}
-                  <IconButton size="sm" label="페이지에서 빼기" onClick={() => onChange(removePageBlock(blocks, b.id))}>
+                  <IconButton size="sm" label={t('vault.page.remove')} onClick={() => onChange(removePageBlock(blocks, b.id))}>
                     <X size={14} />
                   </IconButton>
                 </div>
@@ -221,15 +222,15 @@ export function PageEditor({
 
       {editing && (
         <div className="mt-3 space-y-2">
-          {!blocks.length && <p className="py-4 text-center text-[14px] text-muted">조각이나 글을 넣어 페이지를 꾸며 보세요.</p>}
+          {!blocks.length && <p className="py-4 text-center text-[14px] text-muted">{t('vault.page.blank')}</p>}
           <div className="flex flex-wrap gap-1.5">
             <Button size="sm" variant="soft" icon={<Plus size={14} />} disabled={full} onClick={() => setPicking((v) => !v)} aria-expanded={picking}>
-              조각 넣기
+              {t('vault.page.addFragment')}
             </Button>
             <Button size="sm" icon={<Type size={14} />} disabled={full} onClick={() => add({ text: '' })}>
-              글 넣기
+              {t('vault.page.addText')}
             </Button>
-            {!mobile && blocks.length > 1 && <span className="self-center text-[12px] text-muted">손잡이를 끌어 다른 블록 왼쪽·오른쪽 끝에 놓으면 나란히 놓여요.</span>}
+            {!mobile && blocks.length > 1 && <span className="self-center text-[12px] text-muted">{t('vault.page.besideHint')}</span>}
           </div>
           {picking && (
             <ItemPicker

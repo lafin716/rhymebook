@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { nextFallback, PROVIDER_LABELS, annotationsForMessage, planBranchSuggestions, stripBranchBlock, type Message, type SegmentMap, type Session } from '@branch/core';
 import { AlertTriangle, Archive, RefreshCw, RotateCcw, Shuffle, Sparkles, Square } from 'lucide-react';
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
@@ -33,7 +34,7 @@ export const MessageItem = memo(function MessageItem({ message, branches, isLast
     return (
       <div data-turn={message.id} tabIndex={-1} className="flex scroll-mt-3 flex-col items-end gap-1.5 focus:outline-none">
         {message.skill && (
-          <span data-skill-badge={message.skill.name} title={`스킬: /${message.skill.name}`} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-medium text-accent">
+          <span data-skill-badge={message.skill.name} title={t('chat.message.skillTitle', { name: message.skill.name })} className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[12px] font-medium text-accent">
             <Sparkles size={12} />
             {message.skill.title}
           </span>
@@ -116,7 +117,7 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
         tools.some((t) => t.status === 'running') ? null : (
           <div className="flex items-center gap-2 py-1 text-[14px] text-muted">
             <span className="stream-caret" />
-            생각 중…
+            {t('chat.message.thinking')}
           </div>
         )
       ) : !message.content && images.length ? null : (
@@ -157,10 +158,10 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
       {message.status === 'error' && <ErrorBox message={message} canRetry={isLast} />}
       {message.status === 'stopped' && (
         <div className="flex items-center gap-2 text-[13px] text-muted">
-          <Square size={12} /> 응답을 중지했습니다.
+          <Square size={12} /> {t('chat.message.stopped')}
           {isLast && (
             <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={() => actions().retry(message.sessionId)}>
-              다시 생성
+              {t('chat.message.regenerate')}
             </Button>
           )}
         </div>
@@ -185,7 +186,7 @@ export function AssistantMessage({ message, branches, isLast }: MessageItemProps
             className="text-muted"
             onClick={() => saveToVault({ type: 'text', text: stripBranchBlock(message.content) }, message.id)}
           >
-            보관
+            {t('chat.message.keep')}
           </Button>
         </div>
       )}
@@ -201,7 +202,7 @@ function ErrorBox({ message, canRetry }: { message: Message; canRetry: boolean }
       <div className="flex items-start gap-2 text-danger">
         <AlertTriangle size={16} className="mt-0.5 shrink-0" />
         <div className="min-w-0">
-          <div className="font-medium">응답을 받지 못했습니다</div>
+          <div className="font-medium">{t('chat.message.failed')}</div>
           <div className="mt-0.5 text-fg-2">
             {message.error?.message}
             {message.providerId && <span className="text-muted"> · {PROVIDER_LABELS[message.providerId]}</span>}
@@ -211,11 +212,11 @@ function ErrorBox({ message, canRetry }: { message: Message; canRetry: boolean }
       {canRetry && (
         <div className="mt-2 flex flex-wrap gap-1.5 pl-6">
           <Button size="sm" icon={<RefreshCw size={14} />} onClick={() => actions().retry(message.sessionId)}>
-            다시 시도
+            {t('chat.message.retry')}
           </Button>
           {fallback && (
             <Button size="sm" variant="soft" icon={<Shuffle size={14} />} onClick={() => actions().retry(message.sessionId, fallback)}>
-              {PROVIDER_LABELS[fallback]}로 재시도
+              {t('chat.message.retryWith', { provider: PROVIDER_LABELS[fallback] })}
             </Button>
           )}
         </div>

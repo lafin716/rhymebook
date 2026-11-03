@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { normalizeMathDelimiters } from '../chat/Markdown';
 import { BOOK_CSS } from './bookCss';
+import { getLocale, intlLocale, t } from '../i18n';
 
 /**
  * 책 → 인쇄용 단일 HTML (ADR-044).
@@ -27,7 +28,8 @@ export interface BookHtmlOptions {
   fontOrigin?: string;
 }
 
-const BOX_TITLE = /^(핵심\s*정리|확인\s*문제|정리|요약|생각해\s*보기|연습\s*문제)/;
+// 책 스킬이 쓰는 상자 제목 (한국어·영어, ADR-105)
+const BOX_TITLE = /^(핵심\s*정리|확인\s*문제|정리|요약|생각해\s*보기|연습\s*문제|key\s*points|check\s*questions|summary|recap|think\s*about\s*it|exercises?|practice)/i;
 
 const textOf = (n: ElementContent): string =>
   n.type === 'text' ? n.value : n.type === 'element' ? n.children.map(textOf).join('') : '';
@@ -73,7 +75,7 @@ function Md({ source }: { source: string }) {
   );
 }
 
-const label = (p: BookPart) => (p.kind === 'chapter' ? `${p.number}장` : '');
+const label = (p: BookPart) => (p.kind === 'chapter' ? t('book.html.chapterLabel', { number: String(p.number) }) : '');
 
 function TocEntry({ part, sub }: { part: BookPart; sub?: string[] }) {
   return (
@@ -135,12 +137,12 @@ function Chapter({ part }: { part: BookPart }) {
 
 function BookDoc({ book, date }: { book: Book; date: number }) {
   const d = new Date(date);
-  const when = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const when = d.toLocaleDateString(intlLocale(), { year: 'numeric', month: 'long', day: 'numeric' });
   return (
     <>
       <section className="cover">
         <div className="cover-inner">
-          <p className="cover-kicker">학습 기록으로 엮은 책</p>
+          <p className="cover-kicker">{t('book.html.coverKicker')}</p>
           <h1 className="cover-title">{book.title}</h1>
           <div className="cover-rule" />
           <p className="cover-foot">
@@ -152,10 +154,10 @@ function BookDoc({ book, date }: { book: Book; date: number }) {
       </section>
       <section className="title-page">
         <h1>{book.title}</h1>
-        <p>octobooks 학습 기록에서 엮음</p>
+        <p>{t('book.html.compiledFrom')}</p>
       </section>
-      <nav className="toc" aria-label="차례">
-        <h2>차례</h2>
+      <nav className="toc" aria-label={t('book.html.toc')}>
+        <h2>{t('book.html.toc')}</h2>
         <ol>
           {book.front.map((p) => (
             <TocEntry key={p.id} part={p} />
@@ -180,12 +182,12 @@ function BookDoc({ book, date }: { book: Book; date: number }) {
       <section className="colophon">
         <p className="colophon-title">{book.title}</p>
         <dl>
-          <dt>엮은 날</dt>
+          <dt>{t('book.html.editedOn')}</dt>
           <dd>{when}</dd>
-          <dt>엮은 곳</dt>
+          <dt>{t('book.html.editedAt')}</dt>
           <dd>octobooks</dd>
         </dl>
-        <p className="colophon-note">이 책은 학습자의 질문과 이해를 바탕으로 AI가 쓴 글입니다. 사실관계는 원문과 함께 확인하세요.</p>
+        <p className="colophon-note">{t('book.html.colophonNote')}</p>
       </section>
     </>
   );
@@ -209,7 +211,7 @@ function runningHeads(book: Book): string {
     .map(
       (c) =>
         `@page ch-${c.number}:left { @top-left { content: ${title}; } }\n` +
-        `@page ch-${c.number}:right { @top-right { content: ${cssString(`${c.number}장  ${c.title}`)}; } }`,
+        `@page ch-${c.number}:right { @top-right { content: ${cssString(t('book.html.runningHead', { label: t('book.html.chapterLabel', { number: String(c.number) }), title: c.title }))}; } }`,
     )
     .join('\n');
 }
@@ -222,7 +224,7 @@ export function buildBookHtml(book: Book, opts: BookHtmlOptions): string {
     .join('\n')
     .replace(/<\/style/gi, '<\\/style');
   return `<!doctype html>
-<html lang="ko">
+<html lang="${getLocale()}">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${escapeHtml(csp)}">

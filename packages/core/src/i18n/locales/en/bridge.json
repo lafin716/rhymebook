@@ -1,0 +1,81 @@
+{
+  "errors": {
+    "authRequired": "{label} is not signed in. Run `{loginHint}` in a terminal.",
+    "rateLimit": "{label} usage limit reached. Try again later.{detail}",
+    "network": "{label} could not connect to the network.{detail}",
+    "chatgptOnly": " This model cannot be used with ChatGPT account sign-in.",
+    "unsupportedModel": "'{model}' is not available in {label}.{why} Choose another model in Settings (or the skill's advanced settings).",
+    "cliErrorDetail": "{label} error: {text}",
+    "cliErrorNone": "{label} encountered an error."
+  },
+  "detect": {
+    "slow": "No response in time, so the status could not be confirmed · You can still try chatting",
+    "claudeNotFound": "The claude command was not found",
+    "claudeFailed": "claude failed to run",
+    "codexNotFound": "The codex command was not found",
+    "codexFailed": "codex failed to run",
+    "needLogin": "{version} · Sign-in required",
+    "ready": "{version} · Signed in",
+    "readyWithMethod": "{version} · Signed in ({method})",
+    "methodApiKey": "API key"
+  },
+  "codexImages": {
+    "name": "Generated image {n}.{ext}"
+  },
+  "common": {
+    "stopped": "Stopped by user."
+  },
+  "claude": {
+    "notFound": "{label} is not installed or cannot be found in PATH.",
+    "timedOut": "{label} timed out.",
+    "exitCode": "Exit code {code}"
+  },
+  "skills": {
+    "badFolder": "Skill folder format is invalid",
+    "badName": "Skill name is invalid",
+    "badSkillMd": "SKILL.md content is invalid",
+    "badFileList": "Supporting file list is invalid",
+    "badFileFormat": "Supporting file format is invalid",
+    "badFilePath": "Supporting file path is invalid",
+    "tooMany": "There are too many supporting files, or they are too large or overlap",
+    "pathClash": "A supporting file path overlaps a folder name",
+    "badFolderPath": "Skill folder path is invalid",
+    "fileInFolder": "A file or link is in the skill folder where a folder should be",
+    "folderInFile": "A folder is where a file should be",
+    "openFailed": "Could not open the folder: {error}"
+  },
+  "server": {
+    "imageGenNote": "If an image is needed, create it with the image generation tool. The app attaches the created image below your answer automatically, so do not mention file paths or where it is saved. Do not substitute SVG or ASCII art.",
+    "sttUnsupported": "This Bridge does not support voice input.",
+    "fallbackSystem": "You are a friendly tutor who helps with studying. Answer briefly and clearly in English.",
+    "pickModel": "Please choose a model.",
+    "imagesSkipped": "(Could not attach {count} image(s) because they exceed the size or count limit.)",
+    "unsupportedCli": "This CLI is not supported."
+  },
+  "stt": {
+    "disabled": "Voice input is turned off on this PC.",
+    "engineMissing": "The voice engine (whisper-cli) could not be found.",
+    "downloading": "The voice model is downloading.",
+    "modelNeeded": "The voice model needs to be downloaded.",
+    "modelServerError": "Model server response error ({status})",
+    "modelSizeMismatch": "The model size is not what was expected.",
+    "modelCorrupt": "The downloaded model is corrupted. Please download it again.",
+    "queueFull": "Too many voice conversion requests are queued. Please try again shortly.",
+    "badFormat": "The recording format is invalid.",
+    "unavailable": "Voice input is not available.",
+    "engineNotFound": "The voice engine could not be found.",
+    "timedOut": "Voice conversion timed out.",
+    "engineRunFailed": "The voice engine (whisper-cli) could not be run.",
+    "failed": "Voice conversion failed.",
+    "unknownModel": "Unknown model.",
+    "otherDownloading": "Another model is downloading.",
+    "cannotDeleteDownloading": "A model that is downloading cannot be deleted."
+  },
+  "store": {
+    "readFailed": "Could not read {file}: {reason}"
+  },
+  "remote": {
+    "local": "Local",
+    "unnamedDevice": "Unnamed device"
+  }
+}

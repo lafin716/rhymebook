@@ -1,4 +1,5 @@
 import { DRIVE_SCOPE } from '@branch/core';
+import { t } from '../i18n';
 
 /**
  * 구글 드라이브 연결 (공식 Google Identity Services 토큰 클라이언트).
@@ -30,7 +31,7 @@ let loading: Promise<GoogleOAuth2> | null = null;
 
 function loadGis(): Promise<GoogleOAuth2> {
   loading ??= new Promise((resolve, reject) => {
-    const done = () => (window.google?.accounts?.oauth2 ? resolve(window.google.accounts.oauth2) : reject(new Error('Google 로그인 모듈을 불러오지 못했어요.')));
+    const done = () => (window.google?.accounts?.oauth2 ? resolve(window.google.accounts.oauth2) : reject(new Error(t('backup.google.loadFailed'))));
     if (window.google?.accounts?.oauth2) return done();
     const s = document.createElement('script');
     s.src = 'https://accounts.google.com/gsi/client';
@@ -38,7 +39,7 @@ function loadGis(): Promise<GoogleOAuth2> {
     s.onload = done;
     s.onerror = () => {
       loading = null;
-      reject(new Error('Google 로그인 모듈을 불러오지 못했어요. 네트워크를 확인하세요.'));
+      reject(new Error(t('backup.google.loadFailedNetwork')));
     };
     document.head.appendChild(s);
   });
@@ -52,8 +53,8 @@ export async function requestDriveToken(clientId: string): Promise<string> {
     const client = oauth2.initTokenClient({
       client_id: clientId,
       scope: DRIVE_SCOPE,
-      callback: (r) => (r.access_token ? resolve(r.access_token) : reject(new Error(r.error_description || 'Google 계정 연결이 취소되었어요.'))),
-      error_callback: () => reject(new Error('Google 계정 연결이 취소되었어요.')),
+      callback: (r) => (r.access_token ? resolve(r.access_token) : reject(new Error(r.error_description || t('backup.google.cancelled')))),
+      error_callback: () => reject(new Error(t('backup.google.cancelled'))),
     });
     client.requestAccessToken();
   });

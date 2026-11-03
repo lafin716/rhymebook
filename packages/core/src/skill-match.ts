@@ -1,4 +1,5 @@
 import type { Skill } from './model';
+import { hasScheduleIntent } from './schedules';
 
 /**
  * 채팅 요청에 맞는 스킬 고르기 (IMP-21, ADR-052).
@@ -32,9 +33,15 @@ function mentions(text: string, skill: Skill): boolean {
 export function matchSkill(text: string, skills: readonly Skill[]): Skill | null {
   const t = text.trim();
   if (t.length < 2 || t.startsWith('/')) return null;
+  // A future quiz/reading request schedules the task instead of doing it immediately.
+  if (hasScheduleIntent(t)) {
+    const schedule = skills.find((skill) => skill.name === 'schedule');
+    if (schedule) return schedule;
+  }
   // 의도 표현이 맞는 기본 스킬이 먼저, 그다음 제목·이름이 나온 스킬. 같은 순위면 질문에서 먼저 나온 것
   let best: { skill: Skill; rank: number; at: number } | null = null;
   for (const skill of skills) {
+    if (skill.name === 'schedule') continue;
     const intent = INTENTS[skill.name];
     const m = intent?.exec(t);
     const hit = m ? { rank: 0, at: m.index } : mentions(t, skill) ? { rank: 1, at: 0 } : null;

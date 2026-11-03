@@ -42,6 +42,8 @@ export interface ModelPref {
 export type MessageStatus = 'streaming' | 'done' | 'error' | 'stopped';
 
 export interface Message {
+  /** 예약 엔진이 보낸 질문. 예약 생성 의도를 다시 해석하지 않는다. */
+  scheduleRun?: boolean;
   id: ID;
   sessionId: ID;
   role: Role;
@@ -190,7 +192,7 @@ export interface ViewState {
   sheetSessionIds: ID[];
 }
 
-export type Overlay = 'none' | 'search' | 'settings' | 'notes' | 'skills' | 'prompts' | 'vault';
+export type Overlay = 'none' | 'search' | 'settings' | 'notes' | 'skills' | 'prompts' | 'vault' | 'schedules';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 

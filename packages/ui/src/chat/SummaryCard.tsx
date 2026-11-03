@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Session } from '@branch/core';
 import { ChevronDown, CornerDownRight, GitBranch, Sparkles } from 'lucide-react';
 import { useState } from 'react';
@@ -22,7 +23,7 @@ export function SummaryCard({ session }: { session: Session }) {
       >
         <Sparkles size={14} className="shrink-0 text-anchor-line" />
         <span className="min-w-0 flex-1 truncate font-medium text-fg">
-          <span className="text-muted">가지 요약 · </span>
+          <span className="text-muted">{t('chat.summaryCard.label')} · </span>
           {session.title}
         </span>
         <ChevronDown size={15} className={cn('shrink-0 text-muted transition-transform', !open && '-rotate-90')} />
@@ -35,7 +36,7 @@ export function SummaryCard({ session }: { session: Session }) {
             onClick={() => openBranch(session.id)}
             className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-medium text-accent hover:underline"
           >
-            <CornerDownRight size={13} /> 가지 열기
+            <CornerDownRight size={13} /> {t('chat.summaryCard.open')}
           </button>
         </div>
       )}
@@ -49,7 +50,7 @@ export function BranchChips({ branches, unlocated }: { branches: Session[]; unlo
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="inline-flex items-center gap-1 text-[12px] text-muted">
-        <GitBranch size={13} /> 가지 {branches.length}
+        <GitBranch size={13} /> {t('chat.summaryCard.branchCount', { count: branches.length })}
       </span>
       {branches.map((b) => (
         <button
@@ -58,7 +59,7 @@ export function BranchChips({ branches, unlocated }: { branches: Session[]; unlo
           onClick={() => openBranch(b.id)}
           onMouseEnter={() => setAnchorActive(b.id, true)}
           onMouseLeave={() => setAnchorActive(b.id, false)}
-          title={unlocated.has(b.id) ? '원문에서 앵커 위치를 찾지 못했습니다' : undefined}
+          title={unlocated.has(b.id) ? t('chat.summaryCard.unlocated') : undefined}
           className={cn(
             'inline-flex max-w-[14rem] items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] transition-colors',
             unlocated.has(b.id)

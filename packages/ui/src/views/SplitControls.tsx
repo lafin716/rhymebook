@@ -7,6 +7,7 @@ import { useUi } from '../app/uiState';
 import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
 import { SESSION_DRAG_TYPE } from './DropZone';
+import { t } from '../i18n';
 
 /* 분할창 이동·스왑 조작 (IMP-10): 패널 헤더의 이동 메뉴, 경계선 가운데 ⋯ 팝업 */
 
@@ -76,12 +77,14 @@ function FloatingMenu({
   );
 }
 
-const MOVES: { dir: SplitMoveDir; label: string; icon: ReactNode }[] = [
-  { dir: 'left', label: '왼쪽과 바꾸기', icon: <ArrowLeft size={14} /> },
-  { dir: 'right', label: '오른쪽과 바꾸기', icon: <ArrowRight size={14} /> },
-  { dir: 'up', label: '위와 바꾸기', icon: <ArrowUp size={14} /> },
-  { dir: 'down', label: '아래와 바꾸기', icon: <ArrowDown size={14} /> },
-];
+function moves(): { dir: SplitMoveDir; label: string; icon: ReactNode }[] {
+  return [
+    { dir: 'left', label: t('views.split.move.left'), icon: <ArrowLeft size={14} /> },
+    { dir: 'right', label: t('views.split.move.right'), icon: <ArrowRight size={14} /> },
+    { dir: 'up', label: t('views.split.move.up'), icon: <ArrowUp size={14} /> },
+    { dir: 'down', label: t('views.split.move.down'), icon: <ArrowDown size={14} /> },
+  ];
+}
 
 /** 현재 화면 배치 기준 이웃 (SplitView와 같은 정리된 배치) */
 function neighbors(sessionId: ID): Record<SplitMoveDir, ID | null> {
@@ -108,7 +111,7 @@ export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
       <IconButton
         ref={btn}
         size="sm"
-        label="자리 이동 (끌어서 옮기기)"
+        label={t('views.split.moveTitle')}
         aria-haspopup="menu"
         aria-expanded={!!near}
         active={!!near}
@@ -127,8 +130,8 @@ export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
         <Move size={15} />
       </IconButton>
       {near && (
-        <FloatingMenu anchor={btn} label="자리 이동" width={168} height={5 * 36 + 17} onClose={close}>
-          {MOVES.map((m) => {
+        <FloatingMenu anchor={btn} label={t('views.split.move.label')} width={168} height={5 * 36 + 17} onClose={close}>
+          {moves().map((m) => {
             const target = near[m.dir];
             return (
               <button
@@ -159,7 +162,7 @@ export function PaneMoveButton({ sessionId }: { sessionId: ID }) {
             <span className="text-muted">
               <SquareX size={14} />
             </span>{' '}
-            다른 창 닫기
+            {t('views.split.closeOthers')}
           </button>
         </FloatingMenu>
       )}
@@ -201,8 +204,8 @@ export function SeparatorMenuButton({ path, index, row }: { path: number[]; inde
       <button
         ref={btn}
         type="button"
-        aria-label="분할 메뉴"
-        title="분할 메뉴"
+        aria-label={t('views.split.menu')}
+        title={t('views.split.menu')}
         aria-haspopup="menu"
         aria-expanded={open}
         data-split-sep-menu=""
@@ -222,7 +225,7 @@ export function SeparatorMenuButton({ path, index, row }: { path: number[]; inde
         {row ? <EllipsisVertical size={12} /> : <Ellipsis size={12} />}
       </button>
       {open && (
-        <FloatingMenu anchor={btn} label="분할 메뉴" width={176} height={2 * 36 + 8} center onClose={close}>
+        <FloatingMenu anchor={btn} label={t('views.split.menu')} width={176} height={2 * 36 + 8} center onClose={close}>
           <button
             type="button"
             role="menuitem"
@@ -232,7 +235,7 @@ export function SeparatorMenuButton({ path, index, row }: { path: number[]; inde
             }}
             className={cn(ITEM, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
           >
-            <span className="text-muted">{row ? <ArrowLeftRight size={14} /> : <ArrowUpDown size={14} />}</span> 자리 바꾸기
+            <span className="text-muted">{row ? <ArrowLeftRight size={14} /> : <ArrowUpDown size={14} />}</span> {t('views.split.swap')}
           </button>
           <button
             type="button"
@@ -243,8 +246,8 @@ export function SeparatorMenuButton({ path, index, row }: { path: number[]; inde
             }}
             className={cn(ITEM, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
           >
-            <span className="text-muted">{row ? <Rows2 size={14} /> : <Columns2 size={14} />}</span> 방향 전환
-            <span className="ml-auto text-[11.5px] text-muted">{row ? '상하로' : '좌우로'}</span>
+            <span className="text-muted">{row ? <Rows2 size={14} /> : <Columns2 size={14} />}</span> {t('views.split.flip')}
+            <span className="ml-auto text-[11.5px] text-muted">{row ? t('views.split.vertical') : t('views.split.horizontal')}</span>
           </button>
         </FloatingMenu>
       )}

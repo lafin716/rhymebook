@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /** 백업 대상 식별자: 파일(이 기기) / 구글 드라이브 / GitHub */
 export type BackupTargetId = 'file' | 'gdrive' | 'github';
 
@@ -34,7 +35,11 @@ export interface BackupTarget {
   remove(id: string): Promise<void>;
 }
 
-export const BACKUP_TARGET_LABEL: Record<BackupTargetId, string> = { file: '파일', gdrive: '구글 드라이브', github: 'GitHub' };
+export const BACKUP_TARGET_LABEL: Record<BackupTargetId, string> = {
+  get file() { return t('core.backupTargets.file'); },
+  get gdrive() { return t('core.backupTargets.gdrive'); },
+  github: 'GitHub',
+};
 
 const NAME_RE = /^branch-learn-(\d{10,})(\.enc)?\.json$/;
 
@@ -65,11 +70,11 @@ export class BackupTargetError extends Error {
 }
 
 export function targetHttpMessage(label: string, status: number): string {
-  if (status === 401) return `${label} 인증이 만료되었거나 거부되었어요. 다시 연결하세요.`;
-  if (status === 403) return `${label} 권한이 부족해요. 쓰기 권한을 확인하세요.`;
-  if (status === 404) return `${label}에서 대상을 찾지 못했어요. 이름과 접근 권한을 확인하세요.`;
-  if (status === 0) return `${label}에 연결할 수 없어요. 네트워크를 확인하세요.`;
-  return `${label} 요청이 실패했어요 (HTTP ${status}).`;
+  if (status === 401) return t('core.targetHttp.unauthorized', { label });
+  if (status === 403) return t('core.targetHttp.forbidden', { label });
+  if (status === 404) return t('core.targetHttp.notFound', { label });
+  if (status === 0) return t('core.targetHttp.network', { label });
+  return t('core.targetHttp.failed', { label, status });
 }
 
 /** 메모리 대상 (테스트·개발용 모의) */

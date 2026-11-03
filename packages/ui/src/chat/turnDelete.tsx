@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { descendantIds, turnMessageIds, type ID } from '@branch/core';
 import { FolderInput, GitBranchPlus, Split, Trash2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
@@ -15,11 +16,11 @@ export async function removeTurn(sessionId: ID, questionId: ID) {
   const list = st.messages[sessionId] ?? [];
   const ids = turnMessageIds(list, questionId);
   if (!ids) {
-    pushNotice('첫 질문은 삭제할 수 없어요.');
+    pushNotice(t('chat.turn.firstDelete'));
     return;
   }
   if (st.streaming[sessionId]) {
-    pushNotice('답변이 끝난 뒤 삭제할 수 있어요.');
+    pushNotice(t('chat.turn.busyDelete'));
     return;
   }
   const gone = new Set(ids);
@@ -28,18 +29,18 @@ export async function removeTurn(sessionId: ID, questionId: ID) {
     .reduce((n, s) => n + descendantIds(st.sessions, s.id).length, 0);
   const q = list.find((m) => m.id === questionId)?.content.replace(/\s+/g, ' ').trim() ?? '';
   const ok = await confirm({
-    title: '질문을 삭제할까요?',
+    title: t('chat.turn.deleteTitle'),
     message: (
       <>
         {q && <b className="font-medium text-fg-2">“{q.length > 60 ? `${q.slice(0, 59)}…` : q}”</b>}
-        {q && ' '}질문과 답변{branches > 0 ? `, 답변에서 뻗은 가지 ${branches}개가` : '이'} 삭제되며 되돌릴 수 없어요.
+        {q && ' '}{branches > 0 ? t('chat.turn.deleteBranches', { count: branches }) : t('chat.turn.deleteBody')}
       </>
     ),
-    confirmLabel: '삭제',
+    confirmLabel: t('chat.turn.deleteConfirm'),
     tone: 'danger',
   });
   if (ok && !actions().deleteTurn(sessionId, questionId) && !appStore.getState().streaming[sessionId]) {
-    pushNotice('질문을 삭제하지 못했어요.');
+    pushNotice(t('chat.turn.deleteFailed'));
   }
 }
 
@@ -47,14 +48,14 @@ export async function removeTurn(sessionId: ID, questionId: ID) {
 export function splitTurnOut(sessionId: ID, questionId: ID) {
   const st = appStore.getState();
   if (!turnMessageIds(st.messages[sessionId] ?? [], questionId)) {
-    pushNotice('첫 질문은 분리할 수 없어요.');
+    pushNotice(t('chat.turn.firstSplit'));
     return;
   }
   if (st.streaming[sessionId]) {
-    pushNotice('답변이 끝난 뒤 분리할 수 있어요.');
+    pushNotice(t('chat.turn.busySplit'));
     return;
   }
-  if (!actions().splitTurn(sessionId, questionId)) pushNotice('질문을 분리하지 못했어요.');
+  if (!actions().splitTurn(sessionId, questionId)) pushNotice(t('chat.turn.splitFailed'));
 }
 
 /** 세션 본문 우클릭 메뉴 (하위/별도 세션으로 분리 · 다른 세션으로 옮기기 · 질문 삭제) */
@@ -97,10 +98,10 @@ export function TurnMenu({
   }, [onClose]);
 
   const items: { label: string; icon: typeof Trash2; run(): void; danger?: boolean }[] = [
-    { label: '하위 세션으로 분리', icon: GitBranchPlus, run: () => splitTurnOut(sessionId, questionId) },
-    { label: '별도 세션으로 분리', icon: Split, run: () => splitTurnSibling(sessionId, questionId) },
-    { label: '다른 세션으로 옮기기', icon: FolderInput, run: () => pickMoveTarget(sessionId, questionId) },
-    { label: '질문 삭제', icon: Trash2, run: () => void removeTurn(sessionId, questionId), danger: true },
+    { label: t('chat.turn.menuSplitChild'), icon: GitBranchPlus, run: () => splitTurnOut(sessionId, questionId) },
+    { label: t('chat.turn.menuSplitSibling'), icon: Split, run: () => splitTurnSibling(sessionId, questionId) },
+    { label: t('chat.turn.menuMove'), icon: FolderInput, run: () => pickMoveTarget(sessionId, questionId) },
+    { label: t('chat.turn.menuDelete'), icon: Trash2, run: () => void removeTurn(sessionId, questionId), danger: true },
   ];
   const w = first ? 228 : 196;
   const h = items.length * 34 + 8 + (first ? 22 : 0);
@@ -108,7 +109,7 @@ export function TurnMenu({
     <div
       ref={ref}
       role="menu"
-      aria-label="질문 메뉴"
+      aria-label={t('chat.turn.menuAria')}
       onContextMenu={(e) => e.preventDefault()}
       style={{ top: Math.max(8, Math.min(at.y, window.innerHeight - h - 8)), left: Math.min(at.x, window.innerWidth - w - 8), width: w }}
       className="animate-pop-in fixed z-[90] rounded-lg border border-line bg-elev p-1 shadow-float"
@@ -136,7 +137,7 @@ export function TurnMenu({
           <Icon size={14} /> {label}
         </button>
       ))}
-      {first && <p className="px-2.5 pb-1.5 text-[11.5px] text-muted">첫 질문은 분리·옮기기·삭제할 수 없어요.</p>}
+      {first && <p className="px-2.5 pb-1.5 text-[11.5px] text-muted">{t('chat.turn.firstMenuHint')}</p>}
     </div>,
     document.body,
   );

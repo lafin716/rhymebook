@@ -1,0 +1,58 @@
+{
+  "childCreate": {
+    "aria": "Create sub-item",
+    "canvas": "Canvas",
+    "emptyPage": "Empty page",
+    "session": "Session"
+  },
+  "delete": {
+    "confirm": "Delete",
+    "messageOne": "{title} will be deleted. This cannot be undone.",
+    "messageWithKids": "{title} and all of its sub-branches will be deleted. This cannot be undone.",
+    "titleBranch": "Delete this branch?",
+    "titleCanvas": "Delete this canvas?",
+    "titlePage": "Delete this page?",
+    "titleSession": "Delete this study session?"
+  },
+  "menu": {
+    "aria": "Session menu",
+    "delete": "Delete",
+    "newWindow": "Open in new window",
+    "rename": "Rename",
+    "renameAria": "Session name",
+    "splitDown": "Open split below",
+    "splitMax": "You can split up to {max} panes.",
+    "splitRight": "Open split on the right"
+  },
+  "sidebar": {
+    "changeProfile": "Change profile",
+    "closeList": "Close list",
+    "collapseAll": "Collapse all",
+    "connectToSee": "The study list appears once connected to the PC",
+    "header": "My study sea · {count} starting points",
+    "header_one": "My study sea · 1 starting point",
+    "navAria": "Study sessions",
+    "new": "New",
+    "newNeedsPc": "You can create new sessions once connected to the PC",
+    "noSessions": "No sessions yet",
+    "prompts": "Manage prompts",
+    "resizeAria": "Resize sidebar",
+    "resizeTitle": "Drag to resize · double-click for default width",
+    "skills": "Manage skills",
+    "toolbarAria": "Session list tools",
+    "usable": "{count} available"
+  },
+  "tree": {
+    "canvasIcon": "Canvas",
+    "collapseBranch": "Collapse branches",
+    "collapseSub": "Collapse sub-sessions",
+    "deleteAria": "Delete session",
+    "expandBranch": "Expand branches",
+    "expandSub": "Expand sub-sessions",
+    "pageIcon": "Page",
+    "rowTitle": "{title} · {time}",
+    "rowTitleKids": "{title} · {time} · {count} branches",
+    "rowTitleKids_one": "{title} · {time} · 1 branch",
+    "summarized": "Summarized"
+  }
+}

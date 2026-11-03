@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { buildChatRequest, buildSummaryRequest, buildSystemPrompt, buildTitleRequest, BASE_SYSTEM } from '../src/context';
+import { buildChatRequest, buildSummaryRequest, buildSystemPrompt, buildTitleRequest, baseSystem } from '../src/context';
 import { buildPageFillRequest, buildPageOrganizeRequest } from '../src/pageAssist';
 import { buildSkillAssistRequest } from '../src/skillAssist';
-import { BRANCH_SUGGEST_INSTRUCTION } from '../src/branch-suggest';
-import { DEFAULT_PROMPTS, PROMPT_INFO, promptText, sanitizePromptOverrides } from '../src/prompts';
+import { branchSuggestInstruction } from '../src/branch-suggest';
+import { defaultPrompts, promptInfo, promptText, sanitizePromptOverrides } from '../src/prompts';
 import { createSeed, SEED_IDS } from '../src/seed';
 
 describe('custom system prompts (ADR-098)', () => {
   const { sessions, messages } = createSeed(0);
 
   it('every prompt key is listed once in the manager', () => {
-    expect(PROMPT_INFO.map((p) => p.key).sort()).toEqual(Object.keys(DEFAULT_PROMPTS).sort());
+    expect(promptInfo().map((p) => p.key).sort()).toEqual(Object.keys(defaultPrompts()).sort());
   });
 
   it('falls back to the default for missing, blank or invalid overrides', () => {
-    expect(promptText('base')).toBe(BASE_SYSTEM);
-    expect(promptText('base', { base: '   ' })).toBe(BASE_SYSTEM);
-    expect(promptText('base', { base: 3 as unknown as string })).toBe(BASE_SYSTEM);
+    expect(promptText('base')).toBe(baseSystem());
+    expect(promptText('base', { base: '   ' })).toBe(baseSystem());
+    expect(promptText('base', { base: 3 as unknown as string })).toBe(baseSystem());
     expect(promptText('base', { base: '너는 친절한 선생님이다.' })).toBe('너는 친절한 선생님이다.');
   });
 
@@ -28,7 +28,7 @@ describe('custom system prompts (ADR-098)', () => {
     expect(sub).toContain('BRANCH!');
     const chat = buildChatRequest({ sessions, messages, sessionId: SEED_IDS.root, prompts });
     expect(chat.system).toContain('SUGGEST!');
-    expect(chat.system).not.toContain(BRANCH_SUGGEST_INSTRUCTION);
+    expect(chat.system).not.toContain(branchSuggestInstruction());
   });
 
   it('summary, title, page and skill assist requests use their overrides', () => {
@@ -42,7 +42,7 @@ describe('custom system prompts (ADR-098)', () => {
   });
 
   it('sanitize keeps only known, non-default string values', () => {
-    expect(sanitizePromptOverrides({ base: 'x', title: DEFAULT_PROMPTS.title, summary: ' ', bogus: 'y', pageFill: 1 })).toEqual({ base: 'x' });
+    expect(sanitizePromptOverrides({ base: 'x', title: defaultPrompts().title, summary: ' ', bogus: 'y', pageFill: 1 })).toEqual({ base: 'x' });
     expect(sanitizePromptOverrides(null)).toEqual({});
   });
 });

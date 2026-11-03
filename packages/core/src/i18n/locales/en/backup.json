@@ -1,0 +1,23 @@
+{
+  "google": {
+    "loadFailed": "Couldn't load the Google sign-in module.",
+    "loadFailedNetwork": "Couldn't load the Google sign-in module. Check your network.",
+    "cancelled": "The Google account connection was cancelled."
+  },
+  "drive": {
+    "mockLabel": "Google Drive (mock)",
+    "mockAccount": "Mock Drive (no client ID)",
+    "defaultAccount": "Google account"
+  },
+  "err": {
+    "passphrase": "Encryption is on. Enter the backup passphrase."
+  },
+  "notice": {
+    "autoDone": "Auto backup complete.",
+    "done": "Backup complete.",
+    "merged": "Merged the backup. The state from before the restore was backed up on this device.",
+    "replaced": "Replaced with the backup. The state from before the restore was backed up on this device.",
+    "exported": "Exported the backup file.",
+    "imported": "Added the imported backup to the list. Choose how to restore it."
+  }
+}

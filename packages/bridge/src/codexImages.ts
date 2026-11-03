@@ -1,7 +1,7 @@
 import { readdir, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { ATTACHMENT_LIMITS, newId, type Attachment } from '@branch/core';
+import { t, ATTACHMENT_LIMITS, newId, type Attachment } from '@branch/core';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 
@@ -95,7 +95,7 @@ export async function collectCodexImages(dir: string): Promise<CollectedImages> 
     images.push({
       id: newId('img'),
       kind: 'image',
-      name: `생성 이미지 ${images.length + 1}.${ext}`,
+      name: t('bridge.codexImages.name', { n: images.length + 1, ext }),
       mime: out.mime,
       size,
       data: out.data.toString('base64'),

@@ -4,7 +4,8 @@
  * 블록이 없으면(옛 답변·지시를 안 따른 모델) "1주차·2단계·Chapter 3" 같은 제목을 챕터로 본다.
  */
 
-import { DEFAULT_PROMPTS } from './prompts';
+import { defaultPrompt } from './prompts';
+import { t } from './i18n';
 
 export const BRANCHES_LANG = 'branches';
 
@@ -38,7 +39,9 @@ const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
 const BLOCK_RE = /(?:^|\n) {0,3}```branches[^\n]*\n([\s\S]*?)(?:\n {0,3}```[ \t]*(?=\n|$)|$)/;
 
 /** 답변 지시: 끝에 추천 가지 블록을 붙인다 (채팅 요청에만) */
-export const BRANCH_SUGGEST_INSTRUCTION = DEFAULT_PROMPTS.branchSuggest;
+export function branchSuggestInstruction(): string {
+  return defaultPrompt('branchSuggest');
+}
 
 const cut = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 
@@ -190,11 +193,11 @@ export function guessChapters(content: string): BranchSuggestion[] {
   const heads = candidateLines(content).filter((l) => /^ {0,3}#/.test(content.slice(l.lineStart, l.textStart)));
   const hits = heads
     .map((l) => visible(l.raw, l.textStart).text)
-    .filter((t) => CHAPTER_HEAD_RE.test(t.replace(/^[^\p{L}\p{N}]+/u, '')));
+    .filter((h) => CHAPTER_HEAD_RE.test(h.replace(/^[^\p{L}\p{N}]+/u, '')));
   if (hits.length < 2) return [];
-  return hits.slice(0, MAX_CHAPTERS).map((t) => ({
-    title: cut(t, MAX_TITLE),
-    question: `"${t}" 챕터를 학습하자. 핵심 개념부터 예시와 함께 차근차근 설명해줘.`,
+  return hits.slice(0, MAX_CHAPTERS).map((h) => ({
+    title: cut(h, MAX_TITLE),
+    question: t('llm.branch.question', { title: h }),
   }));
 }
 

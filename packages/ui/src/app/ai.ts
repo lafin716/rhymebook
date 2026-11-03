@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { collectStream, resolveModelOptions, type AppState, type ProviderError, type ProviderId, type StreamRequest } from '@branch/core';
 import { answersViaPc } from './capabilities';
 import { appStore, caps, registry } from './store';
@@ -30,7 +31,7 @@ export class AiError extends Error {
  */
 export async function runAi(providerId: ProviderId, req: StreamRequest, signal: AbortSignal, onDelta?: (text: string) => void): Promise<string> {
   const provider = registry.get(providerId);
-  if (!provider) throw new AiError('쓸 수 있는 AI 연결이 없어요. 설정에서 연결을 확인하세요.');
+  if (!provider) throw new AiError(t('app.ai.noProvider'));
   const r: StreamRequest = { ...req, signal };
   if (caps.modelChoice) Object.assign(r, resolveModelOptions(providerId, undefined, appStore.getState().connections[providerId]));
   try {
@@ -43,6 +44,6 @@ export async function runAi(providerId: ProviderId, req: StreamRequest, signal: 
     if (e instanceof AiError) throw e;
     const err = e as Partial<ProviderError>;
     if (err?.code === 'aborted' || signal.aborted) throw new AiError('', true);
-    throw new AiError(err?.message ?? 'AI 응답을 받지 못했어요.');
+    throw new AiError(err?.message ?? t('app.ai.noResponse'));
   }
 }

@@ -1,4 +1,4 @@
-import { providerError, type Attachment, type StreamEvent, type ToolActivity, type ToolSource } from '@branch/core';
+import { t, providerError, type Attachment, type StreamEvent, type ToolActivity, type ToolSource } from '@branch/core';
 import { classifyCliError, type CliErrorContext } from './errors';
 import { isObj, str, type CliParser } from './parser';
 import type { RunResult } from './run';
@@ -183,8 +183,8 @@ function done(stopReason: unknown): StreamEvent {
 
 /** 종료 이벤트 없이 프로세스가 끝났을 때 */
 export function finishFromExit(res: RunResult, extra: string, ctx: CliErrorContext): StreamEvent {
-  if (res.aborted) return { type: 'error', error: providerError('aborted', '사용자가 중지했습니다.') };
-  if (res.notFound) return { type: 'error', error: providerError('cli', `${ctx.label}가 설치되어 있지 않거나 PATH에서 찾을 수 없습니다.`) };
-  if (res.timedOut) return { type: 'error', error: providerError('network', `${ctx.label} 응답 시간이 초과되었습니다.`) };
-  return { type: 'error', error: classifyCliError([extra, res.stderr].filter(Boolean).join(' ') || `종료 코드 ${res.code ?? '?'}`, ctx) };
+  if (res.aborted) return { type: 'error', error: providerError('aborted', t('bridge.common.stopped')) };
+  if (res.notFound) return { type: 'error', error: providerError('cli', t('bridge.claude.notFound', { label: ctx.label })) };
+  if (res.timedOut) return { type: 'error', error: providerError('network', t('bridge.claude.timedOut', { label: ctx.label })) };
+  return { type: 'error', error: classifyCliError([extra, res.stderr].filter(Boolean).join(' ') || t('bridge.claude.exitCode', { code: String(res.code ?? '?') }), ctx) };
 }

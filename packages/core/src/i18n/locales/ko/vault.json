@@ -1,0 +1,104 @@
+{
+  "audio": {
+    "listen": "듣기",
+    "stop": "멈춤"
+  },
+  "defaults": {
+    "folder": "폴더",
+    "fragment": "조각",
+    "newFolder": "새 폴더",
+    "newPage": "새 페이지"
+  },
+  "delete": {
+    "confirm": "지우기",
+    "irreversible": "지운 뒤에는 되돌릴 수 없어요.",
+    "title": "'{name}'을(를) 지울까요?",
+    "withContents": "안에 든 {count}개도 함께 지워져요."
+  },
+  "folder": {
+    "empty": "빈 폴더예요. 왼쪽 목록에서 항목을 끌어다 놓거나 항목의 [이동]으로 옮길 수 있어요."
+  },
+  "item": {
+    "addToPage": "페이지에 넣기",
+    "cancel": "취소",
+    "contentAria": "내용",
+    "copy": "복사",
+    "edit": "수정하기",
+    "move": "이동",
+    "nameAria": "이름",
+    "openChat": "원래 대화 열기",
+    "save": "저장",
+    "saveImage": "이미지 저장",
+    "saveMarkdown": "Markdown 저장",
+    "savedOn": "{date}에 담음",
+    "toolbarAria": "항목 도구"
+  },
+  "lang": {
+    "en": "영어",
+    "ko": "한국어",
+    "vi": "베트남어"
+  },
+  "move": {
+    "toFolder": "'{name}' 폴더로 옮겼어요.",
+    "toTop": "보관함 맨 위로 옮겼어요."
+  },
+  "notice": {
+    "addedToPage": "'{name}'에 넣었어요.",
+    "copied": "복사했어요.",
+    "copyFailed": "복사하지 못했어요.",
+    "emptyContent": "내용이 비어 있어요.",
+    "pageFull": "페이지에 더 넣을 수 없어요.",
+    "saved": "저장했어요.",
+    "savedToLibrary": "보관함에 담았어요."
+  },
+  "overlay": {
+    "backToList": "보관함 목록으로",
+    "close": "보관함 닫기",
+    "dropHint": "줄 사이에 놓으면 그 자리로, 폴더 가운데에 놓으면 폴더 안으로, 빈 곳에 놓으면 맨 위로 옮겨요.",
+    "empty": "아직 담은 조각이 없어요. 답변 아래 [보관]이나 글을 선택한 뒤 [보관]을 눌러 담아 보세요.",
+    "folderAria": "보관함 폴더",
+    "fullScreen": "전체 화면으로 보기",
+    "label": "보관함",
+    "pickHint": "왼쪽에서 폴더·조각·페이지를 고르세요. 항목을 끌어 폴더에 놓으면 옮길 수 있고, [새 페이지]로 조각들을 엮어 한 페이지로 만들 수 있어요.",
+    "windowed": "창으로 보기"
+  },
+  "page": {
+    "addFragment": "조각 넣기",
+    "addText": "글 넣기",
+    "besideHint": "손잡이를 끌어 다른 블록 왼쪽·오른쪽 끝에 놓으면 나란히 놓여요.",
+    "blank": "조각이나 글을 넣어 페이지를 꾸며 보세요.",
+    "down": "아래로",
+    "dragAria": "끌어서 옮기기",
+    "empty": "빈 페이지예요. 위쪽 [수정하기]에서 조각과 글을 넣어 보세요.",
+    "pairBeside": "앞 블록 옆에 나란히",
+    "remove": "페이지에서 빼기",
+    "removedFragment": "지워진 조각",
+    "removedFragmentNote": "지워진 조각이에요.",
+    "text": "글",
+    "textPlaceholder": "이 자리에 넣을 글 (Markdown)",
+    "unpairBeside": "나란히 풀기",
+    "up": "위로"
+  },
+  "picker": {
+    "close": "닫기",
+    "current": "지금 위치",
+    "findAria": "조각 찾기",
+    "findPlaceholder": "조각 이름으로 찾기",
+    "moveLabel": "옮길 폴더 고르기",
+    "moveTitle": "'{name}' 옮기기",
+    "noFolders": "폴더가 없어요. 왼쪽 [새 폴더]로 만들 수 있어요.",
+    "noFragments": "넣을 조각이 없어요.",
+    "noPages": "아직 페이지가 없어요. 왼쪽 [새 페이지]로 만든 뒤 넣어 보세요.",
+    "pageLabel": "넣을 페이지 고르기",
+    "top": "보관함 맨 위"
+  },
+  "tree": {
+    "collapse": "{name} 접기",
+    "expand": "{name} 펼치기"
+  },
+  "unsaved": {
+    "confirm": "버리기",
+    "message": "수정한 내용이 사라져요.",
+    "title": "저장하지 않은 변경을 버릴까요?"
+  }
+}

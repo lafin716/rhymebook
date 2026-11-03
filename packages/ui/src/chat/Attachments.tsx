@@ -1,3 +1,4 @@
+import { t, intlLocale } from '../i18n';
 import { formatBytes, textPreview, type Attachment, type ID } from '@branch/core';
 import { Archive, ClipboardPaste, Download, FileText, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -33,7 +34,7 @@ export function AttachmentList({
   return (
     <>
       <ul
-        aria-label="첨부"
+        aria-label={t('chat.attachments.label')}
         className={cn(
           'flex gap-1.5',
           // 입력창 위 미리보기는 한 줄로 두고 옆으로 넘긴다 (지우기 버튼이 잘리지 않게 위·오른쪽 여백)
@@ -71,7 +72,7 @@ export function AttachmentList({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium text-fg">{a.pasted ? textPreview(a.data, 40) || a.name : a.name}</span>
                   <span className="block truncate text-[11.5px] text-muted">
-                    {a.pasted ? `${a.name} · ${a.data.length.toLocaleString()}자` : `${a.kind === 'pdf' ? 'PDF' : '텍스트'} · ${formatBytes(a.size)}`}
+                    {a.pasted ? t('chat.attachments.textMeta', { name: a.name, count: a.data.length.toLocaleString(intlLocale()) }) : t('chat.attachments.meta', { kind: a.kind === 'pdf' ? 'PDF' : t('chat.attachments.text'), size: formatBytes(a.size) })}
                   </span>
                 </span>
               </button>
@@ -79,7 +80,7 @@ export function AttachmentList({
             {onRemove && (
               <button
                 type="button"
-                aria-label={`${a.name} 첨부 빼기`}
+                aria-label={t('chat.attachments.remove', { name: a.name })}
                 onClick={() => onRemove(a.id)}
                 className="absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full bg-fg text-bg shadow-pop"
               >
@@ -117,8 +118,8 @@ function AttachmentViewer({ attachment: a, messageId, onClose }: { attachment: A
         {a.kind === 'image' && messageId && (
           <button
             type="button"
-            aria-label="보관함에 담기"
-            title="보관함에 담기"
+            aria-label={t('chat.attachments.keep')}
+            title={t('chat.attachments.keep')}
             onClick={() => saveToVault({ type: 'image', attachment: a }, messageId)}
             className="grid size-9 place-items-center rounded-full bg-black/50 text-white"
           >
@@ -128,15 +129,15 @@ function AttachmentViewer({ attachment: a, messageId, onClose }: { attachment: A
         {a.kind === 'image' && (
           <button
             type="button"
-            aria-label="이미지 저장"
-            title="저장"
+            aria-label={t('chat.attachments.saveImage')}
+            title={t('chat.attachments.save')}
             onClick={() => void saveBase64File(a.name, a.data, a.mime).catch(() => {})}
             className="grid size-9 place-items-center rounded-full bg-black/50 text-white"
           >
             <Download size={18} />
           </button>
         )}
-        <button type="button" aria-label="닫기" onClick={onClose} className="grid size-9 place-items-center rounded-full bg-black/50 text-white">
+        <button type="button" aria-label={t('chat.attachments.close')} onClick={onClose} className="grid size-9 place-items-center rounded-full bg-black/50 text-white">
           <X size={18} />
         </button>
       </div>
@@ -145,7 +146,7 @@ function AttachmentViewer({ attachment: a, messageId, onClose }: { attachment: A
       ) : (
         <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-surface shadow-float">
           <div className="border-b border-line px-4 py-3 text-[14px] font-semibold">
-            {a.name} <span className="font-normal text-muted">· {a.data.length.toLocaleString()}자</span>
+            {a.name} <span className="font-normal text-muted">{t('chat.attachments.chars', { count: a.data.length.toLocaleString(intlLocale()) })}</span>
           </div>
           <pre className="scroll-thin min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed whitespace-pre-wrap text-fg-2">{a.data}</pre>
         </div>

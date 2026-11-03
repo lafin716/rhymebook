@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { ID, Message, Session } from './model';
 
 /**
@@ -5,7 +6,8 @@ import type { ID, Message, Session } from './model';
  * 가져온 항목(이미지·글 카드)이 아래, 펜 필기가 그 위에 그려진다.
  */
 
-export const NEW_CANVAS_TITLE = '새 캔버스';
+/** 새 캔버스 기본 제목 (지금 언어) */
+export const newCanvasTitle = (): string => t('core.canvas.newTitle');
 
 /** 캔버스 본문 전체 크기 상한 (JSON 길이) — 동기화 `SYNC_LIMITS.doc`과 같다 */
 export const CANVAS_MAX_CHARS = 8_000_000;
@@ -510,9 +512,9 @@ const CARD_MAX_CHARS = 20_000;
 
 /** 본문 속 data URL 이미지·파일은 이름만 남긴다 — 카드에 base64를 싣지 않는다 */
 const dropEmbeds = (s: string): string =>
-  s.replace(/!\[([^\]]*)\]\(data:[^)\s]*\)/g, (_, n: string) => `_🖼 ${n || '이미지'}_`).replace(/\[([^\]]*)\]\(data:[^)]*\)/g, '$1');
+  s.replace(/!\[([^\]]*)\]\(data:[^)\s]*\)/g, (_, n: string) => `_🖼 ${n || t('core.canvas.image')}_`).replace(/\[([^\]]*)\]\(data:[^)]*\)/g, '$1');
 
-const clipText = (s: string, max: number) => (s.length > max ? `${s.slice(0, max).trimEnd()}\n\n…(생략)` : s);
+const clipText = (s: string, max: number) => (s.length > max ? `${s.slice(0, max).trimEnd()}\n\n${t('core.canvas.omitted')}` : s);
 
 /** 대화 세션을 글 카드용 마크다운으로 (질문·답변 차례, 첨부 data는 뺀다) */
 export function sessionCardText(messages: readonly Message[], max = CARD_MAX_CHARS): string {
@@ -533,14 +535,14 @@ export const pageCardText = (content: string, max = CARD_MAX_CHARS): string => c
 /** 맥락·검색·내보내기용 캔버스 글: 글 카드 제목과 내용, 이미지·필기 개수 */
 export function canvasText(doc: CanvasDoc, max = 6000): string {
   const out: string[] = [];
-  if (doc.pdf) out.push(`[PDF: ${doc.pdf.name}]`, '');
+  if (doc.pdf) out.push(t('core.canvas.pdf', { name: doc.pdf.name }), '');
   for (const it of doc.items) {
     if (it.type === 'text') out.push(`## ${it.title}`, it.text.trim(), '');
-    else out.push(`[이미지${it.name ? `: ${it.name}` : ''}]`, '');
+    else out.push(it.name ? t('core.canvas.imageNamed', { name: it.name }) : t('core.canvas.imageBare'), '');
   }
-  if (doc.strokes.length) out.push(`[손글씨 필기 ${doc.strokes.length}획]`);
+  if (doc.strokes.length) out.push(t('core.canvas.handwriting', { n: doc.strokes.length }));
   const pages = canvasPageCount(doc);
-  if (pages > 1) out.push(`[${pages}쪽]`);
+  if (pages > 1) out.push(t('core.canvas.pages', { pages }));
   const text = out.join('\n').trim();
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }

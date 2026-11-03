@@ -1,0 +1,33 @@
+{
+  "close": "Close",
+  "cancel": "Cancel",
+  "confirm": "OK",
+  "save": "Save",
+  "delete": "Delete",
+  "edit": "Edit",
+  "copy": "Copy",
+  "copied": "Copied",
+  "retry": "Try again",
+  "back": "Back",
+  "next": "Next",
+  "done": "Done",
+  "add": "Add",
+  "remove": "Remove",
+  "rename": "Rename",
+  "search": "Search",
+  "loading": "Loading…",
+  "on": "On",
+  "off": "Off",
+  "yes": "Yes",
+  "no": "No",
+  "more": "More",
+  "untitled": "Untitled",
+  "language": {
+    "label": "Language",
+    "hint": "The language used in the app. Changing it restarts the app.",
+    "promptTitle": "Choose a language",
+    "promptBody": "Pick the language for the app. You can change it later in Settings → General.",
+    "promptStart": "Get started",
+    "contribute": "Want to help translate into another language? See docs/i18n.md."
+  }
+}

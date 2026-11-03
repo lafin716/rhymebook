@@ -1,0 +1,143 @@
+{
+  "attachments": {
+    "binaryNote": "(첨부: {names} — 이 연결에서는 파일 내용을 볼 수 없음)"
+  },
+  "effort": {
+    "low": "낮음",
+    "medium": "보통",
+    "high": "높음",
+    "xhigh": "매우 높음",
+    "max": "최대",
+    "ultra": "울트라"
+  },
+  "availability": {
+    "disabled": "비활성화됨"
+  },
+  "providers": {
+    "mock": "데모 (Mock)",
+    "remoteBridge": "원격 Bridge"
+  },
+  "tts": {
+    "speechKorean": "표준어를 쓰는 한국어 원어민처럼 또박또박 자연스럽게 읽어 주세요.",
+    "fallback": {
+      "auth": "OpenAI API 키가 없거나 거부되어",
+      "rateLimit": "OpenAI 사용 한도(크레딧)가 부족하거나 요청이 많아",
+      "offline": "OpenAI에 연결할 수 없어",
+      "network": "OpenAI 서버 응답에 문제가 있어",
+      "default": "OpenAI 음성을 만들지 못해",
+      "template": "{reason} 기기 음성으로 읽어요."
+    }
+  },
+  "stt": {
+    "large": {
+      "label": "기본 (정확)",
+      "note": "Apple Silicon·최근 GPU PC 권장. 한국어 정확도가 가장 좋아요."
+    },
+    "small": {
+      "label": "가벼운 (빠름)",
+      "note": "오래된·저사양 PC용. 빠르지만 정확도가 조금 낮아요."
+    }
+  },
+  "bridgePrompt": {
+    "learner": "학습자",
+    "tutor": "튜터",
+    "answer": "위 대화에 이어서, 아래 학습자의 마지막 메시지에 답하세요. 대화 기록의 형식은 따라 하지 마세요."
+  },
+  "session": {
+    "newTitle": "새 학습"
+  },
+  "store": {
+    "reorganize": "세션 재정리"
+  },
+  "page": {
+    "newTitle": "새 페이지",
+    "blocks": {
+      "h1": "제목 1",
+      "h2": "제목 2",
+      "h3": "제목 3",
+      "bullet": "글머리 목록",
+      "number": "번호 목록",
+      "todo": "할 일 목록",
+      "quote": "인용",
+      "code": "코드 블록",
+      "divider": "구분선",
+      "table": "표",
+      "math": "수식",
+      "image": "이미지",
+      "file": "파일",
+      "page": "하위 페이지"
+    },
+    "tableHeader": {
+      "item": "항목",
+      "desc": "설명"
+    }
+  },
+  "canvas": {
+    "newTitle": "새 캔버스",
+    "image": "이미지",
+    "omitted": "…(생략)",
+    "pdf": "[PDF: {name}]",
+    "imageNamed": "[이미지: {name}]",
+    "imageBare": "[이미지]",
+    "handwriting": "[손글씨 필기 {n}획]",
+    "pages": "[{pages}쪽]"
+  },
+  "fallback": {
+    "image": "이미지",
+    "file": "파일"
+  },
+  "vault": {
+    "text": "텍스트",
+    "voice": "음성",
+    "item": "항목"
+  },
+  "turns": {
+    "attachments": "[첨부] {names}",
+    "splitQuestion": "분리한 질문"
+  },
+  "notes": {
+    "header": "> octobooks 이해 노트 · {date} · 가지 {branches}개 · 요약 {summaries}개",
+    "empty": "아직 가지가 없습니다. 답변에서 모르는 부분을 선택해 가지를 만들어 보세요.",
+    "path": "경로: {path}",
+    "summary": "**이해한 내용** — {summary}",
+    "noSummary": "_요약 없음 — 가지에서 [부모에 요약 붙이기]를 하면 채워집니다._",
+    "defaultName": "이해 노트",
+    "fileTag": "이해노트"
+  },
+  "backupMarkdown": {
+    "title": "# octobooks 백업",
+    "asOf": "{at} 기준. 복원은 앱의 설정 › 백업에서 backup JSON으로 하세요.",
+    "original": "> 원문: \"{text}\"",
+    "summary": "> **가지 요약**: {text}",
+    "me": "**나**: {text}"
+  },
+  "backupErrors": {
+    "invalid": "octobooks 백업 파일이 아니거나 손상되었어요.",
+    "newerVersion": "더 새 버전의 앱에서 만든 백업이에요. 앱을 업데이트한 뒤 복원하세요.",
+    "passphraseRequired": "암호로 잠긴 백업이에요. 암호를 입력하세요.",
+    "wrongPassphrase": "암호가 맞지 않아요."
+  },
+  "backupTargets": {
+    "file": "파일",
+    "gdrive": "구글 드라이브"
+  },
+  "targetHttp": {
+    "unauthorized": "{label} 인증이 만료되었거나 거부되었어요. 다시 연결하세요.",
+    "forbidden": "{label} 권한이 부족해요. 쓰기 권한을 확인하세요.",
+    "notFound": "{label}에서 대상을 찾지 못했어요. 이름과 접근 권한을 확인하세요.",
+    "network": "{label}에 연결할 수 없어요. 네트워크를 확인하세요.",
+    "failed": "{label} 요청이 실패했어요 (HTTP {status})."
+  },
+  "route": {
+    "direct": "직접 연결",
+    "lan": "LAN 직접 연결",
+    "tailscale": "Tailscale 직접 연결",
+    "relay": "Relay 경유"
+  },
+  "remote": {
+    "base": "{name} · {route} · 지연 {latency}ms",
+    "loginNeeded": "{base} · bridge PC에서 CLI 로그인이 필요합니다. {detail}",
+    "notInstalled": "{base} · bridge PC에 Claude/Codex CLI가 없습니다.",
+    "via": "원격 Bridge({name}) 경유"
+  }
+}

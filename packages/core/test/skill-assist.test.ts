@@ -4,7 +4,7 @@ import {
   buildSkillAssistRequest,
   finalizeSkillAssist,
   parseSkillAssist,
-  SKILL_ASSIST_SYSTEM,
+  skillAssistSystem,
   uniqueSkillName,
   type SkillFields,
 } from '../src/skillAssist';
@@ -27,7 +27,7 @@ const OUT = [
 describe('buildSkillAssistRequest', () => {
   it('새 스킬: 요청과 이미 있는 이름을 담는다', () => {
     const req = buildSkillAssistRequest({ request: '  단어 암기  ', current: EMPTY, takenNames: ['curriculum'] });
-    expect(req.system).toBe(SKILL_ASSIST_SYSTEM);
+    expect(req.system).toBe(skillAssistSystem());
     expect(req.purpose).toBe('skill');
     const u = req.messages[0]!.content;
     expect(u).toContain('## 새 스킬을 만든다');

@@ -1,0 +1,65 @@
+{
+  "aborted": "사용자가 중지했습니다.",
+  "streamCut": "응답 스트림이 완료 전에 끊겼습니다.",
+  "connectionDisabled": "{label} 연결이 비활성화되어 있습니다.",
+  "openai": {
+    "noKey": "OpenAI API 키가 설정되지 않았습니다.",
+    "noKeyShort": "OpenAI API 키가 없습니다.",
+    "error": "OpenAI 오류: {message}"
+  },
+  "anthropic": {
+    "noKey": "Anthropic API 키가 설정되지 않았습니다.",
+    "error": "Anthropic 오류: {message}"
+  },
+  "http": {
+    "auth": "API 키가 거부되었습니다. 설정에서 키를 확인하세요.",
+    "rate-limit": "요청 한도를 초과했습니다. 잠시 후 다시 시도하세요.",
+    "network": "서버 응답에 문제가 있습니다. 잠시 후 다시 시도하세요.",
+    "offline": "네트워크에 연결할 수 없습니다.",
+    "cli": "CLI 실행 중 오류가 발생했습니다.",
+    "unknown": "요청을 처리하지 못했습니다."
+  },
+  "summaryFailed": "요약 생성에 실패했습니다.",
+  "backup": {
+    "noTarget": "백업 위치가 연결되어 있지 않아요.",
+    "preBackupFailed": "복원 전 자동 백업에 실패해 복원을 멈췄어요: {message}"
+  },
+  "bridge": {
+    "offline": "Bridge에 연결할 수 없습니다.",
+    "statusTimeout": "CLI 상태 확인 시간이 초과되었습니다.",
+    "sttStatusFailed": "음성 입력 상태를 확인하지 못했습니다.",
+    "sttStateFailed": "음성 설정을 불러오지 못했습니다.",
+    "sttManageFailed": "음성 설정을 바꾸지 못했습니다.",
+    "transcribeTimeout": "음성 변환 시간이 초과되었습니다."
+  },
+  "secure": {
+    "badBase64": "잘못된 base64url 문자열",
+    "notEncrypted": "암호화되지 않은 프레임",
+    "frameOrder": "프레임 순서 오류",
+    "badVersion": "지원하지 않는 bridge 버전입니다.",
+    "keyMismatch": "bridge 키가 페어링한 값과 다릅니다. 다른 기기이거나 중간자 공격일 수 있습니다.",
+    "badSignature": "bridge 서명이 올바르지 않습니다.",
+    "unparseable": "bridge 응답을 해석할 수 없습니다."
+  },
+  "remote": {
+    "badToken": "코드가 틀렸거나 이미 사용되었습니다. bridge 화면의 코드를 다시 확인하세요.",
+    "expired": "페어링 코드가 만료되었습니다. bridge에서 다시 --pair로 새 코드를 만드세요.",
+    "unknownDevice": "bridge에서 이 기기의 페어링이 해제되었습니다. 다시 페어링하세요.",
+    "badSignature": "기기 인증에 실패했습니다. 다시 페어링하세요.",
+    "protocol": "bridge와 통신 형식이 맞지 않습니다. 앱과 bridge를 최신 버전으로 맞추세요.",
+    "unreachableUrl": "주소를 열 수 없습니다: {url}",
+    "timeout": "{url} 에서 응답이 없습니다. bridge 실행 여부와 네트워크(같은 Wi‑Fi·Tailscale)를 확인하세요.",
+    "unreachable": "{url} 에 연결할 수 없습니다. bridge 실행 여부와 네트워크를 확인하세요.",
+    "relayNoBridge": "relay에 bridge가 연결되어 있지 않습니다. bridge PC에서 --relay 옵션으로 실행 중인지 확인하세요.",
+    "closed": "bridge가 연결을 닫았습니다.",
+    "unpaired": "원격 Bridge가 페어링되어 있지 않습니다.",
+    "reset": "연결이 재설정되었습니다.",
+    "noCli": "bridge PC에서 사용할 수 있는 CLI가 없습니다. 설치·로그인 상태를 확인하세요."
+  },
+  "store": {
+    "unknownProvider": "등록되지 않은 provider: {id}",
+    "providerMissing": "provider를 찾을 수 없습니다.",
+    "sessionMissing": "세션을 찾을 수 없음: {id}",
+    "annotationIdConflict": "어노테이션 id 충돌: {id}"
+  }
+}

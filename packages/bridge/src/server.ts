@@ -1,23 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  binaryNote,
-  cliPrompt,
-  isAttachment,
-  isSttAudio,
-  isValidEffort,
-  isValidModelName,
-  providerError,
-  withInstructions,
-  type BridgeClientMsg,
-  type BridgeServerMsg,
-  type BridgeStatus,
-  type ChatStartMsg,
-  type StreamEvent,
-  type SttManageMsg,
-  type SttState,
-} from '@branch/core';
+import { t, binaryNote, cliPrompt, isAttachment, isSttAudio, isValidEffort, isValidModelName, providerError, withInstructions, type BridgeClientMsg, type BridgeServerMsg, type BridgeStatus, type ChatStartMsg, type StreamEvent, type SttManageMsg, type SttState } from '@branch/core';
 import { claudeArgs, claudeJsonInput, createClaudeParser } from './claude';
 import { codexArgs, createCodexParser } from './codex';
 import { codexImagesDir, collectCodexImages } from './codexImages';
@@ -58,10 +42,9 @@ export interface BridgeServer {
 const IMAGE_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
 
 /** 이미지 생성을 켤 때 덧붙이는 지시. 결과는 앱이 답변에 붙이므로 경로·저장 위치를 말할 필요가 없다 */
-const IMAGE_GEN_NOTE =
-  '이미지가 필요하면 이미지 생성 도구로 만드세요. 만든 이미지는 앱이 답변 아래에 자동으로 붙이므로 파일 경로나 저장 위치는 말하지 마세요. SVG·ASCII 그림으로 대신하지 마세요.';
+const imageGenNote = () => t('bridge.server.imageGenNote');
 
-const STT_UNSUPPORTED = '이 Bridge는 음성 입력을 지원하지 않습니다.';
+const sttUnsupported = () => t('bridge.server.sttUnsupported');
 
 /**
  * 원격 기기의 음성 설정 요청 (ADR-046). 페어링된 기기는 PC 설정 화면과 같은 일을 할 수 있다.
@@ -70,7 +53,7 @@ const STT_UNSUPPORTED = '이 Bridge는 음성 입력을 지원하지 않습니�
 async function manageStt(stt: SttEngine, msg: { type: 'stt.state.get' } | SttManageMsg): Promise<SttState> {
   if (msg.type === 'stt.state.get') return stt.state();
   const need = () => {
-    if (!msg.model) throw new Error('모델을 골라 주세요.');
+    if (!msg.model) throw new Error(t('bridge.server.pickModel'));
     return msg.model;
   };
   switch (msg.op) {
@@ -87,7 +70,7 @@ async function manageStt(stt: SttEngine, msg: { type: 'stt.state.get' } | SttMan
     case 'download': {
       const model = need();
       const now = await stt.state();
-      if (now.download && now.download.model !== model) throw new Error('다른 모델을 받는 중입니다.');
+      if (now.download && now.download.model !== model) throw new Error(t('bridge.stt.otherDownloading'));
       if (now.installed.includes(model) || now.download) return now;
       // 끝날 때까지 기다리지 않는다. 실패는 엔진이 state.error에 남긴다
       stt.download(model).catch(() => {});
@@ -96,7 +79,7 @@ async function manageStt(stt: SttEngine, msg: { type: 'stt.state.get' } | SttMan
   }
 }
 
-const FALLBACK_SYSTEM = '당신은 학습을 돕는 친절한 튜터입니다. 한국어로 짧고 명확하게 답하세요.';
+const fallbackSystem = () => t('bridge.server.fallbackSystem');
 
 /** CLI 인자로 넘길 모델·노력치. 형식이 틀린 값은 버리고 CLI 기본값을 쓴다 (IPC·원격 공통 검증) */
 export function cliModelOptions(msg: Pick<ChatStartMsg, 'providerId' | 'model' | 'effort'>): {
@@ -167,14 +150,14 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
 
   async function runChat(msg: ChatStartMsg, signal: AbortSignal, emit: (ev: StreamEvent) => void): Promise<void> {
     if (!(await gate.acquire(signal))) {
-      emit({ type: 'error', error: providerError('aborted', '사용자가 중지했습니다.') });
+      emit({ type: 'error', error: providerError('aborted', t('bridge.common.stopped')) });
       return;
     }
     const env = await cliEnv;
     const workDir = await mkdtemp(path.join(os.tmpdir(), 'branch-bridge-'));
     try {
       const prompt = cliPrompt(msg.messages);
-      const system = msg.system.trim() || FALLBACK_SYSTEM;
+      const system = msg.system.trim() || fallbackSystem();
       // 대화 전체의 이미지·PDF 첨부 (형식이 맞는 것만)
       const files = msg.messages.flatMap((m) => m.attachments ?? []).filter((a) => isAttachment(a) && a.kind !== 'text');
       let args: string[];
@@ -198,7 +181,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
         const note = binaryNote(files.filter((f) => f.kind === 'pdf'));
         const imageGen = msg.imageGen === true;
         args = codexArgs({ ...cliModelOptions(msg), images, imageGen, webSearch: msg.webSearch === true });
-        stdin = withInstructions(imageGen ? `${system}\n\n${IMAGE_GEN_NOTE}` : system, note ? `${prompt}\n\n${note}` : prompt);
+        stdin = withInstructions(imageGen ? `${system}\n\n${imageGenNote()}` : system, note ? `${prompt}\n\n${note}` : prompt);
         const codex = createCodexParser();
         parser = codex;
         if (imageGen) codexThread = codex.threadId;
@@ -234,7 +217,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
       });
       log(`${msg.providerId} exit=${res.code} ${Date.now() - started}ms${res.aborted ? ' aborted' : ''}${res.timedOut ? ' timeout' : ''}`);
       if (!ended) {
-        if (res.aborted) emit({ type: 'error', error: providerError('aborted', '사용자가 중지했습니다.') });
+        if (res.aborted) emit({ type: 'error', error: providerError('aborted', t('bridge.common.stopped')) });
         else {
           const fin = parser.finish(res);
           if (fin.type === 'done' && codexThread) heldDone = fin;
@@ -247,7 +230,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
         const { images, skipped } = await collectCodexImages(dir);
         if (heldDone) {
           for (const attachment of images) emit({ type: 'image', attachment });
-          if (skipped) emit({ type: 'delta', text: `\n\n(이미지 ${skipped}장은 크기·개수 한도를 넘어 붙이지 못했습니다.)` });
+          if (skipped) emit({ type: 'delta', text: `\n\n${t('bridge.server.imagesSkipped', { count: skipped })}` });
           if (images.length || skipped) log(`codex images=${images.length} skipped=${skipped}`);
         }
       }
@@ -299,7 +282,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
           if (msg.type === 'stt.status.get') {
             const reqId = msg.reqId;
             if (!opts.stt) {
-              safeSend({ type: 'stt.status', reqId, stt: { enabled: false, ready: false, detail: STT_UNSUPPORTED } });
+              safeSend({ type: 'stt.status', reqId, stt: { enabled: false, ready: false, detail: sttUnsupported() } });
               return;
             }
             opts.stt.status().then(
@@ -311,7 +294,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
           if (msg.type === 'stt.state.get' || msg.type === 'stt.manage') {
             const reqId = msg.reqId;
             if (!opts.stt) {
-              safeSend({ type: 'stt.error', reqId, error: STT_UNSUPPORTED });
+              safeSend({ type: 'stt.error', reqId, error: sttUnsupported() });
               return;
             }
             manageStt(opts.stt, msg).then(
@@ -323,12 +306,12 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
           if (msg.type === 'stt.transcribe') {
             const reqId = msg.reqId;
             if (!opts.stt) {
-              safeSend({ type: 'stt.error', reqId, error: STT_UNSUPPORTED });
+              safeSend({ type: 'stt.error', reqId, error: sttUnsupported() });
               return;
             }
             if (running.has(reqId)) return;
             if (!isSttAudio(msg.audio)) {
-              safeSend({ type: 'stt.error', reqId, error: '녹음 형식이 올바르지 않습니다.' });
+              safeSend({ type: 'stt.error', reqId, error: t('bridge.stt.badFormat') });
               return;
             }
             const ac = new AbortController();
@@ -349,7 +332,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
           if (msg.type === 'chat.start') {
             if (running.has(msg.reqId)) return;
             if (msg.providerId !== 'claude-cli' && msg.providerId !== 'codex-cli') {
-              safeSend({ type: 'chat.error', reqId: msg.reqId, error: providerError('cli', '지원하지 않는 CLI입니다.') });
+              safeSend({ type: 'chat.error', reqId: msg.reqId, error: providerError('cli', t('bridge.server.unsupportedCli')) });
               return;
             }
             const ac = new AbortController();

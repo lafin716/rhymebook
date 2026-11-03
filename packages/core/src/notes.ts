@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { excerptAround } from './anchor';
 import type { MessageMap } from './context';
 import type { ID, Session } from './model';
@@ -71,16 +72,16 @@ export function buildStudyNotes(
   const lines: string[] = [
     `# ${oneLine(root.title)}`,
     '',
-    `> octobooks 이해 노트 · ${ymd(opts.now ?? Date.now())} · 가지 ${cards.length}개 · 요약 ${summarized}개`,
+    t('core.notes.header', { date: ymd(opts.now ?? Date.now()), branches: cards.length, summaries: summarized }),
     '',
   ];
   if (!cards.length) {
-    lines.push('아직 가지가 없습니다. 답변에서 모르는 부분을 선택해 가지를 만들어 보세요.', '');
+    lines.push(t('core.notes.empty'), '');
     return lines.join('\n');
   }
   for (const c of cards) {
     lines.push(`${'#'.repeat(Math.min(6, c.depth + 1))} ${c.number}. ${oneLine(c.title)}`, '');
-    if (c.depth > 1) lines.push(`경로: ${c.path.map(oneLine).join(' › ')}`, '');
+    if (c.depth > 1) lines.push(t('core.notes.path', { path: c.path.map(oneLine).join(' › ') }), '');
     if (c.context) {
       lines.push(`> ${oneLine(`${c.context.before}**${c.context.text}**${c.context.after}`)}`, '');
     } else if (c.anchorText) {
@@ -88,8 +89,8 @@ export function buildStudyNotes(
     }
     lines.push(
       c.summary
-        ? `**이해한 내용** — ${c.summary.replace(/\n+/g, ' ')}`
-        : '_요약 없음 — 가지에서 [부모에 요약 붙이기]를 하면 채워집니다._',
+        ? t('core.notes.summary', { summary: c.summary.replace(/\n+/g, ' ') })
+        : t('core.notes.noSummary'),
       '',
     );
   }
@@ -133,6 +134,6 @@ export function buildAnkiDeck(sessions: SessionMap, messages: MessageMap, rootId
 
 /** 내보내기 파일 이름: 파일 시스템에서 안전한 문자만 */
 export function studyNotesFileName(title: string, ext: 'md' | 'txt', now = Date.now()): string {
-  const safe = oneLine(title).replace(/[\\/:*?"<>|]+/g, '').slice(0, 40).trim() || '이해 노트';
-  return `${safe}-이해노트-${ymd(now)}.${ext}`;
+  const safe = oneLine(title).replace(/[\\/:*?"<>|]+/g, '').slice(0, 40).trim() || t('core.notes.defaultName');
+  return `${safe}-${t('core.notes.fileTag')}-${ymd(now)}.${ext}`;
 }

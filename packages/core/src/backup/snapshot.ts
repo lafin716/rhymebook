@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Annotation, Message, Session, Settings, VaultNode, ViewState } from '../model';
 import { isVaultNode } from '../vault';
 import type { StoredData } from '../persist';
@@ -38,10 +39,10 @@ export interface EncryptedBackup {
 export type BackupErrorCode = 'invalid' | 'newer-version' | 'passphrase-required' | 'wrong-passphrase';
 
 const BACKUP_MESSAGE: Record<BackupErrorCode, string> = {
-  invalid: 'octobooks 백업 파일이 아니거나 손상되었어요.',
-  'newer-version': '더 새 버전의 앱에서 만든 백업이에요. 앱을 업데이트한 뒤 복원하세요.',
-  'passphrase-required': '암호로 잠긴 백업이에요. 암호를 입력하세요.',
-  'wrong-passphrase': '암호가 맞지 않아요.',
+  get invalid() { return t('core.backupErrors.invalid'); },
+  get 'newer-version'() { return t('core.backupErrors.newerVersion'); },
+  get 'passphrase-required'() { return t('core.backupErrors.passphraseRequired'); },
+  get 'wrong-passphrase'() { return t('core.backupErrors.wrongPassphrase'); },
 };
 
 export class BackupError extends Error {

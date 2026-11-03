@@ -8,6 +8,14 @@ import type { SyncClientMsg, SyncServerMsg } from './sync';
 /** 데스크톱(Electron) preload가 렌더러에 노출하는 API: window.branchDesktop */
 export interface DesktopApi {
   platform: string;
+  /** 로컬 OS 알림. 권한 요청은 사용자 동작에서만 한다 */
+  notifications?: {
+    supported(): Promise<boolean>;
+    show(input: { sessionId: string; title: string; body: string }): Promise<boolean>;
+    onClick(listener: (sessionId: string) => void): () => void;
+  };
+  /** 앱 언어를 main 프로세스(트레이·알림·CLI 오류 문구)에 알린다 (ADR-105) */
+  setLocale?(locale: string): void;
   bridge: {
     send(msg: BridgeClientMsg): void;
     onMessage(listener: (msg: BridgeServerMsg) => void): () => void;
@@ -117,7 +125,8 @@ export interface HostState {
   /** 원격 기기에 보이는 PC 이름 */
   name: string;
   fingerprint: string;
-  addresses: { label: string; url: string }[];
+  /** 주소 종류 (표시용 label은 언어에 따라 바뀐다, ADR-105) */
+  addresses: { label: string; url: string; kind?: 'tailscale' | 'lan' | 'local' | 'relay' }[];
   devices: HostDevice[];
   relayUrl: string | null;
   relayState: 'off' | 'connecting' | 'ready' | 'offline';
@@ -161,6 +170,16 @@ export interface MobileApi {
   saveBase64File?(name: string, base64: string): Promise<void>;
   /** 기기 OS 음성(Android WebView에는 speechSynthesis가 없음, ADR-051) */
   speech?: MobileSpeech;
+  /** 기기 OS 로컬 알림. 권한 요청은 사용자가 설정에서 누를 때만 한다. */
+  notifications?: MobileNotifications;
+}
+
+export type LocalNotificationPermission = 'default' | 'denied' | 'granted';
+export interface MobileNotifications {
+  status(): Promise<LocalNotificationPermission>;
+  requestPermission(): Promise<LocalNotificationPermission>;
+  show(input: { sessionId: string; title: string; body: string; scope?: string }): Promise<boolean>;
+  onClick(listener: (sessionId: string, scope?: string) => void): () => void;
 }
 
 export interface MobileSpeech {

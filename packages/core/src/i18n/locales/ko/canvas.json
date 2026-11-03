@@ -1,0 +1,279 @@
+{
+  "bg": {
+    "paper": "종이",
+    "white": "흰색",
+    "cream": "크림",
+    "lightGreen": "연두",
+    "sky": "하늘",
+    "gray": "회색",
+    "chalkboard": "칠판"
+  },
+  "image": {
+    "readFailed": "이미지를 읽지 못했어요.",
+    "processFailed": "이미지를 처리하지 못했어요.",
+    "notImage": "{name}은(는) 이미지가 아니에요.",
+    "tooLarge": "{name}이(가) 너무 커요 (25MB 이하)."
+  },
+  "pageImage": {
+    "readFailed": "그림을 읽지 못했어요.",
+    "createFailed": "쪽 그림을 만들지 못했어요.",
+    "tooLarge": "쪽 그림이 너무 커서 담지 못했어요.",
+    "name": "{title} {page}쪽",
+    "untitled": "캔버스"
+  },
+  "pdf": {
+    "passwordProtected": "암호가 걸린 PDF는 가져올 수 없어요.",
+    "readFailed": "{name} 을(를) 읽지 못했어요. PDF 파일이 맞는지 확인하세요."
+  },
+  "present": {
+    "ended": "발표가 끝났어요",
+    "waiting": "발표를 기다리는 중…",
+    "toolbar": "발표 도구",
+    "laser": "레이저 포인터",
+    "pen": "펜",
+    "eraser": "지우개",
+    "color": "색 {color}",
+    "clearInk": "필기 모두 지우기",
+    "prev": "이전 쪽",
+    "next": "다음 쪽",
+    "openAudience": "발표 화면 열기",
+    "openAudienceTitle": "발표 화면 열기 (청중용, 도구 막대 없음)",
+    "fullscreen": "화면 가득",
+    "end": "발표 끝내기",
+    "endTitle": "발표 끝내기 (Esc)"
+  },
+  "import": {
+    "offline": "PC와 연결되어 있지 않아요. 연결된 뒤 다시 가져오세요.",
+    "timeout": "PC에서 대화를 다 받지 못했어요. 잠시 후 다시 시도하세요.",
+    "sources": {
+      "image": {
+        "label": "이미지",
+        "hint": "PNG·JPG·GIF·WebP 파일"
+      },
+      "pdf": {
+        "label": "PDF",
+        "hint": "쪽마다 한 장씩 · 캔버스가 PDF 모드로 바뀌어요"
+      },
+      "session": {
+        "label": "세션 내용",
+        "hint": "대화 한 개를 글 카드로"
+      },
+      "page": {
+        "label": "페이지 내용",
+        "hint": "페이지 한 장을 글 카드로"
+      },
+      "vault": {
+        "label": "보관함",
+        "hint": "보관한 글이나 그림 고르기"
+      }
+    },
+    "menu": {
+      "label": "가져오기 종류",
+      "title": "캔버스에 가져오기"
+    },
+    "sub": {
+      "image": "그림",
+      "text": "글"
+    },
+    "failed": "가져오지 못했어요.",
+    "picker": {
+      "session": "세션 내용 가져오기",
+      "page": "페이지 내용 가져오기",
+      "vault": "보관함에서 가져오기"
+    },
+    "empty": {
+      "page": "아직 페이지가 없어요.",
+      "session": "가져올 대화가 없어요.",
+      "vault": "보관한 항목이 없어요."
+    },
+    "search": "찾기",
+    "searchPlaceholder": "이름으로 찾기",
+    "noMatch": "찾는 항목이 없어요.",
+    "busy": "가져오는 중…"
+  },
+  "settings": {
+    "title": "캔버스 설정",
+    "pdfMode": "PDF 모드",
+    "pdfHint": "{name} · 아래에서 다른 크기를 고르면 PDF가 빠져요",
+    "sizeTitle": "캔버스 크기",
+    "layout": {
+      "free": {
+        "label": "자유",
+        "hint": "끝없는 판에 어디든 쓰기"
+      },
+      "landscape": {
+        "label": "가로형 16:9",
+        "hint": "쪽마다 가로로 넓게 · 넘겨서 새 쪽"
+      },
+      "portrait": {
+        "label": "세로형 9:16",
+        "hint": "쪽마다 세로로 길게 · 넘겨서 새 쪽"
+      },
+      "a4Landscape": {
+        "label": "A4 가로",
+        "hint": "A4 종이를 눕힌 쪽 · 넘겨서 새 쪽"
+      },
+      "a4Portrait": {
+        "label": "A4 세로",
+        "hint": "A4 종이를 세운 쪽 · 넘겨서 새 쪽"
+      }
+    },
+    "flowTitle": "쪽 넘김 방향",
+    "flow": {
+      "horizontal": {
+        "label": "옆으로",
+        "hint": "좌우로 밀어 쪽 넘기기"
+      },
+      "vertical": {
+        "label": "위아래로",
+        "hint": "위아래로 밀어 쪽 넘기기"
+      }
+    },
+    "bg": "바탕",
+    "bgPdf": "바탕 · PDF 쪽 바깥과 새로 만드는 판에 보여요",
+    "bgColor": "바탕색",
+    "colorCustom": "바탕색 직접 고르기",
+    "bgPattern": "바탕 무늬",
+    "pattern": {
+      "none": "민무늬",
+      "gridFine": "바둑판 촘촘하게",
+      "gridWide": "바둑판 느슨하게",
+      "lines": "줄공책"
+    },
+    "paletteTitle": "한 번에 보일 색 개수",
+    "paletteSlider": "팔레트 색 개수",
+    "paletteMin": "최소 1개",
+    "paletteAll": "모두 ({total})",
+    "gestureTitle": "두 손가락 손동작",
+    "gestureHint": "빠르게 밀면 고른 일을 하고, 천천히 끌면 화면을 옮겨요. '끄기'로 둔 방향은 예전처럼 화면을 옮기고 쪽을 넘겨요. 이전·다음 쪽은 쪽 나눔 판에서만 해요.",
+    "gestureSelect": "두 손가락 {name}",
+    "gesture": {
+      "doubleTap": "두 번 톡",
+      "swipeUp": "위로 밀기",
+      "swipeDown": "아래로 밀기",
+      "swipeLeft": "왼쪽으로 밀기",
+      "swipeRight": "오른쪽으로 밀기"
+    },
+    "action": {
+      "off": "끄기",
+      "selectPen": "선택 ↔ 펜",
+      "eraserPen": "지우개 ↔ 펜",
+      "penMarker": "펜 ↔ 형광펜",
+      "undo": "실행 취소",
+      "redo": "다시 실행",
+      "prevPage": "이전 쪽",
+      "nextPage": "다음 쪽"
+    }
+  },
+  "toolbar": {
+    "label": "캔버스 도구",
+    "dockHandle": "도구 막대 위치 변경",
+    "dockHandleTitle": "끌어서 도구 막대를 다시 배치하세요",
+    "ink": {
+      "black": "검정",
+      "white": "흰색",
+      "red": "빨강",
+      "blue": "파랑",
+      "green": "초록",
+      "yellow": "노랑",
+      "purple": "보라"
+    },
+    "inkSwatch": "{name} 색",
+    "favoriteInk": "즐겨찾는 색 {hex}",
+    "favoriteGroup": "즐겨찾는 색",
+    "favoriteUse": "즐겨찾는 색 {hex} 쓰기",
+    "tool": {
+      "select": "선택/이동",
+      "pen": "펜",
+      "marker": "형광펜",
+      "eraser": "지우개"
+    },
+    "penTitle": "펜 ({nib}) · 다시 누르면 종류·굵기",
+    "markerTitle": "형광펜 · 다시 누르면 굵기",
+    "nib": {
+      "fountain": "만년필",
+      "fountainHint": "누르는 힘에 따라 굵기가 변해요",
+      "ballpoint": "볼펜",
+      "ballpointHint": "고른 굵기로 또박또박",
+      "brush": "붓펜",
+      "brushHint": "굵기가 크게 변하고 끝이 가늘어요",
+      "pencil": "연필",
+      "pencilHint": "가늘고 조금 흐리게"
+    },
+    "nibGroup": "펜 종류",
+    "colors": "색",
+    "moreColors": "더 많은 색",
+    "customColor": "색 직접 고르기",
+    "customColorTitle": "색 직접 고르기 · 즐겨찾기",
+    "collapsePalette": "색 팔레트 접기",
+    "expandPalette": "색 팔레트 펼치기",
+    "undo": "실행 취소",
+    "undoTitle": "실행 취소 (⌘Z)",
+    "redo": "다시 실행",
+    "redoTitle": "다시 실행 (⌘⇧Z)",
+    "deleteSelected": "선택 항목 지우기",
+    "deleteSelectedTitle": "선택 항목 지우기 (Delete)",
+    "present": "발표",
+    "fullEnd": "전체 화면 끝내기",
+    "full": "전체 화면",
+    "import": "가져오기",
+    "penSettings": "펜 설정",
+    "markerSize": "형광펜 굵기",
+    "penSize": "펜 굵기",
+    "pickColor": "색 고르기",
+    "sizeNumber": "굵기 숫자",
+    "sizeRange": "굵기",
+    "svArea": "채도·명도",
+    "svValue": "채도 {saturation}%, 명도 {brightness}%",
+    "hue": "색상",
+    "colorNew": "새 색",
+    "colorOriginal": "처음 색 {hex}로 되돌리기",
+    "colorOriginalTitle": "처음 색으로 되돌리기",
+    "eyedrop": "화면에서 색 따오기",
+    "eyedropTitle": "스포이드 · 화면에서 색 따오기",
+    "colorCode": "색 코드",
+    "channelValue": "{channel} 값",
+    "favorite": {
+      "preset": "기본 색이에요",
+      "remove": "즐겨찾기에서 빼기",
+      "max": "즐겨찾기는 {max}개까지",
+      "add": "즐겨찾기에 넣기"
+    }
+  },
+  "panel": {
+    "label": "캔버스",
+    "defaultTitle": "캔버스",
+    "tooBig": "캔버스가 너무 커서 저장하지 못했어요. 이미지를 줄이거나 나눠서 쓰세요.",
+    "saveFail": "캔버스를 저장하지 못했어요. 잠시 후 다시 시도하세요.",
+    "pageSaveFail": "쪽을 보관함에 담지 못했어요.",
+    "pdfEndTitle": "PDF 모드를 끝낼까요?",
+    "pdfEndMessage": "가져온 PDF 쪽은 캔버스에서 빠지고, 그 위에 쓴 필기와 카드는 남아요.",
+    "pdfReplaceTitle": "PDF를 바꿀까요?",
+    "pdfReplaceMessage": "지금 PDF({current}) 대신 {next} 을(를) 놓아요. 필기와 카드는 그대로 남아요.",
+    "confirmChange": "바꾸기",
+    "pdfLoading": "PDF 불러오는 중…",
+    "pdfNoPages": "{name} 에 쪽이 없어요.",
+    "pdfTruncated": "{total}쪽 중 앞 {shown}쪽만 가져왔어요.",
+    "importFail": "{name} 을(를) 가져오지 못했어요.",
+    "fitPage": "쪽 맞춤",
+    "fitAll": "전체 보기",
+    "eyedropHint": "판을 눌러 색을 따오세요",
+    "eyedropStop": "스포이드 그만두기",
+    "imageFiles": "가져올 이미지 파일",
+    "pdfFile": "가져올 PDF 파일",
+    "pageTitle": "{title} {page}쪽"
+  },
+  "pageNav": {
+    "label": "쪽 넘김",
+    "prev": "이전 쪽",
+    "next": "다음 쪽",
+    "add": "새 쪽",
+    "save": "이 쪽 보관함에 담기"
+  },
+  "board": {
+    "label": "캔버스 그림판",
+    "gesturing": "확대·이동 중",
+    "resize": "크기 조절",
+    "importedImage": "가져온 이미지"
+  }
+}

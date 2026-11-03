@@ -1,0 +1,65 @@
+{
+  "sheet": {
+    "close": "시트 닫기",
+    "dialog": "가지 시트",
+    "stackInfo": "시트 {count}개 겹침 · 아래로 내리면 이전 가지로",
+    "fullScreen": "전체 화면으로"
+  },
+  "popup": {
+    "dialog": "가지 팝업",
+    "dock": "분할로 도킹",
+    "openInMain": "메인에서 열기"
+  },
+  "split": {
+    "closePanel": "패널 닫기",
+    "tabs": "분할 탭",
+    "closeTab": "탭 닫기",
+    "move": {
+      "left": "왼쪽과 바꾸기",
+      "right": "오른쪽과 바꾸기",
+      "up": "위와 바꾸기",
+      "down": "아래와 바꾸기",
+      "label": "자리 이동"
+    },
+    "moveTitle": "자리 이동 (끌어서 옮기기)",
+    "closeOthers": "다른 창 닫기",
+    "menu": "분할 메뉴",
+    "swap": "자리 바꾸기",
+    "flip": "방향 전환",
+    "vertical": "상하로",
+    "horizontal": "좌우로"
+  },
+  "drop": {
+    "open": {
+      "left": "왼쪽에 열기",
+      "right": "오른쪽에 열기",
+      "top": "위에 열기",
+      "bottom": "아래에 열기",
+      "center": "이 자리에 열기"
+    },
+    "move": {
+      "left": "왼쪽으로 옮기기",
+      "right": "오른쪽으로 옮기기",
+      "top": "위로 옮기기",
+      "bottom": "아래로 옮기기",
+      "center": "자리 바꾸기"
+    },
+    "maxSplit": "분할은 최대 {max}개까지예요. 가운데에 놓으면 그 패널을 바꿔요."
+  },
+  "mindmap": {
+    "collapseQuestions": "질문 목록 접기",
+    "expandQuestions": "질문 목록 펼치기",
+    "canvas": "캔버스",
+    "page": "페이지",
+    "hasSummary": "요약 있음",
+    "footnote": "각주 세션",
+    "root": "루트 세션",
+    "questionListOf": "{title} 질문 목록",
+    "emptyQuestion": "(빈 질문)",
+    "noQuestions": "아직 질문이 없어요.",
+    "hintTouch": "탭: 시트로 열기 · 두 번 탭: 전체 화면 · ▾: 질문 목록",
+    "hintMouse": "클릭: 팝업 · {mod}+클릭: 분할에 추가 · 더블클릭: 메인 · ▾: 질문 목록",
+    "title": "마인드맵",
+    "close": "마인드맵 닫기"
+  }
+}

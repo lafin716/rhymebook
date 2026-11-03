@@ -1,0 +1,65 @@
+{
+  "sheet": {
+    "close": "Close sheet",
+    "dialog": "Branch sheet",
+    "stackInfo": "{count} sheets stacked · drag down to go back to the previous branch",
+    "fullScreen": "Full screen"
+  },
+  "popup": {
+    "dialog": "Branch popup",
+    "dock": "Dock to split",
+    "openInMain": "Open in main view"
+  },
+  "split": {
+    "closePanel": "Close panel",
+    "tabs": "Split tabs",
+    "closeTab": "Close tab",
+    "move": {
+      "left": "Swap with left",
+      "right": "Swap with right",
+      "up": "Swap with above",
+      "down": "Swap with below",
+      "label": "Move"
+    },
+    "moveTitle": "Move (drag to reposition)",
+    "closeOthers": "Close other panels",
+    "menu": "Split menu",
+    "swap": "Swap places",
+    "flip": "Change direction",
+    "vertical": "Stacked",
+    "horizontal": "Side by side"
+  },
+  "drop": {
+    "open": {
+      "left": "Open on the left",
+      "right": "Open on the right",
+      "top": "Open on top",
+      "bottom": "Open at the bottom",
+      "center": "Open here"
+    },
+    "move": {
+      "left": "Move to the left",
+      "right": "Move to the right",
+      "top": "Move up",
+      "bottom": "Move down",
+      "center": "Swap places"
+    },
+    "maxSplit": "You can split up to {max} panels. Drop in the center to replace that panel."
+  },
+  "mindmap": {
+    "collapseQuestions": "Collapse questions",
+    "expandQuestions": "Expand questions",
+    "canvas": "Canvas",
+    "page": "Page",
+    "hasSummary": "Has summary",
+    "footnote": "Footnote session",
+    "root": "Root session",
+    "questionListOf": "Questions in {title}",
+    "emptyQuestion": "(empty question)",
+    "noQuestions": "No questions yet.",
+    "hintTouch": "Tap: open in sheet · Double tap: full screen · ▾: questions",
+    "hintMouse": "Click: popup · {mod}+click: add to split · Double-click: main · ▾: questions",
+    "title": "Mind map",
+    "close": "Close mind map"
+  }
+}

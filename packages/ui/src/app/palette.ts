@@ -1,12 +1,13 @@
+import { t } from '../i18n';
 import { create } from 'zustand';
 
 export const PALETTES = [
-  { id: 'ocean', name: '오션', description: '선명한 파란빛의 깊은 바다', colors: ['#1761b5', '#142d4e', '#dde9f7', '#4a8cda'] },
-  { id: 'lagoon', name: '라군', description: '햇살이 스미는 민트빛 물결', colors: ['#116348', '#183e32', '#e6f1e9', '#5d9170'] },
-  { id: 'coral', name: '코랄', description: '따뜻한 산호초의 분홍빛', colors: ['#9d304b', '#472433', '#f4e5e5', '#c86c84'] },
-  { id: 'abyss', name: '어비스', description: '고요한 심해의 보랏빛', colors: ['#5940a6', '#28203f', '#e9e4f5', '#9073c5'] },
-  { id: 'pearl', name: '펄', description: '조개껍질처럼 차분한 모래빛', colors: ['#695137', '#342b21', '#ece7dc', '#a78a61'] },
-  { id: 'vscode', name: 'VS Code', description: '코드 편집기처럼 차분한 회색 화면', colors: ['#1f1f1f', '#2b2b2b', '#007acc', '#4daafc'] },
+  { id: 'ocean', get name() { return t('app.palette.ocean.name'); }, get description() { return t('app.palette.ocean.description'); }, colors: ['#1761b5', '#142d4e', '#dde9f7', '#4a8cda'] },
+  { id: 'lagoon', get name() { return t('app.palette.lagoon.name'); }, get description() { return t('app.palette.lagoon.description'); }, colors: ['#116348', '#183e32', '#e6f1e9', '#5d9170'] },
+  { id: 'coral', get name() { return t('app.palette.coral.name'); }, get description() { return t('app.palette.coral.description'); }, colors: ['#9d304b', '#472433', '#f4e5e5', '#c86c84'] },
+  { id: 'abyss', get name() { return t('app.palette.abyss.name'); }, get description() { return t('app.palette.abyss.description'); }, colors: ['#5940a6', '#28203f', '#e9e4f5', '#9073c5'] },
+  { id: 'pearl', get name() { return t('app.palette.pearl.name'); }, get description() { return t('app.palette.pearl.description'); }, colors: ['#695137', '#342b21', '#ece7dc', '#a78a61'] },
+  { id: 'vscode', get name() { return t('app.palette.vscode.name'); }, get description() { return t('app.palette.vscode.description'); }, colors: ['#1f1f1f', '#2b2b2b', '#007acc', '#4daafc'] },
 ] as const;
 
 export type PaletteId = (typeof PALETTES)[number]['id'];

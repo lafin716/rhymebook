@@ -1,0 +1,158 @@
+{
+  "ai": {
+    "noProvider": "No AI connection is available. Check your connections in Settings.",
+    "noResponse": "Did not receive a response from the AI."
+  },
+  "connection": {
+    "status": {
+      "checking": "Checking…",
+      "noKey": "No key",
+      "notInstalled": "Not installed",
+      "notLoggedIn": "Sign-in needed",
+      "offline": "Offline",
+      "ready": "Connected",
+      "unpaired": "Not paired"
+    }
+  },
+  "palette": {
+    "abyss": {
+      "description": "Calm purple of the deep sea",
+      "name": "Abyss"
+    },
+    "coral": {
+      "description": "Warm pink of a coral reef",
+      "name": "Coral"
+    },
+    "lagoon": {
+      "description": "Mint-green waves with sunlight",
+      "name": "Lagoon"
+    },
+    "ocean": {
+      "description": "A deep sea in vivid blue",
+      "name": "Ocean"
+    },
+    "pearl": {
+      "description": "Calm sand tone like a seashell",
+      "name": "Pearl"
+    },
+    "vscode": {
+      "description": "A calm gray screen like a code editor",
+      "name": "VS Code"
+    }
+  },
+  "runtime": {
+    "localOffline": "Cannot connect to the built-in bridge. Restart the app.",
+    "remoteOffline": "The connection to the remote Bridge was lost."
+  },
+  "scenarios": {
+    "branch-select": {
+      "hint": "The “weighted sum” in the answer is selected. Create a branch from the floating action.",
+      "label": "Select → branch"
+    },
+    "deep": {
+      "hint": "Root › Q/K/V › dot product › cosine similarity (breadcrumb + anchor quote)",
+      "label": "Three-level branch"
+    },
+    "empty": {
+      "hint": "Empty screen of a new study session with suggested questions",
+      "label": "Empty state"
+    },
+    "error": {
+      "hint": "Stream drops mid-answer → try again",
+      "label": "Error"
+    },
+    "home": {
+      "hint": "Seed session “Transformer attention”",
+      "label": "Home"
+    },
+    "mindmap": {
+      "hint": "Session tree. Click = open, Shift+click = split",
+      "label": "Mind map"
+    },
+    "offline": {
+      "hint": "Claude CLI offline → suggest an alternative provider",
+      "label": "Provider offline"
+    },
+    "popup": {
+      "hint": "Branch as a floating popup (bottom sheet on mobile)",
+      "label": "Popup/sheet"
+    },
+    "search": {
+      "hint": "⌘K session search",
+      "label": "Search"
+    },
+    "settings": {
+      "hint": "Connection cards, CLI status, API key, pairing QR",
+      "label": "Settings"
+    },
+    "split": {
+      "hint": "Root | Q/K/V | dot product, three panels (tabs on mobile)",
+      "label": "Split"
+    },
+    "streaming": {
+      "hint": "Answer generating slowly (stop button)",
+      "label": "Streaming"
+    },
+    "summary": {
+      "hint": "Create a summary draft in the “scaling” branch → attach it to the parent",
+      "label": "Undo summary"
+    }
+  },
+  "search": {
+    "close": "Close",
+    "count": "{count} results",
+    "count_one": "1 result",
+    "inputAria": "Search query",
+    "label": "Search sessions",
+    "noMatch": "No sessions match “{q}”.",
+    "placeholder": "Search by session title or conversation",
+    "recent": "Recent sessions",
+    "resultsAria": "Search results"
+  },
+  "sync": {
+    "added": "{n} added",
+    "op": {
+      "annotDelete": "Deleted a note",
+      "annotSet": "Added a note",
+      "branch": "Created a branch",
+      "delete": "Deleted a session",
+      "newRoot": "Started a new study",
+      "pageEdit": "Edited a page or canvas",
+      "pageNew": "Created a new page or canvas",
+      "rename": "Renamed a session",
+      "retry": "Requested a new answer",
+      "send": "Sent a question",
+      "sessionAgent": "Changed the agent or model that answers",
+      "sessionChild": "Created a sub-session",
+      "sessionReorganize": "Requested session reorganization",
+      "stop": "Stopped the answer",
+      "studyImport": "Imported study data",
+      "subsession": "Created a sub-session",
+      "summaryAttach": "Attached a summary",
+      "summaryDiscard": "Discarded the summary draft",
+      "summaryRemove": "Removed a summary",
+      "summaryRequest": "Requested a summary",
+      "turnDelete": "Deleted a question",
+      "turnMove": "Moved a question to another session",
+      "turnSplit": "Split a question into a sub-session",
+      "turnSplitOut": "Split a question into a separate session",
+      "vaultDelete": "Deleted from the library",
+      "vaultPut": "Organized the library"
+    },
+    "remoteDevice": "Remote device",
+    "skillsSynced": "Synced skills from {host} ({parts})",
+    "updated": "{n} updated"
+  },
+  "time": {
+    "justNow": "just now"
+  },
+  "window": {
+    "loadingBody": "Fetching the session from the main window.",
+    "loadingTitle": "Loading",
+    "notFoundBody": "This session was deleted or is no longer in the main window. Please close this window.",
+    "notFoundTitle": "Session not found",
+    "offlineBody": "Check that the octobooks main window is open.",
+    "offlineTitle": "Lost connection to the main window",
+    "reconnect": "Reconnect"
+  }
+}

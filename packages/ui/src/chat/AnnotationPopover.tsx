@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { MAX_NOTE_LENGTH, type Annotation } from '@branch/core';
 import { Pencil, StickyNote, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -46,7 +47,7 @@ export function AnnotationPopover({ annotation, rect, onClose }: AnnotationPopov
       <div className="fixed inset-0 z-[75]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
-        aria-label="메모"
+        aria-label={t('chat.annotation.label')}
         data-annotation-popover
         style={{ left, width, ...pos }}
         className="animate-pop-in fixed z-[76] rounded-xl border border-line bg-elev p-3 shadow-float"
@@ -56,7 +57,7 @@ export function AnnotationPopover({ annotation, rect, onClose }: AnnotationPopov
           <span className="min-w-0 flex-1 truncate">“{annotation.anchor.text}”</span>
           <button
             type="button"
-            aria-label="닫기"
+            aria-label={t('chat.annotation.close')}
             onClick={onClose}
             className="-mr-1 inline-flex size-7 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
           >
@@ -79,7 +80,7 @@ export function AnnotationPopover({ annotation, rect, onClose }: AnnotationPopov
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save();
               }}
               rows={4}
-              placeholder="메모를 입력하세요"
+              placeholder={t('chat.annotation.placeholder')}
               className="w-full resize-none rounded-lg border border-line bg-bg p-2 text-sm outline-none focus:border-accent"
             />
             <div className="mt-2 flex justify-end gap-1.5">
@@ -91,10 +92,10 @@ export function AnnotationPopover({ annotation, rect, onClose }: AnnotationPopov
                 }}
                 className="h-8 rounded-lg px-3 text-[13px] text-fg-2 hover:bg-surface-2"
               >
-                취소
+                {t('chat.annotation.cancel')}
               </button>
               <button type="submit" className="h-8 rounded-lg bg-accent px-3 text-[13px] font-medium text-accent-fg">
-                저장
+                {t('chat.annotation.save')}
               </button>
             </div>
           </form>
@@ -107,14 +108,14 @@ export function AnnotationPopover({ annotation, rect, onClose }: AnnotationPopov
                 onClick={removeNote}
                 className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[13px] text-danger hover:bg-danger-soft"
               >
-                <Trash2 size={14} /> 삭제
+                <Trash2 size={14} /> {t('chat.annotation.delete')}
               </button>
               <button
                 type="button"
                 onClick={() => setEditing(true)}
                 className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-[13px] text-fg hover:bg-surface-2"
               >
-                <Pencil size={14} /> 수정
+                <Pencil size={14} /> {t('chat.annotation.edit')}
               </button>
             </div>
           </>

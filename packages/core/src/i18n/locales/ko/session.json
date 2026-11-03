@@ -1,0 +1,56 @@
+{
+  "childCreate": {
+    "aria": "하위 항목 만들기",
+    "canvas": "캔버스",
+    "emptyPage": "빈 페이지",
+    "session": "세션"
+  },
+  "delete": {
+    "confirm": "삭제",
+    "messageOne": "{title}이(가) 모두 삭제되며 되돌릴 수 없어요.",
+    "messageWithKids": "{title}과(와) 모든 하위 가지가 모두 삭제되며 되돌릴 수 없어요.",
+    "titleBranch": "가지를 삭제할까요?",
+    "titleCanvas": "캔버스를 삭제할까요?",
+    "titlePage": "페이지를 삭제할까요?",
+    "titleSession": "학습을 삭제할까요?"
+  },
+  "menu": {
+    "aria": "세션 메뉴",
+    "delete": "삭제",
+    "newWindow": "새 창으로 열기",
+    "rename": "이름 변경",
+    "renameAria": "세션 이름",
+    "splitDown": "아래에 분할로 열기",
+    "splitMax": "분할은 최대 {max}개까지예요.",
+    "splitRight": "오른쪽에 분할로 열기"
+  },
+  "sidebar": {
+    "changeProfile": "프로필 바꾸기",
+    "closeList": "목록 닫기",
+    "collapseAll": "모두 접기",
+    "connectToSee": "PC와 연결되면 학습 목록이 보여요",
+    "header": "나의 학습 바다 · {count}개의 시작점",
+    "navAria": "학습 세션",
+    "new": "새로 만들기",
+    "newNeedsPc": "PC와 연결되면 새로 만들 수 있어요",
+    "noSessions": "세션이 없어요",
+    "prompts": "프롬프트 관리",
+    "resizeAria": "사이드바 너비 조절",
+    "resizeTitle": "끌어서 너비 조절 · 두 번 눌러 기본 너비",
+    "skills": "스킬 관리",
+    "toolbarAria": "세션 목록 도구",
+    "usable": "사용 가능 {count}개"
+  },
+  "tree": {
+    "canvasIcon": "캔버스",
+    "collapseBranch": "가지 접기",
+    "collapseSub": "하위 세션 접기",
+    "deleteAria": "세션 삭제",
+    "expandBranch": "가지 펼치기",
+    "expandSub": "하위 세션 펼치기",
+    "pageIcon": "페이지",
+    "rowTitle": "{title} · {time}",
+    "rowTitleKids": "{title} · {time} · 가지 {count}",
+    "summarized": "요약됨"
+  }
+}

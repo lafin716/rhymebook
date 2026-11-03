@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Session } from '@branch/core';
 import { NotebookPen, Sparkles } from 'lucide-react';
 import { useApp } from '../app/store';
@@ -30,9 +31,9 @@ export function FootnoteList({ notes }: { notes: Session[] }) {
   const streaming = useApp((s) => s.streaming);
   if (!notes.length) return null;
   return (
-    <section aria-label="각주" data-footnotes className="border-t border-line pt-3">
+    <section aria-label={t('chat.footnotes.label')} data-footnotes className="border-t border-line pt-3">
       <h3 className="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-muted">
-        <NotebookPen size={13} /> 각주 {notes.length}
+        <NotebookPen size={13} /> {t('chat.footnotes.count', { count: notes.length })}
       </h3>
       <ol className="space-y-0.5">
         {notes.map((s, i) => (

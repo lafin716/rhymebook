@@ -1,4 +1,5 @@
-import { DEFAULT_PROMPTS, promptText, type PromptOverrides } from './prompts';
+import { defaultPrompt, promptText, type PromptOverrides } from './prompts';
+import { t } from './i18n';
 import type { StreamRequest } from './provider';
 import { normalizeSkillFilePath, normalizeSkillName, sanitizeSkillFiles, SKILL_LIMITS, SKILL_NAME_RE } from './skills';
 import type { Skill, SkillFile } from './model';
@@ -27,7 +28,10 @@ export interface SkillAssistInput {
   prompts?: PromptOverrides;
 }
 
-export const SKILL_ASSIST_SYSTEM = DEFAULT_PROMPTS.skillAssist;
+/** AI 스킬 도우미 지시 (지금 언어) */
+export function skillAssistSystem(): string {
+  return defaultPrompt('skillAssist');
+}
 
 /** 요청에 싣는 기존 파일 한 개의 최대 길이 (넘으면 앞부분만) */
 const FILE_IN_REQUEST = 6000;
@@ -37,7 +41,7 @@ function fieldsBlock(f: SkillFields): string {
   for (const file of f.files) {
     // 긴 파일은 앞부분만 보여 주고 고치지 못하게 한다 (잘린 내용으로 덮어쓰지 않도록 mergeSkillFiles도 막는다)
     if (file.content.length > FILE_IN_REQUEST) {
-      lines.push(`<file path="${file.path}" readonly>`, `${file.content.slice(0, FILE_IN_REQUEST)}\n…(이하 ${file.content.length - FILE_IN_REQUEST}자 생략 — 길어서 고칠 수 없음, 출력하지 말 것)`, '</file>');
+      lines.push(`<file path="${file.path}" readonly>`, `${file.content.slice(0, FILE_IN_REQUEST)}\n${t('llm.skillAssist.truncated', { count: file.content.length - FILE_IN_REQUEST })}`, '</file>');
     } else lines.push(`<file path="${file.path}">`, file.content, '</file>');
   }
   return lines.join('\n');
@@ -48,11 +52,14 @@ const hasContent = (f: SkillFields | undefined): f is SkillFields =>
 
 export function buildSkillAssistRequest(input: SkillAssistInput): StreamRequest {
   const parts: string[] = [];
-  if (hasContent(input.current)) parts.push('## 현재 스킬 (이것을 고친다)', fieldsBlock(input.current), '');
-  else parts.push('## 새 스킬을 만든다', '');
+  if (hasContent(input.current)) parts.push(t('llm.skillAssist.currentHeading'), fieldsBlock(input.current), '');
+  else parts.push(t('llm.skillAssist.newHeading'), '');
   const taken = (input.takenNames ?? []).filter((n) => n !== input.current?.name);
-  if (taken.length) parts.push('## 이미 있는 명령 이름', taken.join(', '), '');
-  parts.push('## 요청', input.request.trim() || (hasContent(input.current) ? '전체적으로 더 명확하고 쓰기 좋게 다듬어 줘.' : '학습에 도움이 되는 스킬을 하나 만들어 줘.'));
+  if (taken.length) parts.push(t('llm.skillAssist.takenHeading'), taken.join(', '), '');
+  parts.push(
+    t('llm.skillAssist.requestHeading'),
+    input.request.trim() || (hasContent(input.current) ? t('llm.skillAssist.defaultEdit') : t('llm.skillAssist.defaultNew')),
+  );
   return { system: promptText('skillAssist', input.prompts), messages: [{ role: 'user', content: parts.join('\n') }], purpose: 'skill' };
 }
 
@@ -172,7 +179,7 @@ export function finalizeSkillAssist(
 ): SkillFields | null {
   const prompt = (result.prompt ?? '').trim() || current.prompt.trim();
   if (!prompt) return null;
-  const title = (result.title || current.title || '새 스킬').slice(0, SKILL_LIMITS.title);
+  const title = (result.title || current.title || t('skills.page.new')).slice(0, SKILL_LIMITS.title);
   return {
     name: uniqueSkillName(result.name || current.name || title, others, selfId),
     title,

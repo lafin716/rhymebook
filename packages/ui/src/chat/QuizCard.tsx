@@ -1,3 +1,4 @@
+import { t, type MessageKey } from '../i18n';
 import { gradeQuiz, parseQuiz, quizAnswerLabel, QUIZ_LANG, type Quiz, type QuizAnswer, type QuizQuestion } from '@branch/core';
 import type { Element, ElementContent } from 'hast';
 import { Check, ChevronRight, ListChecks, RotateCcw, X } from 'lucide-react';
@@ -78,7 +79,7 @@ const QuizText = memo(function QuizText({ text, inline }: { text: string; inline
   );
 });
 
-const TYPE_LABEL: Record<QuizQuestion['type'], string> = { ox: 'OX', choice: '객관식', short: '주관식' };
+const TYPE_LABEL_KEYS: Record<QuizQuestion['type'], MessageKey> = { ox: 'chat.quiz.typeOx', choice: 'chat.quiz.typeChoice', short: 'chat.quiz.typeShort' };
 
 /**
  * 코드 블록(pre) 자리에 퀴즈 카드를 그린다.
@@ -102,7 +103,7 @@ export function QuizBlock({ node, source, children, ...props }: ComponentProps<'
         ) : (
           <div className="flex items-center gap-2 px-4 py-3.5 text-[14px] text-muted">
             <ListChecks size={16} className="text-accent" />
-            퀴즈를 만드는 중…
+            {t('chat.quiz.making')}
           </div>
         )}
       </div>
@@ -142,7 +143,7 @@ function QuizRunner({ quiz, storeKey }: { quiz: Quiz; storeKey: string }) {
           <ListChecks size={16} className="shrink-0 text-accent" />
           <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{quiz.title}</span>
           <span className="shrink-0 text-[12.5px] font-medium text-accent tabular-nums">
-            {done ? `${score} / ${total} 정답` : `${index + 1} / ${total}`}
+            {done ? t('chat.quiz.score', { score, total }) : `${index + 1} / ${total}`}
           </span>
         </div>
         <div className="mt-2 flex gap-1" aria-hidden>
@@ -171,7 +172,7 @@ function QuizRunner({ quiz, storeKey }: { quiz: Quiz; storeKey: string }) {
         />
       )}
       <span className="sr-only" aria-live="polite">
-        {answered ? `${answered}문제 풀었어요` : ''}
+        {answered ? t('chat.quiz.answered', { count: answered }) : ''}
       </span>
     </>
   );
@@ -190,7 +191,7 @@ function QuestionView({ question: q, result, isLast, onAnswer, onMarkCorrect, on
   return (
     <div className="space-y-3 px-4 py-3.5">
       <div>
-        <span className="mb-1.5 inline-block rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] font-semibold text-fg-2">{TYPE_LABEL[q.type]}</span>
+        <span className="mb-1.5 inline-block rounded-md bg-surface-2 px-1.5 py-0.5 text-[11.5px] font-semibold text-fg-2">{t(TYPE_LABEL_KEYS[q.type])}</span>
         <div className="quiz-text text-[15px] leading-relaxed font-medium text-fg">
           <QuizText text={q.question} />
         </div>
@@ -207,13 +208,13 @@ function QuestionView({ question: q, result, isLast, onAnswer, onMarkCorrect, on
         >
           <div className={cn('flex items-center gap-1.5 font-semibold', result.correct ? 'text-ok' : 'text-danger')}>
             {result.correct ? <Check size={16} /> : <X size={16} />}
-            {result.correct ? '정답이에요!' : '아쉬워요, 틀렸어요'}
+            {result.correct ? t('chat.quiz.correctAnswer') : t('chat.quiz.wrongAnswer')}
           </div>
           <div className="mt-1 text-fg">
-            <span className="text-muted">정답 </span>
+            <span className="text-muted">{t('chat.quiz.answerLabel')} </span>
             <span className="quiz-text font-medium">
               {/* "2. 보기"를 마크다운에 넘기면 순서 목록이 되므로 번호는 따로 쓴다 */}
-              {q.type === 'choice' && `${q.answer + 1}번 `}
+              {q.type === 'choice' && t('chat.quiz.choiceNumber', { n: q.answer + 1 })}
               <QuizText text={q.type === 'choice' ? q.choices[q.answer]! : quizAnswerLabel(q)} inline />
             </span>
           </div>
@@ -224,7 +225,7 @@ function QuestionView({ question: q, result, isLast, onAnswer, onMarkCorrect, on
           )}
           {!result.correct && q.type === 'short' && (
             <button type="button" onClick={onMarkCorrect} className="-mx-1 mt-1 min-h-9 px-1 text-[13px] text-muted underline underline-offset-2 hover:text-fg">
-              같은 뜻으로 답했어요 — 정답으로 처리
+              {t('chat.quiz.sameMeaning')}
             </button>
           )}
         </div>
@@ -233,7 +234,7 @@ function QuestionView({ question: q, result, isLast, onAnswer, onMarkCorrect, on
       {result && (
         <div className="flex justify-end">
           <Button size="sm" variant="primary" onClick={onNext}>
-            {isLast ? '결과 보기' : '다음 문제'}
+            {isLast ? t('chat.quiz.seeResult') : t('chat.quiz.next')}
             <ChevronRight size={15} />
           </Button>
         </div>
@@ -259,7 +260,7 @@ function OxChoices({ question, result, onAnswer }: { question: Extract<QuizQuest
           type="button"
           disabled={!!result}
           aria-pressed={result?.answer === v}
-          aria-label={v ? 'O (맞다)' : 'X (틀리다)'}
+          aria-label={v ? t('chat.quiz.trueAria') : t('chat.quiz.falseAria')}
           onClick={() => onAnswer(v)}
           className={cn(
             'flex h-16 items-center justify-center rounded-xl border-2 text-[28px] font-bold transition-colors disabled:cursor-default',
@@ -319,8 +320,8 @@ function ShortAnswer({ result, onAnswer }: { result: Result | null; onAnswer(v: 
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={!!result}
-        placeholder="답을 입력하세요"
-        aria-label="주관식 답"
+        placeholder={t('chat.quiz.inputPlaceholder')}
+        aria-label={t('chat.quiz.shortAnswer')}
         enterKeyHint="done"
         className={cn(
           'h-10 min-w-0 flex-1 rounded-xl border bg-surface px-3 text-[15px] text-fg outline-none placeholder:text-muted focus:border-accent disabled:opacity-80',
@@ -329,7 +330,7 @@ function ShortAnswer({ result, onAnswer }: { result: Result | null; onAnswer(v: 
       />
       {!result && (
         <Button type="submit" variant="primary" disabled={!value.trim()}>
-          제출
+          {t('chat.quiz.submit')}
         </Button>
       )}
     </form>
@@ -339,7 +340,7 @@ function ShortAnswer({ result, onAnswer }: { result: Result | null; onAnswer(v: 
 function QuizSummary({ quiz, results, onRestart }: { quiz: Quiz; results: (Result | null)[]; onRestart(): void }) {
   const total = quiz.questions.length;
   const score = results.filter((r) => r?.correct).length;
-  const message = score === total ? '모두 맞혔어요!' : score >= total / 2 ? '잘했어요. 틀린 문제만 다시 볼까요?' : '헷갈린 개념을 다시 짚어 봐요.';
+  const message = score === total ? t('chat.quiz.perfect') : score >= total / 2 ? t('chat.quiz.good') : t('chat.quiz.review');
   return (
     <div className="space-y-3 px-4 py-3.5">
       <div className="text-center">
@@ -361,7 +362,7 @@ function QuizSummary({ quiz, results, onRestart }: { quiz: Quiz; results: (Resul
       </div>
       <div className="flex justify-end">
         <Button size="sm" icon={<RotateCcw size={14} />} onClick={onRestart}>
-          다시 풀기
+          {t('chat.quiz.retry')}
         </Button>
       </div>
     </div>

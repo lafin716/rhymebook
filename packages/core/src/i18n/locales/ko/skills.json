@@ -1,0 +1,152 @@
+{
+  "assist": {
+    "createWithAi": "AI로 만들기",
+    "createdNote": "새 스킬을 채웠어요.",
+    "defaultTitle": "설정의 기본 연결을 써요",
+    "editWithAi": "AI로 고치기",
+    "editedNote": "요청대로 고쳤어요.",
+    "failed": "AI 작성에 실패했어요.",
+    "idea": {
+      "beginner": {
+        "label": "초보자 눈높이",
+        "text": "처음 배우는 사람 눈높이에 맞게 설명 수준을 낮추도록 고쳐 줘."
+      },
+      "concise": {
+        "label": "더 간결하게",
+        "text": "지시를 더 짧고 간결하게 다듬어 줘. 핵심 규칙은 유지해."
+      },
+      "example": {
+        "label": "예시 더하기",
+        "text": "모델이 따라 할 수 있게 출력 예시를 하나 더해 줘."
+      },
+      "format": {
+        "label": "출력 형식 분명히",
+        "text": "출력 형식(제목·목록·표·분량)을 더 분명하게 정해 줘."
+      },
+      "quiz": {
+        "label": "개념 퀴즈",
+        "text": "주제를 주면 핵심 개념 5개로 퀴즈를 내고, 답을 접어 두어 스스로 확인하게 하는 스킬"
+      },
+      "simple": {
+        "label": "쉽게 풀어 주기",
+        "text": "어려운 개념을 중학생도 알 수 있게 비유와 그림 같은 예로 풀어 주는 스킬"
+      },
+      "socratic": {
+        "label": "소크라테스 문답",
+        "text": "바로 답하지 않고 질문을 던져 학습자가 스스로 답에 이르게 이끄는 스킬"
+      },
+      "vocab": {
+        "label": "단어 암기",
+        "text": "영어 단어를 주면 뜻·예문·어원·헷갈리는 단어와 함께 외우게 도와주는 스킬"
+      }
+    },
+    "noAi": "쓸 수 있는 AI 연결이 없어요. 설정에서 연결을 확인하세요.",
+    "notConnectedPc": "PC와 연결되어 있지 않아요. 먼저 PC에 연결하세요.",
+    "parseFailed": "AI 응답에서 스킬을 읽지 못했어요. 요청을 조금 바꿔 다시 해 보세요.",
+    "pcRemote": "{host} · 원격 설정",
+    "placeholderEdit": "어떻게 고칠지 적어 주세요. 예: 점검 질문을 3개로 늘리고 표로 정리해 줘",
+    "placeholderNew": "어떤 스킬이 필요한지 적어 주세요. 예: 코드를 주면 한 줄씩 풀어 설명하는 스킬",
+    "requestLabel": "AI에게 요청",
+    "running": "AI가 작성하고 있어요… 아래 칸에 바로 채워져요.",
+    "stop": "중지",
+    "undo": "AI 변경 취소",
+    "viaPcTitle": "PC의 원격 설정(에이전트·모델·노력치)으로 작성해요"
+  },
+  "extras": {
+    "add": "추가",
+    "advanced": "고급 옵션",
+    "agent": "에이전트",
+    "cancel": "취소",
+    "chars": "{n}자",
+    "connDefault": "연결 기본 모델",
+    "connDefaultWithModel": "연결 기본 모델 ({model})",
+    "deleteFile": "{path} 삭제",
+    "duplicatePath": "같은 경로의 파일이 이미 있어요.",
+    "effort": "노력치",
+    "effortDefault": "기본 노력치",
+    "effortLabel": "스킬 노력치",
+    "fileContent": "{path} 내용",
+    "files": "파일",
+    "filesHint": "긴 참고 자료는 {references}, 예제 코드는 {scripts}, 답변 템플릿은 {assets}에 두면 지시를 짧게 유지할 수 있어요. 파일은 이 스킬을 쓸 때 지시와 함께 모델에게 전달돼요.",
+    "filesMeta": "({n}개 · {size})",
+    "filesSection": "스킬 파일",
+    "followSession": "세션 설정 따름",
+    "importFile": "파일 가져오기",
+    "model": "모델",
+    "modelLabel": "스킬 모델",
+    "newFile": "새 파일",
+    "newPathLabel": "새 파일 경로",
+    "notApplicable": "해당 없음",
+    "openFolder": "폴더 열기",
+    "pcDefaultModel": "PC 기본 모델",
+    "provider": "프로바이더",
+    "providerLabel": "스킬 프로바이더",
+    "setHint": "이 스킬을 고른 질문은 위 설정으로 답해요. 그 뒤의 질문은 다시 세션 설정을 따라요. 모델·노력치를 비우면 그 연결의 기본값이에요.",
+    "textOnly": "{name}: 텍스트 파일만 넣을 수 있어요.",
+    "thousandChars": "{n}천 자",
+    "tooLarge": "{name}: 파일이 너무 커요.",
+    "unsetHint": "비워 두면 채팅(세션)에서 고른 provider·모델·노력치를 그대로 써요. 이 스킬만 다른 모델로 답하게 하려면 고르세요."
+  },
+  "files": {
+    "count": "파일은 {n}개까지 둘 수 있어요.",
+    "duplicate": "같은 경로의 파일이 두 개 있어요.",
+    "path": "파일 경로는 영문·숫자·한글·._- 로 된 상대 경로만 쓸 수 있어요 (예: references/guide.md, SKILL.md 제외).",
+    "size": "파일 하나는 {file}자, 전체는 {total}자까지예요."
+  },
+  "page": {
+    "addedCount": "{n}개 추가",
+    "back": "돌아가기",
+    "builtin": "기본 스킬",
+    "delete": "삭제",
+    "deleteMessage": "“{title}” (/{name}) 스킬을 삭제해요. 이미 보낸 질문에는 영향이 없어요.",
+    "deleteTitle": "스킬을 삭제할까요?",
+    "description": "설명",
+    "descriptionHint": "(목록과 메뉴에 보여요)",
+    "discard": "버리기",
+    "discardMessage": "변경 내용을 버릴까요?",
+    "editor": "스킬 편집",
+    "empty": "스킬이 없어요.",
+    "existingHint": "채팅 입력창에서 {command}을 입력하거나 {menu}에서 고르면, 그 질문에 아래 지시가 더해져요.",
+    "folderChangedMessage": "편집하는 동안 스킬 폴더에서 이 스킬이 바뀌었어요. 지금 편집 내용으로 덮어쓸까요? (폴더에 새로 넣은 파일은 그대로 둬요)",
+    "folderChangedTitle": "폴더에서 바뀐 내용이 있어요",
+    "folderHintNew": "저장하면 스킬 폴더가 만들어져요",
+    "folderHintSaved": "{root}/{name} — 폴더에서 고친 내용은 앱으로 돌아오면 반영돼요",
+    "folderOpenFailed": "폴더를 열 수 없어요",
+    "list": "스킬 목록",
+    "menuPath": "+ › 스킬",
+    "name": "명령 이름",
+    "new": "새 스킬",
+    "newHint": "새 스킬을 만들어요. 원하는 것을 AI에게 말하거나 아래 칸을 직접 채우세요. 명령 이름으로 채팅에서 바로 부를 수 있어요.",
+    "ok": "확인",
+    "open": "열기",
+    "openFolder": "스킬 폴더 열기",
+    "openUnsavedMessage": "폴더에는 저장된 내용만 있어요. 그대로 열까요?",
+    "overwrite": "덮어쓰기",
+    "prompt": "지시",
+    "promptPlaceholder": "이 스킬을 고른 질문에 모델이 따를 지시를 적어요.",
+    "restoreExamples": "예시 스킬 다시 넣기",
+    "revert": "되돌리기",
+    "save": "저장",
+    "saveFirstMessage": "스킬을 저장하면 폴더가 만들어지고, 그 뒤에 열 수 있어요.",
+    "saveFirstTitle": "먼저 저장하세요",
+    "skippedNotice": "스킬은 {max}개까지라 {n}개는 가져오지 못했어요.",
+    "sync": "동기화",
+    "syncFailed": "스킬을 동기화하지 못했어요. {reason}",
+    "syncOffline": "PC와 연결되면 동기화할 수 있어요",
+    "syncReady": "PC에서 만든 스킬을 받아 와요",
+    "syncSame": "PC 스킬과 이미 같아요.",
+    "syncedNotice": "PC 스킬을 동기화했어요 ({parts})",
+    "title": "스킬 관리",
+    "titleField": "제목",
+    "titlePlaceholder": "커리큘럼 생성",
+    "unsavedTitle": "저장하지 않은 변경이 있어요",
+    "updatedCount": "{n}개 갱신"
+  },
+  "problem": {
+    "name": "명령 이름은 영문 소문자·숫자·한글·-·_ 로 {max}자까지 쓸 수 있어요 (공백 없이).",
+    "nameTaken": "같은 명령 이름의 스킬이 이미 있어요.",
+    "prompt": "지시 내용을 입력하세요.",
+    "title": "제목을 입력하세요.",
+    "tooLong": "제목 {title}자, 설명 {description}자, 지시 {prompt}자까지 쓸 수 있어요."
+  }
+}

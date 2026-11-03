@@ -20,6 +20,16 @@ const skillsRoot = String(ipcRenderer.sendSync(CH.skillsRoot) ?? '');
 // DesktopApi 타입을 확장해서 onPeerGone을 추가로 노출한다
 const api: DesktopApiExt = {
   platform: process.platform,
+  setLocale: (locale) => ipcRenderer.send(CH.setLocale, locale),
+  notifications: {
+    supported: () => ipcRenderer.invoke(CH.notificationSupported) as Promise<boolean>,
+    show: (input) => ipcRenderer.invoke(CH.notificationShow, input) as Promise<boolean>,
+    onClick(listener) {
+      const h = (_e: IpcRendererEvent, id: unknown) => { if (typeof id === 'string') listener(id); };
+      ipcRenderer.on(CH.notificationClick, h);
+      return () => ipcRenderer.removeListener(CH.notificationClick, h);
+    },
+  },
   bridge: {
     send: (msg) => ipcRenderer.send(CH.bridgeSend, msg),
     onMessage(listener) {

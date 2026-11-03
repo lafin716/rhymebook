@@ -1,6 +1,8 @@
+import { t } from './i18n';
 import type { ID, Message, Session } from './model';
 
-export const NEW_PAGE_TITLE = '새 페이지';
+/** 새 페이지 기본 제목 (지금 언어) */
+export const newPageTitle = (): string => t('core.page.newTitle');
 
 /** 마크다운 페이지 세션인가 (ADR-072) */
 export const isPage = (s: Pick<Session, 'kind'> | undefined): boolean => s?.kind === 'page';
@@ -29,29 +31,29 @@ export interface PageBlock {
   select?: readonly [number, number];
 }
 
-const TABLE = '| 항목 | 설명 |\n| --- | --- |\n|  |  |';
+const tableText = (): string => `| ${t('core.page.tableHeader.item')} | ${t('core.page.tableHeader.desc')} |\n| --- | --- |\n|  |  |`;
 const CODE = '```\n\n```';
 
 export const PAGE_BLOCKS: readonly PageBlock[] = [
-  { id: 'h1', label: '제목 1', hint: '#', keywords: ['heading', 'h1', 'title'], kind: 'line', text: '# ' },
-  { id: 'h2', label: '제목 2', hint: '##', keywords: ['heading', 'h2'], kind: 'line', text: '## ' },
-  { id: 'h3', label: '제목 3', hint: '###', keywords: ['heading', 'h3'], kind: 'line', text: '### ' },
-  { id: 'bullet', label: '글머리 목록', hint: '-', keywords: ['bullet', 'list', 'ul', '목록'], kind: 'line', text: '- ' },
-  { id: 'number', label: '번호 목록', hint: '1.', keywords: ['number', 'list', 'ol', '목록'], kind: 'line', text: '1. ' },
-  { id: 'todo', label: '할 일 목록', hint: '- [ ]', keywords: ['todo', 'task', 'check', '체크'], kind: 'line', text: '- [ ] ' },
-  { id: 'quote', label: '인용', hint: '>', keywords: ['quote', 'blockquote'], kind: 'line', text: '> ' },
-  { id: 'code', label: '코드 블록', hint: '```', keywords: ['code', 'pre'], kind: 'block', text: CODE, select: [4, 4] },
-  { id: 'divider', label: '구분선', hint: '---', keywords: ['divider', 'hr', 'line', '줄'], kind: 'block', text: '---' },
-  { id: 'table', label: '표', hint: '| |', keywords: ['table', '테이블'], kind: 'block', text: TABLE, select: [2, 4] },
-  { id: 'math', label: '수식', hint: '$$', keywords: ['math', 'latex', 'equation'], kind: 'block', text: '$$\n\n$$', select: [3, 3] },
+  { id: 'h1', get label() { return t('core.page.blocks.h1'); }, hint: '#', keywords: ['heading', 'h1', 'title'], kind: 'line', text: '# ' },
+  { id: 'h2', get label() { return t('core.page.blocks.h2'); }, hint: '##', keywords: ['heading', 'h2'], kind: 'line', text: '## ' },
+  { id: 'h3', get label() { return t('core.page.blocks.h3'); }, hint: '###', keywords: ['heading', 'h3'], kind: 'line', text: '### ' },
+  { id: 'bullet', get label() { return t('core.page.blocks.bullet'); }, hint: '-', keywords: ['bullet', 'list', 'ul', '목록'], kind: 'line', text: '- ' },
+  { id: 'number', get label() { return t('core.page.blocks.number'); }, hint: '1.', keywords: ['number', 'list', 'ol', '목록'], kind: 'line', text: '1. ' },
+  { id: 'todo', get label() { return t('core.page.blocks.todo'); }, hint: '- [ ]', keywords: ['todo', 'task', 'check', '체크'], kind: 'line', text: '- [ ] ' },
+  { id: 'quote', get label() { return t('core.page.blocks.quote'); }, hint: '>', keywords: ['quote', 'blockquote'], kind: 'line', text: '> ' },
+  { id: 'code', get label() { return t('core.page.blocks.code'); }, hint: '```', keywords: ['code', 'pre'], kind: 'block', text: CODE, select: [4, 4] },
+  { id: 'divider', get label() { return t('core.page.blocks.divider'); }, hint: '---', keywords: ['divider', 'hr', 'line', '줄'], kind: 'block', text: '---' },
+  { id: 'table', get label() { return t('core.page.blocks.table'); }, hint: '| |', keywords: ['table', '테이블'], kind: 'block', get text() { return tableText(); }, select: [2, 4] },
+  { id: 'math', get label() { return t('core.page.blocks.math'); }, hint: '$$', keywords: ['math', 'latex', 'equation'], kind: 'block', text: '$$\n\n$$', select: [3, 3] },
   /**
    * 하위 페이지 링크. text는 비워 둔다 — UI가 새 페이지 id로 `pageLinkMarkdown(...)`을 만들어 넣은 블록을
    * applyPageBlock에 넘긴다. text '' 는 "UI가 채운다"는 뜻이라 여기 값을 그대로 쓰면 안 된다.
    */
   /** 이미지·파일 첨부도 text를 UI가 채운다 — 고른 파일을 data URL로 넣은 `![이름](…)`·`[📎 이름](…)` (ADR-077) */
-  { id: 'image', label: '이미지', hint: '![ ]( )', keywords: ['image', 'img', 'picture', 'photo', '사진', '그림', '첨부'], kind: 'block', text: '' },
-  { id: 'file', label: '파일', hint: '📎', keywords: ['file', 'attach', 'upload', '첨부'], kind: 'line', text: '' },
-  { id: 'page', label: '하위 페이지', hint: '[ ]( )', keywords: ['page', 'subpage', 'link', '페이지', '링크'], kind: 'line', text: '' },
+  { id: 'image', get label() { return t('core.page.blocks.image'); }, hint: '![ ]( )', keywords: ['image', 'img', 'picture', 'photo', '사진', '그림', '첨부'], kind: 'block', text: '' },
+  { id: 'file', get label() { return t('core.page.blocks.file'); }, hint: '📎', keywords: ['file', 'attach', 'upload', '첨부'], kind: 'line', text: '' },
+  { id: 'page', get label() { return t('core.page.blocks.page'); }, hint: '[ ]( )', keywords: ['page', 'subpage', 'link', '페이지', '링크'], kind: 'line', text: '' },
 ];
 
 const QUERY_MAX = 20;
@@ -149,8 +151,8 @@ export function pageLinkId(href: string | undefined | null): ID | null {
 
 /** 링크 글자: 줄바꿈·앞뒤 공백을 없애고 `\`·`[`·`]`를 이스케이프한다. 비면 기본 제목 */
 const linkText = (title: string): string => {
-  const t = title.replace(/\s+/g, ' ').trim();
-  return (t || NEW_PAGE_TITLE).replace(/[\\[\]]/g, (c) => `\\${c}`);
+  const s = title.replace(/\s+/g, ' ').trim();
+  return (s || newPageTitle()).replace(/[\\[\]]/g, (c) => `\\${c}`);
 };
 
 /** 하위 페이지로 가는 마크다운 링크 `[제목](#page:id)` */

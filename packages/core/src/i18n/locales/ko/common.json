@@ -1,0 +1,33 @@
+{
+  "close": "닫기",
+  "cancel": "취소",
+  "confirm": "확인",
+  "save": "저장",
+  "delete": "삭제",
+  "edit": "편집",
+  "copy": "복사",
+  "copied": "복사했어요",
+  "retry": "다시 시도",
+  "back": "뒤로",
+  "next": "다음",
+  "done": "완료",
+  "add": "추가",
+  "remove": "빼기",
+  "rename": "이름 바꾸기",
+  "search": "검색",
+  "loading": "불러오는 중…",
+  "on": "켜짐",
+  "off": "꺼짐",
+  "yes": "예",
+  "no": "아니요",
+  "more": "더 보기",
+  "untitled": "제목 없음",
+  "language": {
+    "label": "언어",
+    "hint": "앱 화면에 쓰는 언어예요. 바꾸면 앱이 다시 시작돼요.",
+    "promptTitle": "언어 선택",
+    "promptBody": "앱에서 쓸 언어를 골라 주세요. 나중에 설정 → 일반에서 바꿀 수 있어요.",
+    "promptStart": "시작하기",
+    "contribute": "다른 언어 번역에 참여하고 싶다면 docs/i18n.md를 봐 주세요."
+  }
+}

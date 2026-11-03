@@ -1,3 +1,4 @@
+import { t, type MessageKey } from '../i18n';
 import { childrenOf, defaultSkills, listedRootSessions, REORGANIZE_SKILL_ID, skillRef, turnMessageIds, turnMoveTargets, type ID, type Message, type Session } from '@branch/core';
 import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -10,14 +11,14 @@ import { cn } from '../lib/cn';
 import { useSkills } from '../skills/skillsStore';
 
 /** 분리·옮기기 공통 확인: 첫 질문·답변 중이면 이유를 알리고 false */
-function turnMovable(sessionId: ID, questionId: ID, verb: string): boolean {
+function turnMovable(sessionId: ID, questionId: ID, keys: { first: MessageKey; busy: MessageKey }): boolean {
   const st = appStore.getState();
   if (!turnMessageIds(st.messages[sessionId] ?? [], questionId)) {
-    pushNotice(`첫 질문은 ${verb} 수 없어요.`);
+    pushNotice(t(keys.first));
     return false;
   }
   if (st.streaming[sessionId]) {
-    pushNotice(`답변이 끝난 뒤 ${verb} 수 있어요.`);
+    pushNotice(t(keys.busy));
     return false;
   }
   return true;
@@ -25,20 +26,20 @@ function turnMovable(sessionId: ID, questionId: ID, verb: string): boolean {
 
 /** 질문(과 답변)을 같은 레벨의 별도 세션으로 분리한다. 제목은 AI가 다시 짓는다 (ADR-066) */
 export function splitTurnSibling(sessionId: ID, questionId: ID) {
-  if (!turnMovable(sessionId, questionId, '분리할')) return;
+  if (!turnMovable(sessionId, questionId, { first: 'chat.turn.firstSplit', busy: 'chat.turn.busySplit' })) return;
   const id = actions().splitTurn(sessionId, questionId, undefined, { sibling: true });
-  if (!id) pushNotice('질문을 분리하지 못했어요.');
-  else pushNotice('별도 세션으로 분리했어요. 제목은 AI가 지어요.');
+  if (!id) pushNotice(t('chat.turn.splitFailed'));
+  else pushNotice(t('chat.turn.siblingDone'));
 }
 
 const useMovePick = create<{ pick: { sessionId: ID; questionId: ID } | null }>(() => ({ pick: null }));
 
 /** 질문을 옮길 세션을 고르는 창을 연다 (ADR-067) */
 export function pickMoveTarget(sessionId: ID, questionId: ID) {
-  if (!turnMovable(sessionId, questionId, '옮길')) return;
+  if (!turnMovable(sessionId, questionId, { first: 'chat.turn.firstMove', busy: 'chat.turn.busyMove' })) return;
   const st = appStore.getState();
   if (!turnMoveTargets(st.sessions, st.messages[sessionId] ?? [], sessionId, questionId).length) {
-    pushNotice('옮길 수 있는 다른 세션이 없어요.');
+    pushNotice(t('chat.turn.noMoveTarget'));
     return;
   }
   useMovePick.setState({ pick: { sessionId, questionId } });
@@ -65,7 +66,7 @@ export function MoveTurnHost() {
   const pick = useMovePick((s) => s.pick);
   const close = () => useMovePick.setState({ pick: null });
   return (
-    <Modal open={!!pick} onClose={close} label="질문 옮기기" size="tall" className="md:max-w-md">
+    <Modal open={!!pick} onClose={close} label={t('chat.turn.moveTitle')} size="tall" className="md:max-w-md">
       {pick && <MoveTurnPicker sessionId={pick.sessionId} questionId={pick.questionId} onClose={close} />}
     </Modal>
   );
@@ -87,14 +88,14 @@ function MoveTurnPicker({ sessionId, questionId, onClose }: { sessionId: ID; que
   const move = (targetId: ID) => {
     onClose();
     const title = appStore.getState().sessions[targetId]?.title ?? '';
-    if (actions().moveTurn(sessionId, questionId, targetId)) pushNotice(`“${title}” 세션 끝으로 옮겼어요.`);
-    else pushNotice('질문을 옮기지 못했어요.');
+    if (actions().moveTurn(sessionId, questionId, targetId)) pushNotice(t('chat.turn.movedTo', { title }));
+    else pushNotice(t('chat.turn.moveFailed'));
   };
 
   return (
     <>
       <div className="shrink-0 border-b border-line px-4 pt-4 pb-3">
-        <h2 className="text-[16px] font-semibold text-fg">다른 세션으로 옮기기</h2>
+        <h2 className="text-[16px] font-semibold text-fg">{t('chat.turn.movePickerTitle')}</h2>
         {question && <p className="mt-1 truncate text-[13px] text-muted">“{question}”</p>}
         <label className="mt-3 flex h-10 items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 text-[14px]">
           <Search size={15} className="shrink-0 text-muted" />
@@ -102,13 +103,13 @@ function MoveTurnPicker({ sessionId, questionId, onClose }: { sessionId: ID; que
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="세션 제목 검색"
-            aria-label="세션 제목 검색"
+            placeholder={t('chat.turn.searchSession')}
+            aria-label={t('chat.turn.searchSession')}
             className="min-w-0 flex-1 bg-transparent text-fg outline-none placeholder:text-muted"
           />
         </label>
       </div>
-      <ul role="listbox" aria-label="옮길 세션" className="min-h-0 flex-1 overflow-y-auto p-2">
+      <ul role="listbox" aria-label={t('chat.turn.moveList')} className="min-h-0 flex-1 overflow-y-auto p-2">
         {rows.map(({ session: s, depth }) => {
           const ok = targets.has(s.id);
           return (
@@ -129,16 +130,16 @@ function MoveTurnPicker({ sessionId, questionId, onClose }: { sessionId: ID; que
               >
                 {depth > 0 && <span className="text-line-strong">└</span>}
                 <span className="min-w-0 flex-1 truncate">{s.title}</span>
-                {s.id === sessionId && <span className="shrink-0 text-[11.5px] text-muted">현재 세션</span>}
+                {s.id === sessionId && <span className="shrink-0 text-[11.5px] text-muted">{t('chat.turn.currentSession')}</span>}
               </button>
             </li>
           );
         })}
-        {!rows.length && <li className="px-3 py-6 text-center text-[13px] text-muted">찾는 세션이 없어요.</li>}
+        {!rows.length && <li className="px-3 py-6 text-center text-[13px] text-muted">{t('chat.turn.noSessions')}</li>}
       </ul>
       <div className="shrink-0 border-t border-line px-4 py-3 text-right">
         <button type="button" onClick={onClose} className="h-9 rounded-lg px-3 text-[14px] text-fg-2 hover:bg-surface-2">
-          취소
+          {t('chat.turn.cancel')}
         </button>
       </div>
     </>
@@ -150,31 +151,26 @@ export async function reorganizeSession(sessionId: ID) {
   const st = appStore.getState();
   const list = st.messages[sessionId] ?? [];
   if (st.streaming[sessionId]) {
-    pushNotice('답변이 끝난 뒤 재정리할 수 있어요.');
+    pushNotice(t('chat.turn.reorgBusy'));
     return;
   }
   if (!list.some((m) => m.role === 'assistant' && m.content.trim())) {
-    pushNotice('정리할 답변이 아직 없어요.');
+    pushNotice(t('chat.turn.reorgNoAnswer'));
     return;
   }
   const questions = list.filter((m) => m.role === 'user').length;
   const branches = Object.values(st.sessions).filter((s) => s.parentId === sessionId).length;
   const ok = await confirm({
-    title: '이 세션을 재정리할까요?',
-    message: (
-      <>
-        질문 {questions}개와 답변을 하나의 질문과 답변으로 정리해 바꿔요.
-        {branches > 0 && ` 하위 세션 ${branches}개는 각주로 남아요.`} 본문 메모·하이라이트는 사라지며, 실패하면 원래 대화를 그대로 둬요.
-      </>
-    ),
-    confirmLabel: '재정리',
+    title: t('chat.turn.reorgTitle'),
+    message: t('chat.turn.reorgBody', { questions, branchNote: branches > 0 ? t('chat.turn.reorgBranches', { count: branches }) : '' }),
+    confirmLabel: t('chat.turn.reorgConfirm'),
   });
   if (!ok) return;
   const skills = useSkills.getState().skills;
   const skill = skills.find((k) => k.id === REORGANIZE_SKILL_ID) ?? skills.find((k) => k.name === 'reorganize') ?? defaultSkills().find((k) => k.id === REORGANIZE_SKILL_ID);
   const firstId = list[0]!.id;
   if (!actions().reorganizeSession(sessionId, skill ? skillRef(skill) : undefined)) {
-    pushNotice('재정리를 시작하지 못했어요.');
+    pushNotice(t('chat.turn.reorgFailed'));
     return;
   }
   // 끝난 뒤에도 원래 첫 메시지가 남아 있으면 실패(원본 유지)
@@ -189,7 +185,7 @@ export async function reorganizeSession(sessionId: ID) {
   const timer = setTimeout(() => {
     if (started) return;
     stop();
-    if (failedNow(appStore.getState())) pushNotice('재정리하지 못했어요. 원래 대화는 그대로예요.');
+    if (failedNow(appStore.getState())) pushNotice(t('chat.turn.reorgNotDone'));
   }, 15_000);
   unsub = appStore.subscribe((s) => {
     if (!s.sessions[sessionId]) return stop();
@@ -199,6 +195,6 @@ export async function reorganizeSession(sessionId: ID) {
     }
     if (!started) return;
     stop();
-    if (failedNow(s)) pushNotice('재정리하지 못했어요. 원래 대화는 그대로예요.');
+    if (failedNow(s)) pushNotice(t('chat.turn.reorgNotDone'));
   });
 }

@@ -1,0 +1,26 @@
+{
+  "back": "Back",
+  "cancel": "Cancel",
+  "default": "Default",
+  "editAria": "Edit prompt",
+  "edited": "Edited",
+  "labelAria": "{label} prompt",
+  "list": "Prompt list",
+  "liveNote": "Changed prompts apply from your next question. Answers you already received stay the same.",
+  "pcNote": "Chats run on the PC and follow the prompts in the PC app. You can change prompts in the PC app.",
+  "placeholder": "Leave empty and save to use the default text.",
+  "reset": {
+    "button": "Reset to default",
+    "confirm": "Reset",
+    "message": "Reset “{label}” to the app’s default text. Your edits will be removed.",
+    "title": "Reset to default?"
+  },
+  "save": "Save",
+  "system": "System prompt",
+  "title": "Manage prompts",
+  "unsaved": {
+    "confirm": "Discard",
+    "message": "Discard your changes?",
+    "title": "You have unsaved changes"
+  }
+}

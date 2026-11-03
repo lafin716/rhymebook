@@ -1,5 +1,6 @@
-import { BRANCH_SUGGEST_INSTRUCTION } from '../branch-suggest';
-import { REORGANIZE_REQUEST } from '../context';
+import { branchSuggestInstruction } from '../branch-suggest';
+import { reorganizeRequest } from '../context';
+import { t, type MessageKey } from '../i18n';
 import type { ProviderId } from '../model';
 import {
   providerError,
@@ -25,11 +26,11 @@ export const mockControl: MockControl = { failNext: false, speed: 1, firstTokenD
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     if (signal?.aborted) return reject(new DOMException('aborted', 'AbortError'));
-    const t = setTimeout(resolve, ms);
+    const timer = setTimeout(resolve, ms);
     signal?.addEventListener(
       'abort',
       () => {
-        clearTimeout(t);
+        clearTimeout(timer);
         reject(new DOMException('aborted', 'AbortError'));
       },
       { once: true },
@@ -41,158 +42,44 @@ interface Canned {
   answer: string;
 }
 
-const CANNED: Canned[] = [
-  {
-    keys: /커리큘럼|로드맵|학습 ?계획/,
-    answer: `**트랜스포머 4주 로드맵**이에요. 한 주에 한 챕터씩, 앞 챕터가 다음 챕터의 바탕이 되도록 짰어요.
+const CANNED_IDS = ['roadmap', 'cosine', 'dot', 'softmax', 'scale', 'qkv', 'multihead', 'attention'] as const;
 
-## 1주차: 벡터와 내적
-_목표: 단어를 벡터로 보고 비슷한 정도를 잰다 · 약 4시간_
-
-1. **1.1 벡터란** — 단어를 숫자 목록으로 표현하는 이유를 안다
-2. **1.2 내적** — 두 벡터가 얼마나 비슷한지 숫자로 잰다
-3. **1.3 코사인 유사도** — 길이를 빼고 방향만 비교한다
-
-## 2주차: 소프트맥스와 확률
-_목표: 점수를 합이 1인 가중치로 바꾼다 · 약 3시간_
-
-1. **2.1 지수 함수** — 큰 점수를 더 크게 키우는 이유를 안다
-2. **2.2 정규화** — 합이 1이 되도록 나눈다
-
-## 3주차: 어텐션
-_목표: Query·Key·Value로 가중합을 계산한다 · 약 5시간_
-
-1. **3.1 Query·Key·Value** — 세 벡터의 역할을 구분한다
-2. **3.2 스케일드 내적** — 점수를 √d로 나누는 이유를 안다
-3. **3.3 가중합** — 가중치로 Value를 섞는다
-
-## 4주차: 멀티헤드와 트랜스포머 블록
-_목표: 어텐션을 블록으로 쌓는다 · 약 5시간_
-
-1. **4.1 멀티헤드** — 여러 관점으로 동시에 본다
-2. **4.2 잔차 연결과 정규화** — 깊게 쌓아도 학습이 되게 한다
-
-> 챕터마다 직접 손으로 계산해 보는 시간을 꼭 넣으세요.
-
-\`\`\`branches
-{"chapters":[{"title":"1주차: 벡터와 내적","question":"1주차: 벡터와 내적을 예시와 함께 차근차근 알려줘"},{"title":"2주차: 소프트맥스와 확률","question":"2주차: 소프트맥스가 점수를 확률로 바꾸는 과정을 알려줘"},{"title":"3주차: 어텐션","question":"3주차: 어텐션 식을 한 줄씩 풀어서 알려줘"},{"title":"4주차: 멀티헤드와 트랜스포머 블록","question":"4주차: 멀티헤드 어텐션과 트랜스포머 블록 구조를 알려줘"}],"next":[{"title":"미리 알아둘 수학","question":"이 로드맵을 시작하기 전에 알아 둘 수학은 뭐야?"},{"title":"하루 공부 순서","question":"한 챕터를 하루에 어떤 순서로 공부하면 좋아?"}]}
-\`\`\``,
-  },
-  {
-    keys: /코사인/,
-    answer: `**코사인 유사도**는 두 벡터가 **같은 방향을 가리키는 정도**만 보는 척도예요.
-
-- 공식: \`cos θ = (a · b) / (|a| |b|)\`
-- 값 범위: **-1**(정반대) ~ **1**(같은 방향)
-
-> 비유: 두 사람이 손가락으로 가리키는 *방향*만 비교하고, 팔 길이는 무시하는 것.
-
-어텐션의 내적은 길이로 나누지 않은 "날것의 코사인 유사도"라고 보면 됩니다.`,
-  },
-  {
-    keys: /내적|dot product/i,
-    answer: `**내적(dot product)** 은 두 벡터의 같은 위치 값끼리 곱해서 모두 더한 값이에요.
-
-\`\`\`python
-q = [1, 2, 0]
-k = [2, 1, 3]
-score = sum(a * b for a, b in zip(q, k))  # 1*2 + 2*1 + 0*3 = 4
-\`\`\`
-
-두 벡터가 **비슷한 방향**일수록 값이 커져요. 그래서 어텐션에서는 "Query와 Key가 얼마나 잘 맞는가"를 재는 점수로 씁니다.
-길이까지 정규화하면 코사인 유사도가 됩니다.`,
-  },
-  {
-    keys: /소프트맥스|softmax/i,
-    answer: `**소프트맥스(softmax)** 는 점수 목록을 **합이 1인 확률 분포**로 바꾸는 함수예요.
-
-| 점수 | e^점수 | 비율 |
-|---|---|---|
-| 2.0 | 7.39 | 0.66 |
-| 1.0 | 2.72 | 0.24 |
-| 0.1 | 1.11 | 0.10 |
-
-> 비유: 투표 결과를 "득표율"로 바꾸되, 1등을 조금 더 밀어주는 방식.
-
-어텐션에서는 각 단어에 **얼마나 주목할지(가중치)** 를 정하는 데 사용됩니다.`,
-  },
-  {
-    keys: /√|루트|스케일|scale/i,
-    answer: `**√d_k로 나누는 이유**는 내적 값이 차원이 커질수록 너무 커지기 때문이에요.
-
-1. 차원 d_k가 크면 내적의 분산도 d_k에 비례해 커짐
-2. 큰 값이 소프트맥스에 들어가면 한 항목만 1에 가깝고 나머지는 0 → **기울기 소실**
-3. √d_k로 나눠 분산을 1 근처로 맞춰 줌
-
-> 비유: 시험 점수가 1000점 만점이면 등수 차이가 너무 극단적으로 보이니, 100점 만점으로 환산하는 것.`,
-  },
-  {
-    keys: /Query|Key|Value|Q\/K\/V|QKV/i,
-    answer: `**Query / Key / Value** 는 도서관 검색에 비유하면 쉬워요.
-
-- **Query(질의)**: 내가 찾고 싶은 것 — "고양이에 관한 책"
-- **Key(색인)**: 각 책의 라벨 — 검색어와 비교되는 대상
-- **Value(내용)**: 실제로 가져올 책의 내용
-
-어텐션은 Query와 모든 Key의 **내적**으로 "얼마나 관련 있는지" 점수를 매기고, 그 점수로 Value들을 섞어 결과를 만듭니다.
-세 벡터는 같은 단어 임베딩에 서로 다른 가중치 행렬 \`W_Q\`, \`W_K\`, \`W_V\`를 곱해서 얻어요.`,
-  },
-  {
-    keys: /멀티.?헤드|multi.?head/i,
-    answer: `**멀티헤드 어텐션**은 어텐션을 여러 개(헤드) 병렬로 돌리는 방법이에요.
-
-- 각 헤드는 서로 다른 \`W_Q, W_K, W_V\`를 가져 **다른 관점**의 관계를 학습
-- 예: 한 헤드는 문법 관계, 다른 헤드는 지시 대상(그것 → 고양이)에 집중
-- 결과를 이어붙인 뒤(concat) 선형 변환으로 합칩니다
-
-> 비유: 한 문장을 문법 선생님, 국어 선생님, 역사 선생님이 동시에 읽고 메모를 합치는 것.`,
-  },
-  {
-    keys: /어텐션|attention/i,
-    answer: `**어텐션(Attention)** 은 문장의 각 단어가 "다른 어떤 단어를 얼마나 참고할지"를 스스로 정하는 메커니즘이에요.
-
-핵심 식은 다음과 같습니다.
-
-\`\`\`text
-Attention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V
-\`\`\`
-
-1. 각 단어를 Query, Key, Value 세 벡터로 바꿉니다.
-2. Query와 모든 Key의 내적으로 관련도 점수를 구합니다.
-3. 점수를 √d_k로 나눈 뒤 소프트맥스로 가중치로 만듭니다.
-4. 가중치로 Value를 가중합해 새 표현을 얻습니다.
-
-예를 들어 "고양이가 매트 위에 앉았다, **그것은** 따뜻했다"에서 *그것은*은 *매트*에 높은 가중치를 줍니다.`,
-  },
-];
-
-/** /quiz 스킬 데모 응답 (IMP-17) */
-const MOCK_QUIZ = `지금까지 다룬 어텐션을 퀴즈로 점검해 볼게요.
-
-\`\`\`quiz
-{
-  "title": "어텐션 점검 퀴즈",
-  "questions": [
-    { "type": "ox", "question": "어텐션 점수는 Query와 Key의 내적으로 구한다.", "answer": true, "explanation": "Query와 각 Key의 **내적**이 관련도 점수가 되고, 소프트맥스로 가중치가 됩니다." },
-    { "type": "choice", "question": "점수를 $\\\\sqrt{d_k}$로 나누는 이유로 가장 알맞은 것은?", "choices": ["계산을 빠르게 하려고", "내적 값이 커져 소프트맥스가 한쪽으로 쏠리는 것을 막으려고", "Value 벡터의 크기를 맞추려고", "Key를 정규화하려고"], "answer": 2, "explanation": "차원이 크면 내적 값의 분산이 커져 소프트맥스 기울기가 거의 0이 됩니다. 나눠서 값의 규모를 맞춥니다." },
-    { "type": "short", "question": "어텐션 가중치로 가중합하는 벡터의 이름은?", "answer": "Value", "accept": ["V", "값", "밸류"], "explanation": "가중치는 **Value** 벡터에 곱해져 새 표현을 만듭니다." }
-  ]
+/** 데모 답변 목록. 매칭 키워드(match/flags)와 답변은 로케일별 demo.canned.* 에서 읽는다 */
+function cannedReplies(): Canned[] {
+  return CANNED_IDS.map((id) => {
+    const base = `demo.canned.${id}`;
+    return {
+      keys: new RegExp(t(`${base}.match` as MessageKey), t(`${base}.flags` as MessageKey)),
+      answer: t(`${base}.answer` as MessageKey),
+    };
+  });
 }
-\`\`\``;
 
-/** /speak 스킬 데모 응답 (IMP-21) */
-const MOCK_SPEAK = `카드의 버튼을 눌러 한 줄씩 또는 모두 이어 들어 보세요.
-
-\`\`\`speak
-{
-  "title": "베트남어 인사",
-  "items": [
-    { "text": "Xin chào", "lang": "vi", "note": "안녕하세요" },
-    { "text": "Cảm ơn bạn", "lang": "vi", "note": "고마워요" },
-    { "text": "Nice to meet you.", "lang": "en", "note": "만나서 반가워요" }
-  ]
+/**
+ * 로케일 문구 템플릿을 정규식 소스로 바꾼다.
+ * {name}은 values[name] 조각으로 치환하고, 나머지 글자는 정규식 특수문자를 이스케이프한다.
+ */
+function templateSource(template: string, values: Record<string, string> = {}): string {
+  return template
+    .split(/(\{\w+\})/)
+    .map((part) => {
+      const name = /^\{(\w+)\}$/.exec(part)?.[1];
+      if (name && name in values) return values[name]!;
+      return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    })
+    .join('');
 }
-\`\`\``;
+
+/** 요청 목적별로 호출 시점의 로케일 문구에 맞춰 만든 파서 */
+const summaryTargetRe = () => new RegExp(templateSource(t('llm.context.summaryTarget'), { target: '([^"]+)' }));
+const focusRe = () => new RegExp(templateSource(t('llm.context.targetQuestion'), { text: '([^"]+)' }));
+const skillAskRe = () => new RegExp(`${templateSource(t('llm.skillAssist.requestHeading'))}\\n([\\s\\S]*)$`);
+const skillHeadingRe = (name: string) =>
+  new RegExp(`^${templateSource(t('llm.skill.heading'), { title: '.+', name })}$`, 'm');
+const pageNoteRe = () =>
+  new RegExp(
+    `${templateSource(t('llm.page.noteHeading'))}\\n([\\s\\S]*?)(?:\\n${templateSource(t('llm.page.extraRequest'))}|$)`,
+  );
 
 function lastUser(req: StreamRequest): string {
   for (let i = req.messages.length - 1; i >= 0; i--) {
@@ -209,7 +96,7 @@ export function mockSearchQuery(user: string): string | null {
 }
 
 function focusOf(req: StreamRequest): string | null {
-  const m = /현재 질문 대상: "([^"]+)"/.exec(req.system);
+  const m = focusRe().exec(req.system);
   return m?.[1] ?? null;
 }
 
@@ -217,63 +104,61 @@ function focusOf(req: StreamRequest): string | null {
 export function mockAnswer(req: StreamRequest): string {
   const user = lastUser(req);
   if (req.purpose === 'title') {
-    if (/어텐션|attention/i.test(user)) return '트랜스포머 어텐션';
+    if (/어텐션|attention/i.test(user)) return t('demo.title.attention');
     const first = user.replace(/\[[^\]]+\]\s*/g, '').split(/\s+/).slice(0, 3).join(' ');
-    return first || '새 학습';
+    return first || t('demo.title.fallback');
   }
   if (req.purpose === 'skill') {
-    const ask = /## 요청\n([\s\S]*)$/.exec(user)?.[1]?.trim() ?? '';
+    const ask = skillAskRe().exec(user)?.[1]?.trim() ?? '';
     const cur = /<prompt>\n([\s\S]*?)\n<\/prompt>/.exec(user)?.[1];
     const keep = (tag: string, fallback: string) => new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(user)?.[1] || fallback;
     return [
       `<name>${keep('name', 'quiz')}</name>`,
-      `<title>${keep('title', '개념 퀴즈')}</title>`,
-      `<description>${keep('description', '주제의 핵심 개념을 퀴즈로 점검해요.')}</description>`,
+      `<title>${keep('title', t('demo.skill.fallbackTitle'))}</title>`,
+      `<description>${keep('description', t('demo.skill.fallbackDescription'))}</description>`,
       '<prompt>',
-      cur ? `${cur}\n- 추가 요청 반영: ${ask}` : `학습자가 준 주제로 퀴즈를 낸다.\n\n1. 핵심 개념 **3개**를 골라 문제를 하나씩 낸다.\n2. 요청: ${ask}`,
+      cur ? t('demo.skill.appendRequest', { cur, ask }) : t('demo.skill.newBody', { ask }),
       '</prompt>',
       // 부수 파일을 요청하면 참고 파일을 하나 만든다 (IMP-12)
-      ...(/파일|참고/.test(ask) ? ['<file path="references/rubric.md">', '# 채점 기준', '- 정답: 핵심 용어를 **굵게** 짚었는가', '</file>'] : []),
-      `<note>${cur ? '요청한 내용을 지시에 더했어요.' : '퀴즈 스킬을 만들었어요.'}</note>`,
+      ...(/파일|참고|file|reference/i.test(ask)
+        ? ['<file path="references/rubric.md">', t('demo.skill.rubricHeading'), t('demo.skill.rubricItem'), '</file>']
+        : []),
+      `<note>${cur ? t('demo.skill.noteAppended') : t('demo.skill.noteCreated')}</note>`,
     ].join('\n');
   }
   if (req.purpose === 'page') {
-    if (user.includes('[여기에 채우기]')) return '- 핵심 개념을 한 줄로 정리한다\n- 예시를 하나 든다';
-    const note = /## 노트\n([\s\S]*?)(?:\n## 추가 요청|$)/.exec(user)?.[1]?.trim() ?? '';
-    return `## 정리\n\n${note}`;
+    // [여기에 채우기]는 pageAssist.ts의 FILL_MARK와 같은 마커 (로케일과 무관하게 고정)
+    if (user.includes('[여기에 채우기]')) return t('demo.page.fillItems');
+    const note = pageNoteRe().exec(user)?.[1]?.trim() ?? '';
+    return `${t('demo.page.organizeHeading')}\n\n${note}`;
   }
+  const canned = cannedReplies();
   if (req.purpose === 'summary') {
-    const target = /질문 대상: "([^"]+)"/.exec(user)?.[1] ?? '이 개념';
-    const hit = CANNED.find((c) => c.keys.test(target));
-    const gist = hit ? hit.answer.split('\n')[0]!.replace(/[*`]/g, '') : `${target}의 핵심 의미와 쓰임`;
-    return `${gist} 즉, 앞선 설명의 맥락에서 "${target}"을(를) 이렇게 이해하면 된다.`;
+    const target = summaryTargetRe().exec(user)?.[1] ?? t('demo.fallbackTopic');
+    const hit = canned.find((c) => c.keys.test(target));
+    const gist = hit ? hit.answer.split('\n')[0]!.replace(/[*`]/g, '') : t('demo.summary.gistFallback', { target });
+    return t('demo.summary.line', { gist, target });
   }
-  if (user.includes(REORGANIZE_REQUEST)) {
-    return '질문: 트랜스포머의 어텐션을 처음부터 정리해 줘\n---\n## 어텐션 한눈에 보기\n\n어텐션은 **Query·Key·Value**로 관련도를 계산해 값을 가중합하는 방법이에요.\n\n> (데모 재정리 응답입니다.)';
+  if (user.includes(reorganizeRequest())) {
+    return t('demo.reorganize');
   }
-  if (/^## 스킬: .+ \(\/quiz\)$/m.test(req.system)) return MOCK_QUIZ;
-  if (/^## 스킬: .+ \(\/speak\)$/m.test(req.system)) return MOCK_SPEAK;
+  if (skillHeadingRe('quiz').test(req.system)) return t('demo.quiz');
+  if (skillHeadingRe('speak').test(req.system)) return t('demo.speak');
   const focus = focusOf(req);
   const probe = `${user} ${focus ?? ''}`;
-  const hit = CANNED.find((c) => c.keys.test(user)) ?? CANNED.find((c) => c.keys.test(probe));
+  const hit = canned.find((c) => c.keys.test(user)) ?? canned.find((c) => c.keys.test(probe));
   if (hit) return withNext(req, hit.answer, focus ?? user);
   const target = focus ?? user.slice(0, 40);
-  return withNext(req, `좋은 질문이에요. **${target}** 를 앞선 맥락에 맞춰 짧게 설명해 볼게요.
-
-- **핵심**: ${target}은(는) 지금 다루는 개념을 이루는 한 부분이에요.
-- **비유**: 레고 설명서의 한 단계처럼, 이것을 이해해야 다음 단계가 맞춰집니다.
-- **예시**: 실제 계산 한 번을 손으로 따라가 보면 감이 옵니다.
-
-> (데모 응답입니다. 실제 provider를 연결하면 맥락에 맞는 설명이 생성됩니다.)`, target);
+  return withNext(req, t('demo.generic', { target }), target);
 }
 
 /** 추천 가지 지시를 받았으면 이어 갈 질문 블록을 붙인다 (ADR-094) — 이미 블록이 있으면 그대로 */
 function withNext(req: StreamRequest, answer: string, topic: string): string {
-  if (!req.system.includes(BRANCH_SUGGEST_INSTRUCTION) || answer.includes('```branches')) return answer;
-  const t = topic.replace(/\s+/g, ' ').trim().slice(0, 16) || '이 개념';
+  if (!req.system.includes(branchSuggestInstruction()) || answer.includes('```branches')) return answer;
+  const short = topic.replace(/\s+/g, ' ').trim().slice(0, 16) || t('demo.fallbackTopic');
   const next = [
-    { title: '예시로 더 보기', question: `${t}을(를) 실제 예시 하나로 처음부터 끝까지 보여줘` },
-    { title: '헷갈리는 점', question: `${t}에서 처음 배우는 사람이 가장 헷갈리는 점은 뭐야?` },
+    { title: t('demo.next.example.title'), question: t('demo.next.example.question', { topic: short }) },
+    { title: t('demo.next.confusion.title'), question: t('demo.next.confusion.question', { topic: short }) },
   ];
   return `${answer}\n\n\`\`\`branches\n${JSON.stringify({ chapters: [], next })}\n\`\`\``;
 }
@@ -303,7 +188,7 @@ export function createMockProvider(opts: MockProviderOptions = {}): LLMProvider 
   const respond = opts.respond ?? mockAnswer;
   return {
     id: opts.id ?? 'mock',
-    label: opts.label ?? '데모 (Mock)',
+    label: opts.label ?? t('demo.label'),
     async available() {
       return availability();
     },
@@ -335,8 +220,8 @@ export function createMockProvider(opts: MockProviderOptions = {}): LLMProvider 
               status: 'done',
               query,
               sources: [
-                { url: 'https://example.com/news', title: '예시 뉴스' },
-                { url: 'https://example.org/docs', title: '예시 문서' },
+                { url: 'https://example.com/news', title: t('demo.search.source1') },
+                { url: 'https://example.org/docs', title: t('demo.search.source2') },
               ],
             },
           };
@@ -347,7 +232,7 @@ export function createMockProvider(opts: MockProviderOptions = {}): LLMProvider 
         mockControl.failNext = false;
         for (let i = 0; i < parts.length; i++) {
           if (i === failAt) {
-            yield { type: 'error', error: providerError('network', '응답 스트림이 중간에 끊겼습니다 (데모 오류).') };
+            yield { type: 'error', error: providerError('network', t('demo.error.streamCut')) };
             return;
           }
           yield { type: 'delta', text: parts[i]! };
@@ -356,7 +241,7 @@ export function createMockProvider(opts: MockProviderOptions = {}): LLMProvider 
         yield { type: 'done', stopReason: 'end_turn' };
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') {
-          yield { type: 'error', error: providerError('aborted', '사용자가 중지했습니다.') };
+          yield { type: 'error', error: providerError('aborted', t('demo.error.aborted')) };
           return;
         }
         throw e;
@@ -365,19 +250,15 @@ export function createMockProvider(opts: MockProviderOptions = {}): LLMProvider 
   };
 }
 
+const AVAILABILITY_KEY: Record<Availability['status'], MessageKey> = {
+  ready: 'demo.availability.ready',
+  offline: 'demo.availability.offline',
+  'not-installed': 'demo.availability.notInstalled',
+  'not-logged-in': 'demo.availability.notLoggedIn',
+  'no-key': 'demo.availability.noKey',
+  unpaired: 'demo.availability.unpaired',
+};
+
 export function availabilityMessage(a: Availability): string {
-  switch (a.status) {
-    case 'ready':
-      return '연결됨';
-    case 'offline':
-      return 'provider에 연결할 수 없습니다 (오프라인).';
-    case 'not-installed':
-      return 'CLI가 설치되어 있지 않습니다.';
-    case 'not-logged-in':
-      return 'CLI에 로그인되어 있지 않습니다.';
-    case 'no-key':
-      return 'API 키가 설정되지 않았습니다.';
-    case 'unpaired':
-      return '원격 Bridge와 페어링되지 않았습니다.';
-  }
+  return t(AVAILABILITY_KEY[a.status]);
 }

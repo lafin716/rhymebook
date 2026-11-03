@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { BRANCHES_LANG, type BranchSuggestion, type ID, type LocatedChapter, type Session } from '@branch/core';
 import { GitBranch, Sprout } from 'lucide-react';
 import { Children, createContext, isValidElement, useContext, type ComponentProps, type ReactNode } from 'react';
@@ -46,7 +47,7 @@ function ChapterButton({ chapter, ctx }: { chapter: LocatedChapter; ctx: BranchS
       data-anchor-ignore=""
       data-chapter-branch={existing ? 'open' : 'new'}
       contentEditable={false}
-      title={existing ? '이 챕터 가지 열기' : `가지로 배우기: ${chapter.question}`}
+      title={existing ? t('chat.branchSuggest.openChapter') : t('chat.branchSuggest.learnChapter', { question: chapter.question })}
       onClick={(e) => {
         e.stopPropagation();
         open();
@@ -59,7 +60,7 @@ function ChapterButton({ chapter, ctx }: { chapter: LocatedChapter; ctx: BranchS
       )}
     >
       <GitBranch size={12} aria-hidden="true" />
-      {existing ? '열기' : '가지'}
+      {existing ? t('chat.branchSuggest.open') : t('chat.branchSuggest.branch')}
     </button>
   );
 }
@@ -116,7 +117,7 @@ export function BranchSuggestions({ sessionId, items }: { sessionId: ID; items: 
   return (
     <div data-branch-suggestions="" className="flex flex-wrap items-center gap-1.5">
       <span className="inline-flex items-center gap-1 text-[12px] text-muted">
-        <Sprout size={13} aria-hidden="true" /> 추천 가지
+        <Sprout size={13} aria-hidden="true" /> {t('chat.branchSuggest.heading')}
       </span>
       {items.map((s) => (
         <button

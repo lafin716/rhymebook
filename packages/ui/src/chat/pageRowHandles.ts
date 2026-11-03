@@ -6,6 +6,7 @@
 import { markdownBlocks, type MarkdownBlock } from '@branch/core';
 import { StateField, type EditorState, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
+import { t } from '../i18n';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -83,8 +84,8 @@ class RowAnchorWidget extends WidgetType {
     el.setAttribute('data-row-kind', this.rowKind);
     el.append(
       handleButtons(
-        { label: `블록 ${this.index + 1} 아래에 행 추가`, attrs: { 'data-page-row-add': String(this.index) } },
-        { label: `블록 ${this.index + 1} 옮기기·메뉴`, attrs: { 'data-page-handle': String(this.index), 'data-block-kind': this.kind } },
+        { label: t('page.rowHandles.addBelow', { n: this.index + 1 }), attrs: { 'data-page-row-add': String(this.index) } },
+        { label: t('page.rowHandles.menu', { n: this.index + 1 }), attrs: { 'data-page-handle': String(this.index), 'data-block-kind': this.kind } },
       ),
     );
     return el;

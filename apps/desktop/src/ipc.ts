@@ -1,5 +1,8 @@
 /** main ↔ preload 공용 채널 이름 (렌더러 API 모양은 @branch/core의 DesktopApi) */
 export const CH = {
+  notificationSupported: 'notifications:supported',
+  notificationShow: 'notifications:show',
+  notificationClick: 'notifications:click',
   bridgeSend: 'bridge:send',
   bridgeMsg: 'bridge:msg',
   secretPersistent: 'secrets:persistent',
@@ -38,4 +41,5 @@ export const CH = {
   sttCancel: 'stt:cancel',
   sttRemove: 'stt:remove',
   sttChanged: 'stt:changed',
+  setLocale: 'app:set-locale',
 } as const;

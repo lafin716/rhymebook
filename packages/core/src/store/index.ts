@@ -1,3 +1,4 @@
+import { LANGUAGES, rawMessage, t } from '../i18n';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import {
   branchQuestion,
@@ -7,7 +8,7 @@ import {
   buildTitleRequest,
   cleanTitle,
   parseReorganized,
-  REORGANIZE_REQUEST,
+  reorganizeRequest,
   type MessageMap,
 } from '../context';
 import { newId } from '../id';
@@ -58,12 +59,17 @@ import { chatTarget, defaultSkills, REORGANIZE_SKILL_ID, skillRef } from '../ski
 import { planStudyImport, type StudyBundle, type StudyImportResult } from '../study';
 import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../tree';
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
-import { NEW_CANVAS_TITLE } from '../canvas';
-import { NEW_PAGE_TITLE, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
+import { newCanvasTitle } from '../canvas';
+import { newPageTitle, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
+import { hasScheduleIntent, scheduleSystemHint } from '../schedules';
 
-export const NEW_SESSION_TITLE = '새 학습';
-export { NEW_PAGE_TITLE };
+/** 기본 학습 제목 (지금 언어) */
+export const newSessionTitle = (): string => t('core.session.newTitle');
+/** 기본 학습 제목인지. 어느 언어로 만든 기본 제목이든 인식한다 (저장된 값 비교용) */
+export const isDefaultSessionTitle = (title: string): boolean =>
+  LANGUAGES.some((l) => rawMessage('core.session.newTitle', l.id) === title);
+export { newPageTitle };
 
 /** 스트리밍 중 부분 응답 저장 간격(ms) */
 export const STREAM_SAVE_INTERVAL = 1000;
@@ -88,10 +94,11 @@ interface CustomRun {
 export const defaultReorganizeSkill = (): SkillRef => skillRef(defaultSkills(0).find((k) => k.id === REORGANIZE_SKILL_ID)!);
 
 /** 첨부만 있는 질문의 대신 글 */
-const plainQuestion = (m: Message) => (m.attachments?.length ? `[첨부] ${m.attachments.map((a) => a.name).join(', ')}` : '세션 재정리');
+const plainQuestion = (m: Message) => (m.attachments?.length ? t('core.turns.attachments', { names: m.attachments.map((a) => a.name).join(', ') }) : t('core.store.reorganize'));
 
 /** 질문에 덧붙이는 첨부·스킬 (IMP-09) */
 export interface SendExtra {
+  scheduleRun?: boolean;
   attachments?: Attachment[];
   skill?: SkillRef;
 }
@@ -248,6 +255,8 @@ export interface AppState extends AppData {
 }
 
 export interface AppStoreOptions {
+  /** 성공한 일반 채팅 응답마다 한 번. 로드/요약/제목 생성은 제외한다. */
+  onResponseComplete?(event: ResponseComplete): void;
   registry: ProviderRegistry;
   repo?: Repository;
   initial?: Partial<AppData>;
@@ -255,6 +264,14 @@ export interface AppStoreOptions {
   viewport?: () => { width: number; height: number };
   /** 원격 모드: true이면 repo에 쓰지 않는다 (세션 액션은 SyncClient가 호스트 요청으로 대체) */
   remote?: boolean;
+}
+
+export interface ResponseComplete {
+  sessionId: ID;
+  messageId: ID;
+  userMessageId: ID;
+  content: string;
+  scheduleRun: boolean;
 }
 
 export type AppStore = StoreApi<AppState>;
@@ -369,10 +386,10 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
     const maybeTitle = async (sessionId: ID) => {
       const firstTurn = firstTurnUntitled.delete(sessionId);
       const s = get().sessions[sessionId];
-      if (!s || s.title !== NEW_SESSION_TITLE) return;
+      if (!s || !isDefaultSessionTitle(s.title)) return;
       // 루트 대화는 기존처럼, 하위 대화는 빈 상태에서 처음 보낸 질문 뒤에만 짓는다
       if (s.parentId !== null && !firstTurn) return;
-      await aiTitle(sessionId, NEW_SESSION_TITLE);
+      await aiTitle(sessionId, s.title);
     };
 
     /**
@@ -444,7 +461,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       };
 
       if (!provider) {
-        fail(providerError('unknown', `등록되지 않은 provider: ${providerId}`));
+        fail(providerError('unknown', t('errors.store.unknownProvider', { id: providerId })));
         finish();
         return;
       }
@@ -454,6 +471,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       set((s) => ({ streaming: { ...s.streaming, [sessionId]: messageId } }));
 
       const state = get();
+      const userMessage = state.messages[sessionId]?.findLast((m) => m.role === 'user');
       const req =
         custom?.request ??
         buildChatRequest({
@@ -464,6 +482,9 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           prompts: state.settings.prompts,
         });
       Object.assign(req, target.options);
+      if (!custom && userMessage && !userMessage.scheduleRun && (userMessage.skill?.name === 'schedule' || hasScheduleIntent(userMessage.content))) {
+        req.system += `\n\n${scheduleSystemHint()}`;
+      }
       // 일반 대화에만 웹 도구를 붙인다. 재정리 같은 내부 요청은 도구 없이 (ADR-070)
       if (!custom) req.webSearch = state.sessions[sessionId]?.webSearch !== false;
       req.signal = ctrl.signal;
@@ -506,6 +527,13 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       }
       if (custom && !ok && getMessage(sessionId, messageId)) custom.failed();
       if (get().sessions[sessionId]) touch(sessionId);
+      if (ok && !custom && userMessage && getMessage(sessionId, messageId)?.status === 'done') {
+        try {
+          opts.onResponseComplete?.({ sessionId, messageId, userMessageId: userMessage.id, content: text, scheduleRun: userMessage.scheduleRun === true });
+        } catch {
+          // 부수 기능 실패가 이미 완성된 응답을 실패로 바꾸지 않는다.
+        }
+      }
       if (ok && !custom) void maybeTitle(sessionId);
     };
 
@@ -586,7 +614,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         if (id && Object.values(get().messages).some((msgs) => msgs.some((m) => m.id === id))) return false;
 
         const now = Date.now();
-        const s: Session = { id: sessionId, parentId: null, rootId: sessionId, title: NEW_SESSION_TITLE, createdAt: now, updatedAt: now };
+        const s: Session = { id: sessionId, parentId: null, rootId: sessionId, title: newSessionTitle(), createdAt: now, updatedAt: now };
         set((st) => ({ sessions: { ...st.sessions, [sessionId]: s }, messages: { ...st.messages, [sessionId]: [] } }));
         repo.saveSession(s);
 
@@ -610,7 +638,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           id: sessionId,
           parentId: parent?.id ?? null,
           rootId: parent ? parent.rootId : sessionId,
-          title: opts?.kind === 'canvas' ? NEW_CANVAS_TITLE : NEW_PAGE_TITLE,
+          title: opts?.kind === 'canvas' ? newCanvasTitle() : newPageTitle(),
           kind: opts?.kind ?? 'page',
           createdAt: now,
           updatedAt: now,
@@ -637,7 +665,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           id: sessionId,
           parentId: parent.id,
           rootId: parent.rootId,
-          title: NEW_SESSION_TITLE,
+          title: newSessionTitle(),
           ...(parent.providerId ? { providerId: parent.providerId } : {}),
           ...(parent.modelPref ? { modelPref: parent.modelPref } : {}),
           ...(parent.webSearch === false ? { webSearch: false } : {}),
@@ -833,7 +861,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           ref,
         );
         const now = Date.now();
-        const ask: Message = { id: newId('m'), sessionId, role: 'user', content: REORGANIZE_REQUEST, createdAt: now, skill: ref };
+        const ask: Message = { id: newId('m'), sessionId, role: 'user', content: reorganizeRequest(), createdAt: now, skill: ref };
         putMessage(ask, false);
         const reply: Message = {
           id: newId('m'),
@@ -973,6 +1001,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           createdAt: Date.now(),
           ...(attachments ? { attachments } : {}),
           ...(extra?.skill ? { skill: extra.skill } : {}),
+          ...(extra?.scheduleRun ? { scheduleRun: true } : {}),
         });
         touch(sessionId);
         startAssistant(sessionId);
@@ -1073,7 +1102,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           if (current()) set((st) => ({ summaryDrafts: { ...st.summaryDrafts, [sessionId]: d } }));
         };
         if (!provider) {
-          setDraft({ status: 'error', text: '', message: 'provider를 찾을 수 없습니다.' });
+          setDraft({ status: 'error', text: '', message: t('errors.store.providerMissing') });
           summaryControllers.delete(sessionId);
           return;
         }
@@ -1092,7 +1121,7 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
           const err = e as Partial<ProviderError>;
           if (err?.code !== 'aborted') {
             // 부분 결과는 보존해 사용자가 편집하거나 다시 시도할 수 있게 한다
-            setDraft({ status: 'error', text: partial.trim(), message: err?.message ?? '요약 생성에 실패했습니다.' });
+            setDraft({ status: 'error', text: partial.trim(), message: err?.message ?? t('errors.summaryFailed') });
           }
         } finally {
           if (current()) summaryControllers.delete(sessionId);
@@ -1132,10 +1161,10 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
 
       addAnnotation(sessionId, anchor, init, id?: ID) {
         // 세션이 존재하는지 확인
-        if (!get().sessions[sessionId]) throw new Error(`세션을 찾을 수 없음: ${sessionId}`);
+        if (!get().sessions[sessionId]) throw new Error(t('errors.store.sessionMissing', { id: sessionId }));
         const annoId = id ?? newId('a');
         // id 충돌 확인
-        if (annoId in get().annotations) throw new Error(`어노테이션 id 충돌: ${annoId}`);
+        if (annoId in get().annotations) throw new Error(t('errors.store.annotationIdConflict', { id: annoId }));
         const anno = createAnnotation(annoId, sessionId, anchor, init, Date.now());
         set((s) => ({ annotations: { ...s.annotations, [annoId]: anno } }));
         repo.saveAnnotation(anno);

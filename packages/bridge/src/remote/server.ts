@@ -1,38 +1,5 @@
 import os from 'node:os';
-import {
-  answerHello,
-  applyHostPolicy,
-  relayClientUrl,
-  isTailscaleHost,
-  isAttachmentList,
-  isValidEffort,
-  isValidModelName,
-  pairingUri,
-  REMOTE_MAX_PAYLOAD,
-  parseWireFrame,
-  randomCode,
-  randomToken,
-  safeEqual,
-  verifyTranscript,
-  validateSyncClientMsg,
-  isSttAudio,
-  isSttModelId,
-  isSyncClientType,
-  STT_MANAGE_MODEL_OPS,
-  STT_MANAGE_OPS,
-  type SttManageOp,
-  SYNC_LIMITS,
-  type AuthReason,
-  type AuthRequest,
-  type AuthResponse,
-  type Attachment,
-  type BridgeClientMsg,
-  type ChatTurn,
-  type HostPolicy,
-  type SecureChannel,
-  type SyncClientMsg,
-  type SyncServerMsg,
-} from '@branch/core';
+import { t, answerHello, applyHostPolicy, relayClientUrl, isTailscaleHost, isAttachmentList, isValidEffort, isValidModelName, pairingUri, REMOTE_MAX_PAYLOAD, parseWireFrame, randomCode, randomToken, safeEqual, verifyTranscript, validateSyncClientMsg, isSttAudio, isSttModelId, isSyncClientType, STT_MANAGE_MODEL_OPS, STT_MANAGE_OPS, type SttManageOp, SYNC_LIMITS, type AuthReason, type AuthRequest, type AuthResponse, type Attachment, type BridgeClientMsg, type ChatTurn, type HostPolicy, type SecureChannel, type SyncClientMsg, type SyncServerMsg } from '@branch/core';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { BridgeServer } from '../server';
 import type { BridgeStore, PairedDevice } from './store';
@@ -69,7 +36,8 @@ export interface PairingSession {
 
 export interface BridgeAddress {
   url: string;
-  label: 'Tailscale' | 'LAN' | '로컬' | 'Relay';
+  label: string;
+  kind: 'tailscale' | 'lan' | 'local' | 'relay';
 }
 
 /**
@@ -155,17 +123,17 @@ export function validateClientMsg(raw: unknown): BridgeClientMsg | null {
 
 export function listAddresses(port: number, host = '0.0.0.0'): BridgeAddress[] {
   if (host !== '0.0.0.0' && host !== '::') {
-    return [{ url: `ws://${host.includes(':') ? `[${host}]` : host}:${port}`, label: isTailscaleHost(host) ? 'Tailscale' : host.startsWith('127.') ? '로컬' : 'LAN' }];
+    return [{ url: `ws://${host.includes(':') ? `[${host}]` : host}:${port}`, label: isTailscaleHost(host) ? 'Tailscale' : host.startsWith('127.') ? t('bridge.remote.local') : 'LAN', kind: isTailscaleHost(host) ? 'tailscale' : host.startsWith('127.') ? 'local' : 'lan' }];
   }
   const out: BridgeAddress[] = [];
   for (const list of Object.values(os.networkInterfaces())) {
     for (const a of list ?? []) {
       if (a.family !== 'IPv4' || a.internal) continue;
-      out.push({ url: `ws://${a.address}:${port}`, label: isTailscaleHost(a.address) ? 'Tailscale' : 'LAN' });
+      out.push({ url: `ws://${a.address}:${port}`, label: isTailscaleHost(a.address) ? 'Tailscale' : 'LAN', kind: isTailscaleHost(a.address) ? 'tailscale' : 'lan' });
     }
   }
   out.sort((a, b) => (a.label === b.label ? 0 : a.label === 'Tailscale' ? -1 : 1));
-  out.push({ url: `ws://127.0.0.1:${port}`, label: '로컬' });
+  out.push({ url: `ws://127.0.0.1:${port}`, label: t('bridge.remote.local'), kind: 'local' });
   return out;
 }
 
@@ -216,7 +184,7 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
       return 'bad-token';
     }
     pairing = null; // 1회용
-    const name = typeof req.name === 'string' && req.name.trim() ? req.name.trim().slice(0, 60) : '이름 없는 기기';
+    const name = typeof req.name === 'string' && req.name.trim() ? req.name.trim().slice(0, 60) : t('bridge.remote.unnamedDevice');
     const device = await store.add({ publicKey: req.device, name });
     log(`paired device ${device.id}`);
     for (const l of [...pairedListeners]) l(device);
@@ -377,9 +345,9 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
     const direct = wss ? listAddresses(port, host) : [];
     if (!relayBase) return direct;
     // relay는 NAT 밖에서도 닿는 경로라 직접 주소 다음, 로컬 앞에 둔다
-    const relay: BridgeAddress = { url: relayClientUrl(relayBase, store.bridgeId), label: 'Relay' };
-    const local = direct.filter((a) => a.label === '로컬');
-    return [...direct.filter((a) => a.label !== '로컬'), relay, ...local];
+    const relay: BridgeAddress = { url: relayClientUrl(relayBase, store.bridgeId), label: 'Relay', kind: 'relay' };
+    const local = direct.filter((a) => a.kind === 'local');
+    return [...direct.filter((a) => a.kind !== 'local'), relay, ...local];
   }
 
   return {

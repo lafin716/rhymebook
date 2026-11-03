@@ -1,3 +1,4 @@
+import { t, tx, intlLocale } from '../i18n';
 import {
   makeSkillOptions,
   normalizeSkillName,
@@ -28,20 +29,32 @@ import { openSkillFolder, pullSkillsFromPc, skillFoldersAvailable, skillFoldersR
 /** 웹·모바일: PC 스킬 동기화 버튼 (세션 창은 PC와 같은 스킬 DB를 쓰므로 필요 없다) */
 const pcSkillSync = !!syncClient && !sessionWindowId;
 
-const PROBLEM_TEXT: Record<SkillProblem, string> = {
-  name: '명령 이름은 영문 소문자·숫자·한글·-·_ 로 32자까지 쓸 수 있어요 (공백 없이).',
-  'name-taken': '같은 명령 이름의 스킬이 이미 있어요.',
-  title: '제목을 입력하세요.',
-  prompt: '지시 내용을 입력하세요.',
-  'too-long': `제목 ${SKILL_LIMITS.title}자, 설명 ${SKILL_LIMITS.description}자, 지시 ${SKILL_LIMITS.prompt}자까지 쓸 수 있어요.`,
-};
-
-const FILES_TEXT: Record<SkillFilesProblem, string> = {
-  path: '파일 경로는 영문·숫자·한글·._- 로 된 상대 경로만 쓸 수 있어요 (예: references/guide.md, SKILL.md 제외).',
-  duplicate: '같은 경로의 파일이 두 개 있어요.',
-  count: `파일은 ${SKILL_FILE_LIMITS.count}개까지 둘 수 있어요.`,
-  size: `파일 하나는 ${SKILL_FILE_LIMITS.file.toLocaleString()}자, 전체는 ${SKILL_FILE_LIMITS.total.toLocaleString()}자까지예요.`,
-};
+/** 입력 문제별 안내 (렌더 시점에 번역한다) */
+function problemMessage(problem: SkillProblem | SkillFilesProblem): string {
+  switch (problem) {
+    case 'name':
+      return t('skills.problem.name', { max: SKILL_LIMITS.name });
+    case 'name-taken':
+      return t('skills.problem.nameTaken');
+    case 'title':
+      return t('skills.problem.title');
+    case 'prompt':
+      return t('skills.problem.prompt');
+    case 'too-long':
+      return t('skills.problem.tooLong', { title: SKILL_LIMITS.title, description: SKILL_LIMITS.description, prompt: SKILL_LIMITS.prompt });
+    case 'path':
+      return t('skills.files.path');
+    case 'duplicate':
+      return t('skills.files.duplicate');
+    case 'count':
+      return t('skills.files.count', { n: SKILL_FILE_LIMITS.count });
+    case 'size':
+      return t('skills.files.size', {
+        file: SKILL_FILE_LIMITS.file.toLocaleString(intlLocale()),
+        total: SKILL_FILE_LIMITS.total.toLocaleString(intlLocale()),
+      });
+  }
+}
 
 interface Draft extends OptionsDraft {
   id?: ID;
@@ -131,7 +144,7 @@ function SkillsPageBody() {
   }, []);
 
   const leave = async (): Promise<boolean> =>
-    (!dirty && !aiBusy) || (await confirm({ title: '저장하지 않은 변경이 있어요', message: '변경 내용을 버릴까요?', confirmLabel: '버리기', tone: 'danger' }));
+    (!dirty && !aiBusy) || (await confirm({ title: t('skills.page.unsavedTitle'), message: t('skills.page.discardMessage'), confirmLabel: t('skills.page.discard'), tone: 'danger' }));
 
   const close = async () => {
     if (await leave()) actions().setOverlay('none');
@@ -163,9 +176,9 @@ function SkillsPageBody() {
       current &&
       current.updatedAt !== editBase.current.updatedAt &&
       !(await confirm({
-        title: '폴더에서 바뀐 내용이 있어요',
-        message: '편집하는 동안 스킬 폴더에서 이 스킬이 바뀌었어요. 지금 편집 내용으로 덮어쓸까요? (폴더에 새로 넣은 파일은 그대로 둬요)',
-        confirmLabel: '덮어쓰기',
+        title: t('skills.page.folderChangedTitle'),
+        message: t('skills.page.folderChangedMessage'),
+        confirmLabel: t('skills.page.overwrite'),
         tone: 'danger',
       }))
     )
@@ -197,23 +210,23 @@ function SkillsPageBody() {
   const openFolder = async () => {
     if (!current) {
       setProblem(null);
-      await confirm({ title: '먼저 저장하세요', message: '스킬을 저장하면 폴더가 만들어지고, 그 뒤에 열 수 있어요.', confirmLabel: '확인' });
+      await confirm({ title: t('skills.page.saveFirstTitle'), message: t('skills.page.saveFirstMessage'), confirmLabel: t('skills.page.ok') });
       return;
     }
-    if (dirty && !(await confirm({ title: '저장하지 않은 변경이 있어요', message: '폴더에는 저장된 내용만 있어요. 그대로 열까요?', confirmLabel: '열기' }))) return;
+    if (dirty && !(await confirm({ title: t('skills.page.unsavedTitle'), message: t('skills.page.openUnsavedMessage'), confirmLabel: t('skills.page.open') }))) return;
     try {
       await openSkillFolder(current);
     } catch (e) {
-      await confirm({ title: '폴더를 열 수 없어요', message: e instanceof Error ? e.message : String(e), confirmLabel: '확인' });
+      await confirm({ title: t('skills.page.folderOpenFailed'), message: e instanceof Error ? e.message : String(e), confirmLabel: t('skills.page.ok') });
     }
   };
 
   const remove = async () => {
     if (!current) return;
     const ok = await confirm({
-      title: '스킬을 삭제할까요?',
-      message: `“${current.title}” (/${current.name}) 스킬을 삭제해요. 이미 보낸 질문에는 영향이 없어요.`,
-      confirmLabel: '삭제',
+      title: t('skills.page.deleteTitle'),
+      message: t('skills.page.deleteMessage', { title: current.title, name: current.name }),
+      confirmLabel: t('skills.page.delete'),
       tone: 'danger',
     });
     if (!ok) return;
@@ -228,13 +241,13 @@ function SkillsPageBody() {
     setPulling(true);
     try {
       const r = await pullSkillsFromPc(() => syncClient!.pullSkills());
-      const parts = [r.added && `${r.added}개 추가`, r.updated && `${r.updated}개 갱신`].filter(Boolean);
+      const parts = [r.added && t('skills.page.addedCount', { n: r.added }), r.updated && t('skills.page.updatedCount', { n: r.updated })].filter(Boolean);
       pushNotice(
-        parts.length ? `PC 스킬을 동기화했어요 (${parts.join(', ')})` : 'PC 스킬과 이미 같아요.',
+        parts.length ? t('skills.page.syncedNotice', { parts: parts.join(', ') }) : t('skills.page.syncSame'),
       );
-      if (r.skipped) pushNotice(`스킬은 ${SKILL_LIMITS.count}개까지라 ${r.skipped}개는 가져오지 못했어요.`);
+      if (r.skipped) pushNotice(t('skills.page.skippedNotice', { max: SKILL_LIMITS.count, n: r.skipped }));
     } catch (e) {
-      pushNotice(`스킬을 동기화하지 못했어요. ${e instanceof Error ? e.message : ''}`.trim());
+      pushNotice(t('skills.page.syncFailed', { reason: e instanceof Error ? e.message : '' }).trim());
     } finally {
       setPulling(false);
     }
@@ -244,15 +257,15 @@ function SkillsPageBody() {
   const showEditor = !mobile || selected !== null;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="스킬 관리" className="animate-fade-in fixed inset-0 z-[60] flex flex-col bg-bg pt-[env(safe-area-inset-top)]">
+    <div role="dialog" aria-modal="true" aria-label={t('skills.page.title')} className="animate-fade-in fixed inset-0 z-[60] flex flex-col bg-bg pt-[env(safe-area-inset-top)]">
       <header className="flex h-13 shrink-0 items-center gap-2 border-b border-line bg-surface px-2 md:px-4">
-        <IconButton label={mobile && selected !== null ? '스킬 목록' : '돌아가기'} onClick={() => (mobile && selected !== null ? void pick(null) : void close())}>
+        <IconButton label={mobile && selected !== null ? t('skills.page.list') : t('skills.page.back')} onClick={() => (mobile && selected !== null ? void pick(null) : void close())}>
           <ArrowLeft size={19} />
         </IconButton>
         <Sparkles size={17} className="text-accent" />
-        <h2 className="flex-1 text-[16px] font-semibold">스킬 관리</h2>
+        <h2 className="flex-1 text-[16px] font-semibold">{t('skills.page.title')}</h2>
         {showList && skillFoldersAvailable && (
-          <IconButton label="스킬 폴더 열기" title={skillFoldersRoot} onClick={() => void openSkillFolder()}>
+          <IconButton label={t('skills.page.openFolder')} title={skillFoldersRoot} onClick={() => void openSkillFolder()}>
             <FolderOpen size={18} />
           </IconButton>
         )}
@@ -262,27 +275,27 @@ function SkillsPageBody() {
             variant="ghost"
             icon={<RefreshCw size={14} className={cn(pulling && 'animate-spin')} />}
             disabled={pulling || syncStatus !== 'online'}
-            title={syncStatus === 'online' ? 'PC에서 만든 스킬을 받아 와요' : 'PC와 연결되면 동기화할 수 있어요'}
+            title={syncStatus === 'online' ? t('skills.page.syncReady') : t('skills.page.syncOffline')}
             onClick={() => void pullFromPc()}
           >
-            동기화
+            {t('skills.page.sync')}
           </Button>
         )}
         {showList && (
           <Button size="sm" variant="primary" icon={<Plus size={15} />} onClick={() => void pick('new')}>
-            새 스킬
+            {t('skills.page.new')}
           </Button>
         )}
       </header>
 
       <div className="flex min-h-0 flex-1">
         {showList && (
-          <nav aria-label="스킬 목록" className={cn('scroll-thin min-h-0 overflow-y-auto p-2', mobile ? 'flex-1' : 'w-72 shrink-0 border-r border-line bg-surface')}>
+          <nav aria-label={t('skills.page.list')} className={cn('scroll-thin min-h-0 overflow-y-auto p-2', mobile ? 'flex-1' : 'w-72 shrink-0 border-r border-line bg-surface')}>
             {skills.length === 0 ? (
               <div className="px-3 py-8 text-center text-[13px] text-muted">
-                <p>스킬이 없어요.</p>
+                <p>{t('skills.page.empty')}</p>
                 <Button size="sm" variant="ghost" className="mt-2" icon={<RotateCcw size={14} />} onClick={() => useSkills.getState().restoreDefaults()}>
-                  예시 스킬 다시 넣기
+                  {t('skills.page.restoreExamples')}
                 </Button>
               </div>
             ) : (
@@ -302,7 +315,7 @@ function SkillsPageBody() {
                     <code className="shrink-0 text-[12px] text-accent">/{s.name}</code>
                     {s.builtin && (
                       <Badge tone="neutral" className="ml-auto shrink-0 self-center">
-                        기본 스킬
+                        {t('skills.page.builtin')}
                       </Badge>
                     )}
                   </div>
@@ -314,7 +327,7 @@ function SkillsPageBody() {
         )}
 
         {showEditor && (
-          <section aria-label="스킬 편집" className="scroll-thin min-h-0 min-w-0 flex-1 overflow-y-auto">
+          <section aria-label={t('skills.page.editor')} className="scroll-thin min-h-0 min-w-0 flex-1 overflow-y-auto">
             <form
               className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-5 md:px-6"
               onSubmit={(e) => {
@@ -324,11 +337,12 @@ function SkillsPageBody() {
             >
               <div className="text-[13px] text-muted">
                 {current ? (
-                  <>
-                    채팅 입력창에서 <code className="rounded bg-surface-2 px-1 text-accent">/{current.name}</code>을 입력하거나 <b className="font-medium text-fg-2">+ › 스킬</b>에서 고르면, 그 질문에 아래 지시가 더해져요.
-                  </>
+                  tx('skills.page.existingHint', {
+                    command: <code className="rounded bg-surface-2 px-1 text-accent">/{current.name}</code>,
+                    menu: <b className="font-medium text-fg-2">{t('skills.page.menuPath')}</b>,
+                  })
                 ) : (
-                  '새 스킬을 만들어요. 원하는 것을 AI에게 말하거나 아래 칸을 직접 채우세요. 명령 이름으로 채팅에서 바로 부를 수 있어요.'
+                  t('skills.page.newHint')
                 )}
               </div>
 
@@ -346,14 +360,14 @@ function SkillsPageBody() {
 
               <fieldset disabled={aiBusy} aria-busy={aiBusy} className="flex min-w-0 flex-col gap-4 disabled:opacity-70">
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[13px] font-medium text-fg-2">명령 이름</span>
+                  <span className="text-[13px] font-medium text-fg-2">{t('skills.page.name')}</span>
                   <div className="flex h-10 items-center rounded-xl border border-line bg-surface px-3 focus-within:border-accent">
                     <span className="text-accent">/</span>
                     <input
                       value={draft.name}
                       maxLength={SKILL_LIMITS.name + 1}
                       placeholder="curriculum"
-                      aria-label="명령 이름"
+                      aria-label={t('skills.page.name')}
                       onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                       onBlur={() => setDraft((d) => ({ ...d, name: normalizeSkillName(d.name) }))}
                       className="min-w-0 flex-1 bg-transparent pl-0.5 text-[14.5px] outline-none"
@@ -362,18 +376,18 @@ function SkillsPageBody() {
                 </label>
   
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[13px] font-medium text-fg-2">제목</span>
+                  <span className="text-[13px] font-medium text-fg-2">{t('skills.page.titleField')}</span>
                   <input
                     value={draft.title}
                     maxLength={SKILL_LIMITS.title}
-                    placeholder="커리큘럼 생성"
+                    placeholder={t('skills.page.titlePlaceholder')}
                     onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                     className="h-10 rounded-xl border border-line bg-surface px-3 text-[14.5px] outline-none focus:border-accent"
                   />
                 </label>
   
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[13px] font-medium text-fg-2">설명 <span className="font-normal text-muted">(목록과 메뉴에 보여요)</span></span>
+                  <span className="text-[13px] font-medium text-fg-2">{t('skills.page.description')} <span className="font-normal text-muted">{t('skills.page.descriptionHint')}</span></span>
                   <input
                     value={draft.description}
                     maxLength={SKILL_LIMITS.description}
@@ -384,16 +398,16 @@ function SkillsPageBody() {
   
                 <label className="flex flex-col gap-1.5">
                   <span className="flex items-baseline justify-between text-[13px] font-medium text-fg-2">
-                    지시
+                    {t('skills.page.prompt')}
                     <span className="font-normal text-muted">
-                      {draft.prompt.length.toLocaleString()} / {SKILL_LIMITS.prompt.toLocaleString()}
+                      {draft.prompt.length.toLocaleString(intlLocale())} / {SKILL_LIMITS.prompt.toLocaleString(intlLocale())}
                     </span>
                   </span>
                   <textarea
                     value={draft.prompt}
                     maxLength={SKILL_LIMITS.prompt}
                     rows={16}
-                    placeholder="이 스킬을 고른 질문에 모델이 따를 지시를 적어요."
+                    placeholder={t('skills.page.promptPlaceholder')}
                     onChange={(e) => setDraft({ ...draft, prompt: e.target.value })}
                     className="min-h-48 resize-y rounded-xl border border-line bg-surface px-3 py-2.5 font-mono text-[13px] leading-relaxed outline-none focus:border-accent"
                   />
@@ -408,7 +422,7 @@ function SkillsPageBody() {
                   {...(skillFoldersAvailable
                     ? {
                         onOpenFolder: () => void openFolder(),
-                        folderHint: current ? `${skillFoldersRoot}/${current.name} — 폴더에서 고친 내용은 앱으로 돌아오면 반영돼요` : '저장하면 스킬 폴더가 만들어져요',
+                        folderHint: current ? t('skills.page.folderHintSaved', { root: skillFoldersRoot, name: current.name }) : t('skills.page.folderHintNew'),
                       }
                     : {})}
                 />
@@ -418,24 +432,24 @@ function SkillsPageBody() {
 
               {problem && (
                 <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger">
-                  {problem in PROBLEM_TEXT ? PROBLEM_TEXT[problem as SkillProblem] : FILES_TEXT[problem as SkillFilesProblem]}
+                  {problemMessage(problem)}
                 </p>
               )}
 
               <div className="safe-bottom flex items-center gap-2 pb-2">
                 {current && (
                   <Button variant="ghost" className="text-danger hover:bg-danger-soft hover:text-danger" icon={<Trash2 size={15} />} onClick={() => void remove()}>
-                    삭제
+                    {t('skills.page.delete')}
                   </Button>
                 )}
                 <span className="flex-1" />
                 {dirty && current && !aiBusy && (
                   <Button variant="ghost" disabled={aiBusy} onClick={() => setDraft(toDraft(current))}>
-                    되돌리기
+                    {t('skills.page.revert')}
                   </Button>
                 )}
                 <Button type="submit" variant="primary" icon={<Save size={15} />} disabled={!dirty || aiBusy}>
-                  저장
+                  {t('skills.page.save')}
                 </Button>
               </div>
             </form>

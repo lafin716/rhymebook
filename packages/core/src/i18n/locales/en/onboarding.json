@@ -1,0 +1,32 @@
+{
+  "remote": {
+    "label": "Connect to PC",
+    "title": "Connect to my PC",
+    "intro": "Connect to your PC to see what you're studying there, and the PC's CLI answers your questions. You can also use it on this device with an API key, without a PC.",
+    "step1": "Open the octobooks app on your PC and turn on [Open remote pairing] under Settings → Connections.",
+    "step2": "Press [Connect phone or web] to show a QR code and a 6-digit code.",
+    "step3": "Below, scan the QR or enter the link, or the address and code.",
+    "storeNote": "Study records are saved on your PC",
+    "later": "Later",
+    "useThisDevice": "Use on this device"
+  },
+  "local": {
+    "label": "Get started",
+    "back": "Back",
+    "titleChoose": "Get started with octobooks",
+    "titleCli": "Connect this PC's CLI",
+    "titleApi": "Register API key",
+    "titleDevice": "Start on this device",
+    "choosePitch": "The further your curiosity reaches, the deeper your learning goes. Open a new branch from a question in a reply. First, connect the AI you'll learn with.",
+    "cliChoice": "This PC's CLI (subscription account)",
+    "cliDesc": "Runs the installed and signed-in Claude Code or Codex CLI as is. You can also choose the model and effort.",
+    "recommended": "Recommended",
+    "apiChoice": "API key",
+    "apiDesc": "Calls directly with an Anthropic or OpenAI API key.",
+    "remoteTip": "To use this PC's CLI from your phone or the web, connect, then turn on Settings → Connections → [Open remote pairing].",
+    "apiNote": "Studies are saved on this device, and answers come through the API key you registered.",
+    "start": "Start",
+    "waiting": "Waiting for connection",
+    "later": "Later"
+  }
+}

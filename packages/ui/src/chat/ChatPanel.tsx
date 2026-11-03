@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ID } from '@branch/core';
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useApp } from '../app/store';
@@ -71,7 +72,7 @@ function ConversationPanel({ sessionId, variant = 'main', headerActions, handleC
     <section
       className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg', className)}
       data-panel={variant}
-      aria-label="대화"
+      aria-label={t('chat.panel.label')}
     >
       <SessionHeader sessionId={sessionId} compact={compact} actions={headerActions} handleClassName={handleClassName} />
       <div className="@container relative min-h-0 flex-1">

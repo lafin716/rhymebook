@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { Attachment, ConnectionStatus, ProviderErrorCode, ProviderId, Role, ToolActivity } from './model';
 
 export interface ChatTurn {
@@ -68,13 +69,14 @@ export interface LLMProvider {
   stream(req: StreamRequest): AsyncIterable<StreamEvent>;
 }
 
+/** 연결 이름. 고유명(Claude CLI 등)은 그대로, 우리말 이름은 언어에 따라 바꾼다 */
 export const PROVIDER_LABELS: Record<ProviderId, string> = {
-  mock: '데모 (Mock)',
+  get mock() { return t('core.providers.mock'); },
   'claude-cli': 'Claude CLI',
   'codex-cli': 'Codex CLI',
   'anthropic-api': 'Anthropic API',
   'openai-api': 'OpenAI API',
-  'remote-bridge': '원격 Bridge',
+  get 'remote-bridge'() { return t('core.providers.remoteBridge'); },
 };
 
 export class ProviderRegistry {

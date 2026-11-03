@@ -3,19 +3,7 @@ import { constants, createWriteStream } from 'node:fs';
 import { access, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  DEFAULT_STT_MODEL,
-  STT_MODELS,
-  cleanTranscript,
-  isSttModelId,
-  isSttWav,
-  sttModel,
-  sttModelUrl,
-  type SttModelId,
-  type SttModelInfo,
-  type SttState,
-  type SttStatus,
-} from '@branch/core';
+import { t, DEFAULT_STT_MODEL, STT_MODELS, cleanTranscript, isSttModelId, isSttWav, sttModel, sttModelUrl, type SttModelId, type SttModelInfo, type SttState, type SttStatus } from '@branch/core';
 import { runCli } from '../run';
 
 /**
@@ -141,10 +129,10 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
     const [bin, have] = await Promise.all([findBin(), installed()]);
     const downloadingSelected = download?.model === s.model;
     let detail: string | undefined;
-    if (!s.enabled) detail = 'PC에서 음성 입력이 꺼져 있습니다.';
-    else if (!bin) detail = '음성 엔진(whisper-cli)을 찾지 못했습니다.';
-    else if (downloadingSelected) detail = '음성 모델을 받는 중입니다.';
-    else if (!have.includes(s.model)) detail = '음성 모델을 받아야 합니다.';
+    if (!s.enabled) detail = t('bridge.stt.disabled');
+    else if (!bin) detail = t('bridge.stt.engineMissing');
+    else if (downloadingSelected) detail = t('bridge.stt.downloading');
+    else if (!have.includes(s.model)) detail = t('bridge.stt.modelNeeded');
     return {
       enabled: s.enabled,
       ready: !detail,
@@ -172,7 +160,7 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
     const part = `${target}.part`;
     await mkdir(modelsDir, { recursive: true });
     const res = await doFetch(sttModelUrl(m), { signal: d.ac.signal });
-    if (!res.ok || !res.body) throw new Error(`모델 서버 응답 오류 (${res.status})`);
+    if (!res.ok || !res.body) throw new Error(t('bridge.stt.modelServerError', { status: res.status }));
     const out = createWriteStream(part, { mode: 0o600 });
     // 취소로 destroy한 뒤 끝나는 쓰기의 오류가 처리되지 않은 예외로 번지지 않게 받아 둔다
     let writeError: Error | null = null;
@@ -188,7 +176,7 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
         if (done) break;
         if (writeError) throw writeError;
         d.received += value.byteLength;
-        if (d.received > m.size) throw new Error('모델 크기가 예상과 다릅니다.');
+        if (d.received > m.size) throw new Error(t('bridge.stt.modelSizeMismatch'));
         hash.update(value);
         if (!out.write(value)) {
           await new Promise<void>((resolve, reject) => {
@@ -211,7 +199,7 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
     }
     if (d.received !== m.size || hash.digest('hex') !== m.sha256) {
       await rm(part, { force: true });
-      throw new Error('받은 모델이 손상되었습니다. 다시 받아 주세요.');
+      throw new Error(t('bridge.stt.modelCorrupt'));
     }
     await rename(part, target);
   }
@@ -224,16 +212,16 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
     state,
 
     transcribe(wav, signal) {
-      if (pending >= MAX_PENDING) return Promise.reject(new Error('음성 변환 요청이 밀려 있습니다. 잠시 후 다시 해 주세요.'));
+      if (pending >= MAX_PENDING) return Promise.reject(new Error(t('bridge.stt.queueFull')));
       pending++;
       const job = queue.then(async () => {
-        if (signal?.aborted) throw new Error('사용자가 중지했습니다.');
+        if (signal?.aborted) throw new Error(t('bridge.common.stopped'));
         const s = await state();
-        if (!s.ready) throw new Error(s.detail ?? '음성 입력을 사용할 수 없습니다.');
-        if (!isSttWav(wav)) throw new Error('녹음 형식이 올바르지 않습니다.');
+        if (!s.ready) throw new Error(s.detail ?? t('bridge.stt.unavailable'));
+        if (!isSttWav(wav)) throw new Error(t('bridge.stt.badFormat'));
         const bin = await findBin();
         const m = findModel(s.model);
-        if (!bin || !m) throw new Error('음성 엔진을 찾지 못했습니다.');
+        if (!bin || !m) throw new Error(t('bridge.stt.engineNotFound'));
         const work = await mkdtemp(path.join(os.tmpdir(), 'branch-stt-'));
         try {
           const file = path.join(work, 'input.wav');
@@ -249,12 +237,12 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
             timeoutMs: opts.timeoutMs ?? 120_000,
           });
           log(`stt exit=${res.code} ${Date.now() - started}ms bytes=${wav.length}${res.timedOut ? ' timeout' : ''}`);
-          if (res.aborted) throw new Error('사용자가 중지했습니다.');
-          if (res.timedOut) throw new Error('음성 변환 시간이 초과되었습니다.');
-          if (res.notFound) throw new Error('음성 엔진(whisper-cli)을 실행하지 못했습니다.');
+          if (res.aborted) throw new Error(t('bridge.common.stopped'));
+          if (res.timedOut) throw new Error(t('bridge.stt.timedOut'));
+          if (res.notFound) throw new Error(t('bridge.stt.engineRunFailed'));
           if (res.code !== 0) {
             log(`stt stderr: ${res.stderr.slice(-400)}`);
-            throw new Error('음성 변환에 실패했습니다.');
+            throw new Error(t('bridge.stt.failed'));
           }
           return cleanTranscript(res.stdout);
         } finally {
@@ -274,7 +262,7 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
     },
 
     async setModel(model) {
-      if (!findModel(model)) throw new Error('알 수 없는 모델입니다.');
+      if (!findModel(model)) throw new Error(t('bridge.stt.unknownModel'));
       await saveSettings({ ...(await loadSettings()), model });
       emit();
       return state();
@@ -282,9 +270,9 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
 
     async download(model) {
       const m = findModel(model);
-      if (!m) throw new Error('알 수 없는 모델입니다.');
+      if (!m) throw new Error(t('bridge.stt.unknownModel'));
       if (download) {
-        if (download.model !== model) throw new Error('다른 모델을 받는 중입니다.');
+        if (download.model !== model) throw new Error(t('bridge.stt.otherDownloading'));
         await download.done.catch(() => {});
         return state();
       }
@@ -315,8 +303,8 @@ export function createSttEngine(opts: SttEngineOptions): SttEngine {
 
     async remove(model) {
       const m = findModel(model);
-      if (!m) throw new Error('알 수 없는 모델입니다.');
-      if (download?.model === model) throw new Error('받는 중인 모델은 지울 수 없습니다.');
+      if (!m) throw new Error(t('bridge.stt.unknownModel'));
+      if (download?.model === model) throw new Error(t('bridge.stt.cannotDeleteDownloading'));
       await rm(modelPath(m), { force: true });
       emit();
       return state();

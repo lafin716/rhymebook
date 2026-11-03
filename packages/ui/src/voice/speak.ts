@@ -16,6 +16,7 @@ import { create } from 'zustand';
 import { baseUrls, mobile, secrets } from '../app/runtime';
 import { pushNotice } from '../app/sync';
 import { useUi } from '../app/uiState';
+import { t, type MessageKey } from '../i18n';
 
 /**
  * 발음 듣기 (ADR-050).
@@ -39,7 +40,8 @@ export interface SpeechLine {
   key?: string;
 }
 
-const LANG_NAME: Record<SpeechLang, string> = { vi: '베트남어', en: '영어', ko: '한국어' };
+/** 렌더가 아니라 읽을 때 t()로 번역한다 */
+const LANG_KEY: Record<SpeechLang, MessageKey> = { vi: 'voice.lang.vi', en: 'voice.lang.en', ko: 'voice.lang.ko' };
 
 /** iOS 자동 재생 제한: 누른 순간 무음을 한 번 재생해 이 audio 요소를 풀어 둔다 */
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
@@ -183,7 +185,7 @@ function fallback(code: ProviderError['code'] | undefined, text: string, lang: S
 function speakDevice(text: string, lang: SpeechLang, id: number) {
   if (native) return void speakNative(native, text, lang, id);
   if (!synth) {
-    pushNotice('이 기기에서는 음성으로 읽어 줄 수 없어요.');
+    pushNotice(t('voice.speak.noSupport'));
     return setStatus('idle');
   }
   const u = new SpeechSynthesisUtterance(text);
@@ -192,7 +194,7 @@ function speakDevice(text: string, lang: SpeechLang, id: number) {
   if (voice) u.voice = voice;
   else if (!warnedLang.has(lang) && synth.getVoices().length) {
     warnedLang.add(lang);
-    pushNotice(`이 기기에 ${LANG_NAME[lang]} 음성이 없어요. 기기 설정에서 음성을 추가하면 발음이 정확해져요.`);
+    pushNotice(t('voice.speak.noVoice', { lang: t(LANG_KEY[lang]) }));
   }
   const done = () => finished(id);
   u.onstart = () => {
@@ -221,11 +223,11 @@ async function speakNative(n: MobileSpeech, text: string, lang: SpeechLang, id: 
   for (const voice of tries) {
     try {
       const ok = await n.speak(text, SPEECH_LANG_TAG[lang], voice);
-      if (!ok && id === seq) pushNotice(`이 기기에 ${LANG_NAME[lang]} 음성이 없어 읽지 못했어요. 기기 설정의 음성(텍스트 음성 변환)에서 ${LANG_NAME[lang]}를 추가해 주세요.`);
+      if (!ok && id === seq) pushNotice(t('voice.speak.noVoiceFail', { lang: t(LANG_KEY[lang]) }));
       break;
     } catch {
       if (id !== seq) return;
-      if (voice === tries.at(-1)) pushNotice('기기 음성으로 읽지 못했어요.');
+      if (voice === tries.at(-1)) pushNotice(t('voice.speak.failed'));
     }
   }
   finished(id);

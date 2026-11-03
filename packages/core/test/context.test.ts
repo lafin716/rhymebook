@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BASE_SYSTEM, BRANCH_INSTRUCTION, branchQuestion, buildChatRequest, buildReorganizeRequest, buildSystemPrompt, parseReorganized, REORGANIZE_REQUEST } from '../src/context';
+import { baseSystem, branchInstruction, branchQuestion, buildChatRequest, buildReorganizeRequest, buildSystemPrompt, parseReorganized, reorganizeRequest } from '../src/context';
 import { defaultReorganizeSkill } from '../src/store';
 import { createSeed, SEED_IDS } from '../src/seed';
 
@@ -7,7 +7,7 @@ describe('context inheritance', () => {
   const { sessions, messages } = createSeed(0);
 
   it('root session uses the base system prompt only', () => {
-    expect(buildSystemPrompt({ sessions, messages, sessionId: SEED_IDS.root })).toBe(BASE_SYSTEM);
+    expect(buildSystemPrompt({ sessions, messages, sessionId: SEED_IDS.root })).toBe(baseSystem());
   });
 
   it('depth-3 branch includes ancestor anchor chain, parent dialog and instruction', () => {
@@ -17,7 +17,7 @@ describe('context inheritance', () => {
     expect(chain.every((i) => i > 0)).toBe(true);
     expect(chain).toEqual([...chain].sort((a, b) => a - b));
     expect(sys).toContain('[튜터] **내적(dot product)**');
-    expect(sys).toContain(BRANCH_INSTRUCTION);
+    expect(sys).toContain(branchInstruction());
     expect(sys).toContain('현재 질문 대상: "코사인 유사도"');
   });
 
@@ -55,7 +55,7 @@ describe('reorganize request', () => {
     expect(text).toContain('[1] Query, Key, Value');
     expect(text).toContain('요약 A');
     expect(text).toContain('[2] 자유 질문');
-    expect(text).toContain(REORGANIZE_REQUEST);
+    expect(text).toContain(reorganizeRequest());
     expect(req.system).toContain('## 스킬: 세션 재정리 (/reorganize)');
   });
 

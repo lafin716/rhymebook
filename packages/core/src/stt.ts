@@ -1,3 +1,4 @@
+import { t } from './i18n';
 /**
  * 음성 입력 (IMP-16, ADR-045).
  * 전사는 PC의 로컬 whisper.cpp가 한다. 웹·모바일은 bridge 메시지로 PC에 녹음을 보내고 PC 설정을 따른다.
@@ -23,16 +24,16 @@ const HF_BASE = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/';
 export const STT_MODELS: readonly SttModelInfo[] = [
   {
     id: 'large-v3-turbo-q5_0',
-    label: '기본 (정확)',
-    note: 'Apple Silicon·최근 GPU PC 권장. 한국어 정확도가 가장 좋아요.',
+    get label() { return t('core.stt.large.label'); },
+    get note() { return t('core.stt.large.note'); },
     file: 'ggml-large-v3-turbo-q5_0.bin',
     size: 574_041_195,
     sha256: '394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2',
   },
   {
     id: 'small-q5_1',
-    label: '가벼운 (빠름)',
-    note: '오래된·저사양 PC용. 빠르지만 정확도가 조금 낮아요.',
+    get label() { return t('core.stt.small.label'); },
+    get note() { return t('core.stt.small.note'); },
     file: 'ggml-small-q5_1.bin',
     size: 190_085_487,
     sha256: 'ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb',

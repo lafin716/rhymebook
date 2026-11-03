@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { breadcrumb, docText, draftSessionIds, stripBranchBlock, type ID } from '@branch/core';
 import { GitBranch, MessageSquare, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -42,7 +43,7 @@ export function SearchPalette() {
   const open = useApp((s) => s.overlay === 'search');
   const close = () => actions().setOverlay('none');
   return (
-    <Modal open={open} onClose={close} placement="top" label="세션 검색" className="md:max-w-xl">
+    <Modal open={open} onClose={close} placement="top" label={t('app.search.label')} className="md:max-w-xl">
       {open && <PaletteBody onClose={close} />}
     </Modal>
   );
@@ -114,17 +115,17 @@ function PaletteBody({ onClose }: { onClose(): void }) {
               pick(hits[sel].id);
             }
           }}
-          placeholder="세션 제목이나 대화 내용으로 검색"
-          aria-label="검색어"
+          placeholder={t('app.search.placeholder')}
+          aria-label={t('app.search.inputAria')}
           className="h-13 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted focus-visible:outline-none"
         />
         <button type="button" onClick={onClose} className="text-[13px] text-muted md:hidden">
-          닫기
+          {t('app.search.close')}
         </button>
       </div>
-      <div className="px-4 pt-3 pb-1 text-[11.5px] font-medium text-muted">{q.trim() ? `결과 ${hits.length}개` : '최근 세션'}</div>
-      <ul ref={listRef} role="listbox" aria-label="검색 결과" className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-2 md:max-h-[52vh]">
-        {hits.length === 0 && <li className="px-3 py-10 text-center text-[13.5px] text-muted">“{q}”와 일치하는 세션이 없어요</li>}
+      <div className="px-4 pt-3 pb-1 text-[11.5px] font-medium text-muted">{q.trim() ? t('app.search.count', { count: hits.length }) : t('app.search.recent')}</div>
+      <ul ref={listRef} role="listbox" aria-label={t('app.search.resultsAria')} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-2 md:max-h-[52vh]">
+        {hits.length === 0 && <li className="px-3 py-10 text-center text-[13.5px] text-muted">{t('app.search.noMatch', { q })}</li>}
         {hits.map((h, i) => (
           <li key={h.id} role="option" aria-selected={i === sel} data-idx={i}>
             <button

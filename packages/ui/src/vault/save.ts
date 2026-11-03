@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { createVaultItem, defaultVaultItemName, newId, VAULT_LIMITS, type ID, type VaultItemContent } from '@branch/core';
 import { pushNotice } from '../app/sync';
 import { actions, appStore } from '../app/store';
@@ -19,7 +20,7 @@ function sourceOf(messageId: ID | undefined): { sessionId: ID; messageId: ID } |
 export function saveToVault(item: VaultItemContent, messageId?: ID, name?: string) {
   const content: VaultItemContent = item.type === 'image' ? item : { ...item, text: item.text.slice(0, VAULT_LIMITS.text) };
   if (content.type !== 'image' && !content.text.trim()) return;
-  const label = (name?.trim() || defaultVaultItemName(content)).replace(/\*+|`+|~~/g, '').replace(/^[#>\-\s]+/, '').trim() || '조각';
+  const label = (name?.trim() || defaultVaultItemName(content)).replace(/\*+|`+|~~/g, '').replace(/^[#>\-\s]+/, '').trim() || t('vault.defaults.fragment');
   actions().putVaultNode(createVaultItem(newId('v'), null, label, content, sourceOf(messageId), Date.now()));
-  pushNotice('보관함에 담았어요.');
+  pushNotice(t('vault.notice.savedToLibrary'));
 }

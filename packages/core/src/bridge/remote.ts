@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ProviderId } from '../model';
 import { PROVIDER_LABELS, providerError, type Availability, type LLMProvider, type StreamEvent } from '../provider';
 import type { BridgeClient, BridgeTransport } from './client';
@@ -65,12 +66,12 @@ export class RemoteBridgeError extends Error {
   }
 }
 
-const DENIED: Record<AuthReason, string> = {
-  'bad-token': '코드가 틀렸거나 이미 사용되었습니다. bridge 화면의 코드를 다시 확인하세요.',
-  expired: '페어링 코드가 만료되었습니다. bridge에서 다시 --pair로 새 코드를 만드세요.',
-  'unknown-device': 'bridge에서 이 기기의 페어링이 해제되었습니다. 다시 페어링하세요.',
-  'bad-signature': '기기 인증에 실패했습니다. 다시 페어링하세요.',
-  protocol: 'bridge와 통신 형식이 맞지 않습니다. 앱과 bridge를 최신 버전으로 맞추세요.',
+const DENIED: Record<AuthReason, () => string> = {
+  'bad-token': () => t('errors.remote.badToken'),
+  expired: () => t('errors.remote.expired'),
+  'unknown-device': () => t('errors.remote.unknownDevice'),
+  'bad-signature': () => t('errors.remote.badSignature'),
+  protocol: () => t('errors.remote.protocol'),
 };
 
 function dataText(data: unknown): string {
@@ -104,7 +105,7 @@ function openSession(opts: {
     try {
       ws = opts.wsFactory(opts.url);
     } catch {
-      reject(new RemoteBridgeError('unreachable', `주소를 열 수 없습니다: ${opts.url}`));
+      reject(new RemoteBridgeError('unreachable', t('errors.remote.unreachableUrl', { url: opts.url })));
       return;
     }
     const hs = startClientHandshake();
@@ -127,7 +128,7 @@ function openSession(opts: {
       reject(err);
     };
     const timer = setTimeout(
-      () => fail(new RemoteBridgeError('timeout', `${opts.url} 에서 응답이 없습니다. bridge 실행 여부와 네트워크(같은 Wi‑Fi·Tailscale)를 확인하세요.`)),
+      () => fail(new RemoteBridgeError('timeout', t('errors.remote.timeout', { url: opts.url }))),
       opts.timeoutMs,
     );
 
@@ -137,7 +138,7 @@ function openSession(opts: {
       ws.send(JSON.stringify(hs.hello));
     };
     ws.onerror = () => {
-      if (!settled) fail(new RemoteBridgeError('unreachable', `${opts.url} 에 연결할 수 없습니다. bridge 실행 여부와 네트워크를 확인하세요.`));
+      if (!settled) fail(new RemoteBridgeError('unreachable', t('errors.remote.unreachable', { url: opts.url })));
     };
     ws.onclose = (ev: { code?: number }) => {
       if (!settled) {
@@ -145,10 +146,10 @@ function openSession(opts: {
           new RemoteBridgeError(
             'unreachable',
             ev?.code === RELAY_CLOSE_OFFLINE
-              ? 'relay에 bridge가 연결되어 있지 않습니다. bridge PC에서 --relay 옵션으로 실행 중인지 확인하세요.'
+              ? t('errors.remote.relayNoBridge')
               : open
-                ? 'bridge가 연결을 닫았습니다.'
-                : `${opts.url} 에 연결할 수 없습니다. bridge 실행 여부와 네트워크를 확인하세요.`,
+                ? t('errors.remote.closed')
+                : t('errors.remote.unreachable', { url: opts.url }),
           ),
         );
         return;
@@ -159,7 +160,7 @@ function openSession(opts: {
     ws.onmessage = (ev: { data: unknown }) => {
       const frame = parseWireFrame(dataText(ev.data));
       if (!frame) {
-        fail(new RemoteBridgeError('protocol', DENIED.protocol));
+        fail(new RemoteBridgeError('protocol', DENIED.protocol()));
         return;
       }
       if (!channel) {
@@ -178,7 +179,7 @@ function openSession(opts: {
       try {
         msg = channel.open(frame);
       } catch {
-        if (!settled) fail(new RemoteBridgeError('protocol', DENIED.protocol));
+        if (!settled) fail(new RemoteBridgeError('protocol', DENIED.protocol()));
         else ws.close();
         return;
       }
@@ -191,7 +192,7 @@ function openSession(opts: {
           resolve({ ws, channel, welcome: res, bridgeKey, rttMs, url: opts.url });
         } else {
           const reason: AuthReason = res?.type === 'denied' && res.reason in DENIED ? res.reason : 'protocol';
-          fail(new RemoteBridgeError('denied', DENIED[reason], reason));
+          fail(new RemoteBridgeError('denied', DENIED[reason](), reason));
         }
         return;
       }
@@ -306,7 +307,7 @@ export function createRemoteBridgeLink(opts: {
     const gen = generation;
     connecting = (async () => {
       const p = await opts.getPairing();
-      if (!p) throw new RemoteBridgeError('unpaired', '원격 Bridge가 페어링되어 있지 않습니다.');
+      if (!p) throw new RemoteBridgeError('unpaired', t('errors.remote.unpaired'));
       let urls = p.relayUrl && p.relayUrl !== p.url ? [p.url, p.relayUrl] : [p.url];
       if (lastUrl && urls.includes(lastUrl)) urls = [lastUrl, ...urls.filter((u) => u !== lastUrl)];
       const s: SecureSession = await openFirst(urls, opts.connectTimeoutMs ?? 8_000, (url, timeoutMs) =>
@@ -330,7 +331,7 @@ export function createRemoteBridgeLink(opts: {
       lastUrl = s.url;
       if (gen !== generation) {
         s.ws.close();
-        throw new RemoteBridgeError('unreachable', '연결이 재설정되었습니다.');
+        throw new RemoteBridgeError('unreachable', t('errors.remote.reset'));
       }
       session = s;
       return s;
@@ -422,11 +423,11 @@ export function isTailscaleHost(host: string): boolean {
 }
 
 export function remoteRoute(url: string): string {
-  if (isRelayUrl(url)) return 'Relay 경유';
+  if (isRelayUrl(url)) return t('core.route.relay');
   try {
-    return isTailscaleHost(new URL(url).hostname) ? 'Tailscale 직접 연결' : 'LAN 직접 연결';
+    return isTailscaleHost(new URL(url).hostname) ? t('core.route.tailscale') : t('core.route.lan');
   } catch {
-    return '직접 연결';
+    return t('core.route.direct');
   }
 }
 
@@ -442,7 +443,7 @@ function pickReady(status: BridgeStatus): CliProviderId | undefined {
   return CLI_PROVIDER_IDS.find((id) => status[id].status === 'ready');
 }
 
-const CLI_ELSEWHERE = '웹·모바일에서는 이 기기에서 CLI를 직접 실행할 수 없습니다. 데스크톱 앱이나 원격 Bridge로 연결하세요.';
+const cliElsewhere = (): string => t('sync.cliElsewhere');
 
 /**
  * 원격 bridge를 provider로 노출한다.
@@ -480,17 +481,17 @@ export function createRemoteBridgeProviders(opts: {
         } catch (e) {
           return unavailableFrom(e);
         }
-        const base = `${c.info.bridgeName} · ${c.info.route} · 지연 ${c.info.latencyMs}ms`;
+        const base = t('core.remote.base', { name: c.info.bridgeName, route: c.info.route, latency: c.info.latencyMs });
         const ready = CLI_PROVIDER_IDS.filter((id) => status[id].status === 'ready');
         if (ready.length) return { status: 'ready', detail: `${base} · ${ready.map((id) => PROVIDER_LABELS[id]).join(', ')}` };
         const loggedOut = CLI_PROVIDER_IDS.find((id) => status[id].status === 'not-logged-in');
-        if (loggedOut) return { status: 'not-logged-in', detail: `${base} · bridge PC에서 CLI 로그인이 필요합니다. ${status[loggedOut].detail ?? ''}`.trim() };
-        return { status: 'not-installed', detail: `${base} · bridge PC에 Claude/Codex CLI가 없습니다.` };
+        if (loggedOut) return { status: 'not-logged-in', detail: t('core.remote.loginNeeded', { base, detail: status[loggedOut].detail ?? '' }).trim() };
+        return { status: 'not-installed', detail: t('core.remote.notInstalled', { base }) };
       },
       async *stream(req): AsyncIterable<StreamEvent> {
         const c = await connected();
         if ('status' in c) {
-          yield { type: 'error', error: providerError(c.status === 'unpaired' ? 'auth' : 'offline', c.detail ?? '원격 Bridge가 페어링되어 있지 않습니다.') };
+          yield { type: 'error', error: providerError(c.status === 'unpaired' ? 'auth' : 'offline', c.detail ?? t('errors.remote.unpaired')) };
           return;
         }
         let id: CliProviderId | undefined;
@@ -501,7 +502,7 @@ export function createRemoteBridgeProviders(opts: {
           return;
         }
         if (!id) {
-          yield { type: 'error', error: providerError('cli', 'bridge PC에서 사용할 수 있는 CLI가 없습니다. 설치·로그인 상태를 확인하세요.') };
+          yield { type: 'error', error: providerError('cli', t('errors.remote.noCli')) };
           return;
         }
         yield* client.stream(id, req);
@@ -516,10 +517,10 @@ export function createRemoteBridgeProviders(opts: {
         label: PROVIDER_LABELS[id],
         async available() {
           const c = await connected();
-          if ('status' in c) return c.status === 'unpaired' ? { status: 'not-installed', detail: CLI_ELSEWHERE } : c;
+          if ('status' in c) return c.status === 'unpaired' ? { status: 'not-installed', detail: cliElsewhere() } : c;
           try {
             const a = (await client.status(true))[id];
-            return { ...a, detail: `원격 Bridge(${c.info.bridgeName}) 경유${a.detail ? ` · ${a.detail}` : ''}` };
+            return { ...a, detail: `${t('core.remote.via', { name: c.info.bridgeName })}${a.detail ? ` · ${a.detail}` : ''}` };
           } catch (e) {
             return unavailableFrom(e);
           }
@@ -527,7 +528,7 @@ export function createRemoteBridgeProviders(opts: {
         async *stream(req) {
           const c = await connected();
           if ('status' in c) {
-            yield { type: 'error', error: providerError('offline', c.status === 'unpaired' ? CLI_ELSEWHERE : (c.detail ?? CLI_ELSEWHERE)) };
+            yield { type: 'error', error: providerError('offline', c.status === 'unpaired' ? cliElsewhere() : (c.detail ?? cliElsewhere())) };
             return;
           }
           yield* client.stream(id, req);

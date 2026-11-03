@@ -1,3 +1,4 @@
+import { t } from './i18n';
 /**
  * 퀴즈 블록 (IMP-17, ADR-048).
  * /quiz 스킬 답변의 ```quiz 코드 블록(JSON)을 문제 목록으로 읽고, 학습자 답을 채점한다.
@@ -82,7 +83,7 @@ export function parseQuiz(source: string): Quiz | null {
     .map(parseQuestion)
     .filter((q): q is QuizQuestion => !!q);
   if (!questions.length) return null;
-  return { title: str(obj.title) ?? '퀴즈', questions };
+  return { title: str(obj.title) ?? t('llm.quiz.fallbackTitle'), questions };
 }
 
 /** 주관식 비교용: 대소문자·공백·문장부호·따옴표를 무시한다 */

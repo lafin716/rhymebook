@@ -1,3 +1,4 @@
+import { t, tx } from '../i18n';
 import { OctoGarden } from '../components/OctoMark';
 import { listedRootSessions, type ID } from '@branch/core';
 import { FileText, Laptop, Link2, List, PenLine, RefreshCw, Smartphone, Sparkles } from 'lucide-react';
@@ -7,11 +8,11 @@ import { sessionWindowId } from '../app/runtime';
 import { chooseThisDevice, syncClient, useRemoteHosts, useSync } from '../app/sync';
 import { useUi } from '../app/uiState';
 import { useBreakpoint } from '../app/useBreakpoint';
-import { HostList, THIS_DEVICE } from '../components/HostList';
+import { HostList, thisDeviceName } from '../components/HostList';
 import { usePcOnline } from '../components/PcStatus';
 import { startNewSession } from '../session/newSession';
 
-const SUGGESTIONS = ['바다는 왜 파랗게 보일까?', 'AI는 어떻게 말을 배울까?', '오늘 배운 것을 오래 기억하려면?'];
+const SUGGESTION_KEYS = ['chat.empty.suggest1', 'chat.empty.suggest2', 'chat.empty.suggest3'] as const;
 
 /** 메시지가 없는 세션의 첫 화면 */
 export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boolean }) {
@@ -22,13 +23,15 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
     <div className="octo-welcome mx-auto flex max-w-xl flex-col items-center rounded-3xl px-4 py-8 text-center sm:py-12">
       <OctoGarden />
       <span className="mb-3 text-[10px] font-semibold tracking-[.22em] text-accent">A LITTLE QUESTION. A NEW DIRECTION.</span>
-      <h2 className="text-[18px] font-semibold">어떤 호기심부터 펼쳐볼까요?</h2>
+      <h2 className="text-[18px] font-semibold">{t('chat.empty.welcomeTitle')}</h2>
       <p className="mt-1.5 text-[14px] leading-relaxed text-muted">
-        답변에서 모르는 단어를 <b className="font-medium text-fg-2">드래그</b>(모바일은 길게 누르기)하면
-        <br className={compact ? 'hidden' : undefined} /> 그 자리에서 가지를 쳐서 물어볼 수 있어요.
+        {tx('chat.empty.hint', { drag: <b className="font-medium text-fg-2">{t('chat.empty.dragWord')}</b> })}
+        <br className={compact ? 'hidden' : undefined} />{t('chat.empty.hintContinue')}
       </p>
       <div className="mt-5 flex w-full flex-col gap-2">
-        {SUGGESTIONS.map((q) => (
+        {SUGGESTION_KEYS.map((k) => {
+          const q = t(k);
+          return (
           <button
             key={q}
             type="button"
@@ -39,11 +42,12 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
             <Sparkles size={14} className="shrink-0 text-accent" />
             {q}
           </button>
-        ))}
+          );
+        })}
       </div>
       {root && (
         <p className="mt-4 flex flex-wrap items-center justify-center gap-1 text-[13px] text-muted">
-          직접 정리하고 싶다면
+          {t('chat.empty.orOwn')}
           <button
             type="button"
             disabled={!online}
@@ -51,9 +55,9 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
             className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
           >
             <FileText size={14} />
-            빈 페이지로 시작
+            {t('chat.empty.startBlank')}
           </button>
-          또는
+          {t('chat.empty.or')}
           <button
             type="button"
             disabled={!online}
@@ -61,7 +65,7 @@ export function EmptyChat({ sessionId, compact }: { sessionId: ID; compact?: boo
             className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
           >
             <PenLine size={14} />
-            캔버스로 시작
+            {t('chat.empty.startCanvas')}
           </button>
         </p>
       )}
@@ -83,16 +87,16 @@ export function NoSessions() {
   return (
     <div className="octo-welcome flex h-full flex-col items-center justify-center overflow-y-auto px-6 py-8 text-center">
       <OctoGarden />
-      <p className="mb-3 text-[11px] font-semibold tracking-[.22em] text-accent">나만의 배움, 끝없이 펼쳐지는 바다</p>
+      <p className="mb-3 text-[11px] font-semibold tracking-[.22em] text-accent">{t('chat.empty.tagline')}</p>
       <h2 className="text-[19px] font-semibold">
-        {hasSessions ? '이어서 볼 학습을 골라 주세요' : remoteMode ? 'PC에 아직 학습 기록이 없어요' : '작은 호기심을, 더 깊은 배움으로.'}
+        {hasSessions ? t('chat.empty.pickUp') : remoteMode ? t('chat.empty.noRemoteHistory') : t('chat.empty.startLocal')}
       </h2>
       <p className="mt-1.5 max-w-xs text-[14px] leading-relaxed text-muted">
         {hasSessions
-          ? '학습 목록에서 하나를 열거나, 새 학습을 시작해 보세요.'
+          ? t('chat.empty.sessionsHint')
           : remoteMode
-            ? '여기서 시작한 학습은 PC에 저장되고, 답변은 PC의 CLI가 만들어요.'
-            : '문어의 팔처럼 질문에서 질문으로. 궁금한 문장을 골라 가지를 뻗고, 나만의 학습 지도를 만들어 보세요.'}
+            ? t('chat.empty.remoteHint')
+            : t('chat.empty.localHint')}
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         {hasSessions && (
@@ -102,7 +106,7 @@ export function NoSessions() {
             className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg"
           >
             <List size={16} />
-            학습 목록 열기
+            {t('chat.empty.openList')}
           </button>
         )}
         <button
@@ -114,7 +118,7 @@ export function NoSessions() {
               : 'inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg'
           }
         >
-          새 학습 시작
+          {t('chat.empty.newLearning')}
         </button>
         <button
           type="button"
@@ -122,7 +126,7 @@ export function NoSessions() {
           className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2"
         >
           <FileText size={16} />
-          빈 페이지
+          {t('chat.empty.blankPage')}
         </button>
         <button
           type="button"
@@ -130,7 +134,7 @@ export function NoSessions() {
           className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2"
         >
           <PenLine size={16} />
-          캔버스
+          {t('chat.empty.canvas')}
         </button>
       </div>
       <Profiles />
@@ -157,11 +161,11 @@ function PcNotConnected() {
   const pc = hostName ?? 'PC';
   const copy = {
     unpaired: hasHosts
-      ? ['연결할 PC를 골라 주세요', '저장해 둔 PC를 누르면 그 PC의 학습을 보고 이어서 질문할 수 있어요.']
-      : ['PC와 연결해 주세요', 'octobooks PC 앱과 페어링하면 PC에서 학습 중인 내용을 여기서 보고 이어서 질문할 수 있어요.'],
-    connecting: [`${pc}에 연결하는 중`, 'PC의 학습 목록을 불러오고 있어요.'],
-    offline: [`${pc}와 연결이 끊겼어요`, 'PC 앱이 켜져 있고 원격 페어링이 열려 있는지 확인하세요.'],
-    unsupported: ['PC 앱 업데이트가 필요해요', 'PC의 octobooks 앱을 최신 버전으로 업데이트하면 원격 학습을 쓸 수 있어요.'],
+      ? [t('chat.empty.pickPcTitle'), t('chat.empty.pickPcBody')]
+      : [t('chat.empty.pairPcTitle'), t('chat.empty.pairPcBody')],
+    connecting: [t('chat.empty.connectingTitle', { pc }), t('chat.empty.connectingBody')],
+    offline: [t('chat.empty.offlineTitle', { pc }), t('chat.empty.offlineBody')],
+    unsupported: [t('chat.empty.unsupportedTitle'), t('chat.empty.unsupportedBody')],
     online: ['', ''],
   }[status];
   return (
@@ -185,7 +189,7 @@ function PcNotConnected() {
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg"
             >
               <RefreshCw size={16} />
-              다시 연결
+              {t('chat.empty.reconnect')}
             </button>
           )}
           {status !== 'connecting' && (
@@ -199,7 +203,7 @@ function PcNotConnected() {
               }
             >
               <Link2 size={16} />
-              {status === 'unpaired' ? 'PC와 페어링' : '연결 설정'}
+              {status === 'unpaired' ? t('chat.empty.pairPc') : t('chat.empty.connectSettings')}
             </button>
           )}
           {/* PC 없이도 이 기기에서 학습하고 API 키로 답변받을 수 있다 (ADR-103) */}
@@ -210,7 +214,7 @@ function PcNotConnected() {
               className="inline-flex h-11 items-center gap-2 rounded-xl border border-line px-5 text-[15px] font-medium text-fg-2 hover:bg-surface-2"
             >
               <Smartphone size={16} />
-              {THIS_DEVICE}에서 쓰기
+              {t('chat.empty.useThisDevice', { device: thisDeviceName() })}
             </button>
           )}
         </div>

@@ -1,0 +1,11 @@
+{
+  "cliElsewhere": "On web or mobile, the CLI cannot run directly on this device. Connect through the desktop app or a remote Bridge.",
+  "noResponse": "No response from the PC.",
+  "disconnected": "Disconnected from the PC.",
+  "skillListTooLarge": "The PC's skill list is too large.",
+  "unsupported": "This PC does not support sync.",
+  "hostRestarted": "The PC restarted. Try again.",
+  "stopped": "Sync stopped.",
+  "reconnecting": "Reconnecting to the PC.",
+  "notOnline": "Not connected to the PC."
+}

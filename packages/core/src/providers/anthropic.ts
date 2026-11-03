@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ProviderId, ToolActivity, ToolSource } from '../model';
 import { providerError, wantsWebTools, type Availability, type ChatTurn, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
 import { readSse } from '../sse';
@@ -48,7 +49,7 @@ export function createAnthropicProvider(opts: ApiProviderOptions): LLMProvider {
     async *stream(req: StreamRequest): AsyncIterable<StreamEvent> {
       const key = await opts.getKey();
       if (!key) {
-        yield { type: 'error', error: providerError('auth', 'Anthropic API 키가 설정되지 않았습니다.') };
+        yield { type: 'error', error: providerError('auth', t('errors.anthropic.noKey')) };
         return;
       }
       const messages: { role: string; content: unknown }[] = req.messages
@@ -161,9 +162,9 @@ export function createAnthropicProvider(opts: ApiProviderOptions): LLMProvider {
                 finished = true;
                 break;
               case 'error': {
-                const t = data.error?.type ?? '';
-                const code = t === 'overloaded_error' || t === 'rate_limit_error' ? 'rate-limit' : t === 'authentication_error' ? 'auth' : 'network';
-                yield { type: 'error', error: providerError(code, `Anthropic 오류: ${data.error?.message ?? t}`) };
+                const etype = data.error?.type ?? '';
+                const code = etype === 'overloaded_error' || etype === 'rate_limit_error' ? 'rate-limit' : etype === 'authentication_error' ? 'auth' : 'network';
+                yield { type: 'error', error: providerError(code, t('errors.anthropic.error', { message: data.error?.message ?? etype })) };
                 return;
               }
             }
@@ -183,7 +184,7 @@ export function createAnthropicProvider(opts: ApiProviderOptions): LLMProvider {
         yield { type: 'done', stopReason };
         return;
       }
-      yield { type: 'error', error: providerError('network', '응답 스트림이 완료 전에 끊겼습니다.') };
+      yield { type: 'error', error: providerError('network', t('errors.streamCut')) };
     },
   };
 }

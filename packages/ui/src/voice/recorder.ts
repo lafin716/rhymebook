@@ -1,4 +1,5 @@
 import { encodeWav, isSilent, resample, STT_MAX_SECONDS, STT_SAMPLE_RATE } from '@branch/core';
+import { t } from '../i18n';
 
 /**
  * 마이크 녹음 → 16kHz mono PCM16 WAV(base64) (ADR-045).
@@ -22,10 +23,10 @@ export function micSupported(): boolean {
 /** 사용자에게 보여 줄 마이크 오류 문구 */
 export function micErrorMessage(e: unknown): string {
   const name = e instanceof DOMException ? e.name : '';
-  if (name === 'NotAllowedError' || name === 'SecurityError') return '마이크 권한이 없습니다. 시스템·브라우저 설정에서 마이크를 허용해 주세요.';
-  if (name === 'NotFoundError' || name === 'OverconstrainedError') return '사용할 수 있는 마이크가 없습니다.';
-  if (name === 'NotReadableError') return '다른 앱이 마이크를 쓰고 있습니다.';
-  return e instanceof Error && e.message ? e.message : '마이크를 열지 못했습니다.';
+  if (name === 'NotAllowedError' || name === 'SecurityError') return t('voice.recorder.permission');
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return t('voice.recorder.noDevice');
+  if (name === 'NotReadableError') return t('voice.recorder.busy');
+  return e instanceof Error && e.message ? e.message : t('voice.recorder.openFailed');
 }
 
 /** 녹음을 시작한다. 최대 길이(STT_MAX_SECONDS)에 닿으면 onLimit을 부른다 */
@@ -33,8 +34,8 @@ export async function startRecording(onLimit: () => void): Promise<Recorder> {
   if (!micSupported()) {
     throw new Error(
       typeof window !== 'undefined' && !window.isSecureContext
-        ? '이 주소(HTTP)에서는 마이크를 쓸 수 없습니다. HTTPS나 앱에서 열어 주세요.'
-        : '이 기기에서는 마이크 녹음을 지원하지 않습니다.',
+        ? t('voice.recorder.insecure')
+        : t('voice.recorder.unsupported'),
     );
   }
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -46,7 +47,7 @@ export async function startRecording(onLimit: () => void): Promise<Recorder> {
     return await wire(stream, ctx, onLimit);
   } catch (e) {
     // 녹음 준비에 실패하면 마이크를 바로 놓는다 (켜진 채 남지 않게)
-    for (const t of stream.getTracks()) t.stop();
+    for (const track of stream.getTracks()) track.stop();
     void ctx?.close().catch(() => {});
     throw e;
   }
@@ -83,7 +84,7 @@ async function wire(stream: MediaStream, ctx: AudioContext, onLimit: () => void)
     node.onaudioprocess = null;
     source.disconnect();
     node.disconnect();
-    for (const t of stream.getTracks()) t.stop();
+    for (const track of stream.getTracks()) track.stop();
     void ctx.close().catch(() => {});
   };
 

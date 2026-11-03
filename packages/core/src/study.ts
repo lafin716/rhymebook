@@ -7,6 +7,7 @@ import type { MessageMap } from './context';
 import type { Annotation, ID, Message, Session } from './model';
 import { collectStudyCards } from './notes';
 import type { SessionMap } from './tree';
+import { t, type MessageKey } from './i18n';
 
 /**
  * 학습 꾸러미 (ADR-043). 학습 하나(루트 세션 트리)를 다른 기기로 옮기기 위한 내보내기·가져오기.
@@ -45,16 +46,21 @@ export interface StudySource {
 
 export type StudyErrorCode = 'invalid' | 'newer-version' | 'conflict';
 
-const STUDY_MESSAGE: Record<StudyErrorCode, string> = {
-  invalid: 'octobooks 학습 파일이 아니거나 손상되었어요.',
-  'newer-version': '더 새 버전의 앱에서 내보낸 학습이에요. 앱을 업데이트한 뒤 가져오세요.',
-  conflict: '이 기기의 다른 학습과 겹치는 항목이 있어 가져올 수 없어요.',
+const STUDY_ERROR_KEY: Record<StudyErrorCode, MessageKey> = {
+  invalid: 'llm.study.error.invalid',
+  'newer-version': 'llm.study.error.newerVersion',
+  conflict: 'llm.study.error.conflict',
 };
+
+/** 가져오기·내보내기 오류 안내문 (호출 시점의 로케일) */
+export function studyMessage(code: StudyErrorCode): string {
+  return t(STUDY_ERROR_KEY[code]);
+}
 
 export class StudyError extends Error {
   constructor(
     readonly code: StudyErrorCode,
-    message = STUDY_MESSAGE[code],
+    message = studyMessage(code),
   ) {
     super(message);
     this.name = 'StudyError';
@@ -95,7 +101,7 @@ function ymd(ms: number) {
 export function safeFileName(title: string, max = 60): string {
   // eslint-disable-next-line no-control-regex
   const s = oneLine(title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ')).replace(/^\.+/, '');
-  return [...s].slice(0, max).join('').trim() || '학습';
+  return [...s].slice(0, max).join('').trim() || t('llm.study.fallbackName');
 }
 
 /** "1.2" → "01.02" (파일 이름 정렬용) */
@@ -150,29 +156,29 @@ function sessionMarkdown(node: StudyNode, byId: Map<ID, StudyNode>, children: St
   const lines: string[] = [`# ${label(node)}`, ''];
   const path: StudyNode[] = [];
   for (let p = node.parentId ? byId.get(node.parentId) : undefined; p; p = p.parentId ? byId.get(p.parentId) : undefined) path.unshift(p);
-  if (path.length) lines.push(`> 경로: ${path.map((p) => link(label(p), p.file)).join(' › ')} › ${oneLine(s.title)}`, '');
-  if (s.anchor?.text) lines.push('**가지 친 원문**', '', quote(s.anchor.text.trim()), '');
-  if (s.summary?.trim()) lines.push('## 내가 이해한 것', '', s.summary.trim(), '');
+  if (path.length) lines.push(t('llm.study.md.path', { path: path.map((p) => link(label(p), p.file)).join(' › '), title: oneLine(s.title) }), '');
+  if (s.anchor?.text) lines.push(t('llm.study.md.anchor'), '', quote(s.anchor.text.trim()), '');
+  if (s.summary?.trim()) lines.push(t('llm.study.md.summary'), '', s.summary.trim(), '');
   if (s.kind === 'page' || s.kind === 'canvas') {
     // 페이지는 질문·답변이 아니라 학습자가 쓴 문서다 (ADR-072). 캔버스는 카드 글만 옮긴다 (ADR-079)
     const raw = messages.find((m) => m.role === 'assistant')?.content.trim();
     const doc = raw && s.kind === 'canvas' ? canvasText(parseCanvas(raw), Infinity) : raw;
-    if (doc) lines.push(s.kind === 'canvas' ? '## 캔버스' : '## 문서', '', doc, '');
+    if (doc) lines.push(s.kind === 'canvas' ? t('llm.study.md.canvas') : t('llm.study.md.doc'), '', doc, '');
   } else if (messages.length) {
-    lines.push('## 대화', '');
+    lines.push(t('llm.study.md.chat'), '');
     for (const m of messages) {
-      lines.push(m.role === 'user' ? '### 🙋 질문' : '### 💬 답변', '');
-      if (m.skill) lines.push(`_스킬: /${m.skill.name}_`, '');
+      lines.push(m.role === 'user' ? t('llm.study.md.question') : t('llm.study.md.answer'), '');
+      if (m.skill) lines.push(t('llm.study.md.skill', { name: m.skill.name }), '');
       const text = stripBranchBlock(m.content).trim();
       if (text) lines.push(text, '');
-      for (const a of m.attachments ?? []) lines.push(`📎 ${a.name}`, '');
-      if (m.status === 'error' || m.status === 'stopped') lines.push(`_(${m.status === 'error' ? '오류' : '중지됨'})_`, '');
+      for (const a of m.attachments ?? []) lines.push(t('llm.study.md.attachment', { name: a.name }), '');
+      if (m.status === 'error' || m.status === 'stopped') lines.push(m.status === 'error' ? t('llm.study.md.errorNote') : t('llm.study.md.stoppedNote'), '');
     }
   }
   if (children.length) {
-    lines.push('## 하위 가지', '');
+    lines.push(t('llm.study.md.children'), '');
     for (const c of children) {
-      const anchor = c.session.anchor?.text ? ` — 원문 “${oneLine(c.session.anchor.text).slice(0, 80)}”` : '';
+      const anchor = c.session.anchor?.text ? t('llm.study.md.anchorInline', { text: oneLine(c.session.anchor.text).slice(0, 80) }) : '';
       lines.push(`- ${link(label(c), c.file)}${anchor}`);
     }
     lines.push('');
@@ -202,16 +208,16 @@ export function studyPackFiles(bundle: StudyBundle): StudyFile[] {
   const readme: string[] = [
     `# ${oneLine(bundle.title)}`,
     '',
-    `> octobooks 학습 꾸러미 · ${ymd(bundle.exportedAt)} · 가지 ${nodes.length - 1}개 · 요약 ${summarized}개 · 메시지 ${bundle.messages.length}개`,
+    t('llm.study.readme.meta', { date: ymd(bundle.exportedAt), branches: nodes.length - 1, summaries: summarized, messages: bundle.messages.length }),
     '',
-    '## 목차',
+    t('llm.study.readme.toc'),
     '',
     ...nodes.map((n) => `${'  '.repeat(n.number ? n.number.split('.').length : 0)}- ${link(label(n), n.file)}`),
     '',
-    '## 다른 기기에서 이어서 학습하기',
+    t('llm.study.readme.howTitle'),
     '',
-    'octobooks 앱에서 이해 노트 › **학습 가져오기**를 누르고 이 zip 파일(또는 안의 `study.json`)을 고르세요.',
-    '같은 학습이 이미 있으면 가지마다 더 최근에 바뀐 쪽을 남기고, 그 기기에만 있는 가지는 그대로 둡니다.',
+    t('llm.study.readme.howImport'),
+    t('llm.study.readme.howMerge'),
     '',
   ];
   return [
@@ -229,7 +235,7 @@ export function buildStudyPack(bundle: StudyBundle): Uint8Array {
 }
 
 export function studyPackFileName(title: string, now = Date.now()): string {
-  return `${safeFileName(title, 40)}-학습-${ymd(now)}.zip`;
+  return `${safeFileName(title, 40)}${t('llm.study.fileSuffix')}${ymd(now)}.zip`;
 }
 
 // ── 가져오기 ────────────────────────────────────────────
@@ -422,31 +428,31 @@ export function buildStudyDigest(bundle: StudyBundle, maxChars: number = STUDY_L
   const render = (answerCap: number) => {
     let cut = 0;
     const lines: string[] = [
-      `# 학습 원문: ${oneLine(bundle.title)}`,
+      t('llm.study.digest.title', { title: oneLine(bundle.title) }),
       '',
-      '> octobooks 학습 트리. 번호는 가지 위치("1.2" = 1번 가지의 2번째 하위 가지), "가지 친 원문"은 학습자가 모르는 부분으로 선택한 텍스트, "내가 이해한 것"은 학습자가 직접 정리한 요약이다.',
+      t('llm.study.digest.guide'),
       '',
     ];
     for (const n of nodes) {
       const s = n.session;
-      lines.push(`${'#'.repeat(Math.min(6, 2 + (n.number ? n.number.split('.').length - 1 : 0)))} ${n.number ? `[${n.number}] ` : '[루트] '}${oneLine(s.title)}`, '');
-      if (s.anchor?.text) lines.push('가지 친 원문:', quote(s.anchor.text.trim()), '');
-      if (s.summary?.trim()) lines.push('내가 이해한 것:', quote(s.summary.trim()), '');
+      lines.push(`${'#'.repeat(Math.min(6, 2 + (n.number ? n.number.split('.').length - 1 : 0)))} ${n.number ? t('llm.study.digest.branch', { n: n.number }) : t('llm.study.digest.root')}${oneLine(s.title)}`, '');
+      if (s.anchor?.text) lines.push(t('llm.study.digest.anchor'), quote(s.anchor.text.trim()), '');
+      if (s.summary?.trim()) lines.push(t('llm.study.digest.summary'), quote(s.summary.trim()), '');
       for (const m of msgs.get(s.id) ?? []) {
         let body = stripBranchBlock(m.content).trim();
         if (m.role === 'assistant' && body.length > answerCap) {
-          body = `${body.slice(0, answerCap).trimEnd()} …(줄임)`;
+          body = `${body.slice(0, answerCap).trimEnd()}${t('llm.study.digest.truncated')}`;
           cut++;
         }
         if (!body) continue;
-        lines.push(m.role === 'user' ? `**Q.** ${body}` : `**A.** ${body}`, '');
+        lines.push(m.role === 'user' ? t('llm.study.digest.question', { body }) : t('llm.study.digest.answer', { body }), '');
       }
     }
     return { text: lines.join('\n'), cut };
   };
   let out = render(Infinity);
   if (out.text.length <= maxChars) return out.text;
-  const noteOf = (cut: number) => `\n> 원문이 길어 답변 ${cut}개를 앞부분만 담았다.\n`;
+  const noteOf = (cut: number) => t('llm.study.digest.cutNote', { count: cut });
   // 답변 길이 상한을 이분 탐색으로 맞춘다 (끝의 안내문 자리를 남긴다)
   const budget = maxChars - noteOf(bundle.messages.length).length;
   let lo = 0;

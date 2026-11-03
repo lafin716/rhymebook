@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { newId } from '../id';
 import type { ProviderId } from '../model';
 import { PROVIDER_LABELS, providerError, wantsWebTools, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
@@ -20,7 +21,8 @@ export interface BridgeClientOptions {
   /** 상태 결과 재사용 시간 (두 CLI 카드가 동시에 묻는 경우 한 번만 감지) */
   statusCacheMs?: number;
   /** 연결이 없을 때 보여줄 문구 */
-  offlineMessage?: string;
+  /** 함수면 쓸 때마다 불러 지금 언어 문구를 쓴다 (ADR-105) */
+  offlineMessage?: string | (() => string);
   /** stt.status 대기 시간 */
   sttStatusTimeoutMs?: number;
   /** 전사 대기 시간 (첫 실행은 모델 로딩으로 느리다) */
@@ -40,13 +42,14 @@ export interface BridgeClient {
   transcribe(audio: string, signal?: AbortSignal): Promise<string>;
 }
 
-const ABORTED = '사용자가 중지했습니다.';
+const aborted = (): string => t('errors.aborted');
 
 export function createBridgeClient(transport: BridgeTransport, opts: BridgeClientOptions = {}): BridgeClient {
   // bridge의 CLI 확인(명령당 최대 40초, 병렬)보다 길어야 느린 PC에서 "연결 안 됨"으로 오판하지 않는다
   const statusTimeoutMs = opts.statusTimeoutMs ?? 50_000;
   const statusCacheMs = opts.statusCacheMs ?? 3_000;
-  const offline = opts.offlineMessage ?? 'Bridge에 연결할 수 없습니다.';
+  const offlineOpt = opts.offlineMessage;
+  const offlineText = (): string => (typeof offlineOpt === 'function' ? offlineOpt() : offlineOpt ?? t('errors.bridge.offline'));
   let inflight: Promise<BridgeStatus> | null = null;
   let cached: { at: number; value: BridgeStatus } | null = null;
 
@@ -59,15 +62,15 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         offDisconnect?.();
         fn();
       };
-      const timer = setTimeout(() => done(() => reject(new Error('CLI 상태 확인 시간이 초과되었습니다.'))), statusTimeoutMs);
+      const timer = setTimeout(() => done(() => reject(new Error(t('errors.bridge.statusTimeout')))), statusTimeoutMs);
       const unsub = transport.subscribe((m) => {
         if (m.type === 'status' && m.reqId === reqId) done(() => resolve(m.providers));
       });
-      const offDisconnect = transport.onDisconnect?.(() => done(() => reject(new Error(offline))));
+      const offDisconnect = transport.onDisconnect?.(() => done(() => reject(new Error(offlineText()))));
       try {
         transport.send({ type: 'status.get', reqId, ...(refresh ? { refresh } : {}) });
       } catch {
-        done(() => reject(new Error(offline)));
+        done(() => reject(new Error(offlineText())));
       }
     });
   }
@@ -83,7 +86,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
     signal?: AbortSignal,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
-      if (signal?.aborted) return reject(new Error(ABORTED));
+      if (signal?.aborted) return reject(new Error(aborted()));
       const done = (fn: () => void) => {
         clearTimeout(timer);
         unsub();
@@ -91,7 +94,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         signal?.removeEventListener('abort', onAbort);
         fn();
       };
-      const onAbort = () => done(() => reject(new Error(ABORTED)));
+      const onAbort = () => done(() => reject(new Error(aborted())));
       const timer = setTimeout(() => done(() => reject(new Error(timeoutMessage))), timeoutMs);
       const unsub = transport.subscribe((m) => {
         if (m.reqId !== msg.reqId) return;
@@ -100,12 +103,12 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         if ('ok' in r) done(() => resolve(r.ok));
         else done(() => reject(new Error(r.err)));
       });
-      const offDisconnect = transport.onDisconnect?.(() => done(() => reject(new Error(offline))));
+      const offDisconnect = transport.onDisconnect?.(() => done(() => reject(new Error(offlineText()))));
       signal?.addEventListener('abort', onAbort, { once: true });
       try {
         transport.send(msg);
       } catch {
-        done(() => reject(new Error(offline)));
+        done(() => reject(new Error(offlineText())));
       }
     });
   }
@@ -116,7 +119,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         { type: 'stt.status.get', reqId: newId('ss') },
         (m) => (m.type === 'stt.status' ? { ok: m.stt } : m.type === 'stt.error' ? { err: m.error } : null),
         opts.sttStatusTimeoutMs ?? 10_000,
-        '음성 입력 상태를 확인하지 못했습니다.',
+        t('errors.bridge.sttStatusFailed'),
       );
     },
 
@@ -125,7 +128,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         { type: 'stt.state.get', reqId: newId('sg') },
         pickState,
         opts.sttStatusTimeoutMs ?? 10_000,
-        '음성 설정을 불러오지 못했습니다.',
+        t('errors.bridge.sttStateFailed'),
       );
     },
 
@@ -134,7 +137,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         { type: 'stt.manage', reqId: newId('sm'), op, ...(model ? { model } : {}) },
         pickState,
         opts.sttStatusTimeoutMs ?? 10_000,
-        '음성 설정을 바꾸지 못했습니다.',
+        t('errors.bridge.sttManageFailed'),
       );
     },
 
@@ -143,7 +146,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         { type: 'stt.transcribe', reqId: newId('tr'), audio },
         (m) => (m.type === 'stt.result' ? { ok: m.text } : m.type === 'stt.error' ? { err: m.error } : null),
         opts.transcribeTimeoutMs ?? 180_000,
-        '음성 변환 시간이 초과되었습니다.',
+        t('errors.bridge.transcribeTimeout'),
         signal,
       );
     },
@@ -180,19 +183,19 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
         else if (m.type === 'chat.done') push({ type: 'done', ...(m.stopReason ? { stopReason: m.stopReason } : {}) });
         else if (m.type === 'chat.error') push({ type: 'error', error: m.error });
       });
-      const offDisconnect = transport.onDisconnect?.(() => push({ type: 'error', error: providerError('offline', offline) }));
+      const offDisconnect = transport.onDisconnect?.(() => push({ type: 'error', error: providerError('offline', offlineText()) }));
       const onAbort = () => {
         try {
           transport.send({ type: 'chat.abort', reqId });
         } catch {
           // 연결이 이미 끊겼다면 bridge가 스스로 정리한다
         }
-        push({ type: 'error', error: providerError('aborted', ABORTED) });
+        push({ type: 'error', error: providerError('aborted', aborted()) });
       };
 
       try {
         if (req.signal?.aborted) {
-          push({ type: 'error', error: providerError('aborted', ABORTED) });
+          push({ type: 'error', error: providerError('aborted', aborted()) });
         } else {
           req.signal?.addEventListener('abort', onAbort, { once: true });
           try {
@@ -208,7 +211,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
               ...(wantsWebTools(req) ? { webSearch: true } : {}),
             });
           } catch {
-            push({ type: 'error', error: providerError('offline', offline) });
+            push({ type: 'error', error: providerError('offline', offlineText()) });
           }
         }
         while (true) {

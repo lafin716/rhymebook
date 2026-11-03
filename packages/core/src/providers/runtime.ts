@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ConnectionState, ProviderId } from '../model';
 import {
   PROVIDER_LABELS,
@@ -47,7 +48,7 @@ export function gateEnabled(p: LLMProvider, isEnabled: () => boolean): LLMProvid
     available: () => p.available(),
     async *stream(req) {
       if (!isEnabled()) {
-        yield { type: 'error', error: providerError('offline', `${p.label} 연결이 비활성화되어 있습니다.`) };
+        yield { type: 'error', error: providerError('offline', t('errors.connectionDisabled', { label: p.label })) };
         return;
       }
       yield* p.stream(req);
@@ -77,7 +78,7 @@ export interface RuntimeRegistryOptions {
   overrides?: Partial<Record<ProviderId, LLMProvider>>;
 }
 
-const CLI_ELSEWHERE = '웹·모바일에서는 이 기기에서 CLI를 직접 실행할 수 없습니다. 데스크톱 앱이나 원격 Bridge로 연결하세요.';
+const cliElsewhere = (): string => t('sync.cliElsewhere');
 
 /**
  * 실제 provider 레지스트리.
@@ -106,8 +107,8 @@ export function createRuntimeRegistry(opts: RuntimeRegistryOptions): ProviderReg
       baseUrl: opts.baseUrls?.['openai-api'],
       fetch: opts.fetch,
     }),
-    'claude-cli': createUnavailableProvider('claude-cli', { status: 'not-installed', detail: CLI_ELSEWHERE }),
-    'codex-cli': createUnavailableProvider('codex-cli', { status: 'not-installed', detail: CLI_ELSEWHERE }),
+    'claude-cli': createUnavailableProvider('claude-cli', { status: 'not-installed', detail: cliElsewhere() }),
+    'codex-cli': createUnavailableProvider('codex-cli', { status: 'not-installed', detail: cliElsewhere() }),
     'remote-bridge': createUnavailableProvider('remote-bridge', { status: 'unpaired' }),
     ...opts.overrides,
   };

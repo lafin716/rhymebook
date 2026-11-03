@@ -1,5 +1,6 @@
 import type { CanvasPdf, CanvasPdfPage } from '@branch/core';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { t } from '../i18n';
 
 /** 한 번에 가져오는 최대 쪽 수 */
 export const PDF_MAX_PAGES = 100;
@@ -40,8 +41,8 @@ export async function pdfFromFile(file: File, budget: number, onProgress?: (done
     doc = await task.promise;
   } catch (e) {
     void task.destroy();
-    if (e instanceof Error && e.name === 'PasswordException') throw new Error('암호가 걸린 PDF는 가져올 수 없어요.', { cause: e });
-    throw new Error(`${file.name} 을(를) 읽지 못했어요. PDF 파일이 맞는지 확인하세요.`, { cause: e });
+    if (e instanceof Error && e.name === 'PasswordException') throw new Error(t('canvas.pdf.passwordProtected'), { cause: e });
+    throw new Error(t('canvas.pdf.readFailed', { name: file.name }), { cause: e });
   }
   try {
     const total = doc.numPages;

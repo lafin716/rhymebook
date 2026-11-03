@@ -1,12 +1,13 @@
+import { t, type MessageKey } from '../i18n';
 import type { ToolActivity } from '@branch/core';
 import { AlertTriangle, Check, ExternalLink, FileText, Globe, Loader2, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '../lib/cn';
 
-const TOOL_LABELS: Record<string, string> = {
-  web_search: '웹 검색',
-  web_fetch: '페이지 읽기',
-  code_execution: '코드 실행',
+const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
+  web_search: 'chat.tool.webSearch',
+  web_fetch: 'chat.tool.webFetch',
+  code_execution: 'chat.tool.codeExecution',
 };
 
 function hostOf(url: string): string {
@@ -31,7 +32,7 @@ export function ToolActivityList({ tools }: { tools: ToolActivity[] }) {
 
 function ToolRow({ tool }: { tool: ToolActivity }) {
   const [open, setOpen] = useState(false);
-  const label = TOOL_LABELS[tool.name] ?? '도구 사용';
+  const label = t(TOOL_LABEL_KEYS[tool.name] ?? 'chat.tool.used');
   const detail = tool.query ?? (tool.url ? hostOf(tool.url) : '');
   // 모델·검색 결과가 준 주소라 http(s)만 링크로 쓴다
   const sources = (tool.sources ?? []).filter((s) => /^https?:\/\//i.test(s.url));
@@ -54,10 +55,10 @@ function ToolRow({ tool }: { tool: ToolActivity }) {
         )}
         <span className="shrink-0 font-medium">{label}</span>
         {detail && <span className="truncate">{detail}</span>}
-        {tool.status === 'error' && <span className="shrink-0">· 실패</span>}
+        {tool.status === 'error' && <span className="shrink-0">· {t('chat.tool.failed')}</span>}
         {tool.status === 'done' && sources.length > 0 && (
           <span className="inline-flex shrink-0 items-center gap-0.5">
-            · <Check size={12} /> 출처 {sources.length}
+            · <Check size={12} /> {t('chat.tool.sources', { count: sources.length })}
           </span>
         )}
       </button>

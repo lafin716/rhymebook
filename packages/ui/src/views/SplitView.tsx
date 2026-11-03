@@ -9,6 +9,7 @@ import { IconButton } from '../components/Button';
 import { cn } from '../lib/cn';
 import { DropZone } from './DropZone';
 import { PaneMoveButton, SeparatorMenuButton } from './SplitControls';
+import { t } from '../i18n';
 
 /** 분할 보기: 데스크톱/태블릿은 좌우·상하 크기 조절 패널(최대 4), 모바일은 탭 전환 */
 export function SplitView() {
@@ -80,7 +81,7 @@ function Pane({ sessionId }: { sessionId: ID }) {
         headerActions={
           <>
             <PaneMoveButton sessionId={sessionId} />
-            <IconButton size="sm" label="패널 닫기" onClick={() => actions().closeSplit(index)}>
+            <IconButton size="sm" label={t('views.split.closePanel')} onClick={() => actions().closeSplit(index)}>
               <X size={16} />
             </IconButton>
           </>
@@ -96,7 +97,7 @@ function SplitTabs({ ids, focused }: { ids: ID[]; focused: number }) {
   const current = ids[focused] ?? ids[0];
   return (
     <div className="flex h-full flex-col">
-      <div role="tablist" aria-label="분할 탭" className="flex shrink-0 gap-1 overflow-x-auto border-b border-line bg-surface px-2 pt-1.5">
+      <div role="tablist" aria-label={t('views.split.tabs')} className="flex shrink-0 gap-1 overflow-x-auto border-b border-line bg-surface px-2 pt-1.5">
         {ids.map((id, i) => (
           <div
             key={`${i}-${id}`}
@@ -108,7 +109,7 @@ function SplitTabs({ ids, focused }: { ids: ID[]; focused: number }) {
             <button role="tab" aria-selected={i === focused} type="button" onClick={() => actions().focusSplit(i)} className="min-w-0 truncate py-2 pr-1 pl-3">
               {titles[i]}
             </button>
-            <button type="button" aria-label="탭 닫기" onClick={() => actions().closeSplit(i)} className="p-1.5 pr-2 text-muted">
+            <button type="button" aria-label={t('views.split.closeTab')} onClick={() => actions().closeSplit(i)} className="p-1.5 pr-2 text-muted">
               <X size={13} />
             </button>
           </div>

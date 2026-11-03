@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import {
   createBridgeClient,
   createBridgeProviders,
@@ -115,9 +116,9 @@ export async function saveRemoteHosts(list: RemotePairing[]): Promise<void> {
  * - 웹/모바일: 원격 Bridge만. CLI는 '사용 불가'이며 PC의 CLI는 원격 Bridge 하나로만 쓴다
  *   (에이전트·모델·노력치는 PC 설정이 정한다)
  */
-const remoteClient = createBridgeClient(remoteLink, { offlineMessage: '원격 Bridge와 연결이 끊어졌습니다.' });
+const remoteClient = createBridgeClient(remoteLink, { offlineMessage: () => t('app.runtime.remoteOffline') });
 const localClient = desktop
-  ? createBridgeClient(ipcTransport(desktop), { offlineMessage: '내장 bridge에 연결할 수 없습니다. 앱을 재시작하세요.' })
+  ? createBridgeClient(ipcTransport(desktop), { offlineMessage: () => t('app.runtime.localOffline') })
   : null;
 
 export const platformProviders: Partial<Record<ProviderId, LLMProvider>> = {

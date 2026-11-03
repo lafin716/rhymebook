@@ -4,17 +4,27 @@ import { canvasText, parseCanvas } from './canvas';
 import { isDocSession } from './page';
 import { stripEmbeds } from './pageFormat';
 import { stripBranchBlock } from './branch-suggest';
-import { DEFAULT_PROMPTS, promptText, type PromptOverrides } from './prompts';
+import { defaultPrompt, promptText, type PromptOverrides } from './prompts';
+import { t } from './i18n';
 import { withSkill } from './skills';
 import type { Anchor, ID, Message, Session, SkillRef } from './model';
 import type { ChatTurn, StreamRequest } from './provider';
 import { pathToRoot, type SessionMap } from './tree';
 
-export const BASE_SYSTEM = DEFAULT_PROMPTS.base;
+/** 기본 시스템 프롬프트 (지금 언어) */
+export function baseSystem(): string {
+  return defaultPrompt('base');
+}
 
-export const BRANCH_INSTRUCTION = DEFAULT_PROMPTS.branch;
+/** 가지(앵커) 지시 (지금 언어) */
+export function branchInstruction(): string {
+  return defaultPrompt('branch');
+}
 
-export const SUBSESSION_INSTRUCTION = DEFAULT_PROMPTS.subsession;
+/** 하위 세션 지시 (지금 언어) */
+export function subsessionInstruction(): string {
+  return defaultPrompt('subsession');
+}
 
 export const DEFAULT_CONTEXT_WINDOW = 6;
 const MAX_MESSAGE_CHARS = 1500;
@@ -25,11 +35,11 @@ export type MessageMap = Record<ID, Message[]>;
 function clip(text: string, max = MAX_MESSAGE_CHARS): string {
   // 페이지에 넣은 이미지·파일(data URL)은 자리표시로 — base64가 맥락을 다 차지하지 않게 (ADR-077)
   text = stripEmbeds(stripBranchBlock(text));
-  return text.length > max ? `${text.slice(0, max)}…(생략)` : text;
+  return text.length > max ? `${text.slice(0, max)}${t('llm.context.clipped')}` : text;
 }
 
 function roleLabel(role: Message['role']): string {
-  return role === 'user' ? '학습자' : '튜터';
+  return role === 'user' ? t('llm.context.user') : t('llm.context.tutor');
 }
 
 /**
@@ -57,8 +67,8 @@ export interface BranchContextOptions {
 
 /**
  * 세션 요청의 system 프롬프트를 만든다.
- * 루트 세션: BASE_SYSTEM
- * 서브세션: BASE_SYSTEM + 조상 앵커 체인 + 부모의 앵커 메시지까지 최근 N개 대화 + 지시문
+ * 루트 세션: 기본 시스템 프롬프트
+ * 서브세션: 기본 시스템 프롬프트 + 조상 앵커 체인 + 부모의 앵커 메시지까지 최근 N개 대화 + 지시문
  */
 export function buildSystemPrompt(opts: BranchContextOptions): string {
   const { sessions, messages, sessionId } = opts;
@@ -69,19 +79,19 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
   if (!self || !self.parentId) return base;
 
   const root = path[0]!;
-  const lines: string[] = [base, '', '## 학습 맥락', `루트 주제: ${root.title}`, '', '### 가지 경로 (루트 → 현재)'];
+  const lines: string[] = [base, '', t('llm.context.learningContext'), t('llm.context.rootTopic', { title: root.title }), '', t('llm.context.pathHeading')];
 
   path.slice(1).forEach((s, i) => {
     if (!s.parentId) return;
     if (!s.anchor) {
-      lines.push(`${i + 1}. (직접 만든 하위 세션) "${s.title}"`);
+      lines.push(t('llm.context.createdSubsession', { n: i + 1, title: s.title }));
       return;
     }
     const parentMsgs = messages[s.parentId] ?? [];
     const msg = parentMsgs.find((m) => m.id === s.anchor!.messageId);
     const range: [number, number] = sessions[s.parentId]?.kind === 'page' ? anchorRange(msg?.content ?? '', s.anchor) : [s.anchor.startOffset, s.anchor.endOffset];
     const ex = msg ? excerptAround(msg.content, ...range) : null;
-    const ctx = ex ? ` — 문맥: "${ex.before}[${ex.text}]${ex.after}"` : '';
+    const ctx = ex ? t('llm.context.anchorContext', { before: ex.before, text: ex.text, after: ex.after }) : '';
     lines.push(`${i + 1}. "${s.anchor.text}"${ctx}`);
   });
 
@@ -98,17 +108,17 @@ export function buildSystemPrompt(opts: BranchContextOptions): string {
   const doc = parentPage ? parentMsgs.find((m) => m.role === 'assistant' && m.content.trim() !== '') : undefined;
   if (doc && parentSession?.kind === 'canvas') {
     const text = canvasText(parseCanvas(doc.content), MAX_PAGE_CHARS);
-    if (text) lines.push('', '### 부모 캔버스 (학습자가 모은 자료와 필기)', text);
+    if (text) lines.push('', t('llm.context.parentCanvas'), text);
   } else if (doc) {
-    lines.push('', '### 부모 문서 (학습자가 쓴 페이지)', clip(doc.content, MAX_PAGE_CHARS));
+    lines.push('', t('llm.context.parentDoc'), clip(doc.content, MAX_PAGE_CHARS));
   } else if (!parentPage && recent.length) {
-    const label = anchor ? '앵커 메시지까지' : '하위 세션을 만들 때까지';
-    lines.push('', `### 부모 대화 (${label} 최근 ${recent.length}개)`);
+    const label = anchor ? t('llm.context.untilAnchor') : t('llm.context.untilCreated');
+    lines.push('', t('llm.context.parentChat', { label, count: recent.length }));
     for (const m of recent) lines.push(`[${roleLabel(m.role)}] ${clip(m.content)}`);
   }
 
-  if (anchor) lines.push('', '## 지시', promptText('branch', opts.prompts), `현재 질문 대상: "${anchor.text}"`);
-  else lines.push('', '## 지시', promptText('subsession', opts.prompts));
+  if (anchor) lines.push('', t('llm.context.instruction'), promptText('branch', opts.prompts), t('llm.context.targetQuestion', { text: anchor.text }));
+  else lines.push('', t('llm.context.instruction'), promptText('subsession', opts.prompts));
   return lines.join('\n');
 }
 
@@ -120,14 +130,14 @@ export function toTurns(msgs: Message[]): ChatTurn[] {
       if (m.role === 'assistant') {
         // 응답 이미지(Codex 생성)는 다시 보내지 않고 메모만 남긴다 — API는 assistant 턴 이미지를 받지 않는다 (ADR-041)
         const n = m.attachments?.filter((a) => a.kind === 'image').length ?? 0;
-        const note = n ? `[이미지 ${n}장을 만들어 보여 줌]` : '';
+        const note = n ? t('llm.context.imageNote', { count: n }) : '';
         return { role: m.role, content: [stripEmbeds(stripBranchBlock(m.content)).trim(), note].filter(Boolean).join('\n\n') || note };
       }
       const binary = m.attachments?.filter((a) => a.kind !== 'text') ?? [];
       const content = withTextAttachments(m.content, m.attachments);
       return {
         role: m.role,
-        content: content.trim() ? content : '첨부한 내용을 봐 줘.',
+        content: content.trim() ? content : t('llm.context.attachmentFallback'),
         ...(binary.length ? { attachments: binary } : {}),
       };
     });
@@ -145,34 +155,40 @@ export function buildChatRequest(opts: BranchContextOptions): StreamRequest {
   };
 }
 
-export const SUMMARY_SYSTEM = DEFAULT_PROMPTS.summary;
+/** 가지 요약 지시 (지금 언어) */
+export function summarySystem(): string {
+  return defaultPrompt('summary');
+}
 
 export function buildSummaryRequest(session: Session, msgs: Message[], prompts?: PromptOverrides): StreamRequest {
   // 캔버스는 JSON 대신 카드 글로 요약한다 (ADR-079)
   const src = session.kind === 'canvas' ? msgs.map((m) => ({ ...m, content: canvasText(parseCanvas(m.content), 2000) })) : msgs;
   const transcript = toTurns(src)
-    .map((t) => `[${roleLabel(t.role)}] ${clip(t.content, 2000)}`)
+    .map((turn) => `[${roleLabel(turn.role)}] ${clip(turn.content, 2000)}`)
     .join('\n');
   return {
     system: promptText('summary', prompts),
-    messages: [{ role: 'user', content: `질문 대상: "${session.anchor?.text ?? session.title}"\n\n${transcript}` }],
+    messages: [{ role: 'user', content: `${t('llm.context.summaryTarget', { target: session.anchor?.text ?? session.title })}\n\n${transcript}` }],
     purpose: 'summary',
   };
 }
 
-export const TITLE_SYSTEM = DEFAULT_PROMPTS.title;
+/** 세션 제목 지시 (지금 언어) */
+export function titleSystem(): string {
+  return defaultPrompt('title');
+}
 
 export function buildTitleRequest(msgs: Message[], prompts?: PromptOverrides): StreamRequest {
   const transcript = toTurns(msgs)
     .slice(0, 2)
-    .map((t) => `[${roleLabel(t.role)}] ${clip(t.content, 600)}`)
+    .map((turn) => `[${roleLabel(turn.role)}] ${clip(turn.content, 600)}`)
     .join('\n');
   return { system: promptText('title', prompts), messages: [{ role: 'user', content: transcript }], purpose: 'title' };
 }
 
 export function branchQuestion(kind: 'what' | 'detail', text: string): string {
-  const t = text.length > 80 ? `${text.slice(0, 80)}…` : text;
-  return kind === 'what' ? `"${t}"이(가) 뭐야?` : `"${t}"에 대해 더 자세히 설명해줘.`;
+  const label = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  return kind === 'what' ? t('llm.context.branchWhat', { text: label }) : t('llm.context.branchDetail', { text: label });
 }
 
 export function cleanTitle(raw: string): string {
@@ -187,7 +203,10 @@ export interface ReorganizeNote {
   summary?: string;
 }
 
-export const REORGANIZE_REQUEST = '이 세션의 대화 전체를 하나의 질문과 하나의 답변으로 재정리해 줘.';
+/** 세션 재정리 요청 문구 (지금 언어) */
+export function reorganizeRequest(): string {
+  return t('llm.context.reorganizeRequest');
+}
 
 /**
  * 세션 재정리 요청: system은 세션 맥락 + 재정리 스킬, 사용자 턴 하나에 대화 전문과 각주 목록을 싣는다.
@@ -199,22 +218,23 @@ export function buildReorganizeRequest(
   notes: readonly ReorganizeNote[],
   skill: SkillRef | undefined,
 ): StreamRequest {
-  const lines: string[] = ['## 세션 대화'];
+  const lines: string[] = [t('llm.context.sessionHeading')];
   let n = 0;
-  for (const t of toTurns([...source])) {
-    if (t.role === 'user') n++;
-    lines.push('', `### ${t.role === 'user' ? '질문' : '답변'} ${Math.max(n, 1)}`, clip(t.content, 6000));
+  for (const turn of toTurns([...source])) {
+    if (turn.role === 'user') n++;
+    const role = turn.role === 'user' ? t('llm.context.sessionUser') : t('llm.context.sessionAssistant');
+    lines.push('', t('llm.context.sessionTurn', { role, n: Math.max(n, 1) }), clip(turn.content, 6000));
   }
   if (notes.length) {
-    lines.push('', '## 각주 (재정리 후 이 번호로 가리킨다)');
+    lines.push('', t('llm.context.notesHeading'));
     notes.forEach((note, i) => {
       const parts = [`[${i + 1}] ${note.title}`];
-      if (note.anchorText) parts.push(`본문의 "${clip(note.anchorText, 120)}"에서 파생`);
-      if (note.summary) parts.push(`요약: ${clip(note.summary, 300)}`);
+      if (note.anchorText) parts.push(t('llm.context.noteFrom', { text: clip(note.anchorText, 120) }));
+      if (note.summary) parts.push(t('llm.context.noteSummary', { text: clip(note.summary, 300) }));
       lines.push(parts.join(' — '));
     });
   }
-  lines.push('', '## 요청', REORGANIZE_REQUEST);
+  lines.push('', t('llm.context.requestHeading'), reorganizeRequest());
   return {
     system: withSkill(buildSystemPrompt(opts), skill),
     messages: [{ role: 'user', content: lines.join('\n') }],
@@ -226,7 +246,7 @@ export function buildReorganizeRequest(
 export function parseReorganized(text: string, fallbackQuestion: string): { question: string; answer: string } | null {
   const body = text.replace(/^\uFEFF/, '').trim();
   if (!body) return null;
-  const m = /^\s*(?:\*\*)?질문(?:\*\*)?\s*[:：]\s*(.+?)\s*(?:\*\*)?\s*\n+\s*-{3,}\s*\n([\s\S]*)$/.exec(body);
+  const m = /^\s*(?:\*\*)?(?:질문|Question)(?:\*\*)?\s*[:：]\s*(.+?)\s*(?:\*\*)?\s*\n+\s*-{3,}\s*\n([\s\S]*)$/.exec(body);
   if (m && m[1]!.trim() && m[2]!.trim()) return { question: m[1]!.replace(/\*\*/g, '').trim(), answer: m[2]!.trim() };
   return { question: fallbackQuestion, answer: body };
 }

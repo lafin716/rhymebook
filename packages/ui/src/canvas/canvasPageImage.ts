@@ -1,6 +1,7 @@
 import { ATTACHMENT_LIMITS, CANVAS_PAPER, CANVAS_PATTERN_STEP, newId, type Attachment, type CanvasDoc, type CanvasRect, type CanvasTextItem } from '@branch/core';
 import { isDark } from './canvasBackground';
 import { strokeOpacity, strokePath } from './strokePath';
+import { t } from '../i18n';
 
 /** 쪽 그림의 긴 변 (px) */
 const MAX_SIDE = 2000;
@@ -11,7 +12,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('그림을 읽지 못했어요.'));
+    img.onerror = () => reject(new Error(t('canvas.pageImage.readFailed')));
     img.src = src;
   });
 }
@@ -109,7 +110,7 @@ export async function canvasPageAttachment(doc: CanvasDoc, rect: CanvasRect, pag
   canvas.width = Math.round(rect.w * scale);
   canvas.height = Math.round(rect.h * scale);
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('쪽 그림을 만들지 못했어요.');
+  if (!ctx) throw new Error(t('canvas.pageImage.createFailed'));
   ctx.scale(scale, scale);
   ctx.translate(-rect.x, -rect.y);
   ctx.beginPath();
@@ -145,9 +146,9 @@ export async function canvasPageAttachment(doc: CanvasDoc, rect: CanvasRect, pag
   canvas.width = canvas.height = 0;
   const [head = '', data = ''] = url.split(',', 2);
   const mime = head.slice(5, head.indexOf(';'));
-  if (base64Bytes(url) > ATTACHMENT_LIMITS.fileBytes) throw new Error('쪽 그림이 너무 커서 담지 못했어요.');
+  if (base64Bytes(url) > ATTACHMENT_LIMITS.fileBytes) throw new Error(t('canvas.pageImage.tooLarge'));
   const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
-  const name = `${title.trim() || '캔버스'} ${pageIdx + 1}쪽`.slice(0, ATTACHMENT_LIMITS.name - 6);
+  const name = t('canvas.pageImage.name', { title: title.trim() || t('canvas.pageImage.untitled'), page: pageIdx + 1 }).slice(0, ATTACHMENT_LIMITS.name - 6);
   return { id: newId('f'), kind: 'image', name: `${name}.${ext}`, mime, size: base64Bytes(url), data };
 }
 

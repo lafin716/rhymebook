@@ -1,0 +1,32 @@
+{
+  "remote": {
+    "label": "PC와 연결하기",
+    "title": "내 PC와 연결하기",
+    "intro": "PC와 연결하면 PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 CLI로 답해요. PC 없이 이 기기에서 API 키로 쓸 수도 있어요.",
+    "step1": "PC에서 octobooks 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.",
+    "step2": "[휴대폰·웹 연결]을 누르면 QR과 6자리 코드가 나와요.",
+    "step3": "아래에서 QR을 찍거나 링크·주소와 코드를 입력해요.",
+    "storeNote": "학습 기록은 PC에 저장돼요",
+    "later": "나중에 하기",
+    "useThisDevice": "이 기기에서 쓰기"
+  },
+  "local": {
+    "label": "시작하기",
+    "back": "뒤로",
+    "titleChoose": "octobooks 시작하기",
+    "titleCli": "이 PC의 CLI 연결",
+    "titleApi": "API 키 등록",
+    "titleDevice": "이 기기에서 시작하기",
+    "choosePitch": "호기심이 뻗는 만큼, 나의 배움도 깊어져요. 답변 속 궁금한 문장에서 새 가지를 펼쳐 보세요. 먼저 함께 배울 AI를 연결해요.",
+    "cliChoice": "이 PC의 CLI (구독 계정)",
+    "cliDesc": "설치·로그인된 Claude Code·Codex CLI를 그대로 실행해요. 모델·노력치도 고를 수 있어요.",
+    "recommended": "추천",
+    "apiChoice": "API 키",
+    "apiDesc": "Anthropic·OpenAI API 키로 직접 호출해요.",
+    "remoteTip": "휴대폰·웹에서도 이 PC의 CLI로 쓰려면 연결 후 설정 → 연결 → [원격 페어링 열기]를 켜세요.",
+    "apiNote": "학습은 이 기기에 저장되고, 답변은 등록한 API 키로 받아요.",
+    "start": "시작하기",
+    "waiting": "연결을 기다리는 중",
+    "later": "나중에 하기"
+  }
+}

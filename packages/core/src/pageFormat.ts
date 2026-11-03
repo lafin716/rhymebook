@@ -1,3 +1,4 @@
+import { t } from './i18n';
 /* ── 페이지 편집기 선택 서식 · 체크박스 · 첨부 (ADR-077) ── */
 
 /** 선택한 글에 씌우는 인라인 마크다운 서식 */
@@ -166,12 +167,12 @@ const escLabel = (s: string, fallback: string): string =>
   (s.replace(/\s+/g, ' ').trim() || fallback).replace(/[\\[\]]/g, (c) => `\\${c}`);
 
 /** 이미지 `![이름](data:…)` */
-export const pageImageMarkdown = (name: string, url: string): string => `![${escLabel(name, '이미지')}](${url})`;
+export const pageImageMarkdown = (name: string, url: string): string => `![${escLabel(name, t('core.fallback.image'))}](${url})`;
 
 /** 파일 링크 `[📎 이름](data:… "이름")` — 제목은 내려받을 때의 파일 이름 */
 export const pageFileMarkdown = (name: string, url: string): string => {
-  const label = escLabel(name, '파일');
-  const title = (name.replace(/\s+/g, ' ').trim() || '파일').replace(/["\\]/g, '');
+  const label = escLabel(name, t('core.fallback.file'));
+  const title = (name.replace(/\s+/g, ' ').trim() || t('core.fallback.file')).replace(/["\\]/g, '');
   return `[📎 ${label}](${url} "${title}")`;
 };
 

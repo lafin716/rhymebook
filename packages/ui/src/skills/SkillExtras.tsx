@@ -1,3 +1,4 @@
+import { t, tx } from '../i18n';
 import {
   CLI_MODEL_PRESETS,
   EFFORT_LABELS,
@@ -21,7 +22,7 @@ import { cn } from '../lib/cn';
 
 const FOLDER_HINTS = ['references/', 'scripts/', 'assets/'];
 
-const fmtSize = (n: number) => (n < 1000 ? `${n}자` : `${(n / 1000).toFixed(1)}천 자`);
+const fmtSize = (n: number) => (n < 1000 ? t('skills.extras.chars', { n }) : t('skills.extras.thousandChars', { n: (n / 1000).toFixed(1) }));
 
 /**
  * 스킬 폴더의 부수 파일 목록·편집. Claude·Codex 스킬처럼 references/(참고 자료)·scripts/(예제 코드)·assets/(템플릿)에 둔다.
@@ -50,7 +51,7 @@ export function SkillFilesField({
     if (!path || path.endsWith('/')) return false;
     const exists = files.some((f) => f.path.toLowerCase() === path.toLowerCase());
     if (exists) {
-      toast('같은 경로의 파일이 이미 있어요.');
+      toast(t('skills.extras.duplicatePath'));
       return false;
     }
     onChange([...files, { path, content }].sort((a, b) => a.path.localeCompare(b.path)));
@@ -61,12 +62,12 @@ export function SkillFilesField({
   const onUpload = async (list: FileList | null) => {
     for (const file of Array.from(list ?? [])) {
       if (file.size > SKILL_FILE_LIMITS.file * 4) {
-        toast(`${file.name}: 파일이 너무 커요.`);
+        toast(t('skills.extras.tooLarge', { name: file.name }));
         continue;
       }
       const text = await file.text();
       if (text.includes('\u0000')) {
-        toast(`${file.name}: 텍스트 파일만 넣을 수 있어요.`);
+        toast(t('skills.extras.textOnly', { name: file.name }));
         continue;
       }
       const dir = /\.(py|js|ts|sh|rb|go|java|c|cpp|rs)$/i.test(file.name) ? 'scripts/' : 'references/';
@@ -76,21 +77,21 @@ export function SkillFilesField({
   };
 
   return (
-    <section aria-label="스킬 파일" data-skill-files className="flex flex-col gap-2">
+    <section aria-label={t('skills.extras.filesSection')} data-skill-files className="flex flex-col gap-2">
       <div className="flex items-center gap-1.5">
         <span className="text-[13px] font-medium text-fg-2">
-          파일 <span className="font-normal text-muted">({files.length}개 · {fmtSize(total)})</span>
+          {t('skills.extras.files')} <span className="font-normal text-muted">{t('skills.extras.filesMeta', { n: files.length, count: files.length, size: fmtSize(total) })}</span>
         </span>
         <span className="flex-1" />
         {onOpenFolder && (
           <Button size="sm" variant="ghost" icon={<FolderOpen size={14} />} onClick={onOpenFolder} title={folderHint}>
-            폴더 열기
+            {t('skills.extras.openFolder')}
           </Button>
         )}
-        <IconButton size="sm" label="파일 가져오기" disabled={full} onClick={() => upload.current?.click()}>
+        <IconButton size="sm" label={t('skills.extras.importFile')} disabled={full} onClick={() => upload.current?.click()}>
           <Upload size={15} />
         </IconButton>
-        <IconButton size="sm" label="새 파일" disabled={full} onClick={() => setAdding('references/')}>
+        <IconButton size="sm" label={t('skills.extras.newFile')} disabled={full} onClick={() => setAdding('references/')}>
           <FilePlus2 size={15} />
         </IconButton>
         <input ref={upload} type="file" multiple hidden onChange={(e) => void onUpload(e.target.files)} />
@@ -98,7 +99,11 @@ export function SkillFilesField({
 
       {files.length === 0 && adding === null && (
         <p className="rounded-lg border border-dashed border-line px-3 py-2.5 text-[12.5px] leading-relaxed text-muted">
-          긴 참고 자료는 <code>references/</code>, 예제 코드는 <code>scripts/</code>, 답변 템플릿은 <code>assets/</code>에 두면 지시를 짧게 유지할 수 있어요. 파일은 이 스킬을 쓸 때 지시와 함께 모델에게 전달돼요.
+          {tx('skills.extras.filesHint', {
+            references: <code>references/</code>,
+            scripts: <code>scripts/</code>,
+            assets: <code>assets/</code>,
+          })}
         </p>
       )}
 
@@ -107,7 +112,7 @@ export function SkillFilesField({
         <div className="flex flex-wrap items-center gap-1.5">
           <input
             autoFocus
-            aria-label="새 파일 경로"
+            aria-label={t('skills.extras.newPathLabel')}
             value={adding}
             onChange={(e) => setAdding(e.target.value)}
             onKeyDown={(e) => {
@@ -128,10 +133,10 @@ export function SkillFilesField({
             </button>
           ))}
           <Button size="sm" variant="soft" onClick={() => add(adding) && setAdding(null)}>
-            추가
+            {t('skills.extras.add')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setAdding(null)}>
-            취소
+            {t('skills.extras.cancel')}
           </Button>
         </div>
       )}
@@ -153,13 +158,13 @@ export function SkillFilesField({
                   <span className="truncate font-mono text-[13px]">{f.path}</span>
                   <span className="ml-auto shrink-0 pl-2 text-[11.5px] text-muted">{fmtSize(f.content.length)}</span>
                 </button>
-                <IconButton size="sm" label={`${f.path} 삭제`} onClick={() => onChange(files.filter((x) => x.path !== f.path))}>
+                <IconButton size="sm" label={t('skills.extras.deleteFile', { path: f.path })} onClick={() => onChange(files.filter((x) => x.path !== f.path))}>
                   <Trash2 size={14} />
                 </IconButton>
               </div>
               {open === f.path && (
                 <textarea
-                  aria-label={`${f.path} 내용`}
+                  aria-label={t('skills.extras.fileContent', { path: f.path })}
                   value={f.content}
                   maxLength={SKILL_FILE_LIMITS.file}
                   rows={12}
@@ -200,25 +205,25 @@ export function SkillOptionsField({ value, onChange }: { value: OptionsDraft; on
   const extraModel = cli && value.model && !presets.some((x) => x.id === value.model) ? value.model : undefined;
   const remote = answersViaPc;
   const label = (id: ProviderId) => (remote ? `PC · ${PROVIDER_LABELS[id]}` : PROVIDER_LABELS[id]);
-  const summary = set ? [label(p as ProviderId), value.model, value.effort && (EFFORT_LABELS[value.effort] ?? value.effort)].filter(Boolean).join(' · ') : '세션 설정 따름';
+  const summary = set ? [label(p as ProviderId), value.model, value.effort && (EFFORT_LABELS[value.effort] ?? value.effort)].filter(Boolean).join(' · ') : t('skills.extras.followSession');
 
   return (
-    <section aria-label="고급 옵션" data-skill-options className="rounded-xl border border-line">
+    <section aria-label={t('skills.extras.advanced')} data-skill-options className="rounded-xl border border-line">
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left">
         <ChevronRight size={15} className={cn('shrink-0 text-muted transition-transform', open && 'rotate-90')} />
-        <span className="text-[13px] font-medium text-fg-2">고급 옵션</span>
+        <span className="text-[13px] font-medium text-fg-2">{t('skills.extras.advanced')}</span>
         <span className={cn('ml-auto truncate text-[12px]', set ? 'text-accent' : 'text-muted')}>{summary}</span>
       </button>
       {open && (
         <div className="flex flex-col gap-3 border-t border-line px-3 pt-3 pb-3.5">
-          <Row label={remote ? '에이전트' : '프로바이더'}>
+          <Row label={remote ? t('skills.extras.agent') : t('skills.extras.provider')}>
             <select
-              aria-label="스킬 프로바이더"
+              aria-label={t('skills.extras.providerLabel')}
               value={p}
               onChange={(e) => onChange({ providerId: e.target.value as ProviderId | '', model: '', effort: '' })}
               className={SELECT}
             >
-              <option value="">세션 설정 따름</option>
+              <option value="">{t('skills.extras.followSession')}</option>
               {choices().map((id) => (
                 <option key={id} value={id}>
                   {label(id)}
@@ -227,10 +232,10 @@ export function SkillOptionsField({ value, onChange }: { value: OptionsDraft; on
             </select>
           </Row>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Row label="모델">
+            <Row label={t('skills.extras.model')}>
               {!p || cli || p === 'remote-bridge' ? (
                 <select
-                  aria-label="스킬 모델"
+                  aria-label={t('skills.extras.modelLabel')}
                   disabled={!cli}
                   value={value.model}
                   onChange={(e) => {
@@ -240,7 +245,7 @@ export function SkillOptionsField({ value, onChange }: { value: OptionsDraft; on
                   }}
                   className={SELECT}
                 >
-                  <option value="">{remote ? 'PC 기본 모델' : `연결 기본 모델${conn?.model ? ` (${conn.model})` : ''}`}</option>
+                  <option value="">{remote ? t('skills.extras.pcDefaultModel') : conn?.model ? t('skills.extras.connDefaultWithModel', { model: conn.model }) : t('skills.extras.connDefault')}</option>
                   {presets.map((x) => (
                     <option key={x.id} value={x.id}>
                       {x.label}
@@ -250,17 +255,17 @@ export function SkillOptionsField({ value, onChange }: { value: OptionsDraft; on
                 </select>
               ) : (
                 <input
-                  aria-label="스킬 모델"
+                  aria-label={t('skills.extras.modelLabel')}
                   value={value.model}
-                  placeholder={conn?.model || '연결 기본 모델'}
+                  placeholder={conn?.model || t('skills.extras.connDefault')}
                   onChange={(e) => onChange({ ...value, model: e.target.value })}
                   className={cn(SELECT, 'font-mono')}
                 />
               )}
             </Row>
-            <Row label="노력치">
-              <select aria-label="스킬 노력치" disabled={!cli} value={value.effort} onChange={(e) => onChange({ ...value, effort: e.target.value })} className={SELECT}>
-                <option value="">{cli ? '기본 노력치' : '해당 없음'}</option>
+            <Row label={t('skills.extras.effort')}>
+              <select aria-label={t('skills.extras.effortLabel')} disabled={!cli} value={value.effort} onChange={(e) => onChange({ ...value, effort: e.target.value })} className={SELECT}>
+                <option value="">{cli ? t('skills.extras.effortDefault') : t('skills.extras.notApplicable')}</option>
                 {efforts.map((x) => (
                   <option key={x} value={x}>
                     {EFFORT_LABELS[x] ?? x}
@@ -271,8 +276,8 @@ export function SkillOptionsField({ value, onChange }: { value: OptionsDraft; on
           </div>
           <p className="text-[12px] leading-snug text-muted">
             {set
-              ? '이 스킬을 고른 질문은 위 설정으로 답해요. 그 뒤의 질문은 다시 세션 설정을 따라요. 모델·노력치를 비우면 그 연결의 기본값이에요.'
-              : '비워 두면 채팅(세션)에서 고른 provider·모델·노력치를 그대로 써요. 이 스킬만 다른 모델로 답하게 하려면 고르세요.'}
+              ? t('skills.extras.setHint')
+              : t('skills.extras.unsetHint')}
           </p>
         </div>
       )}

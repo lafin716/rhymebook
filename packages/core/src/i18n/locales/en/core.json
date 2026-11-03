@@ -1,0 +1,143 @@
+{
+  "attachments": {
+    "binaryNote": "(Attachments: {names} — file contents can't be viewed in this connection)"
+  },
+  "effort": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "xhigh": "Very high",
+    "max": "Max",
+    "ultra": "Ultra"
+  },
+  "availability": {
+    "disabled": "Disabled"
+  },
+  "providers": {
+    "mock": "Demo (Mock)",
+    "remoteBridge": "Remote Bridge"
+  },
+  "tts": {
+    "speechKorean": "Read clearly and naturally, like a native Korean speaker using standard Korean.",
+    "fallback": {
+      "auth": "because the OpenAI API key is missing or was rejected.",
+      "rateLimit": "because the OpenAI usage limit (credits) is used up or requests are too frequent.",
+      "offline": "because OpenAI could not be reached.",
+      "network": "because the OpenAI server responded with an error.",
+      "default": "because OpenAI speech could not be generated.",
+      "template": "{reason} Reading aloud with the device voice."
+    }
+  },
+  "stt": {
+    "large": {
+      "label": "Standard (accurate)",
+      "note": "Recommended for Apple Silicon and recent GPU PCs. Best Korean accuracy."
+    },
+    "small": {
+      "label": "Light (fast)",
+      "note": "For older or low-spec PCs. Fast, with slightly lower accuracy."
+    }
+  },
+  "bridgePrompt": {
+    "learner": "Learner",
+    "tutor": "Tutor",
+    "answer": "Continuing the conversation above, answer the learner's last message below. Do not copy the format of the conversation history."
+  },
+  "session": {
+    "newTitle": "New study"
+  },
+  "store": {
+    "reorganize": "Reorganize session"
+  },
+  "page": {
+    "newTitle": "New page",
+    "blocks": {
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "h3": "Heading 3",
+      "bullet": "Bullet list",
+      "number": "Numbered list",
+      "todo": "To-do list",
+      "quote": "Quote",
+      "code": "Code block",
+      "divider": "Divider",
+      "table": "Table",
+      "math": "Equation",
+      "image": "Image",
+      "file": "File",
+      "page": "Subpage"
+    },
+    "tableHeader": {
+      "item": "Item",
+      "desc": "Description"
+    }
+  },
+  "canvas": {
+    "newTitle": "New canvas",
+    "image": "Image",
+    "omitted": "…(omitted)",
+    "pdf": "[PDF: {name}]",
+    "imageNamed": "[Image: {name}]",
+    "imageBare": "[Image]",
+    "handwriting": "[Handwriting: {n} strokes]",
+    "pages": "[{pages} pages]"
+  },
+  "fallback": {
+    "image": "Image",
+    "file": "File"
+  },
+  "vault": {
+    "text": "Text",
+    "voice": "Voice",
+    "item": "Item"
+  },
+  "turns": {
+    "attachments": "[Attachments] {names}",
+    "splitQuestion": "Split question"
+  },
+  "notes": {
+    "header": "> octobooks understanding notes · {date} · {branches} branches · {summaries} summaries",
+    "empty": "No branches yet. Select something you don't understand in an answer to make a branch.",
+    "path": "Path: {path}",
+    "summary": "**What I understood** — {summary}",
+    "noSummary": "_No summary yet. It fills in when you use [Attach summary to parent] on a branch._",
+    "defaultName": "Understanding notes",
+    "fileTag": "understanding-notes"
+  },
+  "backupMarkdown": {
+    "title": "# octobooks backup",
+    "asOf": "As of {at}. To restore, use the backup JSON in App settings › Backup.",
+    "original": "> Original: \"{text}\"",
+    "summary": "> **Branch summary**: {text}",
+    "me": "**Me**: {text}"
+  },
+  "backupErrors": {
+    "invalid": "This is not an octobooks backup file, or it is damaged.",
+    "newerVersion": "This backup was made by a newer app version. Update the app, then restore.",
+    "passphraseRequired": "This backup is locked with a passphrase. Enter the passphrase.",
+    "wrongPassphrase": "The passphrase is incorrect."
+  },
+  "backupTargets": {
+    "file": "File",
+    "gdrive": "Google Drive"
+  },
+  "targetHttp": {
+    "unauthorized": "{label} authorization has expired or was rejected. Reconnect.",
+    "forbidden": "{label} permission is insufficient. Check write permission.",
+    "notFound": "The target was not found in {label}. Check the name and access permission.",
+    "network": "Cannot connect to {label}. Check your network.",
+    "failed": "The {label} request failed (HTTP {status})."
+  },
+  "route": {
+    "direct": "Direct connection",
+    "lan": "LAN direct connection",
+    "tailscale": "Tailscale direct connection",
+    "relay": "Via relay"
+  },
+  "remote": {
+    "base": "{name} · {route} · latency {latency}ms",
+    "loginNeeded": "{base} · CLI login is needed on the bridge PC. {detail}",
+    "notInstalled": "{base} · Claude/Codex CLI is not installed on the bridge PC.",
+    "via": "Via remote Bridge ({name})"
+  }
+}

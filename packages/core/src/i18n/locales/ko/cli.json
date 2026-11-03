@@ -1,0 +1,33 @@
+{
+  "bridge": {
+    "usage": "사용법:\n  branch-bridge [serve] [--pair] [--port 7777] [--host 0.0.0.0] [--name 이름] [--dir 경로]\n                [--relay wss://relay.example.com] [--relay-only]\n    --relay       NAT 뒤에서도 접속되도록 relay에 아웃바운드로 등록 (E2E 암호화 유지)\n    --relay-only  직접 포트를 열지 않고 relay로만 접속 받기\n  branch-bridge pair            (serve --pair 와 같음)\n  branch-bridge devices         페어링된 기기 목록\n  branch-bridge unpair <id|all> 기기 페어링 해제",
+    "noDevices": "페어링된 기기가 없습니다.",
+    "deviceLine": "{id}  {name}  페어링 {paired}  최근 {seen}",
+    "unpairMissing": "해제할 기기 id 또는 all 을 지정하세요.",
+    "unpaired": "{count}개 기기를 해제했습니다.",
+    "noSuchDevice": "해당 기기가 없습니다.",
+    "badPort": "잘못된 포트: {port}",
+    "relayOnlyNeedsRelay": "--relay-only 에는 --relay 주소가 필요합니다.",
+    "relayScheme": "relay 주소는 ws:// 또는 wss:// 로 시작해야 합니다.",
+    "insecureRelay": "주의: relay가 ws:// 입니다. 공개 네트워크에서는 wss:// 를 쓰세요 (페이로드는 E2E 암호화됨).",
+    "relayConnected": "✓ relay 연결됨",
+    "relayRetrying": "… relay 연결 끊김, 재시도 중",
+    "relayNotYet": "relay에 아직 연결하지 못했습니다. 백그라운드에서 계속 재시도합니다.",
+    "running": "Branch Bridge \"{name}\" 실행 중 ({target})",
+    "relayOnly": "relay 전용",
+    "port": "포트 {port}",
+    "fingerprint": "bridge 지문: {fingerprint}",
+    "scanHint": "앱의 설정 → 원격 Bridge → 페어링 시작에서 아래 QR을 스캔하거나 링크를 붙여 넣으세요.",
+    "link": "링크 ({label}): {uri}",
+    "codeLine": "또는 주소 + 코드 입력: 코드 {code}  (5분 유효, 1회용)",
+    "checkFingerprint": "앱에 표시되는 bridge 지문이 위 지문과 같은지 확인하세요.",
+    "paired": "✓ 페어링 완료: {name} ({id})",
+    "noDevicesPair": "페어링된 기기가 없습니다. --pair 옵션으로 페어링을 시작하세요."
+  },
+  "relay": {
+    "usage": "사용법:\n  branch-relay [--port 8787] [--host 0.0.0.0] [-v]",
+    "badPort": "잘못된 포트: {port}",
+    "running": "Branch Relay 실행 중: ws://{host}:{port}  (상태: http://{host}:{port}/health)",
+    "bridgeHint": "bridge: branch-bridge --relay <이 주소>   · 공개 배포 시 TLS(wss://) 프록시 뒤에 두세요."
+  }
+}

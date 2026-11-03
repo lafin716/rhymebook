@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { Attachment, AttachmentKind } from './model';
 
 /**
@@ -101,5 +102,5 @@ export function withTextAttachments(content: string, attachments: readonly Attac
 /** 텍스트로만 전달할 수 있는 provider용: 이미지·PDF가 있었다는 사실만 남긴다 */
 export function binaryNote(attachments: readonly Attachment[] | undefined): string {
   const names = (attachments ?? []).filter((a) => a.kind !== 'text').map((a) => a.name);
-  return names.length ? `(첨부: ${names.join(', ')} — 이 연결에서는 파일 내용을 볼 수 없음)` : '';
+  return names.length ? t('core.attachments.binaryNote', { names: names.join(', ') }) : '';
 }

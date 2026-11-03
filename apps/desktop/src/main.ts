@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, screen, t
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { createBridgeServer, createSkillsDir, createSttEngine, type BridgeConnection } from '@branch/bridge';
-import { isHostPolicy, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
+import { t, isHostPolicy, isLocale, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { htmlToPdf } from './pdf';
@@ -133,6 +133,7 @@ function createWindow(sessionId?: string): BrowserWindow {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
   });
   // 외부 링크는 기본 브라우저로, 앱 밖으로의 이동은 막는다
@@ -158,7 +159,7 @@ function createTray(hostState: HostState): Tray | null {
   try {
     const newTray = new Tray(iconPath);
     updateTrayMenu(newTray, hostState);
-    newTray.setToolTip('octobooks — 원격 연결 실행 중');
+    newTray.setToolTip(t('desktop.tray.tooltip'));
 
     // Left-click on Windows/Linux opens the window
     if (process.platform !== 'darwin') {
@@ -202,7 +203,7 @@ let spawnEngineWindow: (() => void) | null = null;
 function updateTrayMenu(trayIcon: Tray, hostState: HostState) {
   const menu = Menu.buildFromTemplate([
     {
-      label: 'octobooks 열기',
+      label: t('desktop.tray.open'),
       click: () => {
         showOrCreateWindow();
       },
@@ -211,14 +212,14 @@ function updateTrayMenu(trayIcon: Tray, hostState: HostState) {
       type: 'separator',
     },
     {
-      label: `원격 연결: ${hostState.enabled ? '켜짐' : '꺼짐'}${hostState.devices ? ' · 기기 ' + hostState.devices.length + '대' : ''}`,
+      label: t('desktop.tray.remote', { state: hostState.enabled ? t('desktop.tray.on') : t('desktop.tray.off'), devices: hostState.devices ? t('desktop.tray.devices', { count: hostState.devices.length }) : '' }),
       enabled: false,
     },
     {
       type: 'separator',
     },
     {
-      label: '완전 종료',
+      label: t('desktop.tray.quit'),
       click: () => {
         quitting = true;
         app.quit();
@@ -255,8 +256,8 @@ function hideWindow(win: BrowserWindow) {
   if (!hasShownBackgroundNotification && Notification.isSupported()) {
     hasShownBackgroundNotification = true;
     const notification = new Notification({
-      title: 'octobooks가 백그라운드에서 계속 실행 중입니다',
-      body: '페어링된 기기에서 계속 사용할 수 있어요. 완전히 끄려면 트레이 아이콘에서 [완전 종료]를 누르세요.',
+      title: t('desktop.notify.hiddenTitle'),
+      body: t('desktop.notify.hiddenBody', { quit: t('desktop.tray.quit') }),
     });
     notification.show();
   }
@@ -279,6 +280,13 @@ void app.whenReady().then(() => {
   );
   const vault = createSecretVault(app.getPath('userData'));
 
+  // 앱 언어 (ADR-105): 트레이·알림·bridge 오류 문구가 렌더러와 같은 언어를 쓴다
+  ipcMain.on(CH.setLocale, (_e, locale: unknown) => {
+    if (!isLocale(locale)) return;
+    setLocale(locale);
+    tray?.setToolTip(t('desktop.tray.tooltip'));
+    if (tray && host) void host.state().then((st) => tray && updateTrayMenu(tray, st));
+  });
   ipcMain.on(CH.secretPersistent, (e) => {
     e.returnValue = vault.persistent;
   });
@@ -303,12 +311,47 @@ void app.whenReady().then(() => {
   ipcMain.handle(CH.skillsOpen, (_e, folder: unknown) => skillsDir.open(folder));
   ipcMain.handle(CH.skillsReadAll, () => skillsDir.readAll());
 
+  // 엔진 창만 알림을 표시한다. 다른 창과 임의 프레임의 IPC는 거절한다.
+  const notificationSender = (e: Electron.IpcMainInvokeEvent) =>
+    e.sender === engineWindow && e.senderFrame === e.sender.mainFrame && isAppUrl(e.sender.getURL());
+  ipcMain.handle(CH.notificationSupported, (e) => notificationSender(e) && Notification.isSupported());
+  ipcMain.handle(CH.notificationShow, (e, input: unknown) => {
+    if (!notificationSender(e) || !Notification.isSupported() || !input || typeof input !== 'object') return false;
+    const { sessionId, title, body } = input as Record<string, unknown>;
+    if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)
+      || typeof title !== 'string' || title.length < 1 || title.length > 120
+      || typeof body !== 'string' || body.length > 240) return false;
+    return new Promise<boolean>((resolve) => {
+      try {
+        const notification = new Notification({ title, body });
+        const timer = setTimeout(() => resolve(false), 5000);
+        timer.unref();
+        const finish = (shown: boolean) => { clearTimeout(timer); resolve(shown); };
+        notification.once('show', () => finish(true));
+        notification.once('failed', () => finish(false));
+        notification.on('click', () => {
+          if (e.sender.isDestroyed()) return;
+          const window = BrowserWindow.fromWebContents(e.sender);
+          if (window && !window.isDestroyed()) {
+            if (window.isMinimized()) window.restore();
+            window.show();
+            window.focus();
+            e.sender.send(CH.notificationClick, sessionId);
+          }
+        });
+        notification.show();
+      } catch {
+        resolve(false);
+      }
+    });
+  });
+
   // 책 PDF (ADR-044). 숨은 창에서 인쇄한다
   ipcMain.handle(CH.pdfFromHtml, (_e, html: unknown) => htmlToPdf(html));
 
   // 음성 입력 관리 (ADR-045). 바뀌면 모든 창에 알린다(원격 기기는 stt.status.get으로 따라온다)
   const modelArg = (v: unknown) => {
-    if (!isSttModelId(v)) throw new Error('알 수 없는 모델입니다.');
+    if (!isSttModelId(v)) throw new Error(t('desktop.errors.unknownModel'));
     return v;
   };
   ipcMain.handle(CH.sttState, () => stt.state());
@@ -368,7 +411,7 @@ void app.whenReady().then(() => {
       y: area.y,
       width: external ? area.width : Math.min(1280, area.width),
       height: external ? area.height : Math.min(800, area.height),
-      title: 'octobooks 발표',
+      title: t('desktop.present.title'),
       backgroundColor: '#000000',
       show: false,
       webPreferences: {
@@ -512,11 +555,11 @@ void app.whenReady().then(() => {
   });
   const h = host;
 
-  /** 백그라운드 스로틀링을 호스트 상태에 맞춰 적용 */
+  /** 로컬 예약 엔진은 호스트 설정과 관계없이 백그라운드에서도 실행한다 */
   const applyThrottling = () => {
     if (engineWindow && !engineWindow.isDestroyed()) {
-      // 원격 기기나 세션 창이 엔진에 기대는 동안은 메인 창이 가려져도 늦추지 않는다
-      engineWindow.setBackgroundThrottling(!hostEnabled && sessionWindows.size === 0);
+      // 로컬 예약과 원격 동기화가 숨은 메인 창에서도 동작해야 한다
+      engineWindow.setBackgroundThrottling(false);
     }
   };
 

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { sttClient } from '../app/runtime';
 import { pushNotice } from '../app/sync';
 import { cn } from '../lib/cn';
+import { t } from '../i18n';
 import { micErrorMessage, startRecording, type Recorder } from './recorder';
 import { refreshStt, useSttStatus } from './sttStore';
 
@@ -23,8 +24,8 @@ export function MicButton({ onText, disabled }: { onText(text: string): void; di
   // 녹음 시간 표시
   useEffect(() => {
     if (phase !== 'recording') return;
-    const t = window.setInterval(() => setSecs(Math.floor(rec.current?.seconds() ?? 0)), 250);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => setSecs(Math.floor(rec.current?.seconds() ?? 0)), 250);
+    return () => window.clearInterval(timer);
   }, [phase]);
 
   // 화면을 떠나면 녹음·전사를 멈춘다
@@ -44,7 +45,7 @@ export function MicButton({ onText, disabled }: { onText(text: string): void; di
     try {
       const res = await r.stop();
       if ('skip' in res) {
-        pushNotice(res.skip === 'short' ? '녹음이 너무 짧아요.' : '들린 소리가 없어요. 마이크를 확인하고 다시 말해 주세요.');
+        pushNotice(res.skip === 'short' ? t('voice.mic.tooShort') : t('voice.mic.silent'));
         return;
       }
       const { audio } = res;
@@ -53,10 +54,10 @@ export function MicButton({ onText, disabled }: { onText(text: string): void; di
       const text = await sttClient.client.transcribe(audio, ac.signal);
       if (ac.signal.aborted) return;
       if (text) onText(text);
-      else pushNotice('알아들은 말이 없어요. 다시 말해 주세요.');
+      else pushNotice(t('voice.mic.noText'));
     } catch (e) {
       if (abort.current?.signal.aborted) return;
-      pushNotice(e instanceof Error ? e.message : '음성 변환에 실패했습니다.');
+      pushNotice(e instanceof Error ? e.message : t('voice.mic.failed'));
       void refreshStt();
     } finally {
       abort.current = null;
@@ -82,12 +83,12 @@ export function MicButton({ onText, disabled }: { onText(text: string): void; di
 
   const recording = phase === 'recording';
   const busy = phase === 'starting' || phase === 'transcribing';
-  const label = recording ? '녹음 끝내고 글자로 바꾸기' : phase === 'transcribing' ? '글자로 바꾸는 중' : '음성으로 입력';
+  const label = recording ? t('voice.mic.stop') : phase === 'transcribing' ? t('voice.mic.transcribing') : t('voice.mic.start');
   return (
     <button
       type="button"
       aria-label={label}
-      title={recording ? `녹음 중 ${secs}초 · 누르면 끝` : label}
+      title={recording ? t('voice.mic.recordingTitle', { secs }) : label}
       aria-pressed={recording}
       disabled={busy || (disabled && !recording)}
       onClick={() => (recording ? finishRef.current() : void start())}
@@ -101,7 +102,7 @@ export function MicButton({ onText, disabled }: { onText(text: string): void; di
       ) : recording ? (
         <>
           <Square size={12} fill="currentColor" aria-hidden />
-          <span className="text-[12.5px] tabular-nums">{secs}초</span>
+          <span className="text-[12.5px] tabular-nums">{t('voice.mic.seconds', { secs })}</span>
         </>
       ) : (
         <Mic size={19} aria-hidden />

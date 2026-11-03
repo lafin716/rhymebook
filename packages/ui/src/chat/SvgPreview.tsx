@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useState, type ComponentProps } from 'react';
 import type { ExtraProps } from 'react-markdown';
 import { svgDocument } from './svgPlugin';
@@ -14,9 +15,9 @@ export function SvgPreview({ node, children, ...props }: ComponentProps<'pre'> &
   if (!src || failed === src) return code;
   return (
     <div className="svg-preview" data-svg-preview>
-      <img src={src} alt="SVG 이미지" onError={() => setFailed(src)} />
+      <img src={src} alt={t('chat.svg.alt')} onError={() => setFailed(src)} />
       <details>
-        <summary data-anchor-ignore>SVG 코드 보기</summary>
+        <summary data-anchor-ignore>{t('chat.svg.showCode')}</summary>
         {code}
       </details>
     </div>

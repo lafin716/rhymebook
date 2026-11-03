@@ -12,7 +12,7 @@ import {
   type RemoteServer,
   type SttEngine,
 } from '@branch/bridge';
-import { keyFingerprint, type HostPolicy, type HostState, type SyncClientMsg, type SyncServerMsg } from '@branch/core';
+import { t, keyFingerprint, type HostPolicy, type HostState, type SyncClientMsg, type SyncServerMsg } from '@branch/core';
 import QRCode from 'qrcode';
 
 /**
@@ -104,7 +104,7 @@ export function createHostService(opts: {
       ...(error ? { error } : {}),
       name: s.name,
       fingerprint: keyFingerprint(s.identity.publicKey),
-      addresses: (server?.addresses() ?? []).map((a) => ({ label: a.label, url: a.url })),
+      addresses: (server?.addresses() ?? []).map((a) => ({ label: a.label, kind: a.kind, url: a.url })),
       devices: s.devices().map((d) => ({ id: d.id, name: d.name, pairedAt: d.pairedAt, lastSeenAt: d.lastSeenAt, connected: live.has(d.id) })),
       relayUrl: config.relayUrl ?? null,
       relayState,
@@ -174,7 +174,7 @@ export function createHostService(opts: {
     try {
       ({ srv, port } = await open(s));
     } catch (e) {
-      error = `포트를 열지 못했어요: ${e instanceof Error ? e.message : String(e)}`;
+      error = t('desktop.host.portFailed', { reason: e instanceof Error ? e.message : String(e) });
       port = null;
       return;
     }
@@ -226,7 +226,7 @@ export function createHostService(opts: {
     async setRelay(url) {
       const next = url?.trim() || null;
       if (next && !/^wss?:\/\/[^\s]+$/i.test(next)) {
-        error = 'relay 주소는 ws:// 또는 wss:// 로 시작해야 해요.';
+        error = t('desktop.host.relayScheme');
         return state();
       }
       error = undefined;
@@ -241,7 +241,7 @@ export function createHostService(opts: {
       if (!srv) return state();
       const session = srv.startPairing();
       // 휴대폰에서는 이 PC의 127.0.0.1에 닿을 수 없으므로 로컬 주소는 QR에서 뺀다
-      const uris = srv.pairingUris(session).filter((u) => u.address.label !== '로컬');
+      const uris = srv.pairingUris(session).filter((u) => u.address.kind !== 'local');
       const links = await Promise.all(
         uris.map(async ({ address, uri }) => ({
           label: address.label,

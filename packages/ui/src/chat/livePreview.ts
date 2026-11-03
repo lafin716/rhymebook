@@ -2,6 +2,7 @@ import { COLUMN_BREAK, COLUMNS_CLOSE, COLUMNS_OPEN, columnSpans, markdownBlocks,
 import { defaultKeymap, redo, undo } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { t } from '../i18n';
 import {
   Annotation,
   ChangeSet,
@@ -89,7 +90,7 @@ class DataUrlWidget extends WidgetType {
     el.className = 'cm-lp-dataurl';
     const kb = this.size * 0.75 / 1024;
     el.textContent = `${this.mime} · ${kb >= 1024 ? `${(kb / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(kb))}KB`}`;
-    el.title = '첨부 데이터';
+    el.title = t('page.live.dataUrl');
     return el;
   }
 }
@@ -183,8 +184,8 @@ class ImageWidget extends WidgetType {
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'cm-lp-image-delete';
-      del.textContent = '이미지 지우기';
-      del.setAttribute('aria-label', '이미지 지우기');
+      del.textContent = t('page.live.imageDelete');
+      del.setAttribute('aria-label', t('page.live.imageDelete'));
       del.addEventListener('mousedown', (e) => e.preventDefault());
       del.addEventListener('click', (e) => {
         e.preventDefault();
@@ -239,7 +240,7 @@ class CheckboxWidget extends WidgetType {
     el.type = 'checkbox';
     el.className = 'cm-lp-check';
     el.checked = this.checked;
-    el.setAttribute('aria-label', this.checked ? '완료한 할 일' : '할 일');
+    el.setAttribute('aria-label', this.checked ? t('page.live.taskDone') : t('page.live.task'));
     el.addEventListener('mousedown', (e) => e.preventDefault());
     el.addEventListener('click', (e) => {
       e.preventDefault();
@@ -271,7 +272,7 @@ class PageLinkWidget extends WidgetType {
     el.className = 'cm-lp-pagelink' + (this.missing ? ' cm-lp-missing' : '');
     el.href = `#page:${this.id}`;
     el.dataset.pageLink = this.id;
-    el.title = this.missing ? '지워진 페이지' : '하위 페이지 열기';
+    el.title = this.missing ? t('page.live.missingPage') : t('page.live.openPage');
     el.innerHTML = FILE_ICON;
     el.append(document.createTextNode(this.title));
     el.addEventListener('mousedown', (e) => e.preventDefault());
@@ -516,7 +517,7 @@ function columnEditor(main: EditorView, wrap: HTMLElement, col: number, text: st
         keymap.of(defaultKeymap),
         markdown({ base: markdownLanguage }),
         EditorView.lineWrapping,
-        EditorView.contentAttributes.of({ 'aria-label': `칸 ${col + 1}` }),
+        EditorView.contentAttributes.of({ 'aria-label': t('page.live.column', { n: col + 1 }) }),
         livePreview(opts),
       ],
     }),
@@ -557,8 +558,8 @@ class ColumnsWidget extends WidgetType {
       col.className = 'cm-lp-column';
       col.dataset.pageColumn = String(i);
       const btns = handleButtons(
-        { label: `칸 ${i + 1} 끝에 행 추가`, attrs: { 'data-column-add': String(i) } },
-        { label: `칸 ${i + 1} 옮기기·메뉴`, attrs: { 'data-column-handle': String(i) } },
+        { label: t('page.live.columnAddRow', { n: i + 1 }), attrs: { 'data-column-add': String(i) } },
+        { label: t('page.live.columnHandle', { n: i + 1 }), attrs: { 'data-column-handle': String(i) } },
       );
       btns.classList.add('cm-lp-colbtns');
       for (const b of btns.querySelectorAll('button')) b.disabled = locked;
@@ -842,7 +843,7 @@ function build(state: EditorState, opts: LivePreviewOptions): DecorationSet {
         if (!hm || !spaceAt(hm.to)) return;
         const line = doc.lineAt(n.from);
         const empty = withSpace(hm.to) >= line.to;
-        out.push(Decoration.line({ class: `cm-lp-h${heading[1]}${empty ? ' cm-lp-ph' : ''}`, attributes: empty ? { 'data-ph': `제목 ${heading[1]}` } : {} }).range(line.from));
+        out.push(Decoration.line({ class: `cm-lp-h${heading[1]}${empty ? ' cm-lp-ph' : ''}`, attributes: empty ? { 'data-ph': t('page.live.headingPlaceholder', { n: heading[1] ?? '' }) } : {} }).range(line.from));
         out.push(hide.range(hm.from, withSpace(hm.to)));
         return;
       }

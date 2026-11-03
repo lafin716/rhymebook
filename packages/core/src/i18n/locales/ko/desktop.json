@@ -1,0 +1,25 @@
+{
+  "tray": {
+    "tooltip": "octobooks — 원격 연결 실행 중",
+    "open": "octobooks 열기",
+    "remote": "원격 연결: {state}{devices}",
+    "devices": " · 기기 {count}대",
+    "on": "켜짐",
+    "off": "꺼짐",
+    "quit": "완전 종료"
+  },
+  "notify": {
+    "hiddenTitle": "octobooks가 백그라운드에서 계속 실행 중입니다",
+    "hiddenBody": "페어링된 기기에서 계속 사용할 수 있어요. 완전히 끄려면 트레이 아이콘에서 [{quit}]를 누르세요."
+  },
+  "errors": {
+    "unknownModel": "알 수 없는 모델입니다."
+  },
+  "present": {
+    "title": "octobooks 발표"
+  },
+  "host": {
+    "portFailed": "포트를 열지 못했어요: {reason}",
+    "relayScheme": "relay 주소는 ws:// 또는 wss:// 로 시작해야 해요."
+  }
+}

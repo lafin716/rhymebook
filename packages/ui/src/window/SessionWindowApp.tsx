@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { Laptop, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 import { useApp } from '../app/store';
@@ -43,10 +44,10 @@ export function SessionWindowApp() {
 function WindowStatus({ online }: { online: boolean }) {
   const status = useSync((s) => s.status);
   const [head, body] = online
-    ? ['세션을 찾을 수 없어요', '삭제되었거나 메인 창에서 사라진 세션이에요. 이 창을 닫아 주세요.']
+    ? [t('app.window.notFoundTitle'), t('app.window.notFoundBody')]
     : status === 'offline'
-      ? ['메인 창과 연결이 끊겼어요', 'octobooks 메인 창이 열려 있는지 확인하세요.']
-      : ['불러오는 중', '메인 창에서 세션을 가져오고 있어요.'];
+      ? [t('app.window.offlineTitle'), t('app.window.offlineBody')]
+      : [t('app.window.loadingTitle'), t('app.window.loadingBody')];
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 text-center">
       <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
@@ -61,7 +62,7 @@ function WindowStatus({ online }: { online: boolean }) {
           className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-fg"
         >
           <RefreshCw size={16} />
-          다시 연결
+          {t('app.window.reconnect')}
         </button>
       )}
     </div>

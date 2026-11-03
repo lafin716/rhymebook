@@ -7,12 +7,15 @@ import { TopBar } from '../components/TopBar';
 import { NotesModal } from '../notes/NotesModal';
 import { VaultOverlay } from '../vault/VaultOverlay';
 import { Onboarding } from '../onboarding/Onboarding';
+import { LanguagePrompt } from '../i18n/LanguagePrompt';
+import { useLocale } from '../i18n';
 import { SearchPalette } from '../search/SearchPalette';
 import { Sidebar } from '../session/Sidebar';
 import { useHostPolicySync } from '../settings/HostCard';
 import { SettingsModal } from '../settings/SettingsModal';
 import { SkillsPage } from '../skills/SkillsPage';
 import { PromptsPage } from '../prompts/PromptsPage';
+import { SchedulesPage } from '../schedules/SchedulesPage';
 import { MainView } from '../views/MainView';
 import { PopupLayer } from '../views/PopupLayer';
 import { SheetStack } from '../views/SheetStack';
@@ -24,6 +27,7 @@ import { useThemeSync } from './useTheme';
 
 export function App() {
   useThemeSync();
+  const needsLanguage = useLocale((s) => s.needsPrompt);
   useHostPolicySync();
   useScenarioHash();
   const bp = useBreakpoint();
@@ -73,10 +77,12 @@ export function App() {
       <VaultOverlay />
       <SkillsPage />
       <PromptsPage />
+      <SchedulesPage />
       <ConfirmHost />
       <MoveTurnHost />
       <Toasts />
-      <Onboarding />
+      {/* 설치 후 첫 실행: 언어부터 고르고 시작 안내를 띄운다 (ADR-105) */}
+      {needsLanguage ? <LanguagePrompt /> : <Onboarding />}
     </div>
   );
 }

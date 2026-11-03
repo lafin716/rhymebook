@@ -1,7 +1,7 @@
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { generateKeyPair, keyId, publicKeyOf, type KeyPair } from '@branch/core';
+import { t, generateKeyPair, keyId, publicKeyOf, type KeyPair } from '@branch/core';
 
 /**
  * 헤드리스 bridge의 신원 키와 페어링된 기기 목록.
@@ -39,7 +39,7 @@ async function readJson<T>(file: string): Promise<T | null> {
     return JSON.parse(await readFile(file, 'utf8')) as T;
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw new Error(`${file} 을(를) 읽을 수 없습니다: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+    throw new Error(t('bridge.store.readFailed', { file, reason: e instanceof Error ? e.message : String(e) }), { cause: e });
   }
 }
 

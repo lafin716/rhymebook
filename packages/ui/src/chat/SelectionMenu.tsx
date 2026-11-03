@@ -1,3 +1,4 @@
+import { t, tx, type MessageKey } from '../i18n';
 import {
   branchQuestion,
   findAnnotationsOverlapping,
@@ -275,7 +276,7 @@ export function SelectionMenu() {
   const attach = () => {
     const text = textOf();
     if (!quoteToComposer(pending.sessionId, text)) {
-      pushNotice('이 세션의 입력창이 열려 있지 않아요.');
+      pushNotice(t('chat.selection.composerClosed'));
       return;
     }
     window.getSelection()?.removeAllRanges();
@@ -389,25 +390,25 @@ export function SelectionMenu() {
         }}
         onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
         rows={3}
-        aria-label="선택한 글 고치기"
+        aria-label={t('chat.selection.editText')}
         className="w-full resize-none rounded-lg border border-line bg-bg p-2 text-sm outline-none focus:border-accent"
       />
       <div className="flex items-center justify-between gap-1.5">
-        <span className="text-[12px] text-muted">질문·첨부·복사에 고친 글을 써요</span>
+        <span className="text-[12px] text-muted">{t('chat.selection.editHint')}</span>
         <span className="flex gap-1.5">
           <button
             type="button"
             onClick={() => setDraft(null)}
             className="h-8 rounded-lg px-3 text-[13px] text-fg-2 hover:bg-surface-2"
           >
-            취소
+            {t('chat.selection.cancel')}
           </button>
           <button
             type="submit"
             disabled={!(draft ?? '').trim()}
             className="h-8 rounded-lg bg-accent px-3 text-[13px] font-medium text-accent-fg disabled:opacity-40"
           >
-            적용
+            {t('chat.selection.apply')}
           </button>
         </span>
       </div>
@@ -422,12 +423,12 @@ export function SelectionMenu() {
         {quote}
       </span>
       <button type="button" onClick={startEdit} className="shrink-0 rounded px-1 text-accent hover:bg-surface">
-        고치기
+        {t('chat.selection.edit')}
       </button>
       <button
         type="button"
-        aria-label="원래 선택으로"
-        title="원래 선택으로"
+        aria-label={t('chat.selection.resetText')}
+        title={t('chat.selection.resetText')}
         onClick={() => setEdited(null)}
         className="inline-flex size-5 shrink-0 items-center justify-center rounded text-muted hover:bg-surface hover:text-fg"
       >
@@ -448,20 +449,20 @@ export function SelectionMenu() {
         autoFocus
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
-        placeholder={`"${quote}"에 대해 질문…`}
+        placeholder={t('chat.selection.askPlaceholder', { quote })}
         className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-bg px-2.5 text-sm outline-none focus:border-accent"
       />
       <button
         type="submit"
         disabled={!question.trim()}
-        aria-label="질문 보내기"
+        aria-label={t('chat.selection.sendQuestion')}
         className="inline-flex size-9 items-center justify-center rounded-lg bg-accent text-accent-fg disabled:opacity-40"
       >
         <Send size={16} />
       </button>
       <button
         type="button"
-        aria-label="취소"
+        aria-label={t('chat.selection.cancel')}
         onClick={() => setCustom(false)}
         className="inline-flex size-9 items-center justify-center rounded-lg text-fg-2 hover:bg-surface-2"
       >
@@ -487,8 +488,8 @@ export function SelectionMenu() {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveMemo();
         }}
         rows={3}
-        placeholder={`"${quote}"에 메모…`}
-        aria-label="메모"
+        placeholder={t('chat.selection.notePlaceholder', { quote })}
+        aria-label={t('chat.selection.note')}
         className="w-full resize-none rounded-lg border border-line bg-bg p-2 text-sm outline-none focus:border-accent"
       />
       <div className="flex justify-end gap-1.5">
@@ -497,10 +498,10 @@ export function SelectionMenu() {
           onClick={() => setMemo(null)}
           className="h-8 rounded-lg px-3 text-[13px] text-fg-2 hover:bg-surface-2"
         >
-          취소
+          {t('chat.selection.cancel')}
         </button>
         <button type="submit" className="h-8 rounded-lg bg-accent px-3 text-[13px] font-medium text-accent-fg">
-          메모 저장
+          {t('chat.selection.noteSave')}
         </button>
       </div>
     </form>
@@ -513,7 +514,7 @@ export function SelectionMenu() {
   );
 
   const toolbar = (
-    <div className={cn('flex flex-wrap items-center gap-0.5', mobile && 'justify-between')} aria-label="서식">
+    <div className={cn('flex flex-wrap items-center gap-0.5', mobile && 'justify-between')} aria-label={t('chat.selection.formatting')}>
       {!onPage && (
         <>
           {COLOR_KINDS.map(({ kind, Icon }) => {
@@ -522,7 +523,7 @@ export function SelectionMenu() {
               <button
                 key={kind}
                 type="button"
-                aria-label={`${COLOR_KIND_LABELS[kind]} 색상표${cur ? ` (현재 ${colorLabel(cur)})` : ''}`}
+                aria-label={cur ? t('chat.selection.colorCurrent', { kind: COLOR_KIND_LABELS[kind], color: colorLabel(cur) }) : t('chat.selection.colorPalette', { kind: COLOR_KIND_LABELS[kind] })}
                 aria-haspopup="true"
                 aria-expanded={palette === kind}
                 title={COLOR_KIND_LABELS[kind]}
@@ -544,34 +545,34 @@ export function SelectionMenu() {
             );
           })}
           <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
-          <ToolButton label="굵게" pressed={!!exact?.bold} onClick={() => applyStyle({ bold: true })}>
+          <ToolButton label={t('chat.selection.bold')} pressed={!!exact?.bold} onClick={() => applyStyle({ bold: true })}>
             <Bold size={15} />
           </ToolButton>
-          <ToolButton label="기울임" pressed={!!exact?.italic} onClick={() => applyStyle({ italic: true })}>
+          <ToolButton label={t('chat.selection.italic')} pressed={!!exact?.italic} onClick={() => applyStyle({ italic: true })}>
             <Italic size={15} />
           </ToolButton>
-          {fontBtn('serif', '명조체', '가')}
-          {fontBtn('mono', '고정폭', 'Aa')}
-          <ToolButton label="서식 지우기" onClick={clearStyle}>
+          {fontBtn('serif', t('chat.selection.serif'), '가')}
+          {fontBtn('mono', t('chat.selection.mono'), 'Aa')}
+          <ToolButton label={t('chat.selection.clearFormat')} onClick={clearStyle}>
             <Eraser size={15} />
           </ToolButton>
         </>
       )}
       {pending.editor ? (
         <>
-          {PAGE_FORMATS.map(({ kind, label, Icon }) => (
-            <ToolButton key={kind} label={label} format={kind} onClick={() => pending.editor && formatPage(pending.editor, kind)}>
+          {PAGE_FORMATS.map(({ kind, labelKey, Icon }) => (
+            <ToolButton key={kind} label={t(labelKey)} format={kind} onClick={() => pending.editor && formatPage(pending.editor, kind)}>
               <Icon size={15} />
             </ToolButton>
           ))}
           <span className="mx-0.5 h-5 w-px bg-line" aria-hidden />
         </>
       ) : (
-        <ToolButton label="선택한 글 고치기" pressed={edited !== null} onClick={startEdit}>
+        <ToolButton label={t('chat.selection.editText')} pressed={edited !== null} onClick={startEdit}>
           <Pencil size={15} />
         </ToolButton>
       )}
-      <ToolButton label={exact?.note ? '메모 수정' : '메모'} pressed={!!exact?.note} onClick={() => setMemo(exact?.note ?? '')}>
+      <ToolButton label={exact?.note ? t('chat.selection.noteEdit') : t('chat.selection.note')} pressed={!!exact?.note} onClick={() => setMemo(exact?.note ?? '')}>
         <StickyNote size={15} />
       </ToolButton>
     </div>
@@ -602,21 +603,21 @@ export function SelectionMenu() {
               }
             }}
           >
-            AI로 채우기
+            {t('chat.selection.fillWithAi')}
           </MenuButton>
         )}
         <MenuButton size={size} icon={<HelpCircle size={size === 'lg' ? 18 : 15} />} onClick={() => run('what')}>
-          이게 뭐야?
+          {t('chat.selection.what')}
         </MenuButton>
         <MenuButton size={size} icon={<ZoomIn size={size === 'lg' ? 18 : 15} />} onClick={() => run('detail')}>
-          더 자세히
+          {t('chat.selection.detail')}
         </MenuButton>
         <MenuButton size={size} icon={<MessageSquarePlus size={size === 'lg' ? 18 : 15} />} onClick={() => setCustom(true)}>
-          직접 질문
+          {t('chat.selection.customQuestion')}
         </MenuButton>
         {hasComposer(pending.sessionId) && (
           <MenuButton size={size} icon={<TextQuote size={size === 'lg' ? 18 : 15} />} onClick={attach}>
-            질문에 첨부
+            {t('chat.selection.attachToQuestion')}
           </MenuButton>
         )}
         <MenuButton
@@ -624,7 +625,7 @@ export function SelectionMenu() {
           icon={copied ? <Check size={size === 'lg' ? 18 : 15} /> : <Copy size={size === 'lg' ? 18 : 15} />}
           onClick={() => void copy()}
         >
-          {copied ? '복사됨' : '복사'}
+          {copied ? t('chat.selection.copied') : t('chat.selection.copy')}
         </MenuButton>
         {isPageEditor && (
           <MenuButton
@@ -640,7 +641,7 @@ export function SelectionMenu() {
               }
             }}
           >
-            잘라내기
+            {t('chat.selection.cut')}
           </MenuButton>
         )}
         <MenuButton
@@ -648,10 +649,10 @@ export function SelectionMenu() {
           icon={speaking ? <Square size={size === 'lg' ? 17 : 14} /> : <Volume2 size={size === 'lg' ? 18 : 15} />}
           onClick={listen}
         >
-          {speaking ? '멈춤' : '듣기'}
+          {speaking ? t('chat.selection.stop') : t('chat.selection.listen')}
         </MenuButton>
         <MenuButton size={size} icon={<Archive size={size === 'lg' ? 18 : 15} />} onClick={keep}>
-          보관
+          {t('chat.selection.keep')}
         </MenuButton>
       </>
     );
@@ -677,16 +678,13 @@ export function SelectionMenu() {
           <button
             type="button"
             onClick={startEdit}
-            aria-label="선택한 글 고치기"
+            aria-label={t('chat.selection.editText')}
             className="min-w-0 flex-1 truncate text-left"
           >
-            <span className="rounded bg-anchor px-1 text-fg" data-testid={edited !== null ? 'selection-edited' : undefined}>
-              {quote}
-            </span>{' '}
-            로 가지 치기 <Pencil size={12} className="inline align-[-1px] text-accent" />
+            {tx('chat.selection.branchBar', { quote: <span className="rounded bg-anchor px-1 text-fg" data-testid={edited !== null ? 'selection-edited' : undefined}>{quote}</span> })} <Pencil size={12} className="inline align-[-1px] text-accent" />
           </button>
           <button
-            aria-label="닫기"
+            aria-label={t('chat.selection.close')}
             onClick={() => {
               window.getSelection()?.removeAllRanges();
               dismiss();
@@ -728,7 +726,7 @@ export function SelectionMenu() {
       ref={menuRef}
       {...guard}
       role="toolbar"
-      aria-label="가지·서식"
+      aria-label={t('chat.selection.toolbarLabel')}
       data-placement={pos.placement}
       style={{ top: pos.top, left: pos.left, width }}
       className={cn(
@@ -791,12 +789,12 @@ function MenuButton({
 const SELECTION_MAX = 10_000;
 
 /** 페이지 편집기에서 고른 글에 넣는 마크다운 서식 (ADR-086) */
-const PAGE_FORMATS: { kind: InlineFormat; label: string; Icon: typeof Bold }[] = [
-  { kind: 'bold', label: '굵게', Icon: Bold },
-  { kind: 'italic', label: '기울임', Icon: Italic },
-  { kind: 'strike', label: '취소선', Icon: Strikethrough },
-  { kind: 'code', label: '코드', Icon: Code },
-  { kind: 'link', label: '링크', Icon: LinkIcon },
+const PAGE_FORMATS: { kind: InlineFormat; labelKey: MessageKey; Icon: typeof Bold }[] = [
+  { kind: 'bold', labelKey: 'chat.selection.bold', Icon: Bold },
+  { kind: 'italic', labelKey: 'chat.selection.italic', Icon: Italic },
+  { kind: 'strike', labelKey: 'chat.selection.strike', Icon: Strikethrough },
+  { kind: 'code', labelKey: 'chat.selection.code', Icon: Code },
+  { kind: 'link', labelKey: 'chat.selection.link', Icon: LinkIcon },
 ];
 
 const COLOR_KINDS: { kind: ColorKind; Icon: typeof Highlighter }[] = [

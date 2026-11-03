@@ -20,11 +20,13 @@ import { Badge, StatusDot } from '../components/Badge';
 import { Button } from '../components/Button';
 import { cn } from '../lib/cn';
 import { relativeTime } from '../lib/time';
+import { intlLocale, t } from '../i18n';
 import { Field, Section, Segmented, Toggle } from './controls';
 
 /** 설정 › 백업 탭. 상태와 동작은 backup/service (ADR-015) */
 /** 대상마다 파일 이름이 같을 수 있어 대상 id를 붙인다 */
 const entryKey = (e: BackupEntry) => `${e.targetId}|${e.id}`;
+// 단위 기호(B, KB)는 어느 언어에서나 같아 번역하지 않는다
 const formatSize = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
 export function BackupTab() {
@@ -73,17 +75,19 @@ export function BackupTab() {
             <CloudUpload size={18} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-[14.5px] font-medium">{last ? `마지막 백업 ${relativeTime(last.at)}` : '아직 백업이 없어요'}</div>
+            <div className="text-[14.5px] font-medium">
+              {last ? t('settings.backup.lastAt', { time: relativeTime(last.at) }) : t('settings.backup.noneYet')}
+            </div>
             <div className="text-[12.5px] text-muted">
-              {last ? `${BACKUP_TARGET_LABEL[last.targetId]} · ${formatSize(last.size)}` : '대화·가지·앵커·요약·보기 상태를 하나의 파일로 저장합니다.'}
+              {last ? `${BACKUP_TARGET_LABEL[last.targetId]} · ${formatSize(last.size)}` : t('settings.backup.what')}
             </div>
           </div>
           <div className="flex w-full gap-2 sm:w-auto">
             <Button size="sm" variant="secondary" className="flex-1 sm:flex-none" icon={<History size={14} />} onClick={() => setRestoring((r) => !r)} aria-expanded={restoring}>
-              복원
+              {t('settings.backup.restore')}
             </Button>
             <Button size="sm" variant="primary" className="flex-1 sm:flex-none" icon={<Upload size={14} className={busy ? 'animate-pulse' : ''} />} onClick={() => void backupNow()} disabled={!!s.busy}>
-              {busy ? '백업 중…' : '지금 백업'}
+              {busy ? t('settings.backup.backingUp') : t('settings.backup.backupNow')}
             </Button>
           </div>
         </div>
@@ -114,21 +118,21 @@ export function BackupTab() {
         )}
       </div>
 
-      <Section title="백업 위치" hint="여러 곳을 켜 두면 모두에 저장합니다. 실시간 동기화가 아니라 시점별 사본입니다.">
-        <TargetCard icon={<HardDrive size={18} />} title="파일 (이 기기)" status="항상 사용 가능" tone="ok">
+      <Section title={t('settings.backup.locationTitle')} hint={t('settings.backup.locationHint')}>
+        <TargetCard icon={<HardDrive size={18} />} title={t('settings.backup.fileTitle')} status={t('settings.backup.fileStatus')} tone="ok">
           <div className="flex flex-wrap gap-2">
             <Button size="sm" icon={<Download size={14} />} onClick={() => void exportFile()}>
-              JSON 내보내기
+              {t('settings.backup.exportJson')}
             </Button>
             <Button size="sm" variant="ghost" icon={<FileJson size={14} />} onClick={() => fileInput.current?.click()}>
-              파일에서 가져오기
+              {t('settings.backup.importFile')}
             </Button>
             <input
               ref={fileInput}
               type="file"
               accept="application/json,.json"
               className="hidden"
-              aria-label="백업 파일 선택"
+              aria-label={t('settings.backup.importAria')}
               onChange={(e) => {
                 void onImport(e.target.files?.[0]);
                 e.target.value = '';
@@ -139,37 +143,37 @@ export function BackupTab() {
 
         <TargetCard
           icon={<GoogleDriveIcon />}
-          title="구글 드라이브"
-          status={gdrive ? `${gdrive} · 연결됨` : '연결 안 됨'}
+          title={t('settings.backup.driveTitle')}
+          status={gdrive ? t('settings.backup.driveStatus', { account: gdrive }) : t('settings.backup.notConnected')}
           tone={gdrive ? 'ok' : 'neutral'}
-          badge={primary === 'gdrive' ? '자동 백업 대상' : undefined}
+          badge={primary === 'gdrive' ? t('settings.backup.autoTarget') : undefined}
         >
           {gdrive ? (
             <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-fg-2">
-              <span>앱 전용 숨김 폴더에만 접근합니다. 다른 드라이브 파일은 볼 수 없어요.</span>
+              <span>{t('settings.backup.driveNote')}</span>
               <Button size="sm" variant="ghost" onClick={() => void disconnectDrive()}>
-                연결 해제
+                {t('settings.backup.disconnect')}
               </Button>
             </div>
           ) : (
             <Button size="sm" variant="soft" onClick={() => void connectDrive()} disabled={!!s.busy}>
-              Google 계정 연결
+              {t('settings.backup.driveConnect')}
             </Button>
           )}
         </TargetCard>
 
         <TargetCard
           icon={<FolderGit2 size={18} />}
-          title="GitHub 저장소"
-          status={github ? `${github} · 연결됨` : '연결 안 됨'}
+          title={t('settings.backup.githubTitle')}
+          status={github ? t('settings.backup.githubStatus', { repo: github }) : t('settings.backup.notConnected')}
           tone={github ? 'ok' : 'neutral'}
-          badge={primary === 'github' ? '자동 백업 대상' : undefined}
+          badge={primary === 'github' ? t('settings.backup.autoTarget') : undefined}
         >
           {github ? (
             <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-fg-2">
-              <span>backup.json과 읽기용 마크다운을 커밋합니다.</span>
+              <span>{t('settings.backup.githubNote')}</span>
               <Button size="sm" variant="ghost" onClick={() => void disconnectGithub()}>
-                연결 해제
+                {t('settings.backup.disconnect')}
               </Button>
             </div>
           ) : (
@@ -178,19 +182,19 @@ export function BackupTab() {
         </TargetCard>
       </Section>
 
-      <Field label="자동 백업" hint="변경 시: 편집이 멈추고 몇 분 뒤 저장합니다.">
+      <Field label={t('settings.backup.autoLabel')} hint={t('settings.backup.autoHint')}>
         <div className="flex flex-wrap items-center gap-3">
           <Segmented<AutoBackupMode>
             value={auto}
             options={[
-              ['off', '끄기'],
-              ['change', '변경 시'],
-              ['daily', '매일'],
+              ['off', t('settings.backup.autoOff')],
+              ['change', t('settings.backup.autoChange')],
+              ['daily', t('settings.backup.autoDaily')],
             ]}
             onChange={(v) => setPrefs({ auto: v })}
           />
           <label className="flex items-center gap-2 text-[13px] text-fg-2">
-            최근
+            {t('settings.backup.recent')}
             <select
               value={keep}
               onChange={(e) => setPrefs({ keep: Number(e.target.value) })}
@@ -198,11 +202,11 @@ export function BackupTab() {
             >
               {[5, 10, 30].map((n) => (
                 <option key={n} value={n}>
-                  {n}개
+                  {t('settings.backup.keepCount', { n })}
                 </option>
               ))}
             </select>
-            보관
+            {t('settings.backup.keep')}
           </label>
         </div>
       </Field>
@@ -211,10 +215,10 @@ export function BackupTab() {
         <div className="flex items-center gap-3">
           <Lock size={16} className="shrink-0 text-fg-2" />
           <div className="min-w-0 flex-1">
-            <div className="text-[13.5px] font-medium">암호로 백업 잠그기</div>
-            <p className="text-[12.5px] text-muted">백업 파일을 기기에서 암호화한 뒤 내보냅니다.</p>
+            <div className="text-[13.5px] font-medium">{t('settings.backup.encryptLabel')}</div>
+            <p className="text-[12.5px] text-muted">{t('settings.backup.encryptHint')}</p>
           </div>
-          <Toggle checked={encrypt} onChange={(v) => setPrefs({ encrypt: v })} label="백업 암호화" />
+          <Toggle checked={encrypt} onChange={(v) => setPrefs({ encrypt: v })} label={t('settings.backup.encryptAria')} />
         </div>
         {encrypt && (
           <div className="mt-2 space-y-2 pl-7">
@@ -222,14 +226,14 @@ export function BackupTab() {
               type="password"
               value={s.passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
-              placeholder="백업 암호"
-              aria-label="백업 암호"
+              placeholder={t('settings.backup.passAria')}
+              aria-label={t('settings.backup.passAria')}
               autoComplete="new-password"
               className="h-9 w-full rounded-lg border border-line bg-bg px-3 text-[13px] outline-none focus:border-accent"
             />
             <p className="flex items-start gap-1.5 text-[12px] text-warn">
               <TriangleAlert size={13} className="mt-0.5 shrink-0" />
-              암호를 잊으면 백업을 복원할 수 없어요. 암호는 저장되지 않습니다.
+              {t('settings.backup.passWarn')}
             </p>
           </div>
         )}
@@ -237,7 +241,7 @@ export function BackupTab() {
 
       <p className="flex items-start gap-1.5 text-[12px] text-muted">
         <TriangleAlert size={13} className="mt-0.5 shrink-0" />
-        API 키·페어링 키·로그인 토큰은 백업에 포함되지 않습니다. 웹에서는 드라이브/GitHub 연결도 이 탭의 메모리에만 보관합니다.
+        {t('settings.backup.secretsNote')}
       </p>
     </div>
   );
@@ -297,8 +301,8 @@ function GithubForm({ initialRepo, busy, onConnect }: { initialRepo: string; bus
         <input
           value={repo}
           onChange={(e) => setRepo(e.target.value)}
-          placeholder="owner/repo (비공개 권장)"
-          aria-label="GitHub 저장소"
+          placeholder={t('settings.backup.repoPlaceholder')}
+          aria-label={t('settings.backup.repoAria')}
           className="h-9 min-w-0 shrink-0 rounded-lg border border-line bg-bg px-3 text-[13px] sm:flex-1 outline-none focus:border-accent"
         />
         <input
@@ -306,12 +310,12 @@ function GithubForm({ initialRepo, busy, onConnect }: { initialRepo: string; bus
           value={token}
           onChange={(e) => setToken(e.target.value)}
           placeholder="github_pat_…"
-          aria-label="GitHub 토큰"
+          aria-label={t('settings.backup.tokenAria')}
           autoComplete="off"
           className="h-9 min-w-0 shrink-0 rounded-lg border border-line bg-bg px-3 font-mono sm:flex-1 text-[13px] outline-none placeholder:font-sans focus:border-accent"
         />
         <Button size="sm" variant="primary" type="submit" disabled={!ok} className="h-9">
-          {busy ? '확인 중…' : '연결'}
+          {busy ? t('settings.backup.checking') : t('settings.backup.connect')}
         </Button>
       </div>
       {error && (
@@ -320,7 +324,7 @@ function GithubForm({ initialRepo, busy, onConnect }: { initialRepo: string; bus
           {error}
         </p>
       )}
-      <p className="text-[12px] text-muted">이 저장소 하나에 Contents 읽기/쓰기 권한만 준 fine-grained 토큰을 쓰세요.</p>
+      <p className="text-[12px] text-muted">{t('settings.backup.tokenHint')}</p>
     </form>
   );
 }
@@ -347,10 +351,10 @@ function RestorePanel({
   if (versions.length === 0) {
     return (
       <div className="mt-3 border-t border-line pt-3 text-[12.5px] text-muted">
-        아직 백업이 없어요. 지금 백업하거나 파일에서 가져오세요.
+        {t('settings.backup.noBackups')}
         <div className="mt-2 flex justify-end">
           <Button size="sm" variant="ghost" onClick={onClose}>
-            닫기
+            {t('common.close')}
           </Button>
         </div>
       </div>
@@ -358,7 +362,7 @@ function RestorePanel({
   }
   return (
     <div className="mt-3 space-y-3 border-t border-line pt-3">
-      <ul className="max-h-60 divide-y divide-line overflow-y-auto rounded-xl border border-line" role="radiogroup" aria-label="복원할 백업">
+      <ul className="max-h-60 divide-y divide-line overflow-y-auto rounded-xl border border-line" role="radiogroup" aria-label={t('settings.backup.listAria')}>
         {versions.map((v) => (
           <li key={entryKey(v)}>
             <button
@@ -370,7 +374,7 @@ function RestorePanel({
             >
               <span className={cn('size-3.5 shrink-0 rounded-full border-2', sel === entryKey(v) ? 'border-accent bg-accent' : 'border-line-strong')} />
               <span className="flex-1">
-                {new Date(v.at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {new Date(v.at).toLocaleString(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </span>
               {v.encrypted && <Lock size={12} className="text-muted" />}
               <span className="text-[12px] text-muted">
@@ -385,8 +389,8 @@ function RestorePanel({
           type="password"
           value={pass}
           onChange={(e) => setPass(e.target.value)}
-          placeholder="이 백업의 암호"
-          aria-label="복원할 백업의 암호"
+          placeholder={t('settings.backup.entryPassPlaceholder')}
+          aria-label={t('settings.backup.entryPassAria')}
           autoComplete="current-password"
           className="h-9 w-full rounded-lg border border-line bg-bg px-3 text-[13px] outline-none focus:border-accent"
         />
@@ -394,18 +398,17 @@ function RestorePanel({
       <Segmented<RestoreMode>
         value={mode}
         options={[
-          ['merge', '합치기'],
-          ['replace', '전체 교체'],
+          ['merge', t('settings.backup.modeMerge')],
+          ['replace', t('settings.backup.modeReplace')],
         ]}
         onChange={setMode}
       />
       <p className="text-[12.5px] text-muted">
-        {mode === 'merge' ? '같은 세션은 더 최근에 수정된 쪽을 남기고, 없는 세션은 추가합니다.' : '지금 기기의 모든 대화를 백업 내용으로 바꿉니다.'} 복원 전에 현재
-        상태를 자동으로 백업해 둡니다.
+        {t('settings.backup.restoreNote', { change: mode === 'merge' ? t('settings.backup.mergeHint') : t('settings.backup.replaceHint') })}
       </p>
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onClose}>
-          취소
+          {t('common.cancel')}
         </Button>
         <Button
           size="sm"
@@ -413,7 +416,7 @@ function RestorePanel({
           disabled={!entry || busy || (entry.encrypted && !pass)}
           onClick={() => entry && void onRestore(entry, mode, entry.encrypted ? pass : undefined)}
         >
-          {busy ? '복원 중…' : '이 백업으로 복원'}
+          {busy ? t('settings.backup.restoring') : t('settings.backup.restoreThis')}
         </Button>
       </div>
     </div>

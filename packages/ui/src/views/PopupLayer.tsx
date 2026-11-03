@@ -5,6 +5,7 @@ import { actions, useAppShallow } from '../app/store';
 import { useUi } from '../app/uiState';
 import { ChatPanel } from '../chat/ChatPanel';
 import { IconButton } from '../components/Button';
+import { t } from '../i18n';
 
 /** 데스크톱/태블릿 플로팅 팝업 (드래그·리사이즈·다중) */
 export function PopupLayer() {
@@ -39,19 +40,19 @@ function PopupItem({ popup }: { popup: PopupWindow }) {
         actions().movePopup(popup.id, { w: ref.offsetWidth, h: ref.offsetHeight, x: pos.x, y: pos.y })
       }
     >
-      <div className="animate-pop-in h-full overflow-hidden rounded-2xl border border-line-strong bg-bg shadow-float" role="dialog" aria-label="가지 팝업">
+      <div className="animate-pop-in h-full overflow-hidden rounded-2xl border border-line-strong bg-bg shadow-float" role="dialog" aria-label={t('views.popup.dialog')}>
         <ChatPanel
           sessionId={popup.sessionId}
           variant="popup"
           handleClassName="popup-handle cursor-grab active:cursor-grabbing"
           headerActions={
             <span className="flex shrink-0 items-center">
-              <IconButton size="sm" label="분할로 도킹" onClick={() => actions().dockPopup(popup.id)}>
+              <IconButton size="sm" label={t('views.popup.dock')} onClick={() => actions().dockPopup(popup.id)}>
                 <Columns2 size={15} />
               </IconButton>
               <IconButton
                 size="sm"
-                label="메인에서 열기"
+                label={t('views.popup.openInMain')}
                 onClick={() => {
                   actions().closePopup(popup.id);
                   actions().openSession(popup.sessionId, 'main');
@@ -59,7 +60,7 @@ function PopupItem({ popup }: { popup: PopupWindow }) {
               >
                 <Maximize2 size={15} />
               </IconButton>
-              <IconButton size="sm" label="닫기" onClick={() => actions().closePopup(popup.id)}>
+              <IconButton size="sm" label={t('common.close')} onClick={() => actions().closePopup(popup.id)}>
                 <X size={16} />
               </IconButton>
             </span>

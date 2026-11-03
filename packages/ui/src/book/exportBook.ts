@@ -3,6 +3,7 @@ import { actions } from '../app/store';
 import { desktop, mobile } from '../app/runtime';
 import { saveBytesFile, saveTextFile } from '../lib/download';
 import { buildBookHtml } from './bookHtml';
+import { t } from '../i18n';
 
 /**
  * 책 세션 → 진짜 책 같은 PDF (ADR-044).
@@ -15,10 +16,10 @@ export function buildSessionBook(sessionId: ID): Book {
   const s = actions();
   const session = s.sessions[sessionId];
   const answers = collectBookAnswers(s.messages[sessionId] ?? []);
-  if (!answers.length) throw new Error('아직 책 내용이 없어요. 책을 다 쓴 뒤 저장하세요.');
-  const book = parseBook(answers, session?.title ?? '책');
+  if (!answers.length) throw new Error(t('book.export.noContent'));
+  const book = parseBook(answers, session?.title ?? t('book.export.defaultTitle'));
   if (!book.chapters.length && !book.front.length && !book.back.length) {
-    throw new Error('책 본문을 찾지 못했어요. "## 1장. 제목" 형식으로 쓴 답변이 있어야 해요.');
+    throw new Error(t('book.export.noChapters'));
   }
   return book;
 }
@@ -78,7 +79,7 @@ function printInFrame(doc: string): Promise<void> {
       const w = frame.contentWindow;
       if (!w) {
         cleanup();
-        reject(new Error('인쇄 창을 열지 못했어요.'));
+        reject(new Error(t('book.export.printWindow')));
         return;
       }
       void w.document.fonts.ready.then(() => {
@@ -100,12 +101,12 @@ export async function exportBookPdf(sessionId: ID): Promise<string> {
   if (desktop?.pdf) {
     const bytes = await desktop.pdf.fromHtml(html(book, true));
     await saveBytesFile(bookFileName(book.title), bytes, 'application/pdf');
-    return '책을 PDF로 저장했어요.';
+    return t('book.export.savedPdf');
   }
   if (mobile) {
     await saveTextFile(`${safeFileName(book.title, 60)}.html`, html(book, false), 'text/html');
-    return '인쇄용 책 파일을 저장했어요. 브라우저로 열어 인쇄 › PDF로 저장하세요.';
+    return t('book.export.savedFile');
   }
   await printInFrame(html(book, false));
-  return "인쇄 창에서 'PDF로 저장'을 고르세요.";
+  return t('book.export.pickSaveInPrint');
 }

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import {
   createSyncClient,
   createSyncHost,
@@ -96,8 +97,8 @@ async function autoPullSkills(client: SyncClient) {
   try {
     const { added, updated } = await pullSkillsFromPc(() => client.pullSkills());
     if (added || updated) {
-      const parts = [added && `${added}개 추가`, updated && `${updated}개 갱신`].filter(Boolean);
-      pushNotice(`${client.state.getState().hostName ?? 'PC'} 스킬을 동기화했어요 (${parts.join(', ')})`);
+      const parts = [added && t('app.sync.added', { n: added }), updated && t('app.sync.updated', { n: updated })].filter(Boolean);
+      pushNotice(t('app.sync.skillsSynced', { host: client.state.getState().hostName ?? 'PC', parts: parts.join(', ') }));
     }
   } catch (e) {
     // 옛 PC(sync.skills 미지원)·연결 끊김: 스킬 관리의 [동기화]로 다시 받을 수 있다
@@ -273,33 +274,34 @@ export function setRemoteDeleteAllowed(on: boolean) {
   }
 }
 
+/** 렌더·알림 시점에 번역되는 getter */
 const OP_LABEL: Record<SyncOp['kind'], string> = {
-  newRoot: '새 학습을 시작했어요',
-  'page.new': '새 페이지·캔버스를 만들었어요',
-  'session.child': '하위 세션을 만들었어요',
-  'page.edit': '페이지·캔버스를 고쳤어요',
-  send: '질문을 보냈어요',
-  stop: '응답을 멈췄어요',
-  retry: '다시 답변을 요청했어요',
-  branch: '가지를 만들었어요',
-  subsession: '하위 세션을 만들었어요',
-  rename: '세션 이름을 바꿨어요',
-  'session.agent': '답할 에이전트·모델을 바꿨어요',
-  delete: '세션을 삭제했어요',
-  'turn.delete': '질문을 삭제했어요',
-  'turn.split': '질문을 하위 세션으로 분리했어요',
-  'turn.splitOut': '질문을 별도 세션으로 분리했어요',
-  'turn.move': '질문을 다른 세션으로 옮겼어요',
-  'session.reorganize': '세션 재정리를 요청했어요',
-  'summary.request': '요약을 요청했어요',
-  'summary.discard': '요약 초안을 버렸어요',
-  'summary.attach': '요약을 붙였어요',
-  'summary.remove': '요약을 떼어 냈어요',
-  'annot.set': '메모를 추가했어요',
-  'annot.delete': '메모를 삭제했어요',
-  'vault.put': '보관함을 정리했어요',
-  'vault.delete': '보관함에서 삭제했어요',
-  'study.import': '학습을 가져왔어요',
+  get newRoot() { return t('app.sync.op.newRoot'); },
+  get 'page.new'() { return t('app.sync.op.pageNew'); },
+  get 'session.child'() { return t('app.sync.op.sessionChild'); },
+  get 'page.edit'() { return t('app.sync.op.pageEdit'); },
+  get send() { return t('app.sync.op.send'); },
+  get stop() { return t('app.sync.op.stop'); },
+  get retry() { return t('app.sync.op.retry'); },
+  get branch() { return t('app.sync.op.branch'); },
+  get subsession() { return t('app.sync.op.subsession'); },
+  get rename() { return t('app.sync.op.rename'); },
+  get 'session.agent'() { return t('app.sync.op.sessionAgent'); },
+  get delete() { return t('app.sync.op.delete'); },
+  get 'turn.delete'() { return t('app.sync.op.turnDelete'); },
+  get 'turn.split'() { return t('app.sync.op.turnSplit'); },
+  get 'turn.splitOut'() { return t('app.sync.op.turnSplitOut'); },
+  get 'turn.move'() { return t('app.sync.op.turnMove'); },
+  get 'session.reorganize'() { return t('app.sync.op.sessionReorganize'); },
+  get 'summary.request'() { return t('app.sync.op.summaryRequest'); },
+  get 'summary.discard'() { return t('app.sync.op.summaryDiscard'); },
+  get 'summary.attach'() { return t('app.sync.op.summaryAttach'); },
+  get 'summary.remove'() { return t('app.sync.op.summaryRemove'); },
+  get 'annot.set'() { return t('app.sync.op.annotSet'); },
+  get 'annot.delete'() { return t('app.sync.op.annotDelete'); },
+  get 'vault.put'() { return t('app.sync.op.vaultPut'); },
+  get 'vault.delete'() { return t('app.sync.op.vaultDelete'); },
+  get 'study.import'() { return t('app.sync.op.studyImport'); },
 };
 
 export interface RemoteNotice {
@@ -349,7 +351,7 @@ export const syncHost: SyncHost | null = sync
       onRemoteAction: (peerId, op) => {
         if (isWindowPeer(peerId)) return;
         // 스트리밍 중 잦은 조작(중지 등)은 묶지 않고 그대로 알린다
-        const who = deviceNames.get(peerId) ?? '원격 기기';
+        const who = deviceNames.get(peerId) ?? t('app.sync.remoteDevice');
         pushNotice(`${who}: ${OP_LABEL[op.kind]}`);
       },
     })

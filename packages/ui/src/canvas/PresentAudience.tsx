@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CanvasBoard } from './CanvasBoard';
 import { createPresentChannel } from './presentChannel';
 import { centerView, fitView, type CanvasView } from './view';
+import { t } from '../i18n';
 
 export interface PresentAudienceProps {
   sessionId: ID;
@@ -96,7 +97,7 @@ export function PresentAudience({ sessionId }: PresentAudienceProps) {
       </div>
       {waiting && (
         <div className="absolute inset-0 grid place-items-center text-lg text-white/80">
-          {ended ? '발표가 끝났어요' : '발표를 기다리는 중…'}
+          {ended ? t('canvas.present.ended') : t('canvas.present.waiting')}
         </div>
       )}
     </div>

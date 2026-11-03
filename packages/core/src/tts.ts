@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { providerError } from './provider';
 import type { ProviderErrorCode } from './model';
 import { defaultFetch, httpError, thrownError, trimBase, type FetchLike } from './providers/http';
@@ -139,7 +140,7 @@ const EN_ACCENT: Record<EnAccent, string> = {
 export function speechInstructions(lang: SpeechLang, accent: Pick<TtsPrefs, 'viAccent' | 'enAccent'> = DEFAULT_TTS_PREFS): string {
   if (lang === 'vi') return VI_ACCENT[accent.viAccent] + PACE;
   if (lang === 'en') return EN_ACCENT[accent.enAccent] + PACE;
-  return '표준어를 쓰는 한국어 원어민처럼 또박또박 자연스럽게 읽어 주세요.';
+  return t('core.tts.speechKorean');
 }
 
 export interface OpenAISpeechOptions {
@@ -159,7 +160,7 @@ export interface OpenAISpeechOptions {
 /** OpenAI 음성 합성. 성공하면 mp3 바이트, 실패하면 ProviderError를 던진다 (키는 헤더에만, 로그 없음) */
 export async function synthesizeOpenAISpeech(o: OpenAISpeechOptions): Promise<ArrayBuffer> {
   const key = o.apiKey.trim();
-  if (!key) throw providerError('auth', 'OpenAI API 키가 없습니다.');
+  if (!key) throw providerError('auth', t('errors.openai.noKeyShort'));
   const fetch = o.fetch ?? defaultFetch();
   const model = o.model ?? OPENAI_TTS_MODEL;
   let res: Response;
@@ -190,13 +191,14 @@ export async function synthesizeOpenAISpeech(o: OpenAISpeechOptions): Promise<Ar
 /** OpenAI 실패 시 기기 음성으로 대신 읽는다는 안내. 중지(aborted)는 대체하지 않으므로 null */
 export function ttsFallbackNotice(code: ProviderErrorCode | undefined): string | null {
   if (code === 'aborted') return null;
-  const why: Partial<Record<ProviderErrorCode, string>> = {
-    auth: 'OpenAI API 키가 없거나 거부되어',
-    'rate-limit': 'OpenAI 사용 한도(크레딧)가 부족하거나 요청이 많아',
-    offline: 'OpenAI에 연결할 수 없어',
-    network: 'OpenAI 서버 응답에 문제가 있어',
+  const why: Partial<Record<ProviderErrorCode, () => string>> = {
+    auth: () => t('core.tts.fallback.auth'),
+    'rate-limit': () => t('core.tts.fallback.rateLimit'),
+    offline: () => t('core.tts.fallback.offline'),
+    network: () => t('core.tts.fallback.network'),
   };
-  return `${(code && why[code]) ?? 'OpenAI 음성을 만들지 못해'} 기기 음성으로 읽어요.`;
+  const reason = (code && why[code]?.()) || t('core.tts.fallback.default');
+  return t('core.tts.fallback.template', { reason });
 }
 
 export interface DeviceVoiceLike {

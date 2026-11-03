@@ -10,81 +10,87 @@ import { GESTURE_ACTIONS, GESTURE_KEYS, type GestureAction, type GestureKey, typ
 import type { ReactNode } from "react";
 import { cn } from "../lib/cn";
 import { ImportDialog } from "./CanvasImport";
-import { backgroundStyle, BG_COLORS } from "./canvasBackground";
+import { backgroundStyle, getBgColors } from "./canvasBackground";
+import { t } from "../i18n";
 
-const LAYOUTS: {
-  layout: CanvasLayout;
-  label: string;
-  hint: string;
-  box: { w: number; h: number } | null;
-}[] = [
-  { layout: "free", label: "자유", hint: "끝없는 판에 어디든 쓰기", box: null },
-  {
-    layout: "landscape",
-    label: "가로형 16:9",
-    hint: "쪽마다 가로로 넓게 · 넘겨서 새 쪽",
-    box: { w: 32, h: 18 },
-  },
-  {
-    layout: "portrait",
-    label: "세로형 9:16",
-    hint: "쪽마다 세로로 길게 · 넘겨서 새 쪽",
-    box: { w: 18, h: 32 },
-  },
-  {
-    layout: "a4-landscape",
-    label: "A4 가로",
-    hint: "A4 종이를 눕힌 쪽 · 넘겨서 새 쪽",
-    box: { w: 32, h: 23 },
-  },
-  {
-    layout: "a4-portrait",
-    label: "A4 세로",
-    hint: "A4 종이를 세운 쪽 · 넘겨서 새 쪽",
-    box: { w: 23, h: 32 },
-  },
-];
+function layoutOptions(): { layout: CanvasLayout; label: string; hint: string; box: { w: number; h: number } | null }[] {
+  return [
+    { layout: "free", label: t("canvas.settings.layout.free.label"), hint: t("canvas.settings.layout.free.hint"), box: null },
+    {
+      layout: "landscape",
+      label: t("canvas.settings.layout.landscape.label"),
+      hint: t("canvas.settings.layout.landscape.hint"),
+      box: { w: 32, h: 18 },
+    },
+    {
+      layout: "portrait",
+      label: t("canvas.settings.layout.portrait.label"),
+      hint: t("canvas.settings.layout.portrait.hint"),
+      box: { w: 18, h: 32 },
+    },
+    {
+      layout: "a4-landscape",
+      label: t("canvas.settings.layout.a4Landscape.label"),
+      hint: t("canvas.settings.layout.a4Landscape.hint"),
+      box: { w: 32, h: 23 },
+    },
+    {
+      layout: "a4-portrait",
+      label: t("canvas.settings.layout.a4Portrait.label"),
+      hint: t("canvas.settings.layout.a4Portrait.hint"),
+      box: { w: 23, h: 32 },
+    },
+  ];
+}
 
-const PATTERNS: { pattern: CanvasPattern | undefined; label: string }[] = [
-  { pattern: undefined, label: "민무늬" },
-  { pattern: "grid-fine", label: "바둑판 촘촘하게" },
-  { pattern: "grid-wide", label: "바둑판 느슨하게" },
-  { pattern: "lines", label: "줄공책" },
-];
+function patternOptions(): { pattern: CanvasPattern | undefined; label: string }[] {
+  return [
+    { pattern: undefined, label: t("canvas.settings.pattern.none") },
+    { pattern: "grid-fine", label: t("canvas.settings.pattern.gridFine") },
+    { pattern: "grid-wide", label: t("canvas.settings.pattern.gridWide") },
+    { pattern: "lines", label: t("canvas.settings.pattern.lines") },
+  ];
+}
 
-const FLOWS: { flow: CanvasFlow; label: string; hint: string; icon: ReactNode }[] = [
-  {
-    flow: "horizontal",
-    label: "옆으로",
-    hint: "좌우로 밀어 쪽 넘기기",
-    icon: <ArrowLeftRight size={18} />,
-  },
-  {
-    flow: "vertical",
-    label: "위아래로",
-    hint: "위아래로 밀어 쪽 넘기기",
-    icon: <ArrowUpDown size={18} />,
-  },
-];
+function flowOptions(): { flow: CanvasFlow; label: string; hint: string; icon: ReactNode }[] {
+  return [
+    {
+      flow: "horizontal",
+      label: t("canvas.settings.flow.horizontal.label"),
+      hint: t("canvas.settings.flow.horizontal.hint"),
+      icon: <ArrowLeftRight size={18} />,
+    },
+    {
+      flow: "vertical",
+      label: t("canvas.settings.flow.vertical.label"),
+      hint: t("canvas.settings.flow.vertical.hint"),
+      icon: <ArrowUpDown size={18} />,
+    },
+  ];
+}
 
-const GESTURE_LABEL: Record<GestureKey, string> = {
-  "double-tap": "두 번 톡",
-  "swipe-up": "위로 밀기",
-  "swipe-down": "아래로 밀기",
-  "swipe-left": "왼쪽으로 밀기",
-  "swipe-right": "오른쪽으로 밀기",
-};
+function gestureLabels(): Record<GestureKey, string> {
+  return {
+    "double-tap": t("canvas.settings.gesture.doubleTap"),
+    "swipe-up": t("canvas.settings.gesture.swipeUp"),
+    "swipe-down": t("canvas.settings.gesture.swipeDown"),
+    "swipe-left": t("canvas.settings.gesture.swipeLeft"),
+    "swipe-right": t("canvas.settings.gesture.swipeRight"),
+  };
+}
 
-const ACTION_LABEL: Record<GestureAction, string> = {
-  off: "끄기",
-  "select-pen": "선택 ↔ 펜",
-  "eraser-pen": "지우개 ↔ 펜",
-  "pen-marker": "펜 ↔ 형광펜",
-  undo: "실행 취소",
-  redo: "다시 실행",
-  "prev-page": "이전 쪽",
-  "next-page": "다음 쪽",
-};
+function actionLabels(): Record<GestureAction, string> {
+  return {
+    off: t("canvas.settings.action.off"),
+    "select-pen": t("canvas.settings.action.selectPen"),
+    "eraser-pen": t("canvas.settings.action.eraserPen"),
+    "pen-marker": t("canvas.settings.action.penMarker"),
+    undo: t("canvas.settings.action.undo"),
+    redo: t("canvas.settings.action.redo"),
+    "prev-page": t("canvas.settings.action.prevPage"),
+    "next-page": t("canvas.settings.action.nextPage"),
+  };
+}
 
 const GESTURE_SELECT =
   "h-10 w-40 shrink-0 rounded-lg border border-line bg-bg px-2 text-[14px] text-fg outline-none focus:border-accent md:h-9";
@@ -127,8 +133,14 @@ export function CanvasSettings({
 }) {
   const color = bg?.color ?? CANVAS_PAPER;
   const shownCount = Math.min(paletteCount ?? paletteTotal, paletteTotal);
+  const layouts = layoutOptions();
+  const patterns = patternOptions();
+  const flows = flowOptions();
+  const gestureLabel = gestureLabels();
+  const actionLabel = actionLabels();
+  const bgColors = getBgColors();
   return (
-    <ImportDialog label="캔버스 설정" title="캔버스 설정" onClose={onClose}>
+    <ImportDialog label={t("canvas.settings.title")} title={t("canvas.settings.title")} onClose={onClose}>
       {layout === "pdf" && (
         <div
           data-canvas-pdf-mode
@@ -136,21 +148,21 @@ export function CanvasSettings({
         >
           <FileType2 size={18} className="shrink-0 text-accent" aria-hidden />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-[14px] text-fg">PDF 모드</span>
+            <span className="text-[14px] text-fg">{t("canvas.settings.pdfMode")}</span>
             <span className="truncate text-[12px] text-muted">
-              {pdfName ?? "PDF"} · 아래에서 다른 크기를 고르면 PDF가 빠져요
+              {t("canvas.settings.pdfHint", { name: pdfName ?? "PDF" })}
             </span>
           </span>
         </div>
       )}
-      <p className="px-3 pt-1 pb-2 text-[12px] text-muted">캔버스 크기</p>
+      <p className="px-3 pt-1 pb-2 text-[12px] text-muted">{t("canvas.settings.sizeTitle")}</p>
       <ul
         role="radiogroup"
-        aria-label="캔버스 크기"
+        aria-label={t("canvas.settings.sizeTitle")}
         data-canvas-settings
         className="flex flex-col gap-1"
       >
-        {LAYOUTS.map((o) => {
+        {layouts.map((o) => {
           const on = o.layout === layout;
           return (
             <li key={o.layout}>
@@ -187,13 +199,13 @@ export function CanvasSettings({
       </ul>
       {layout !== "free" && (
         <>
-          <p className="px-3 pt-3 pb-2 text-[12px] text-muted">쪽 넘김 방향</p>
+          <p className="px-3 pt-3 pb-2 text-[12px] text-muted">{t("canvas.settings.flowTitle")}</p>
           <ul
             role="radiogroup"
-            aria-label="쪽 넘김 방향"
+            aria-label={t("canvas.settings.flowTitle")}
             className="flex flex-col gap-1"
           >
-            {FLOWS.map((o) => {
+            {flows.map((o) => {
               const on = o.flow === flow;
               return (
                 <li key={o.flow}>
@@ -224,14 +236,14 @@ export function CanvasSettings({
         </>
       )}
       <p className="px-3 pt-3 pb-2 text-[12px] text-muted">
-        바탕{layout === "pdf" && " · PDF 쪽 바깥과 새로 만드는 판에 보여요"}
+        {layout === "pdf" ? t("canvas.settings.bgPdf") : t("canvas.settings.bg")}
       </p>
       <div
         role="radiogroup"
-        aria-label="바탕색"
+        aria-label={t("canvas.settings.bgColor")}
         className="flex flex-wrap items-center gap-2 px-3"
       >
-        {BG_COLORS.map((c) => {
+        {bgColors.map((c) => {
           const on = c.hex === color;
           return (
             <button
@@ -256,24 +268,24 @@ export function CanvasSettings({
           );
         })}
         <label
-          title="바탕색 직접 고르기"
+          title={t("canvas.settings.colorCustom")}
           className={cn(
             "relative grid size-11 cursor-pointer place-items-center rounded-full md:size-9",
-            !BG_COLORS.some((c) => c.hex === color) &&
+            !bgColors.some((c) => c.hex === color) &&
               "ring-2 ring-accent ring-offset-2 ring-offset-surface",
           )}
         >
           <span
             className="size-8 rounded-full border border-line md:size-7"
             style={{
-              background: BG_COLORS.some((c) => c.hex === color)
+              background: bgColors.some((c) => c.hex === color)
                 ? "conic-gradient(#f87171,#facc15,#4ade80,#60a5fa,#c084fc,#f87171)"
                 : color,
             }}
           />
           <input
             type="color"
-            aria-label="바탕색 직접 고르기"
+            aria-label={t("canvas.settings.colorCustom")}
             data-canvas-bg-custom
             value={color}
             onChange={(e) => onBackground({ ...bg, color: e.target.value })}
@@ -283,10 +295,10 @@ export function CanvasSettings({
       </div>
       <ul
         role="radiogroup"
-        aria-label="바탕 무늬"
+        aria-label={t("canvas.settings.bgPattern")}
         className="mt-2 grid grid-cols-2 gap-1"
       >
-        {PATTERNS.map((o) => {
+        {patterns.map((o) => {
           const on = o.pattern === bg?.pattern;
           return (
             <li key={o.label}>
@@ -309,14 +321,14 @@ export function CanvasSettings({
           );
         })}
       </ul>
-      <p className="px-3 pt-3 pb-2 text-[12px] text-muted">한 번에 보일 색 개수</p>
+      <p className="px-3 pt-3 pb-2 text-[12px] text-muted">{t("canvas.settings.paletteTitle")}</p>
       <div className="flex flex-col gap-2 px-3 pb-3">
         <input
           type="range"
           min={1}
           max={paletteTotal}
           value={shownCount}
-          aria-label="팔레트 색 개수"
+          aria-label={t("canvas.settings.paletteSlider")}
           onChange={(e) => {
             const n = Number(e.target.value);
             onPaletteCount(n >= paletteTotal ? null : n);
@@ -324,28 +336,26 @@ export function CanvasSettings({
           className="h-2 w-full accent-[var(--accent)]"
         />
         <div className="flex items-center justify-between text-[13px] text-fg-2">
-          <span>최소 1개</span>
-          <span className="font-mono" data-palette-count>{paletteCount === null ? `모두 (${paletteTotal})` : `${shownCount} / ${paletteTotal}`}</span>
+          <span>{t("canvas.settings.paletteMin")}</span>
+          <span className="font-mono" data-palette-count>{paletteCount === null ? t("canvas.settings.paletteAll", { total: paletteTotal }) : `${shownCount} / ${paletteTotal}`}</span>
         </div>
       </div>
-      <p className="px-3 pt-1 text-[12px] text-muted">두 손가락 손동작</p>
-      <p className="px-3 pb-2 text-[12px] text-muted">
-        빠르게 밀면 고른 일을 하고, 천천히 끌면 화면을 옮겨요. '끄기'로 둔 방향은 예전처럼 화면을 옮기고 쪽을 넘겨요. 이전·다음 쪽은 쪽 나눔 판에서만 해요.
-      </p>
-      <ul aria-label="두 손가락 손동작" className="flex flex-col gap-1 pb-1">
+      <p className="px-3 pt-1 text-[12px] text-muted">{t("canvas.settings.gestureTitle")}</p>
+      <p className="px-3 pb-2 text-[12px] text-muted">{t("canvas.settings.gestureHint")}</p>
+      <ul aria-label={t("canvas.settings.gestureTitle")} className="flex flex-col gap-1 pb-1">
         {GESTURE_KEYS.map((k) => (
           <li key={k} className="flex min-h-11 items-center gap-3 px-3 md:min-h-9">
-            <span className="min-w-0 flex-1 text-[14px] text-fg">{GESTURE_LABEL[k]}</span>
+            <span className="min-w-0 flex-1 text-[14px] text-fg">{gestureLabel[k]}</span>
             <select
               value={gestures[k]}
-              aria-label={`두 손가락 ${GESTURE_LABEL[k]}`}
+              aria-label={t("canvas.settings.gestureSelect", { name: gestureLabel[k] })}
               data-canvas-gesture={k}
               onChange={(e) => onGestures({ ...gestures, [k]: e.target.value as GestureAction })}
               className={GESTURE_SELECT}
             >
               {GESTURE_ACTIONS.map((a) => (
                 <option key={a} value={a}>
-                  {ACTION_LABEL[a]}
+                  {actionLabel[a]}
                 </option>
               ))}
             </select>

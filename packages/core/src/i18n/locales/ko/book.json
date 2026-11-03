@@ -1,0 +1,28 @@
+{
+  "pdf": {
+    "failed": "책 PDF를 만들지 못했어요.",
+    "save": "책 PDF로 저장",
+    "waitTitle": "답변이 끝난 뒤 저장할 수 있어요",
+    "saveTitle": "이 책을 표지·차례·쪽 번호가 있는 PDF로 저장해요",
+    "label": "책 PDF"
+  },
+  "html": {
+    "chapterLabel": "{number}장",
+    "runningHead": "{label}  {title}",
+    "coverKicker": "학습 기록으로 엮은 책",
+    "compiledFrom": "octobooks 학습 기록에서 엮음",
+    "toc": "차례",
+    "editedOn": "엮은 날",
+    "editedAt": "엮은 곳",
+    "colophonNote": "이 책은 학습자의 질문과 이해를 바탕으로 AI가 쓴 글입니다. 사실관계는 원문과 함께 확인하세요."
+  },
+  "export": {
+    "noContent": "아직 책 내용이 없어요. 책을 다 쓴 뒤 저장하세요.",
+    "noChapters": "책 본문을 찾지 못했어요. \"## 1장. 제목\" 형식으로 쓴 답변이 있어야 해요.",
+    "defaultTitle": "책",
+    "printWindow": "인쇄 창을 열지 못했어요.",
+    "savedPdf": "책을 PDF로 저장했어요.",
+    "savedFile": "인쇄용 책 파일을 저장했어요. 브라우저로 열어 인쇄 › PDF로 저장하세요.",
+    "pickSaveInPrint": "인쇄 창에서 'PDF로 저장'을 고르세요."
+  }
+}

@@ -1,0 +1,4 @@
+<resources>
+    <string name="notification_channel_name">Response complete</string>
+    <string name="notification_channel_description">Notifies you when a conversation response is complete.</string>
+</resources>

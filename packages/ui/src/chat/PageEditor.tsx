@@ -1,5 +1,5 @@
 import {
-  NEW_PAGE_TITLE,
+  newPageTitle,
   PAGE_BLOCKS,
   applyPageBlock,
   filterPageBlocks,
@@ -30,6 +30,7 @@ import {
 import { defaultKeymap, history, historyKeymap, undoDepth, redoDepth } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { Annotation, EditorState, Prec, StateEffect, StateField, Transaction, type Range } from '@codemirror/state';
+import { t } from '../i18n';
 import { Decoration, EditorView, WidgetType, keymap, placeholder, type DecorationSet } from '@codemirror/view';
 import {
   ArrowDown,
@@ -133,8 +134,8 @@ function exitEmptyItem(view: EditorView): boolean {
   return true;
 }
 
-const PLACEHOLDER =
-  '마크다운으로 자유롭게 적어 보세요. 쓰는 대로 저장돼요. / 를 누르거나 우클릭하면 블록·하위 페이지·AI 채우기를 넣어요.\n\n# 제목\n- 목록\n**굵게**, `코드`\n\n글을 고르면 물어보거나 서식·메모를 넣을 수 있어요.';
+/** 빈 페이지 안내 (호출 시점에 번역) */
+const placeholderText = () => t('page.editor.placeholder');
 
 /** 본문 위에 그릴 가지·서식 표시 (ADR-086) */
 interface Marks {
@@ -160,8 +161,8 @@ class BranchWidget extends WidgetType {
     b.type = 'button';
     b.className = 'cm-anchor-open';
     b.dataset.branchOpen = this.id;
-    b.setAttribute('aria-label', '가지 열기');
-    b.title = '가지 열기';
+    b.setAttribute('aria-label', t('page.editor.branchOpen'));
+    b.title = t('page.editor.branchOpen');
     b.contentEditable = 'false';
     b.addEventListener('mousedown', (e) => e.preventDefault());
     b.addEventListener('click', (e) => {
@@ -188,8 +189,8 @@ class NoteWidget extends WidgetType {
     b.type = 'button';
     b.className = 'cm-note-open';
     b.dataset.noteOpen = this.annotation.id;
-    b.setAttribute('aria-label', '메모 보기');
-    b.title = '메모 보기';
+    b.setAttribute('aria-label', t('page.editor.noteOpen'));
+    b.title = t('page.editor.noteOpen');
     b.contentEditable = 'false';
     b.addEventListener('mousedown', (e) => e.preventDefault());
     b.addEventListener('click', (e) => {
@@ -512,7 +513,7 @@ export function PageEditor({
       // 하위 페이지를 만들고 그 링크를 넣는다. 지금 페이지에 머문다
       const id = actions().newPage(undefined, { parentId: sessionId, focus: false });
       if (!id) return;
-      b = { ...block, text: pageLinkMarkdown(NEW_PAGE_TITLE, id) };
+      b = { ...block, text: pageLinkMarkdown(newPageTitle(), id) };
     }
     const before = v.state.doc.toString();
     const r = applyPageBlock(before, start, caret, b);
@@ -666,7 +667,7 @@ export function PageEditor({
     if (!parent) return;
     const placeholderEl = document.createElement('span');
     placeholderEl.style.whiteSpace = 'pre-wrap';
-    placeholderEl.textContent = PLACEHOLDER;
+    placeholderEl.textContent = placeholderText();
     const v = new EditorView({
       parent,
       state: EditorState.create({
@@ -734,7 +735,7 @@ export function PageEditor({
           viewModeField.init(() => latest.current.touchBlocks && !latest.current.tapToEdit && !!initial.trim()),
           marksField,
           marksDecorations((a, rect) => latest.current.onNote?.(a, rect)),
-          EditorView.contentAttributes.of({ 'aria-label': '페이지 본문 (마크다운)', spellcheck: 'false', 'aria-multiline': 'true' }),
+          EditorView.contentAttributes.of({ 'aria-label': t('page.editor.bodyLabel'), spellcheck: 'false', 'aria-multiline': 'true' }),
           livePreview({
             openPage: (id) => actions().openSession(id, 'main'),
             pageExists: (id) => !!actions().sessions[id],
@@ -1094,7 +1095,7 @@ export function PageEditor({
             className="flex items-center gap-2 rounded-full border border-line bg-elev px-3.5 py-1.5 text-[13px] text-fg-2 shadow-float hover:bg-surface-2"
           >
             <Sparkles size={14} className="animate-pulse text-accent" />
-            AI가 채우는 중
+            {t('page.editor.filling')}
             <Square size={12} className="text-muted" />
           </button>
         </div>
@@ -1105,7 +1106,7 @@ export function PageEditor({
           data-page-context=""
           data-page-ctx=""
           role="menu"
-          aria-label="블록·AI 메뉴"
+          aria-label={t('page.editor.menuLabel')}
           onKeyDown={onCtxKey}
           onContextMenu={(e) => e.preventDefault()}
           style={{ left: ctx.left, top: ctx.top, width: CTX_W }}
@@ -1113,13 +1114,13 @@ export function PageEditor({
         >
           {ctx.column ? (
             <>
-              <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">이 칸</div>
+              <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">{t('page.editor.column.title')}</div>
               {(
                 [
-                  ['left', '왼쪽으로 옮기기', ArrowLeft, ctx.column.col > 0],
-                  ['right', '오른쪽으로 옮기기', ArrowRight, ctx.column.col < ctx.column.count - 1],
-                  ['out', '칸 밖으로 꺼내기', ArrowDownToLine, true],
-                  ['delete', '칸 지우기', Trash2, true],
+                  ['left', 'page.editor.column.left', ArrowLeft, ctx.column.col > 0],
+                  ['right', 'page.editor.column.right', ArrowRight, ctx.column.col < ctx.column.count - 1],
+                  ['out', 'page.editor.column.out', ArrowDownToLine, true],
+                  ['delete', 'page.editor.column.delete', Trash2, true],
                 ] as const
               )
                 .filter(([, , , on]) => on)
@@ -1138,7 +1139,7 @@ export function PageEditor({
                     <span className="grid size-6 shrink-0 place-items-center rounded-md border border-line bg-surface">
                       <Icon size={14} />
                     </span>
-                    {label}
+                    {t(label)}
                   </button>
                 ))}
             </>
@@ -1151,31 +1152,31 @@ export function PageEditor({
               }}
             >
               <label htmlFor={`page-fill-${sessionId}`} className="text-[12px] font-medium text-muted">
-                무엇을 채울까요? (비우면 앞뒤 맥락대로)
+                {t('page.editor.ask.label')}
               </label>
               <input
                 id={`page-fill-${sessionId}`}
                 value={ask}
                 onChange={(e) => setAsk(e.target.value)}
-                placeholder="예: 장단점을 표로"
+                placeholder={t('page.editor.ask.placeholder')}
                 className="h-8 rounded-lg border border-line bg-surface px-2.5 text-[13.5px] text-fg outline-none focus:border-accent"
               />
               <button type="submit" className="flex h-8 items-center justify-center gap-1.5 rounded-lg bg-accent text-[13px] font-medium text-accent-fg hover:brightness-110">
                 <Sparkles size={14} />
-                채우기
+                {t('page.editor.ask.submit')}
               </button>
             </form>
           ) : (
             <>
               {ctx.block && (
                 <>
-                  <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">이 블록</div>
+                  <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">{t('page.editor.block.title')}</div>
                   {(
                     [
-                      ['up', '위로 옮기기', ArrowUp],
-                      ['down', '아래로 옮기기', ArrowDown],
-                      ...(ctx.block.kind === 'columns' ? [['unwrap', '나란히 배치 풀기', Columns2] as const] : []),
-                      ['delete', '블록 지우기', Trash2],
+                      ['up', 'page.editor.block.up', ArrowUp],
+                      ['down', 'page.editor.block.down', ArrowDown],
+                      ...(ctx.block.kind === 'columns' ? [['unwrap', 'page.editor.block.unwrap', Columns2] as const] : []),
+                      ['delete', 'page.editor.block.delete', Trash2],
                     ] as const
                   ).map(([id, label, Icon]) => (
                     <button
@@ -1192,7 +1193,7 @@ export function PageEditor({
                       <span className="grid size-6 shrink-0 place-items-center rounded-md border border-line bg-surface">
                         <Icon size={14} />
                       </span>
-                      {label}
+                      {t(label)}
                     </button>
                   ))}
                   <div className="my-1 h-px bg-line" />
@@ -1210,12 +1211,12 @@ export function PageEditor({
                     <span className="grid size-7 shrink-0 place-items-center rounded-md bg-accent-soft text-accent">
                       <Sparkles size={15} />
                     </span>
-                    AI로 내용 채우기
+                    {t('page.editor.aiFill')}
                   </button>
                   <div className="my-1 h-px bg-line" />
                 </>
               )}
-              <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">블록 넣기</div>
+              <div className="px-2.5 pt-0.5 pb-1 text-[11.5px] font-medium text-muted">{t('page.editor.blocks.title')}</div>
               <div className="scroll-thin overflow-y-auto" style={{ maxHeight: CTX_H - 90 }}>
                 {PAGE_BLOCKS.map((b) => {
                   const Icon = BLOCK_ICONS[b.id] ?? FileText;
@@ -1251,8 +1252,8 @@ export function PageEditor({
             emo.up ? '-mt-1 -translate-y-full' : 'mt-1',
           )}
         >
-          <div className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">이모지 · ↑↓ 선택 · Enter</div>
-          <div role="listbox" aria-label="이모지" style={{ maxHeight: EMO_H - 40 }} className="scroll-thin overflow-y-auto">
+          <div className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">{t('page.editor.emoji.hint')}</div>
+          <div role="listbox" aria-label={t('page.editor.emoji.listLabel')} style={{ maxHeight: EMO_H - 40 }} className="scroll-thin overflow-y-auto">
             {emo.matches.map((m, i) => (
               <button
                 key={`${m.emoji}-${m.name}`}
@@ -1285,13 +1286,13 @@ export function PageEditor({
           )}
         >
           <div id={`page-blocks-${sessionId}-label`} className="px-2.5 pt-1 pb-1.5 text-[11.5px] font-medium text-muted">
-            블록 넣기 · ↑↓ 선택 · Enter
+            {t('page.editor.slash.hint')}
           </div>
           <div
             id={`page-blocks-${sessionId}`}
             ref={menu}
             role="listbox"
-            aria-label="블록 넣기"
+            aria-label={t('page.editor.slash.listLabel')}
             style={{ maxHeight: MENU_H - 40 }}
             className="scroll-thin overflow-y-auto"
           >

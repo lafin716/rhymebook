@@ -1,0 +1,50 @@
+{
+  "session": {
+    "backprop": "Backpropagation basics",
+    "root": "Transformer attention",
+    "qkv": "Query, Key, Value",
+    "dot": "Dot product",
+    "cos": "Cosine similarity",
+    "softmax": "Softmax",
+    "scale": "Scaling (√d_k)"
+  },
+  "question": {
+    "backprop": "Briefly explain how backpropagation works.",
+    "root": "Explain what attention in the Transformer is.",
+    "root2": "Then how is multi-head attention different?",
+    "root3": "Is attention used differently in the encoder and the decoder?",
+    "root4": "How expensive is attention to compute? Does it still work for long sentences?",
+    "qkv": "What is \"Query, Key, Value\"?",
+    "dot": "What is the \"dot product\"?",
+    "cos": "Please explain \"cosine similarity\" in more detail.",
+    "softmax": "What is \"softmax\"?",
+    "scale": "Please explain \"scaling (√d_k)\" in more detail."
+  },
+  "answer": {
+    "backprop": "**Backpropagation** passes the output error backward and computes how much each weight contributed to it (its gradient).\n\n1. Compute the prediction and the loss in a forward pass\n2. Use the chain rule to compute gradients from the output layer back toward the input layer\n3. Update the weights with gradient descent",
+    "root": "**Attention** is the mechanism by which each word in a sentence decides for itself how much to draw on every other word.\n\nThe core formula is:\n\n```text\nAttention(Q, K, V) = Softmax(Q·Kᵀ / √d_k) · V\n```\n\n1. Turn each word into three vectors: **Query, Key, Value**.\n2. Compare the Query with every Key to get relevance scores.\n3. Apply **scaling (√d_k)** to the scores, then turn them into weights with **softmax**.\n4. Take a weighted sum of the Values with those weights to get a new representation.\n\nFor example, in \"The cat sat on the mat, **it** was warm\", *it* gives a high weight to *mat*.",
+    "root2": "**Multi-head attention** runs the attention above several times in parallel, each run called a head.\n\n- Each head has its own `W_Q, W_K, W_V`, so it learns relationships from a **different perspective**.\n- For example, one head may focus on grammar, while another focuses on what the pronoun refers to (it → mat).\n- The results are concatenated and then combined with a linear transform.\n\n> Analogy: a grammar teacher, a literature teacher, and a history teacher read the same sentence at once and merge their notes.",
+    "root3": "The Transformer uses attention in **three** places.\n\n1. **Encoder self-attention**: the words of the input sentence look at each other\n2. **Decoder masked self-attention**: only the words generated so far are visible (future words are hidden)\n3. **Encoder–decoder (cross) attention**: the decoder's Query looks at the encoder's Keys and Values\n\n> Analogy: a translator skims the source text (1), rereads what they have translated so far (2), and looks back at the matching part of the source when choosing the next word (3).",
+    "root4": "If the sentence length is **n**, attention costs **O(n²)** to compute.\n\n- Because scores must be computed for every pair of words (n × n)\n- So on long documents, memory and time grow quickly\n\nTo reduce this, techniques such as **sparse attention**, **sliding windows**, and **FlashAttention** are used.",
+    "qkv": "**Query / Key / Value** is easy to picture as a library search.\n\n- **Query**: what I want to find, e.g. \"books about warm things\"\n- **Key**: each book's label, the thing compared against the search terms\n- **Value**: the actual content of the book that gets retrieved\n\nAttention scores how relevant each Key is to the Query with the **dot product**, then uses those scores to mix the Values into the result.\nAll three vectors come from the same word embedding, multiplied by different weight matrices `W_Q`, `W_K`, and `W_V`.",
+    "dot": "The **dot product** multiplies the values in matching positions of two vectors and adds them all up.\n\n```python\nq = [1, 2, 0]\nk = [2, 1, 3]\nscore = sum(a * b for a, b in zip(q, k))  # 1*2 + 2*1 + 0*3 = 4\n```\n\nThe more the two vectors point in **similar directions**, the larger the value. That is why attention uses it as the score for how well a Query and a Key match.\nIf you also normalize for length, you get **cosine similarity**.",
+    "cos": "**Cosine similarity** is a measure that looks only at **how much two vectors point in the same direction**.\n\n- Formula: `cos θ = (a · b) / (|a| |b|)`\n- Range: **-1** (opposite directions) to **1** (same direction)\n\n> Analogy: comparing only the *direction* two people point with their fingers, and ignoring how long their arms are.\n\nYou can think of the attention dot product as \"raw cosine similarity\" without dividing by the lengths.",
+    "softmax": "**Softmax** is a function that turns a list of scores into a **probability distribution that sums to 1**.\n\n| Score | e^score | Share |\n|---|---|---|\n| 2.0 | 7.39 | 0.66 |\n| 1.0 | 2.72 | 0.24 |\n| 0.1 | 1.11 | 0.10 |\n\n> Analogy: turning vote counts into vote shares, while giving the leader a slight extra push.\n\nIn attention, it is used to decide **how much attention to pay to each word (the weights)**.",
+    "scale": "**Dividing by √d_k** is needed because the dot product grows as the dimension gets larger.\n\n1. When the dimension d_k is large, the variance of the dot product also grows in proportion to d_k\n2. When large values enter the softmax, one entry goes close to 1 and the rest close to 0 → **vanishing gradients**\n3. Dividing by √d_k brings the variance back near 1\n\n> Analogy: if an exam is scored out of 1000 points, the gaps in rank look extreme, so you convert to a 100-point scale."
+  },
+  "anchor": {
+    "qkv": "Query, Key, Value",
+    "dot": "dot product",
+    "cos": "cosine similarity",
+    "softmax": "softmax",
+    "scale": "scaling (√d_k)"
+  },
+  "summary": {
+    "dot": "The dot product multiplies matching positions and adds them up. It grows larger when two vectors point in similar directions, so it serves as the Query–Key relevance score.",
+    "softmax": "Softmax turns a list of scores into probabilities that sum to 1, creating the weights that set how much attention each word receives."
+  },
+  "connection": {
+    "mock": "Demo response",
+    "claudeCli": "claude 2.1.4 · signed in"
+  }
+}

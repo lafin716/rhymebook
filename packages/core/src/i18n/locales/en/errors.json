@@ -1,0 +1,65 @@
+{
+  "aborted": "Stopped by the user.",
+  "streamCut": "The response stream was cut off before it finished.",
+  "connectionDisabled": "{label} connection is disabled.",
+  "openai": {
+    "noKey": "The OpenAI API key is not set.",
+    "noKeyShort": "No OpenAI API key.",
+    "error": "OpenAI error: {message}"
+  },
+  "anthropic": {
+    "noKey": "The Anthropic API key is not set.",
+    "error": "Anthropic error: {message}"
+  },
+  "http": {
+    "auth": "The API key was rejected. Check the key in Settings.",
+    "rate-limit": "Request limit exceeded. Try again later.",
+    "network": "The server responded with an error. Try again later.",
+    "offline": "Cannot connect to the network.",
+    "cli": "An error occurred while running the CLI.",
+    "unknown": "Could not process the request."
+  },
+  "summaryFailed": "Failed to generate the summary.",
+  "backup": {
+    "noTarget": "No backup location is connected.",
+    "preBackupFailed": "Stopped the restore because the automatic backup before restoring failed: {message}"
+  },
+  "bridge": {
+    "offline": "Cannot connect to the Bridge.",
+    "statusTimeout": "Timed out while checking CLI status.",
+    "sttStatusFailed": "Could not check the voice input status.",
+    "sttStateFailed": "Could not load the voice settings.",
+    "sttManageFailed": "Could not change the voice settings.",
+    "transcribeTimeout": "Voice transcription timed out."
+  },
+  "secure": {
+    "badBase64": "Invalid base64url string",
+    "notEncrypted": "Unencrypted frame",
+    "frameOrder": "Frame order error",
+    "badVersion": "Unsupported bridge version.",
+    "keyMismatch": "The bridge key differs from the paired one. It may be another device or a man-in-the-middle attack.",
+    "badSignature": "The bridge signature is invalid.",
+    "unparseable": "Cannot parse the bridge response."
+  },
+  "remote": {
+    "badToken": "The code is wrong or already used. Check the code on the bridge screen again.",
+    "expired": "The pairing code has expired. Run --pair on the bridge to create a new code.",
+    "unknownDevice": "This device was unpaired on the bridge. Pair again.",
+    "badSignature": "Device authentication failed. Pair again.",
+    "protocol": "The communication format does not match the bridge. Update the app and the bridge to the latest version.",
+    "unreachableUrl": "Cannot open the address: {url}",
+    "timeout": "No response from {url}. Check that the bridge is running and the network (same Wi‑Fi or Tailscale).",
+    "unreachable": "Cannot connect to {url}. Check that the bridge is running and the network.",
+    "relayNoBridge": "No bridge is connected to the relay. Check that the bridge PC is running with the --relay option.",
+    "closed": "The bridge closed the connection.",
+    "unpaired": "The remote Bridge is not paired.",
+    "reset": "The connection was reset.",
+    "noCli": "No CLI is available on the bridge PC. Check the installation and login state."
+  },
+  "store": {
+    "unknownProvider": "Unregistered provider: {id}",
+    "providerMissing": "Provider not found.",
+    "sessionMissing": "Session not found: {id}",
+    "annotationIdConflict": "Annotation id conflict: {id}"
+  }
+}

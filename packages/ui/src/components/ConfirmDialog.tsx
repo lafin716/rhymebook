@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -94,7 +95,7 @@ export function ConfirmHost() {
         </div>
         <div className="mt-5 flex gap-2 max-md:flex-col-reverse md:justify-end">
           <Button ref={cancelRef} variant="secondary" className="max-md:h-11 max-md:w-full" onClick={() => settle(false)}>
-            {pending.cancelLabel ?? '취소'}
+            {pending.cancelLabel ?? t('components.confirm.cancel')}
           </Button>
           <Button
             ref={okRef}
@@ -102,7 +103,7 @@ export function ConfirmHost() {
             className="max-md:h-11 max-md:w-full"
             onClick={() => settle(true)}
           >
-            {pending.confirmLabel ?? '확인'}
+            {pending.confirmLabel ?? t('components.confirm.ok')}
           </Button>
         </div>
       </div>

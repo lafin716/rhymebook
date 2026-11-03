@@ -1,4 +1,5 @@
-import { appendPageLink, MAX_SPLIT, NEW_CANVAS_TITLE, NEW_PAGE_TITLE, pageDoc, type ID } from '@branch/core';
+import { t } from '../i18n';
+import { appendPageLink, MAX_SPLIT, newCanvasTitle, newPageTitle, pageDoc, type ID } from '@branch/core';
 import { AppWindow, Columns2, FileText, GitBranch, PenLine, Pencil, Rows2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -37,7 +38,7 @@ export function SessionMenu({
     if (!split) return;
     const v = actions().view;
     const target = v.mode === 'split' ? (v.splitSessionIds[v.focusedSplitIndex] ?? null) : v.activeSessionId;
-    if (!actions().dropToSplit(split, target, edge)) pushNotice(`분할은 최대 ${MAX_SPLIT}개까지예요.`);
+    if (!actions().dropToSplit(split, target, edge)) pushNotice(t('session.menu.splitMax', { max: MAX_SPLIT }));
     useUi.getState().setDrawer(false);
   };
   /** 데스크톱 앱: 별도 창으로 열기 (같은 세션 창이 있어도 새로 연다, ADR-036). 다른 PC를 미러링할 때는 이 PC의 창이 없다 (ADR-103) */
@@ -73,7 +74,7 @@ export function SessionMenu({
     <div
       ref={ref}
       role="menu"
-      aria-label="세션 메뉴"
+      aria-label={t('session.menu.aria')}
       onContextMenu={(e) => e.preventDefault()}
       style={{ top: Math.min(at.y, window.innerHeight - h - 8), left: Math.min(at.x, window.innerWidth - w - 8), width: w }}
       className="animate-pop-in fixed z-[90] rounded-lg border border-line bg-elev p-1 shadow-float"
@@ -89,7 +90,7 @@ export function SessionMenu({
             }}
             className={cn(item, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
           >
-            <Columns2 size={14} className="text-muted" /> 오른쪽에 분할로 열기
+            <Columns2 size={14} className="text-muted" /> {t('session.menu.splitRight')}
           </button>
           <button
             type="button"
@@ -100,7 +101,7 @@ export function SessionMenu({
             }}
             className={cn(item, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
           >
-            <Rows2 size={14} className="text-muted" /> 아래에 분할로 열기
+            <Rows2 size={14} className="text-muted" /> {t('session.menu.splitDown')}
           </button>
         </>
       )}
@@ -115,7 +116,7 @@ export function SessionMenu({
           }}
           className={cn(item, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
         >
-          <AppWindow size={14} className="text-muted" /> 새 창으로 열기
+          <AppWindow size={14} className="text-muted" /> {t('session.menu.newWindow')}
         </button>
       )}
       {(split || win) && <div className="my-1 h-px bg-line" />}
@@ -128,7 +129,7 @@ export function SessionMenu({
         }}
         className={cn(item, 'text-fg hover:bg-surface-2 focus:bg-surface-2')}
       >
-        <Pencil size={14} className="text-muted" /> 이름 변경
+        <Pencil size={14} className="text-muted" /> {t('session.menu.rename')}
       </button>
       {onDelete && (
         <button
@@ -140,7 +141,7 @@ export function SessionMenu({
           }}
           className={cn(item, 'text-danger hover:bg-danger-soft focus:bg-danger-soft')}
         >
-          <Trash2 size={14} /> 삭제
+          <Trash2 size={14} /> {t('session.menu.delete')}
         </button>
       )}
     </div>,
@@ -160,7 +161,7 @@ export function RenameInput({ value, onDone, className }: { value: string; onDon
   return (
     <input
       autoFocus
-      aria-label="세션 이름"
+      aria-label={t('session.menu.renameAria')}
       value={text}
       maxLength={200}
       onFocus={(e) => e.currentTarget.select()}
@@ -227,7 +228,7 @@ export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoin
     const parent = a.sessions[parentId];
     const id = a.newPage(undefined, { parentId });
     if (!id) return done();
-    if (parent?.kind === 'page') a.updatePage(parentId, appendPageLink(pageDoc(a.messages[parentId])?.content ?? '', NEW_PAGE_TITLE, id));
+    if (parent?.kind === 'page') a.updatePage(parentId, appendPageLink(pageDoc(a.messages[parentId])?.content ?? '', newPageTitle(), id));
     done();
   };
   const addCanvas = () => {
@@ -236,7 +237,7 @@ export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoin
     const parent = a.sessions[parentId];
     const id = a.newPage(undefined, { parentId, kind: 'canvas' });
     if (!id) return done();
-    if (parent?.kind === 'page') a.updatePage(parentId, appendPageLink(pageDoc(a.messages[parentId])?.content ?? '', NEW_CANVAS_TITLE, id));
+    if (parent?.kind === 'page') a.updatePage(parentId, appendPageLink(pageDoc(a.messages[parentId])?.content ?? '', newCanvasTitle(), id));
     done();
   };
   // 세션은 질문 없이 빈 대화로 만들어 가지 자리(팝업·분할·시트)에 연다
@@ -253,7 +254,7 @@ export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoin
     <div
       ref={ref}
       role="menu"
-      aria-label="하위 항목 만들기"
+      aria-label={t('session.childCreate.aria')}
       data-sub-create=""
       // 포털이라도 React 이벤트는 세션 행까지 올라가므로 여기서 끊는다
       onClick={(e) => e.stopPropagation()}
@@ -265,13 +266,13 @@ export function SubCreateMenu({ at, parentId, trigger, onClose }: { at: MenuPoin
       className="animate-pop-in fixed z-[90] rounded-lg border border-line bg-elev p-1 shadow-float"
     >
       <button type="button" role="menuitem" onClick={addPage} className={item}>
-        <FileText size={14} className="text-muted" /> 빈 페이지
+        <FileText size={14} className="text-muted" /> {t('session.childCreate.emptyPage')}
       </button>
       <button type="button" role="menuitem" onClick={addCanvas} className={item}>
-        <PenLine size={14} className="text-muted" /> 캔버스
+        <PenLine size={14} className="text-muted" /> {t('session.childCreate.canvas')}
       </button>
       <button type="button" role="menuitem" onClick={addSession} className={item}>
-        <GitBranch size={14} className="text-muted" /> 세션
+        <GitBranch size={14} className="text-muted" /> {t('session.childCreate.session')}
       </button>
     </div>,
     document.body,

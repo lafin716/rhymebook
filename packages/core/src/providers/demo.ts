@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ConnectionState, ProviderId } from '../model';
 import { PROVIDER_LABELS, ProviderRegistry, type Availability } from '../provider';
 import { createMockProvider } from './mock';
@@ -6,7 +7,7 @@ const ALL: ProviderId[] = ['mock', 'claude-cli', 'codex-cli', 'anthropic-api', '
 
 export function connectionAvailability(c: ConnectionState | undefined): Availability {
   if (!c || c.status === 'checking') return { status: 'offline' };
-  if (c.status === 'ready') return c.enabled ? { status: 'ready' } : { status: 'offline', detail: '비활성화됨' };
+  if (c.status === 'ready') return c.enabled ? { status: 'ready' } : { status: 'offline', detail: t('core.availability.disabled') };
   return { status: c.status };
 }
 

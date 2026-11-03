@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { actions, useAppShallow } from '../app/store';
 import { ChatPanel } from '../chat/ChatPanel';
 import { IconButton } from '../components/Button';
+import { t } from '../i18n';
 
 /** 모바일 바텀시트 스택. 가장 위 시트만 보이고, 아래로 끌어 닫는다 */
 export function SheetStack() {
@@ -21,11 +22,11 @@ export function SheetStack() {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
-      <button type="button" aria-label="시트 닫기" className="animate-fade-in absolute inset-0 bg-black/40" onClick={() => actions().closeAllSheets()} />
+      <button type="button" aria-label={t('views.sheet.close')} className="animate-fade-in absolute inset-0 bg-black/40" onClick={() => actions().closeAllSheets()} />
       <div
         key={top}
         role="dialog"
-        aria-label="가지 시트"
+        aria-label={t('views.sheet.dialog')}
         className="animate-sheet-up relative flex h-[88dvh] flex-col overflow-hidden rounded-t-2xl bg-bg shadow-float"
         style={{ transform: dy ? `translateY(${dy}px)` : undefined, transition: start.current === null ? 'transform 180ms' : undefined }}
       >
@@ -42,7 +43,7 @@ export function SheetStack() {
           <span className="h-1.5 w-10 rounded-full bg-line-strong" />
         </div>
         {ids.length > 1 && (
-          <div className="shrink-0 px-4 pb-1 text-[11.5px] text-muted">시트 {ids.length}개 겹침 · 아래로 내리면 이전 가지로</div>
+          <div className="shrink-0 px-4 pb-1 text-[11.5px] text-muted">{t('views.sheet.stackInfo', { count: ids.length })}</div>
         )}
         <ChatPanel
           sessionId={top}
@@ -50,10 +51,10 @@ export function SheetStack() {
           className="min-h-0 flex-1"
           headerActions={
             <span className="flex shrink-0 items-center">
-              <IconButton size="sm" label="전체 화면으로" onClick={() => actions().openSession(top, 'main')}>
+              <IconButton size="sm" label={t('views.sheet.fullScreen')} onClick={() => actions().openSession(top, 'main')}>
                 <Maximize2 size={15} />
               </IconButton>
-              <IconButton size="sm" label="시트 닫기" onClick={() => actions().closeSheet()}>
+              <IconButton size="sm" label={t('views.sheet.close')} onClick={() => actions().closeSheet()}>
                 <ChevronDown size={18} />
               </IconButton>
             </span>

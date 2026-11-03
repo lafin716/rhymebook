@@ -7,6 +7,7 @@ import { undo, redo } from '@codemirror/commands';
 import { caps } from '../app/capabilities';
 import { formatPage, indentPage, ownsKeyboard, pageBlock } from './pageEditorBridge';
 import type { PageBlockKind } from './pageEditorBridge';
+import { t } from '../i18n';
 
 interface PageKeyboardBarProps {
   /** CodeMirror 에디터 뷰 */
@@ -163,26 +164,26 @@ export function PageKeyboardBar({ view, history }: PageKeyboardBarProps) {
       className="bg-surface border-t border-line shadow-float safe-bottom"
     >
       <div className="flex items-center gap-1 px-2 py-2 max-w-full overflow-x-auto scrollbar-hide">
-        <KeyboardBarButton label="내어쓰기" icon={ListIndentDecrease} onClick={() => handleIndent(-1)} />
-        <KeyboardBarButton label="들여쓰기" icon={ListIndentIncrease} onClick={() => handleIndent(1)} />
+        <KeyboardBarButton label={t('page.keyboard.indentOut')} icon={ListIndentDecrease} onClick={() => handleIndent(-1)} />
+        <KeyboardBarButton label={t('page.keyboard.indent')} icon={ListIndentIncrease} onClick={() => handleIndent(1)} />
         <span className="w-px h-6 bg-line mx-1 shrink-0" />
 
-        <KeyboardBarButton label="본문" icon={Pilcrow} onClick={() => handleBlock('paragraph')} />
-        <KeyboardBarButton label="글머리 목록" icon={List} onClick={() => handleBlock('bullet')} />
-        <KeyboardBarButton label="번호 목록" icon={ListOrdered} onClick={() => handleBlock('ordered')} />
-        <KeyboardBarButton label="할 일" icon={CheckSquare} onClick={() => handleBlock('todo')} />
-        <KeyboardBarButton label="인용" icon={Quote} onClick={() => handleBlock('quote')} />
+        <KeyboardBarButton label={t('page.keyboard.paragraph')} icon={Pilcrow} onClick={() => handleBlock('paragraph')} />
+        <KeyboardBarButton label={t('page.keyboard.bullet')} icon={List} onClick={() => handleBlock('bullet')} />
+        <KeyboardBarButton label={t('page.keyboard.ordered')} icon={ListOrdered} onClick={() => handleBlock('ordered')} />
+        <KeyboardBarButton label={t('page.keyboard.todo')} icon={CheckSquare} onClick={() => handleBlock('todo')} />
+        <KeyboardBarButton label={t('page.keyboard.quote')} icon={Quote} onClick={() => handleBlock('quote')} />
         <span className="w-px h-6 bg-line mx-1 shrink-0" />
 
-        <KeyboardBarButton label="제목" icon={Heading3} onClick={() => handleBlock('h3')} />
-        <KeyboardBarButton label="굵게" icon={Bold} onClick={handleFormat} />
+        <KeyboardBarButton label={t('page.keyboard.heading')} icon={Heading3} onClick={() => handleBlock('h3')} />
+        <KeyboardBarButton label={t('page.keyboard.bold')} icon={Bold} onClick={handleFormat} />
         <span className="w-px h-6 bg-line mx-1 shrink-0" />
 
-        <KeyboardBarButton label="실행 취소" icon={Undo2} disabled={!history || history.undo === 0} onClick={handleUndo} />
-        <KeyboardBarButton label="다시 실행" icon={Redo2} disabled={!history || history.redo === 0} onClick={handleRedo} />
+        <KeyboardBarButton label={t('page.keyboard.undo')} icon={Undo2} disabled={!history || history.undo === 0} onClick={handleUndo} />
+        <KeyboardBarButton label={t('page.keyboard.redo')} icon={Redo2} disabled={!history || history.redo === 0} onClick={handleRedo} />
         <span className="w-px h-6 bg-line mx-1 shrink-0" />
 
-        <KeyboardBarButton label="키보드 닫기" icon={Keyboard} onClick={handleCloseKeyboard} />
+        <KeyboardBarButton label={t('page.keyboard.closeKeyboard')} icon={Keyboard} onClick={handleCloseKeyboard} />
       </div>
     </div>,
     document.body,

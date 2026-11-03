@@ -1,0 +1,147 @@
+{
+  "color": {
+    "kind": {
+      "highlight": "형광펜",
+      "underline": "밑줄",
+      "textColor": "글자색"
+    },
+    "preset": {
+      "yellow": "노랑",
+      "green": "초록",
+      "blue": "파랑",
+      "purple": "보라",
+      "red": "빨강",
+      "orange": "주황"
+    },
+    "swatch": "{kind} {color}",
+    "swatchRemove": "{kind} {color} 즐겨찾기에서 빼기",
+    "palette": "{kind} 색상표",
+    "back": "서식으로 돌아가기",
+    "title": "{kind} 색",
+    "none": "없음",
+    "favorites": "즐겨찾기",
+    "done": "완료",
+    "edit": "편집",
+    "favoritesEmpty": "아래 ☆ 버튼으로 자주 쓰는 색을 저장해요.",
+    "recommended": "추천 색",
+    "custom": "사용자 지정",
+    "pick": "색 고르기",
+    "pickLabel": "{kind} 색 고르기",
+    "hex": "HEX 색 코드",
+    "unfavorite": "즐겨찾기에서 빼기",
+    "favorite": "즐겨찾기에 추가",
+    "apply": "적용"
+  },
+  "editor": {
+    "placeholder": "마크다운으로 자유롭게 적어 보세요. 쓰는 대로 저장돼요. / 를 누르거나 우클릭하면 블록·하위 페이지·AI 채우기를 넣어요.\n\n# 제목\n- 목록\n**굵게**, `코드`\n\n글을 고르면 물어보거나 서식·메모를 넣을 수 있어요.",
+    "branchOpen": "가지 열기",
+    "noteOpen": "메모 보기",
+    "bodyLabel": "페이지 본문 (마크다운)",
+    "filling": "AI가 채우는 중",
+    "menuLabel": "블록·AI 메뉴",
+    "column": {
+      "title": "이 칸",
+      "left": "왼쪽으로 옮기기",
+      "right": "오른쪽으로 옮기기",
+      "out": "칸 밖으로 꺼내기",
+      "delete": "칸 지우기"
+    },
+    "ask": {
+      "label": "무엇을 채울까요? (비우면 앞뒤 맥락대로)",
+      "placeholder": "예: 장단점을 표로",
+      "submit": "채우기"
+    },
+    "block": {
+      "title": "이 블록",
+      "up": "위로 옮기기",
+      "down": "아래로 옮기기",
+      "unwrap": "나란히 배치 풀기",
+      "delete": "블록 지우기"
+    },
+    "aiFill": "AI로 내용 채우기",
+    "blocks": {
+      "title": "블록 넣기"
+    },
+    "emoji": {
+      "hint": "이모지 · ↑↓ 선택 · Enter",
+      "listLabel": "이모지"
+    },
+    "slash": {
+      "hint": "블록 넣기 · ↑↓ 선택 · Enter",
+      "listLabel": "블록 넣기"
+    }
+  },
+  "keyboard": {
+    "indentOut": "내어쓰기",
+    "indent": "들여쓰기",
+    "paragraph": "본문",
+    "bullet": "글머리 목록",
+    "ordered": "번호 목록",
+    "todo": "할 일",
+    "quote": "인용",
+    "heading": "제목",
+    "bold": "굵게",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "closeKeyboard": "키보드 닫기"
+  },
+  "panel": {
+    "label": "페이지",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "settings": "페이지 설정",
+    "stopOrganize": "정리 멈추기",
+    "organizing": "정리 중…",
+    "organizeTitle": "AI로 노트 내용을 읽기 좋게 정리해요",
+    "organize": "AI로 정리",
+    "organizeCompact": "AI 정리",
+    "close": "닫기"
+  },
+  "rowSheet": {
+    "kind": {
+      "paragraph": "본문",
+      "h1": "제목 1",
+      "h2": "제목 2",
+      "h3": "제목 3",
+      "bullet": "글머리",
+      "ordered": "번호",
+      "todo": "할 일",
+      "quote": "인용"
+    },
+    "menu": "행 메뉴",
+    "picked": "행을 골랐어요 · 다시 탭하면 편집",
+    "close": "닫기",
+    "edit": "편집",
+    "addBelow": "아래 추가",
+    "up": "위로",
+    "down": "아래로",
+    "fill": "AI 쓰기",
+    "unwrap": "칸 풀기",
+    "delete": "삭제",
+    "changeBlock": "블록 바꾸기"
+  },
+  "settings": {
+    "title": "페이지 설정",
+    "close": "닫기",
+    "keyboardBar": "키보드 단축키 바",
+    "keyboardBarDesc": "편집기 포커스 시 키보드 위에 도구 바를 표시해요",
+    "emoji": "이모지 미리보기",
+    "emojiDesc": ": 입력 시 이모지 후보 목록을 보여줘요"
+  },
+  "live": {
+    "dataUrl": "첨부 데이터",
+    "imageDelete": "이미지 지우기",
+    "taskDone": "완료한 할 일",
+    "task": "할 일",
+    "missingPage": "지워진 페이지",
+    "openPage": "하위 페이지 열기",
+    "column": "칸 {n}",
+    "columnAddRow": "칸 {n} 끝에 행 추가",
+    "columnHandle": "칸 {n} 옮기기·메뉴",
+    "headingPlaceholder": "제목 {n}"
+  },
+  "rowHandles": {
+    "addBelow": "블록 {n} 아래에 행 추가",
+    "menu": "블록 {n} 옮기기·메뉴"
+  }
+}

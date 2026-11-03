@@ -1,0 +1,279 @@
+{
+  "bg": {
+    "paper": "Paper",
+    "white": "White",
+    "cream": "Cream",
+    "lightGreen": "Light green",
+    "sky": "Sky blue",
+    "gray": "Gray",
+    "chalkboard": "Chalkboard"
+  },
+  "image": {
+    "readFailed": "Couldn't read the image.",
+    "processFailed": "Couldn't process the image.",
+    "notImage": "{name} is not an image.",
+    "tooLarge": "{name} is too large (25MB max)."
+  },
+  "pageImage": {
+    "readFailed": "Couldn't read the drawing.",
+    "createFailed": "Couldn't create the page image.",
+    "tooLarge": "The page image is too large to add.",
+    "name": "{title} p.{page}",
+    "untitled": "Canvas"
+  },
+  "pdf": {
+    "passwordProtected": "Password-protected PDFs can't be imported.",
+    "readFailed": "Couldn't read {name}. Check that it is a PDF file."
+  },
+  "present": {
+    "ended": "The presentation has ended",
+    "waiting": "Waiting for the presenter…",
+    "toolbar": "Presentation tools",
+    "laser": "Laser pointer",
+    "pen": "Pen",
+    "eraser": "Eraser",
+    "color": "Color {color}",
+    "clearInk": "Clear all ink",
+    "prev": "Previous page",
+    "next": "Next page",
+    "openAudience": "Open audience view",
+    "openAudienceTitle": "Open audience view (for viewers, no toolbar)",
+    "fullscreen": "Fullscreen",
+    "end": "End presentation",
+    "endTitle": "End presentation (Esc)"
+  },
+  "import": {
+    "offline": "Not connected to the PC. Import again once it is connected.",
+    "timeout": "Couldn't finish receiving the conversation from the PC. Try again in a moment.",
+    "sources": {
+      "image": {
+        "label": "Image",
+        "hint": "PNG, JPG, GIF, or WebP file"
+      },
+      "pdf": {
+        "label": "PDF",
+        "hint": "One page per image · the canvas switches to PDF mode"
+      },
+      "session": {
+        "label": "Session content",
+        "hint": "Turn one conversation into a text card"
+      },
+      "page": {
+        "label": "Page content",
+        "hint": "Turn one page into a text card"
+      },
+      "vault": {
+        "label": "Vault",
+        "hint": "Pick a saved text or image"
+      }
+    },
+    "menu": {
+      "label": "Import type",
+      "title": "Import to canvas"
+    },
+    "sub": {
+      "image": "Image",
+      "text": "Text"
+    },
+    "failed": "Couldn't import.",
+    "picker": {
+      "session": "Import session content",
+      "page": "Import page content",
+      "vault": "Import from vault"
+    },
+    "empty": {
+      "page": "There are no pages yet.",
+      "session": "No conversations to import.",
+      "vault": "Nothing is saved in the vault."
+    },
+    "search": "Search",
+    "searchPlaceholder": "Search by name",
+    "noMatch": "No matching items.",
+    "busy": "Importing…"
+  },
+  "settings": {
+    "title": "Canvas settings",
+    "pdfMode": "PDF mode",
+    "pdfHint": "{name} · choosing another size below removes the PDF",
+    "sizeTitle": "Canvas size",
+    "layout": {
+      "free": {
+        "label": "Free",
+        "hint": "Write anywhere on an endless board"
+      },
+      "landscape": {
+        "label": "Landscape 16:9",
+        "hint": "Wide pages · swipe for a new page"
+      },
+      "portrait": {
+        "label": "Portrait 9:16",
+        "hint": "Tall pages · swipe for a new page"
+      },
+      "a4Landscape": {
+        "label": "A4 landscape",
+        "hint": "A4 sheet turned sideways · swipe for a new page"
+      },
+      "a4Portrait": {
+        "label": "A4 portrait",
+        "hint": "A4 sheet upright · swipe for a new page"
+      }
+    },
+    "flowTitle": "Page turn direction",
+    "flow": {
+      "horizontal": {
+        "label": "Sideways",
+        "hint": "Swipe left or right to turn pages"
+      },
+      "vertical": {
+        "label": "Up and down",
+        "hint": "Swipe up or down to turn pages"
+      }
+    },
+    "bg": "Background",
+    "bgPdf": "Background · shown outside PDF pages and on new boards",
+    "bgColor": "Background color",
+    "colorCustom": "Pick a custom background color",
+    "bgPattern": "Background pattern",
+    "pattern": {
+      "none": "Plain",
+      "gridFine": "Fine grid",
+      "gridWide": "Wide grid",
+      "lines": "Ruled lines"
+    },
+    "paletteTitle": "Colors shown at once",
+    "paletteSlider": "Palette color count",
+    "paletteMin": "At least 1",
+    "paletteAll": "All ({total})",
+    "gestureTitle": "Two-finger gestures",
+    "gestureHint": "A quick swipe runs the chosen action and a slow drag moves the view. Directions set to 'Off' still move the view and turn pages as before. Previous and next page only work on split-page boards.",
+    "gestureSelect": "Two-finger {name}",
+    "gesture": {
+      "doubleTap": "Double tap",
+      "swipeUp": "Swipe up",
+      "swipeDown": "Swipe down",
+      "swipeLeft": "Swipe left",
+      "swipeRight": "Swipe right"
+    },
+    "action": {
+      "off": "Off",
+      "selectPen": "Select ↔ pen",
+      "eraserPen": "Eraser ↔ pen",
+      "penMarker": "Pen ↔ highlighter",
+      "undo": "Undo",
+      "redo": "Redo",
+      "prevPage": "Previous page",
+      "nextPage": "Next page"
+    }
+  },
+  "toolbar": {
+    "label": "Canvas tools",
+    "dockHandle": "Move toolbar",
+    "dockHandleTitle": "Drag to reposition the toolbar",
+    "ink": {
+      "black": "Black",
+      "white": "White",
+      "red": "Red",
+      "blue": "Blue",
+      "green": "Green",
+      "yellow": "Yellow",
+      "purple": "Purple"
+    },
+    "inkSwatch": "{name} color",
+    "favoriteInk": "Favorite color {hex}",
+    "favoriteGroup": "Favorite colors",
+    "favoriteUse": "Use favorite color {hex}",
+    "tool": {
+      "select": "Select/move",
+      "pen": "Pen",
+      "marker": "Highlighter",
+      "eraser": "Eraser"
+    },
+    "penTitle": "Pen ({nib}) · tap again for type and width",
+    "markerTitle": "Highlighter · tap again for width",
+    "nib": {
+      "fountain": "Fountain pen",
+      "fountainHint": "Width changes with pressure",
+      "ballpoint": "Ballpoint",
+      "ballpointHint": "Even, neat strokes",
+      "brush": "Brush pen",
+      "brushHint": "Width varies a lot and tapers to a point",
+      "pencil": "Pencil",
+      "pencilHint": "Thin and slightly faint"
+    },
+    "nibGroup": "Pen type",
+    "colors": "Colors",
+    "moreColors": "More colors",
+    "customColor": "Pick a custom color",
+    "customColorTitle": "Pick a custom color · favorites",
+    "collapsePalette": "Collapse color palette",
+    "expandPalette": "Expand color palette",
+    "undo": "Undo",
+    "undoTitle": "Undo (⌘Z)",
+    "redo": "Redo",
+    "redoTitle": "Redo (⌘⇧Z)",
+    "deleteSelected": "Delete selection",
+    "deleteSelectedTitle": "Delete selection (Delete)",
+    "present": "Present",
+    "fullEnd": "Exit full screen",
+    "full": "Full screen",
+    "import": "Import",
+    "penSettings": "Pen settings",
+    "markerSize": "Highlighter width",
+    "penSize": "Pen width",
+    "pickColor": "Pick a color",
+    "sizeNumber": "Width value",
+    "sizeRange": "Width",
+    "svArea": "Saturation and brightness",
+    "svValue": "Saturation {saturation}%, brightness {brightness}%",
+    "hue": "Hue",
+    "colorNew": "New color",
+    "colorOriginal": "Revert to original color {hex}",
+    "colorOriginalTitle": "Revert to original color",
+    "eyedrop": "Pick color from screen",
+    "eyedropTitle": "Eyedropper · pick color from screen",
+    "colorCode": "Color code",
+    "channelValue": "{channel} value",
+    "favorite": {
+      "preset": "This is a default color",
+      "remove": "Remove from favorites",
+      "max": "Up to {max} favorites",
+      "add": "Add to favorites"
+    }
+  },
+  "panel": {
+    "label": "Canvas",
+    "defaultTitle": "Canvas",
+    "tooBig": "The canvas is too large to save. Shrink or split the images.",
+    "saveFail": "Could not save the canvas. Try again in a moment.",
+    "pageSaveFail": "Could not save the page to the vault.",
+    "pdfEndTitle": "End PDF mode?",
+    "pdfEndMessage": "The imported PDF pages will be removed from the canvas. Your handwriting and cards on top stay.",
+    "pdfReplaceTitle": "Replace the PDF?",
+    "pdfReplaceMessage": "Replace the current PDF ({current}) with {next}. Your handwriting and cards stay.",
+    "confirmChange": "Change",
+    "pdfLoading": "Loading PDF…",
+    "pdfNoPages": "{name} has no pages.",
+    "pdfTruncated": "Imported only the first {shown} of {total} pages.",
+    "importFail": "Could not import {name}.",
+    "fitPage": "Fit page",
+    "fitAll": "Show all",
+    "eyedropHint": "Tap the board to pick a color",
+    "eyedropStop": "Stop eyedropper",
+    "imageFiles": "Image files to import",
+    "pdfFile": "PDF file to import",
+    "pageTitle": "{title}, page {page}"
+  },
+  "pageNav": {
+    "label": "Page navigation",
+    "prev": "Previous page",
+    "next": "Next page",
+    "add": "New page",
+    "save": "Save this page to the vault"
+  },
+  "board": {
+    "label": "Canvas drawing board",
+    "gesturing": "Zooming and moving",
+    "resize": "Resize",
+    "importedImage": "Imported image"
+  }
+}

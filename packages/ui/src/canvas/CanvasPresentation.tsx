@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { desktop, mobile } from '../app/runtime';
 import { cn } from '../lib/cn';
 import { CanvasBoard } from './CanvasBoard';
-import { INK_COLORS } from './CanvasToolbar';
+import { INK_HEXES } from './CanvasToolbar';
 import { createPresentChannel, type PresentChannel, type PresentMessage } from './presentChannel';
 import { centerView, fitView, type CanvasView } from './view';
+import { t } from '../i18n';
 
 export interface CanvasPresentationProps {
   sessionId: ID;
@@ -18,7 +19,7 @@ export interface CanvasPresentationProps {
 type PresentTool = 'pointer' | 'pen' | 'eraser';
 type Point = { x: number; y: number };
 
-const PEN_COLORS = INK_COLORS.slice(0, 5).map((c) => c.hex);
+const PEN_COLORS = INK_HEXES.slice(0, 5);
 
 /**
  * 발표 모드 (ADR-089). 화면 전체를 덮고 레이저 포인터·펜·지우개·쪽 넘김을 준다.
@@ -189,18 +190,18 @@ export function CanvasPresentation({ sessionId, doc, page: initialPage, onExit }
 
       <div
         role="toolbar"
-        aria-label="발표 도구"
+        aria-label={t('canvas.present.toolbar')}
         data-present-toolbar
         className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
         <div className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-black/80 p-1.5 shadow-lg backdrop-blur">
-          <button type="button" aria-label="레이저 포인터" aria-pressed={tool === 'pointer'} className={btn(tool === 'pointer')} onClick={() => setTool('pointer')}>
+          <button type="button" aria-label={t('canvas.present.laser')} aria-pressed={tool === 'pointer'} className={btn(tool === 'pointer')} onClick={() => setTool('pointer')}>
             <MousePointer2 className="size-5" />
           </button>
-          <button type="button" aria-label="펜" aria-pressed={tool === 'pen'} className={btn(tool === 'pen')} onClick={() => setTool('pen')}>
+          <button type="button" aria-label={t('canvas.present.pen')} aria-pressed={tool === 'pen'} className={btn(tool === 'pen')} onClick={() => setTool('pen')}>
             <Pen className="size-5" />
           </button>
-          <button type="button" aria-label="지우개" aria-pressed={tool === 'eraser'} className={btn(tool === 'eraser')} onClick={() => setTool('eraser')}>
+          <button type="button" aria-label={t('canvas.present.eraser')} aria-pressed={tool === 'eraser'} className={btn(tool === 'eraser')} onClick={() => setTool('eraser')}>
             <Eraser className="size-5" />
           </button>
           {tool === 'pen' &&
@@ -208,7 +209,7 @@ export function CanvasPresentation({ sessionId, doc, page: initialPage, onExit }
               <button
                 key={c}
                 type="button"
-                aria-label={`색 ${c}`}
+                aria-label={t('canvas.present.color', { color: c })}
                 aria-pressed={color === c}
                 onClick={() => setColor(c)}
                 className="grid size-8 shrink-0 place-items-center"
@@ -216,35 +217,35 @@ export function CanvasPresentation({ sessionId, doc, page: initialPage, onExit }
                 <span className={cn('size-5 rounded-full border-2', color === c ? 'border-white' : 'border-white/30')} style={{ backgroundColor: c }} />
               </button>
             ))}
-          <button type="button" aria-label="필기 모두 지우기" disabled={ink.length === 0} className={cn(btn(false), 'disabled:opacity-40')} onClick={() => setInk([])}>
+          <button type="button" aria-label={t('canvas.present.clearInk')} disabled={ink.length === 0} className={cn(btn(false), 'disabled:opacity-40')} onClick={() => setInk([])}>
             <Trash2 className="size-5" />
           </button>
           {!isFree && (
             <>
               <span className="mx-1 h-6 w-px shrink-0 bg-white/20" />
-              <button type="button" aria-label="이전 쪽" disabled={page === 0} className={cn(btn(false), 'disabled:opacity-40')} onClick={() => go(-1)}>
+              <button type="button" aria-label={t('canvas.present.prev')} disabled={page === 0} className={cn(btn(false), 'disabled:opacity-40')} onClick={() => go(-1)}>
                 <ChevronLeft className="size-5" />
               </button>
               <span data-present-page className="shrink-0 px-1 text-sm tabular-nums text-white">
                 {page + 1} / {pageRects.length}
               </span>
-              <button type="button" aria-label="다음 쪽" disabled={page >= pageRects.length - 1} className={cn(btn(false), 'disabled:opacity-40')} onClick={() => go(1)}>
+              <button type="button" aria-label={t('canvas.present.next')} disabled={page >= pageRects.length - 1} className={cn(btn(false), 'disabled:opacity-40')} onClick={() => go(1)}>
                 <ChevronRight className="size-5" />
               </button>
             </>
           )}
           <span className="mx-1 h-6 w-px shrink-0 bg-white/20" />
           {!mobile && (
-            <button type="button" aria-label="발표 화면 열기" title="발표 화면 열기 (청중용, 도구 막대 없음)" className={btn(false)} onClick={openAudience}>
+            <button type="button" aria-label={t('canvas.present.openAudience')} title={t('canvas.present.openAudienceTitle')} className={btn(false)} onClick={openAudience}>
               <MonitorUp className="size-5" />
             </button>
           )}
           {!desktop && !mobile && (
-            <button type="button" aria-label="화면 가득" className={btn(false)} onClick={fullscreen}>
+            <button type="button" aria-label={t('canvas.present.fullscreen')} className={btn(false)} onClick={fullscreen}>
               <Maximize className="size-5" />
             </button>
           )}
-          <button type="button" aria-label="발표 끝내기" title="발표 끝내기 (Esc)" className={btn(false)} onClick={onExit}>
+          <button type="button" aria-label={t('canvas.present.end')} title={t('canvas.present.endTitle')} className={btn(false)} onClick={onExit}>
             <X className="size-5" />
           </button>
         </div>

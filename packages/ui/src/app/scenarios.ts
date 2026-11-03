@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { createSeed, defaultConnections, emptyView, mockControl, SEED_IDS } from '@branch/core';
 import { useEffect } from 'react';
 import { branchTarget } from '../chat/open';
@@ -37,11 +38,11 @@ function reset(activeId: string | null = SEED_IDS.root) {
 const afterPaint = (fn: () => void, delay = 120) => window.setTimeout(fn, delay);
 
 export const SCENARIOS: Scenario[] = [
-  { id: 'home', label: '홈', hint: '시드 세션 “트랜스포머 어텐션”', run: () => reset() },
+  { id: 'home', get label() { return t('app.scenarios.home.label'); }, get hint() { return t('app.scenarios.home.hint'); }, run: () => reset() },
   {
     id: 'empty',
-    label: '빈 상태',
-    hint: '새 학습 세션의 빈 화면과 추천 질문',
+    get label() { return t('app.scenarios.empty.label'); },
+    get hint() { return t('app.scenarios.empty.hint'); },
     run: () => {
       reset();
       actions().newRootSession();
@@ -49,8 +50,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'branch-select',
-    label: '선택→가지',
-    hint: '답변의 “가중합”이 선택된 상태. 플로팅 액션에서 가지를 만든다',
+    get label() { return t('app.scenarios.branch-select.label'); },
+    get hint() { return t('app.scenarios.branch-select.hint'); },
     run: () => {
       reset();
       afterPaint(() => selectText('s-root-m2', '가중합'), 250);
@@ -58,14 +59,14 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'deep',
-    label: '3단계 가지',
-    hint: '루트 › Q/K/V › 내적 › 코사인 유사도 (breadcrumb + 앵커 인용)',
+    get label() { return t('app.scenarios.deep.label'); },
+    get hint() { return t('app.scenarios.deep.hint'); },
     run: () => reset(SEED_IDS.cos),
   },
   {
     id: 'summary',
-    label: '요약 되돌리기',
-    hint: '“스케일링” 가지에서 요약 초안 생성 → 부모에 붙이기',
+    get label() { return t('app.scenarios.summary.label'); },
+    get hint() { return t('app.scenarios.summary.hint'); },
     run: () => {
       reset(SEED_IDS.scale);
       void actions().requestSummary(SEED_IDS.scale);
@@ -73,8 +74,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'streaming',
-    label: '스트리밍',
-    hint: '느린 속도로 응답 생성 중 (중지 버튼)',
+    get label() { return t('app.scenarios.streaming.label'); },
+    get hint() { return t('app.scenarios.streaming.hint'); },
     run: () => {
       reset();
       mockControl.speed = 4;
@@ -83,8 +84,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'error',
-    label: '에러',
-    hint: '응답 도중 스트림이 끊김 → 다시 시도',
+    get label() { return t('app.scenarios.error.label'); },
+    get hint() { return t('app.scenarios.error.hint'); },
     run: () => {
       reset();
       mockControl.failNext = true;
@@ -93,8 +94,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'offline',
-    label: 'Provider 오프라인',
-    hint: 'Claude CLI 오프라인 → 대체 provider 제안',
+    get label() { return t('app.scenarios.offline.label'); },
+    get hint() { return t('app.scenarios.offline.hint'); },
     run: () => {
       reset();
       actions().setSessionProvider(SEED_IDS.root, 'claude-cli');
@@ -104,8 +105,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'split',
-    label: '분할',
-    hint: '루트 | Q/K/V | 내적 3패널 (모바일은 탭)',
+    get label() { return t('app.scenarios.split.label'); },
+    get hint() { return t('app.scenarios.split.hint'); },
     run: () => {
       reset();
       actions().openSession(SEED_IDS.qkv, 'split');
@@ -114,8 +115,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'popup',
-    label: '팝업/시트',
-    hint: '가지를 플로팅 팝업으로 (모바일은 바텀시트)',
+    get label() { return t('app.scenarios.popup.label'); },
+    get hint() { return t('app.scenarios.popup.hint'); },
     run: () => {
       reset();
       const t = branchTarget() === 'sheet' ? 'sheet' : 'popup';
@@ -125,8 +126,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'mindmap',
-    label: '마인드맵',
-    hint: '세션 트리. 클릭=열기, Shift+클릭=분할',
+    get label() { return t('app.scenarios.mindmap.label'); },
+    get hint() { return t('app.scenarios.mindmap.hint'); },
     run: () => {
       reset();
       actions().setMode('mindmap');
@@ -134,8 +135,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'search',
-    label: '검색',
-    hint: '⌘K 세션 검색',
+    get label() { return t('app.scenarios.search.label'); },
+    get hint() { return t('app.scenarios.search.hint'); },
     run: () => {
       reset();
       actions().setOverlay('search');
@@ -143,8 +144,8 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'settings',
-    label: '설정',
-    hint: '연결 카드, CLI 상태, API 키, 페어링 QR',
+    get label() { return t('app.scenarios.settings.label'); },
+    get hint() { return t('app.scenarios.settings.hint'); },
     run: () => {
       reset();
       actions().setOverlay('settings');

@@ -3,35 +3,56 @@ import { Brush, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Eraser, GripV
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
+import { t } from '../i18n';
 import { strokeOpacity, strokePath } from './strokePath';
 import { hexToRgb, hsvToHex, rgbToHex, rgbToHsv, type Hsv } from './colorMath';
 import { clampStroke, isHex, MAX_FAVORITE_INKS, STROKE_RANGE, type StrokeKind, type ToolbarDock } from './canvasPrefs';
 
 export type CanvasToolId = 'select' | 'pen' | 'marker' | 'eraser';
 
-export const INK_COLORS: { label: string; hex: string }[] = [
-  { label: '검정', hex: '#1f2937' },
-  { label: '흰색', hex: '#ffffff' },
-  { label: '빨강', hex: '#dc2626' },
-  { label: '파랑', hex: '#2563eb' },
-  { label: '초록', hex: '#16a34a' },
-  { label: '노랑', hex: '#facc15' },
-  { label: '보라', hex: '#7c3aed' },
+const INK_BASE: { key: 'black' | 'white' | 'red' | 'blue' | 'green' | 'yellow' | 'purple'; hex: string }[] = [
+  { key: 'black', hex: '#1f2937' },
+  { key: 'white', hex: '#ffffff' },
+  { key: 'red', hex: '#dc2626' },
+  { key: 'blue', hex: '#2563eb' },
+  { key: 'green', hex: '#16a34a' },
+  { key: 'yellow', hex: '#facc15' },
+  { key: 'purple', hex: '#7c3aed' },
 ];
 
-export const PEN_NIBS: { nib: CanvasPenNib; label: string; hint: string; icon: (size: number) => ReactNode }[] = [
-  { nib: 'fountain', label: '만년필', hint: '누르는 힘에 따라 굵기가 변해요', icon: (n) => <PenTool size={n} /> },
-  { nib: 'ballpoint', label: '볼펜', hint: '고른 굵기로 또박또박', icon: (n) => <Pen size={n} /> },
-  { nib: 'brush', label: '붓펜', hint: '굵기가 크게 변하고 끝이 가늘어요', icon: (n) => <Brush size={n} /> },
-  { nib: 'pencil', label: '연필', hint: '가늘고 조금 흐리게', icon: (n) => <Pencil size={n} /> },
-];
+/** 기본 잉크 색 (hex만 — 이름은 inkColors()) */
+export const INK_HEXES: string[] = INK_BASE.map((c) => c.hex);
 
-const TOOLS: { id: CanvasToolId; label: string; icon: ReactNode }[] = [
-  { id: 'select', label: '선택/이동', icon: <MousePointer2 size={18} /> },
-  { id: 'pen', label: '펜', icon: <PenTool size={18} /> },
-  { id: 'marker', label: '형광펜', icon: <Highlighter size={18} /> },
-  { id: 'eraser', label: '지우개', icon: <Eraser size={18} /> },
-];
+export function inkColors(): { label: string; hex: string }[] {
+  const names: Record<(typeof INK_BASE)[number]['key'], string> = {
+    black: t('canvas.toolbar.ink.black'),
+    white: t('canvas.toolbar.ink.white'),
+    red: t('canvas.toolbar.ink.red'),
+    blue: t('canvas.toolbar.ink.blue'),
+    green: t('canvas.toolbar.ink.green'),
+    yellow: t('canvas.toolbar.ink.yellow'),
+    purple: t('canvas.toolbar.ink.purple'),
+  };
+  return INK_BASE.map((c) => ({ label: names[c.key], hex: c.hex }));
+}
+
+function penNibs(): { nib: CanvasPenNib; label: string; hint: string; icon: (size: number) => ReactNode }[] {
+  return [
+    { nib: 'fountain', label: t('canvas.toolbar.nib.fountain'), hint: t('canvas.toolbar.nib.fountainHint'), icon: (n) => <PenTool size={n} /> },
+    { nib: 'ballpoint', label: t('canvas.toolbar.nib.ballpoint'), hint: t('canvas.toolbar.nib.ballpointHint'), icon: (n) => <Pen size={n} /> },
+    { nib: 'brush', label: t('canvas.toolbar.nib.brush'), hint: t('canvas.toolbar.nib.brushHint'), icon: (n) => <Brush size={n} /> },
+    { nib: 'pencil', label: t('canvas.toolbar.nib.pencil'), hint: t('canvas.toolbar.nib.pencilHint'), icon: (n) => <Pencil size={n} /> },
+  ];
+}
+
+function toolItems(): { id: CanvasToolId; label: string; icon: ReactNode }[] {
+  return [
+    { id: 'select', label: t('canvas.toolbar.tool.select'), icon: <MousePointer2 size={18} /> },
+    { id: 'pen', label: t('canvas.toolbar.tool.pen'), icon: <PenTool size={18} /> },
+    { id: 'marker', label: t('canvas.toolbar.tool.marker'), icon: <Highlighter size={18} /> },
+    { id: 'eraser', label: t('canvas.toolbar.tool.eraser'), icon: <Eraser size={18} /> },
+  ];
+}
 
 /** 터치 기준 44px, 태블릿 이상은 36px */
 const BTN = 'grid size-11 shrink-0 place-items-center rounded-lg text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 md:size-9';
@@ -88,15 +109,17 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
   const [dockPreview, setDockPreview] = useState<{ dock: ToolbarDock; rect: DOMRect } | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
-  const known = INK_COLORS.some((c) => c.hex === p.color) || p.favorites.includes(p.color);
+  const known = INK_HEXES.includes(p.color) || p.favorites.includes(p.color);
   const isVertical = p.toolbarDock === 'left' || p.toolbarDock === 'right';
 
-  const penNib = PEN_NIBS.find((n) => n.nib === p.nib) ?? PEN_NIBS[0]!;
+  const tools = toolItems();
+  const nibs = penNibs();
+  const penNib = nibs.find((n) => n.nib === p.nib) ?? nibs[0]!;
 
   // 팔레트: 기본 색 다음에 즐겨찾는 색. 개수를 넘는 색은 '더 많은 색'에 넣되, 지금 고른 색은 늘 보인다
   const swatches = [
-    ...INK_COLORS.map((c) => ({ hex: c.hex, label: `${c.label} 색`, favorite: false })),
-    ...p.favorites.filter((hex) => !INK_COLORS.some((c) => c.hex === hex)).map((hex) => ({ hex, label: `즐겨찾는 색 ${hex}`, favorite: true })),
+    ...inkColors().map((c) => ({ hex: c.hex, label: t('canvas.toolbar.inkSwatch', { name: c.label }), favorite: false })),
+    ...p.favorites.filter((hex) => !INK_HEXES.includes(hex)).map((hex) => ({ hex, label: t('canvas.toolbar.favoriteInk', { hex }), favorite: true })),
   ];
   const limit = Math.min(p.paletteCount ?? swatches.length, swatches.length);
   const shownSwatches = swatches.filter((s, i) => i < limit || s.hex === p.color);
@@ -171,7 +194,7 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
     <div
       ref={toolbarRef}
       role="toolbar"
-      aria-label="캔버스 도구"
+      aria-label={t('canvas.toolbar.label')}
       data-canvas-toolbar=""
       data-dock={p.toolbarDock}
       className={cn(
@@ -184,8 +207,8 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       {/* 도킹 핸들 */}
       <button
         type="button"
-        aria-label="도구 막대 위치 변경"
-        title="끌어서 도구 막대를 다시 배치하세요"
+        aria-label={t('canvas.toolbar.dockHandle')}
+        title={t('canvas.toolbar.dockHandleTitle')}
         onPointerDown={(e) => {
           dragStartRef.current = { x: e.clientX, y: e.clientY };
           setDragHandle(true);
@@ -197,25 +220,25 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         <GripVertical size={18} />
       </button>
 
-      {TOOLS.map((t) => (
+      {tools.map((tool) => (
         <button
-          key={t.id}
+          key={tool.id}
           type="button"
-          aria-label={t.label}
-          aria-pressed={p.tool === t.id}
-          aria-haspopup={t.id === 'pen' || t.id === 'marker' ? 'dialog' : undefined}
+          aria-label={tool.label}
+          aria-pressed={p.tool === tool.id}
+          aria-haspopup={tool.id === 'pen' || tool.id === 'marker' ? 'dialog' : undefined}
           title={
-            t.id === 'pen' ? `펜 (${penNib.label}) · 다시 누르면 종류·굵기` : t.id === 'marker' ? '형광펜 · 다시 누르면 굵기' : t.label
+            tool.id === 'pen' ? t('canvas.toolbar.penTitle', { nib: penNib.label }) : tool.id === 'marker' ? t('canvas.toolbar.markerTitle') : tool.label
           }
-          onClick={(e) => pickTool(t.id, e.currentTarget)}
-          className={cn(BTN, 'relative', p.tool === t.id && 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent')}
-          data-canvas-tool={t.id}
-          data-canvas-nib={t.id === 'pen' ? p.nib : undefined}
+          onClick={(e) => pickTool(tool.id, e.currentTarget)}
+          className={cn(BTN, 'relative', p.tool === tool.id && 'bg-accent-soft text-accent hover:bg-accent-soft hover:text-accent')}
+          data-canvas-tool={tool.id}
+          data-canvas-nib={tool.id === 'pen' ? p.nib : undefined}
         >
-          {t.id === 'pen' ? penNib.icon(18) : t.icon}
-          {(t.id === 'pen' || t.id === 'marker') && (
+          {tool.id === 'pen' ? penNib.icon(18) : tool.icon}
+          {(tool.id === 'pen' || tool.id === 'marker') && (
             <span className="absolute right-1 bottom-1 text-[9px] leading-none tabular-nums opacity-70" aria-hidden>
-              {p.sizes[t.id]}
+              {p.sizes[tool.id]}
             </span>
           )}
         </button>
@@ -223,7 +246,7 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       <span className={cn('shrink-0 self-center bg-line', isVertical ? 'my-1 h-px w-6' : 'mx-1 h-6 w-px')} aria-hidden />
 
       {/* 팔레트: 색들(밀려 열리고 닫힘) · 직접 고르기 · 접기/펼치기 토글. 세로 막대에서는 위아래로 쌓고 토글은 맨 아래 */}
-      <div className={cn('flex items-center gap-0.5', isVertical && 'flex-col', !drawing && 'opacity-40')} role="group" aria-label="색" data-canvas-palette="">
+      <div className={cn('flex items-center gap-0.5', isVertical && 'flex-col', !drawing && 'opacity-40')} role="group" aria-label={t('canvas.toolbar.colors')} data-canvas-palette="">
         <Slide open={p.paletteOpen} vertical={isVertical}>
           {shownSwatches.map((c) => (
             <Swatch key={c.hex} hex={c.hex} label={c.label} active={p.color === c.hex} onClick={() => p.onColor(c.hex)} favorite={c.favorite} />
@@ -232,8 +255,8 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
           {moreSwatches.length > 0 && (
             <button
               type="button"
-              aria-label="더 많은 색"
-              title="더 많은 색"
+              aria-label={t('canvas.toolbar.moreColors')}
+              title={t('canvas.toolbar.moreColors')}
               onClick={(e) => setPop(pop?.kind === 'overflow' ? null : { kind: 'overflow', el: e.currentTarget })}
               className={cn(BTN, 'text-fg-2')}
               data-canvas-overflow-colors=""
@@ -246,8 +269,8 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         {/* 직접 고르기: 무지개 테두리 안에 지금 색 — 팔레트를 접어도 지금 색이 보인다 */}
         <button
           type="button"
-          aria-label="색 직접 고르기"
-          title="색 직접 고르기 · 즐겨찾기"
+          aria-label={t('canvas.toolbar.customColor')}
+          title={t('canvas.toolbar.customColorTitle')}
           aria-haspopup="dialog"
           aria-expanded={pop?.kind === 'color'}
           onClick={(e) => setPop(pop?.kind === 'color' ? null : { kind: 'color', el: e.currentTarget })}
@@ -264,8 +287,8 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
 
         <button
           type="button"
-          aria-label={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
-          title={p.paletteOpen ? '색 팔레트 접기' : '색 팔레트 펼치기'}
+          aria-label={p.paletteOpen ? t('canvas.toolbar.collapsePalette') : t('canvas.toolbar.expandPalette')}
+          title={p.paletteOpen ? t('canvas.toolbar.collapsePalette') : t('canvas.toolbar.expandPalette')}
           aria-expanded={p.paletteOpen}
           onClick={() => p.onPaletteOpen(!p.paletteOpen)}
           className={cn(BTN, 'md:h-8 md:w-6', isVertical && 'md:h-6 md:w-9')}
@@ -282,20 +305,20 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
       </div>
 
       <span className={cn('shrink-0 self-center bg-line', isVertical ? 'my-1 h-px w-6' : 'mx-1 h-6 w-px')} aria-hidden />
-      <button type="button" aria-label="실행 취소" title="실행 취소 (⌘Z)" disabled={!p.canUndo} onClick={p.onUndo} className={BTN}>
+      <button type="button" aria-label={t('canvas.toolbar.undo')} title={t('canvas.toolbar.undoTitle')} disabled={!p.canUndo} onClick={p.onUndo} className={BTN}>
         <Undo2 size={18} />
       </button>
-      <button type="button" aria-label="다시 실행" title="다시 실행 (⌘⇧Z)" disabled={!p.canRedo} onClick={p.onRedo} className={BTN}>
+      <button type="button" aria-label={t('canvas.toolbar.redo')} title={t('canvas.toolbar.redoTitle')} disabled={!p.canRedo} onClick={p.onRedo} className={BTN}>
         <Redo2 size={18} />
       </button>
       <button type="button" aria-label={p.fitLabel} title={p.fitLabel} onClick={p.onFit} className={BTN}>
         <Maximize size={18} />
       </button>
-      <button type="button" aria-label="캔버스 설정" title="캔버스 설정" onClick={p.onSettings} className={BTN} data-canvas-settings-open="">
+      <button type="button" aria-label={t('canvas.settings.title')} title={t('canvas.settings.title')} onClick={p.onSettings} className={BTN} data-canvas-settings-open="">
         <Settings2 size={18} />
       </button>
       {p.hasSelection && (
-        <button type="button" aria-label="선택 항목 지우기" title="선택 항목 지우기 (Delete)" onClick={p.onDeleteSelected} className={cn(BTN, 'text-danger hover:text-danger')}>
+        <button type="button" aria-label={t('canvas.toolbar.deleteSelected')} title={t('canvas.toolbar.deleteSelectedTitle')} onClick={p.onDeleteSelected} className={cn(BTN, 'text-danger hover:text-danger')}>
           <Trash2 size={18} />
         </button>
       )}
@@ -310,31 +333,31 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         )}
       >
         <span className={cn('shrink-0 self-center bg-line', isVertical ? 'my-1 h-px w-6' : 'mx-1 h-6 w-px')} aria-hidden />
-        <button type="button" aria-label="발표" title="발표" onClick={p.onPresent} className={BTN} data-canvas-present="">
+        <button type="button" aria-label={t('canvas.toolbar.present')} title={t('canvas.toolbar.present')} onClick={p.onPresent} className={BTN} data-canvas-present="">
           <Presentation size={18} />
         </button>
         <button
           type="button"
-          aria-label={p.panelFull ? '전체 화면 끝내기' : '전체 화면'}
-          title={p.panelFull ? '전체 화면 끝내기' : '전체 화면'}
+          aria-label={p.panelFull ? t('canvas.toolbar.fullEnd') : t('canvas.toolbar.full')}
+          title={p.panelFull ? t('canvas.toolbar.fullEnd') : t('canvas.toolbar.full')}
           onClick={() => p.onPanelFull(!p.panelFull)}
           className={BTN}
           data-panel-full=""
         >
           {p.panelFull ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
-        <button type="button" aria-label="가져오기" title="가져오기" onClick={p.onImport} className={BTN} data-canvas-import="">
+        <button type="button" aria-label={t('canvas.toolbar.import')} title={t('canvas.toolbar.import')} onClick={p.onImport} className={BTN} data-canvas-import="">
           <Import size={18} />
         </button>
       </div>
       {pop?.kind === 'size' && (
-        <Popover anchor={pop.el} label={pop.tool === 'pen' ? '펜 설정' : '형광펜 굵기'} onClose={() => setPop(null)} isVertical={isVertical}>
+        <Popover anchor={pop.el} label={pop.tool === 'pen' ? t('canvas.toolbar.penSettings') : t('canvas.toolbar.markerSize')} onClose={() => setPop(null)} isVertical={isVertical}>
           {pop.tool === 'pen' && <NibPicker nib={p.nib} onNib={p.onNib} />}
           <SizeEditor kind={pop.tool} size={p.sizes[pop.tool]} color={p.color} nib={pop.tool === 'pen' ? p.nib : undefined} onSize={(n) => p.onSize(pop.tool, n)} />
         </Popover>
       )}
       {pop?.kind === 'color' && (
-        <Popover anchor={pop.el} label="색 고르기" onClose={() => setPop(null)} isVertical={isVertical}>
+        <Popover anchor={pop.el} label={t('canvas.toolbar.pickColor')} onClose={() => setPop(null)} isVertical={isVertical}>
           <ColorEditor
             color={p.color}
             onColor={p.onColor}
@@ -348,8 +371,8 @@ export function CanvasToolbar(p: CanvasToolbarProps) {
         </Popover>
       )}
       {pop?.kind === 'overflow' && (
-        <Popover anchor={pop.el} label="더 많은 색" onClose={() => setPop(null)} isVertical={isVertical}>
-          <div className="flex flex-wrap gap-1" role="group" aria-label="더 많은 색">
+        <Popover anchor={pop.el} label={t('canvas.toolbar.moreColors')} onClose={() => setPop(null)} isVertical={isVertical}>
+          <div className="flex flex-wrap gap-1" role="group" aria-label={t('canvas.toolbar.moreColors')}>
             {moreSwatches.map((c) => (
               <button
                 key={c.hex}
@@ -458,8 +481,8 @@ const PREVIEW_POINTS = Array.from({ length: 41 }, (_, i) => {
 /** 펜 종류 고르기 */
 function NibPicker({ nib, onNib }: { nib: CanvasPenNib; onNib(nib: CanvasPenNib): void }) {
   return (
-    <div role="radiogroup" aria-label="펜 종류" className="mb-3 grid w-60 grid-cols-4 gap-1" data-canvas-nib-picker="">
-      {PEN_NIBS.map((n) => (
+    <div role="radiogroup" aria-label={t('canvas.toolbar.nibGroup')} className="mb-3 grid w-60 grid-cols-4 gap-1" data-canvas-nib-picker="">
+      {penNibs().map((n) => (
         <button
           key={n.nib}
           type="button"
@@ -487,14 +510,14 @@ function SizeEditor({ kind, size, color, nib, onSize }: { kind: StrokeKind; size
   return (
     <div className="flex w-60 flex-col gap-3" data-canvas-size-editor={kind}>
       <div className="flex items-center justify-between text-[13px] text-fg-2">
-        <span>{kind === 'pen' ? '펜 굵기' : '형광펜 굵기'}</span>
+        <span>{kind === 'pen' ? t('canvas.toolbar.penSize') : t('canvas.toolbar.markerSize')}</span>
         <label className="flex items-center gap-1">
           <input
             type="number"
             min={r.min}
             max={r.max}
             value={size}
-            aria-label="굵기 숫자"
+            aria-label={t('canvas.toolbar.sizeNumber')}
             onChange={(e) => onSize(clampStroke(kind, e.target.valueAsNumber))}
             className="h-8 w-14 rounded-md border border-line bg-bg px-1.5 text-right text-[13px] text-fg tabular-nums"
           />
@@ -507,7 +530,7 @@ function SizeEditor({ kind, size, color, nib, onSize }: { kind: StrokeKind; size
         max={r.max}
         step={1}
         value={size}
-        aria-label="굵기"
+        aria-label={t('canvas.toolbar.sizeRange')}
         onChange={(e) => onSize(clampStroke(kind, e.target.valueAsNumber))}
         className="h-8 w-full accent-[var(--accent)]"
       />
@@ -604,7 +627,7 @@ function ColorEditor({
 
   const rgb = hexToRgb(color) ?? { r: 0, g: 0, b: 0 };
   const fav = favorites.includes(color);
-  const preset = INK_COLORS.some((c) => c.hex === color);
+  const preset = INK_HEXES.includes(color);
   const full = !fav && favorites.length >= MAX_FAVORITE_INKS;
   const commitHex = (v: string) => {
     const t = v.trim().toLowerCase();
@@ -629,11 +652,11 @@ function ColorEditor({
       <div
         role="slider"
         tabIndex={0}
-        aria-label="채도·명도"
+        aria-label={t('canvas.toolbar.svArea')}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(hsv.s * 100)}
-        aria-valuetext={`채도 ${Math.round(hsv.s * 100)}%, 명도 ${Math.round(hsv.v * 100)}%`}
+        aria-valuetext={t('canvas.toolbar.svValue', { saturation: Math.round(hsv.s * 100), brightness: Math.round(hsv.v * 100) })}
         data-canvas-color-sv=""
         className="relative h-36 w-full cursor-crosshair touch-none rounded-lg outline-offset-2"
         style={{
@@ -663,7 +686,7 @@ function ColorEditor({
       <div
         role="slider"
         tabIndex={0}
-        aria-label="색상"
+        aria-label={t('canvas.toolbar.hue')}
         aria-valuemin={0}
         aria-valuemax={360}
         aria-valuenow={Math.round(hsv.h)}
@@ -688,17 +711,17 @@ function ColorEditor({
       {/* 새 색 / 처음 색 · 스포이드 */}
       <div className="flex items-center gap-2">
         <div className="flex h-11 flex-1 overflow-hidden rounded-lg border border-line md:h-9">
-          <span className="flex-1" style={{ backgroundColor: color }} title="새 색" data-canvas-color-new="" />
+          <span className="flex-1" style={{ backgroundColor: color }} title={t('canvas.toolbar.colorNew')} data-canvas-color-new="" />
           <button
             type="button"
-            aria-label={`처음 색 ${original}로 되돌리기`}
-            title="처음 색으로 되돌리기"
+            aria-label={t('canvas.toolbar.colorOriginal', { hex: original })}
+            title={t('canvas.toolbar.colorOriginalTitle')}
             onClick={() => pickHex(original)}
             className="flex-1"
             style={{ backgroundColor: original }}
           />
         </div>
-        <button type="button" aria-label="화면에서 색 따오기" title="스포이드 · 화면에서 색 따오기" onClick={() => void eyeDrop()} className={cn(BTN, 'border border-line')} data-canvas-eyedrop="">
+        <button type="button" aria-label={t('canvas.toolbar.eyedrop')} title={t('canvas.toolbar.eyedropTitle')} onClick={() => void eyeDrop()} className={cn(BTN, 'border border-line')} data-canvas-eyedrop="">
           <Pipette size={18} />
         </button>
       </div>
@@ -710,7 +733,7 @@ function ColorEditor({
           <input
             type="text"
             value={hex}
-            aria-label="색 코드"
+            aria-label={t('canvas.toolbar.colorCode')}
             maxLength={7}
             spellCheck={false}
             onChange={(e) => setHex(e.target.value)}
@@ -727,7 +750,7 @@ function ColorEditor({
               min={0}
               max={255}
               value={rgb[k]}
-              aria-label={`${k.toUpperCase()} 값`}
+              aria-label={t('canvas.toolbar.channelValue', { channel: k.toUpperCase() })}
               onChange={(e) => {
                 if (Number.isFinite(e.target.valueAsNumber)) pickHex(rgbToHex({ ...rgb, [k]: e.target.valueAsNumber }));
               }}
@@ -738,12 +761,12 @@ function ColorEditor({
       </div>
 
       {favorites.length > 0 && (
-        <div className="flex flex-wrap gap-1" role="group" aria-label="즐겨찾는 색">
+        <div className="flex flex-wrap gap-1" role="group" aria-label={t('canvas.toolbar.favoriteGroup')}>
           {favorites.map((h) => (
             <button
               key={h}
               type="button"
-              aria-label={`즐겨찾는 색 ${h} 쓰기`}
+              aria-label={t('canvas.toolbar.favoriteUse', { hex: h })}
               title={h}
               onClick={() => onColor(h)}
               className={cn('size-7 rounded-full border border-black/15', h === color && 'ring-2 ring-accent ring-offset-1 ring-offset-surface')}
@@ -760,7 +783,7 @@ function ColorEditor({
         data-canvas-favorite=""
       >
         <Star size={14} className={cn(fav && 'fill-current text-amber-500')} />
-        {preset ? '기본 색이에요' : fav ? '즐겨찾기에서 빼기' : full ? `즐겨찾기는 ${MAX_FAVORITE_INKS}개까지` : '즐겨찾기에 넣기'}
+        {preset ? t('canvas.toolbar.favorite.preset') : fav ? t('canvas.toolbar.favorite.remove') : full ? t('canvas.toolbar.favorite.max', { max: MAX_FAVORITE_INKS }) : t('canvas.toolbar.favorite.add')}
       </button>
     </div>
   );

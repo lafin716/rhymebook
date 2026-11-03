@@ -1,0 +1,147 @@
+{
+  "color": {
+    "kind": {
+      "highlight": "Highlight",
+      "underline": "Underline",
+      "textColor": "Text color"
+    },
+    "preset": {
+      "yellow": "Yellow",
+      "green": "Green",
+      "blue": "Blue",
+      "purple": "Purple",
+      "red": "Red",
+      "orange": "Orange"
+    },
+    "swatch": "{kind}: {color}",
+    "swatchRemove": "{kind}: {color}, remove from favorites",
+    "palette": "{kind} palette",
+    "back": "Back to formatting",
+    "title": "Color: {kind}",
+    "none": "None",
+    "favorites": "Favorites",
+    "done": "Done",
+    "edit": "Edit",
+    "favoritesEmpty": "Tap the ☆ button below to save colors you use often.",
+    "recommended": "Suggested colors",
+    "custom": "Custom",
+    "pick": "Pick a color",
+    "pickLabel": "Pick a color for {kind}",
+    "hex": "HEX color code",
+    "unfavorite": "Remove from favorites",
+    "favorite": "Add to favorites",
+    "apply": "Apply"
+  },
+  "editor": {
+    "placeholder": "Write freely in Markdown. It saves as you type. Press / or right-click to insert blocks, subpages, or AI fill.\n\n# Heading\n- List\n**Bold**, `code`\n\nSelect some text to ask about it or add formatting and notes.",
+    "branchOpen": "Open branch",
+    "noteOpen": "View note",
+    "bodyLabel": "Page body (Markdown)",
+    "filling": "AI is filling in",
+    "menuLabel": "Block and AI menu",
+    "column": {
+      "title": "This column",
+      "left": "Move left",
+      "right": "Move right",
+      "out": "Take out of column",
+      "delete": "Delete column"
+    },
+    "ask": {
+      "label": "What should I fill in? (leave blank to follow the surrounding context)",
+      "placeholder": "e.g. pros and cons as a table",
+      "submit": "Fill in"
+    },
+    "block": {
+      "title": "This block",
+      "up": "Move up",
+      "down": "Move down",
+      "unwrap": "Ungroup side-by-side layout",
+      "delete": "Delete block"
+    },
+    "aiFill": "Fill content with AI",
+    "blocks": {
+      "title": "Insert block"
+    },
+    "emoji": {
+      "hint": "Emoji · ↑↓ select · Enter",
+      "listLabel": "Emoji"
+    },
+    "slash": {
+      "hint": "Insert block · ↑↓ select · Enter",
+      "listLabel": "Insert block"
+    }
+  },
+  "keyboard": {
+    "indentOut": "Outdent",
+    "indent": "Indent",
+    "paragraph": "Text",
+    "bullet": "Bulleted list",
+    "ordered": "Numbered list",
+    "todo": "To-do",
+    "quote": "Quote",
+    "heading": "Heading",
+    "bold": "Bold",
+    "undo": "Undo",
+    "redo": "Redo",
+    "closeKeyboard": "Hide keyboard"
+  },
+  "panel": {
+    "label": "Page",
+    "undo": "Undo",
+    "redo": "Redo",
+    "settings": "Page settings",
+    "stopOrganize": "Stop organizing",
+    "organizing": "Organizing…",
+    "organizeTitle": "Use AI to tidy the note's content for easier reading",
+    "organize": "Tidy with AI",
+    "organizeCompact": "Tidy",
+    "close": "Close"
+  },
+  "rowSheet": {
+    "kind": {
+      "paragraph": "Text",
+      "h1": "Heading 1",
+      "h2": "Heading 2",
+      "h3": "Heading 3",
+      "bullet": "Bullet",
+      "ordered": "Number",
+      "todo": "To-do",
+      "quote": "Quote"
+    },
+    "menu": "Row menu",
+    "picked": "Row selected · tap again to edit",
+    "close": "Close",
+    "edit": "Edit",
+    "addBelow": "Add below",
+    "up": "Move up",
+    "down": "Move down",
+    "fill": "AI write",
+    "unwrap": "Unwrap columns",
+    "delete": "Delete",
+    "changeBlock": "Change block"
+  },
+  "settings": {
+    "title": "Page settings",
+    "close": "Close",
+    "keyboardBar": "Keyboard shortcut bar",
+    "keyboardBarDesc": "Show a toolbar above the keyboard while the editor is focused",
+    "emoji": "Emoji preview",
+    "emojiDesc": "Type : to show a list of emoji suggestions"
+  },
+  "live": {
+    "dataUrl": "Attached data",
+    "imageDelete": "Delete image",
+    "taskDone": "Completed task",
+    "task": "Task",
+    "missingPage": "Deleted page",
+    "openPage": "Open subpage",
+    "column": "Column {n}",
+    "columnAddRow": "Add row at end of column {n}",
+    "columnHandle": "Move or menu for column {n}",
+    "headingPlaceholder": "Heading {n}"
+  },
+  "rowHandles": {
+    "addBelow": "Add a row below block {n}",
+    "menu": "Move or open menu for block {n}"
+  }
+}

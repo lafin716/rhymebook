@@ -1,3 +1,4 @@
+import { t, tx } from '../i18n';
 import { OctoMark } from '../components/OctoMark';
 import { childrenOf, listedRootSessions, type ID } from '@branch/core';
 import { ArrowLeftRight, ChevronRight, ChevronsDownUp, FileText, Folder, FolderOpen, GitBranch, MessageSquareText, PenLine, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
@@ -6,7 +7,7 @@ import { actions, appStore, useApp, useAppShallow } from '../app/store';
 import { remoteMode } from '../app/capabilities';
 import { sessionWindowId } from '../app/runtime';
 import { useSync } from '../app/sync';
-import { THIS_DEVICE } from '../components/HostList';
+import { thisDeviceTitle } from '../components/HostList';
 import { ProfileDialog } from '../components/ProfileDialog';
 import { SIDEBAR_WIDTH, useUi } from '../app/uiState';
 import { isMobileNow, useBreakpoint } from '../app/useBreakpoint';
@@ -21,6 +22,8 @@ import { relativeTime } from '../lib/time';
 import { RenameInput, SessionMenu, SubCreateMenu, type MenuPoint } from './SessionMenu';
 import { startNewSession } from './newSession';
 import { renameSession } from '../chat/PagePanel';
+import { CalendarClock } from 'lucide-react';
+import { scheduleText } from '../schedules/scheduleText';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
 
@@ -50,7 +53,7 @@ export function Sidebar() {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[55]">
-      <button type="button" aria-label="목록 닫기" className="animate-fade-in absolute inset-0 bg-black/35" onClick={() => setDrawer(false)} />
+      <button type="button" aria-label={t('session.sidebar.closeList')} className="animate-fade-in absolute inset-0 bg-black/35" onClick={() => setDrawer(false)} />
       <aside className="animate-pop-in absolute inset-y-0 left-0 flex w-[84vw] max-w-[320px] flex-col bg-surface octo-sidebar pt-[env(safe-area-inset-top)] shadow-float">
         <SidebarBody />
       </aside>
@@ -119,12 +122,12 @@ function SidebarResizer() {
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="사이드바 너비 조절"
+      aria-label={t('session.sidebar.resizeAria')}
       aria-valuemin={SIDEBAR_WIDTH.min}
       aria-valuemax={SIDEBAR_WIDTH.max}
       aria-valuenow={width}
       tabIndex={0}
-      title="끌어서 너비 조절 · 두 번 눌러 기본 너비"
+      title={t('session.sidebar.resizeTitle')}
       onPointerDown={onPointerDown}
       onDoubleClick={() => useUi.getState().setSidebarWidth(SIDEBAR_WIDTH.default)}
       onKeyDown={(e) => {
@@ -163,31 +166,35 @@ function SidebarBody() {
           className="w-full justify-center"
           icon={<Plus size={16} />}
           disabled={!pcOnline}
-          title={pcOnline ? undefined : 'PC와 연결되면 새로 만들 수 있어요'}
+          title={pcOnline ? undefined : t('session.sidebar.newNeedsPc')}
           onClick={() => {
             startNewSession();
             close();
           }}
         >
-          새로 만들기
+          {t('session.sidebar.new')}
         </Button>
       </div>
       {/* 목록 툴바: 왼쪽은 목록 이름·개수, 오른쪽은 목록 도구 (ADR-098) */}
-      <div role="toolbar" aria-label="세션 목록 도구" className="flex items-center gap-2 px-4 pt-3 pb-1.5">
+      <div role="toolbar" aria-label={t('session.sidebar.toolbarAria')} className="flex items-center gap-2 px-4 pt-3 pb-1.5">
         <span className="min-w-0 flex-1 truncate text-[10px] font-semibold tracking-widest text-muted">
-          나의 학습 바다 · {roots.length}개의 시작점
+          {t('session.sidebar.header', { count: roots.length })}
         </span>
-        <IconButton size="sm" label="모두 접기" disabled={roots.length === 0} onClick={() => useUi.getState().collapseTrees(roots)}>
+        <IconButton size="sm" label={t('session.sidebar.collapseAll')} disabled={roots.length === 0} onClick={() => useUi.getState().collapseTrees(roots)}>
           <ChevronsDownUp size={15} />
         </IconButton>
       </div>
-      <nav aria-label="학습 세션" className="scroll-thin min-h-0 flex-1 space-y-px overflow-y-auto px-2 pb-3">
+      <nav aria-label={t('session.sidebar.navAria')} className="scroll-thin min-h-0 flex-1 space-y-px overflow-y-auto px-2 pb-3">
         {roots.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[13px] text-muted">{remoteMode && !pcOnline ? 'PC와 연결되면 학습 목록이 보여요' : '세션이 없어요'}</p>
+          <p className="px-3 py-6 text-center text-[13px] text-muted">{remoteMode && !pcOnline ? t('session.sidebar.connectToSee') : t('session.sidebar.noSessions')}</p>
         ) : (
           roots.map((id) => <RootItem key={id} id={id} onPick={close} />)
         )}
       </nav>
+      <button type="button" onClick={() => { actions().setOverlay('schedules'); close(); }} className="flex items-center gap-2 border-t border-line px-4 py-3 text-left text-[13px] text-fg-2 hover:bg-surface-2/60">
+        <CalendarClock size={15} className="shrink-0 text-accent" />
+        {scheduleText('예약 관리', 'Schedules')}
+      </button>
       <div className="grid grid-cols-2 divide-x divide-line border-t border-line">
         <button
           type="button"
@@ -198,7 +205,7 @@ function SidebarBody() {
           className="flex min-w-0 items-center gap-2 px-4 py-2.5 text-left text-[13px] text-fg-2 hover:bg-surface-2/60"
         >
           <MessageSquareText size={15} className="shrink-0 text-accent" />
-          <span className="truncate">프롬프트 관리</span>
+          <span className="truncate">{t('session.sidebar.prompts')}</span>
         </button>
         <button
           type="button"
@@ -209,7 +216,7 @@ function SidebarBody() {
           className="flex min-w-0 items-center gap-2 px-4 py-2.5 text-left text-[13px] text-fg-2 hover:bg-surface-2/60"
         >
           <Sparkles size={15} className="shrink-0 text-accent" />
-          <span className="truncate">스킬 관리</span>
+          <span className="truncate">{t('session.sidebar.skills')}</span>
         </button>
       </div>
       <ConnectionFooter />
@@ -245,14 +252,11 @@ function useRemoveSession(id: ID) {
     if (!s) return;
     const kids = childrenOf(st.sessions, id).length;
     const ok = await confirm({
-      title: s.parentId ? '가지를 삭제할까요?' : s.kind === 'page' ? '페이지를 삭제할까요?' : s.kind === 'canvas' ? '캔버스를 삭제할까요?' : '학습을 삭제할까요?',
-      message: (
-        <>
-          <b className="font-medium text-fg-2">“{s.title}”</b>
-          {kids > 0 ? '과(와) 모든 하위 가지가' : '이(가)'} 모두 삭제되며 되돌릴 수 없어요.
-        </>
-      ),
-      confirmLabel: '삭제',
+      title: s.parentId ? t('session.delete.titleBranch') : s.kind === 'page' ? t('session.delete.titlePage') : s.kind === 'canvas' ? t('session.delete.titleCanvas') : t('session.delete.titleSession'),
+      message: kids > 0
+        ? tx('session.delete.messageWithKids', { title: <b className="font-medium text-fg-2">“{s.title}”</b> })
+        : tx('session.delete.messageOne', { title: <b className="font-medium text-fg-2">“{s.title}”</b> }),
+      confirmLabel: t('session.delete.confirm'),
       tone: 'danger',
     });
     if (ok) actions().deleteSession(id);
@@ -262,8 +266,8 @@ function useRemoveSession(id: ID) {
 /** 트리 행 아이콘: 학습은 폴더(펼치면 열린 폴더), 가지는 가지, 페이지·캔버스는 파일처럼 */
 function KindIcon({ kind, root, open }: { kind: string | undefined; root?: boolean; open?: boolean }) {
   const cls = 'shrink-0';
-  if (kind === 'page') return <FileText size={15} aria-label="페이지" className={cn(cls, 'text-muted')} />;
-  if (kind === 'canvas') return <PenLine size={15} aria-label="캔버스" className={cn(cls, 'text-muted')} />;
+  if (kind === 'page') return <FileText size={15} aria-label={t('session.tree.pageIcon')} className={cn(cls, 'text-muted')} />;
+  if (kind === 'canvas') return <PenLine size={15} aria-label={t('session.tree.canvasIcon')} className={cn(cls, 'text-muted')} />;
   if (root) return open ? <FolderOpen size={15} className={cn(cls, 'text-accent')} /> : <Folder size={15} className={cn(cls, 'text-accent')} />;
   return <GitBranch size={14} className={cn(cls, 'text-muted')} />;
 }
@@ -318,7 +322,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
         }}
         className={rowCls(active)}
       >
-        <TreeChevron open={open} show={childCount > 0} label={open ? '가지 접기' : '가지 펼치기'} onToggle={() => setOpen(!open)} />
+        <TreeChevron open={open} show={childCount > 0} label={open ? t('session.tree.collapseBranch') : t('session.tree.expandBranch')} onToggle={() => setOpen(!open)} />
         {renaming ? (
           <div className="flex min-w-0 flex-1 items-center gap-1.5 pr-1">
             <KindIcon kind={s.kind} root open={open && childCount > 0} />
@@ -335,7 +339,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
           <button
             type="button"
             {...dragProps(id)}
-            title={`${s.title} · ${relativeTime(s.updatedAt)}${childCount > 0 ? ` · 가지 ${childCount}` : ''}`}
+            title={childCount > 0 ? t('session.tree.rowTitleKids', { title: s.title, time: relativeTime(s.updatedAt), count: childCount }) : t('session.tree.rowTitle', { title: s.title, time: relativeTime(s.updatedAt) })}
             onClick={() => {
               actions().openSession(id, 'main');
               onPick();
@@ -349,7 +353,7 @@ function RootItem({ id, onPick }: { id: ID; onPick(): void }) {
         )}
         <IconButton
           size="sm"
-          label="세션 삭제"
+          label={t('session.tree.deleteAria')}
           className="!size-6 shrink-0 !rounded-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           onClick={() => void remove()}
         >
@@ -391,7 +395,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
     <li>
       {renaming ? (
         <div className={rowCls(false)}>
-          <TreeChevron open={open} show={false} label="하위 세션 펼치기" onToggle={() => {}} />
+          <TreeChevron open={open} show={false} label={t('session.tree.expandSub')} onToggle={() => {}} />
           <div className="flex min-w-0 flex-1 items-center gap-1.5 pr-1">
             <KindIcon kind={s.kind} />
             <RenameInput
@@ -406,7 +410,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
         </div>
       ) : (
         <div className={rowCls(active)}>
-          <TreeChevron open={open} show={hasKids} label={open ? '하위 세션 접기' : '하위 세션 펼치기'} onToggle={() => setOpen(!open)} />
+          <TreeChevron open={open} show={hasKids} label={open ? t('session.tree.collapseSub') : t('session.tree.expandSub')} onToggle={() => setOpen(!open)} />
           <button
             type="button"
             data-session-row={id}
@@ -425,7 +429,7 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
             <KindIcon kind={s.kind} />
             <span className="truncate">{s.title}</span>
             {hasKids && !open && <span className="shrink-0 text-[11px] text-muted tabular-nums">+{kidCount}</span>}
-            {s.summary && <span title="요약됨" className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
+            {s.summary && <span title={t('session.tree.summarized')} className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
           </button>
           <SubSessionButton parentId={id} className="!size-6 !rounded-md" />
         </div>
@@ -446,7 +450,7 @@ function SubSessionButton({ parentId, className }: { parentId: ID; className?: s
       <IconButton
         ref={setTrigger}
         size="sm"
-        label="하위 항목 만들기"
+        label={t('session.childCreate.aria')}
         aria-haspopup="menu"
         aria-expanded={!!at}
         className={cn('shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100', at && 'opacity-100', className)}
@@ -472,7 +476,7 @@ function ConnectionFooter() {
     <div className="flex items-center border-t border-line">
       {remoteMode ? <PcFooter /> : <ProviderFooter />}
       {!sessionWindowId && (
-        <IconButton label="프로필 바꾸기" size="sm" className="mr-2 shrink-0" onClick={() => setProfiles(true)}>
+        <IconButton label={t('session.sidebar.changeProfile')} size="sm" className="mr-2 shrink-0" onClick={() => setProfiles(true)}>
           <ArrowLeftRight size={15} />
         </IconButton>
       )}
@@ -512,7 +516,7 @@ function ProviderFooter() {
     >
       <StatusDot tone={statusTone(conns[def])} />
       <span className="min-w-0 flex-1 truncate">
-        {THIS_DEVICE} · {providerLabel(def)} · 사용 가능 {usable.length}개
+        {thisDeviceTitle()} · {providerLabel(def)} · {t('session.sidebar.usable', { count: usable.length })}
       </span>
       <Settings2 size={15} className="text-muted" />
     </button>

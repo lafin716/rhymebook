@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { isVaultFolder, vaultChildren, type ID, type VaultItem, type VaultNode, type VaultPage } from '@branch/core';
 import { Archive, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -12,7 +13,7 @@ function PickerDialog({ label, title, onClose, children }: { label: string; titl
     <Modal open onClose={onClose} label={label} className="md:max-w-md">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line pr-2 pl-4">
         <h3 className="min-w-0 flex-1 truncate text-[15px] font-semibold">{title}</h3>
-        <IconButton label="닫기" onClick={onClose}>
+        <IconButton label={t('vault.picker.close')} onClick={onClose}>
           <X size={18} />
         </IconButton>
       </div>
@@ -34,7 +35,7 @@ function PickRow({ depth = 0, current, onClick, children }: { depth?: number; cu
       style={{ paddingLeft: `${8 + Math.min(depth, 8) * 16}px` }}
     >
       {children}
-      {current && <span className="ml-auto shrink-0 text-[12px]">지금 위치</span>}
+      {current && <span className="ml-auto shrink-0 text-[12px]">{t('vault.picker.current')}</span>}
     </button>
   );
 }
@@ -54,12 +55,12 @@ export function FolderPicker({ vault, node, onPick, onClose }: { vault: Record<I
     return out;
   }, [vault, node.id]);
   return (
-    <PickerDialog label="옮길 폴더 고르기" title={`'${node.name}' 옮기기`} onClose={onClose}>
+    <PickerDialog label={t('vault.picker.moveLabel')} title={t('vault.picker.moveTitle', { name: node.name })} onClose={onClose}>
       <ul data-vault-folder-picker>
         <li>
           <PickRow current={node.parentId === null} onClick={() => onPick(null)}>
             <Archive size={15} className="shrink-0 text-accent" />
-            <span className="truncate">보관함 맨 위</span>
+            <span className="truncate">{t('vault.picker.top')}</span>
           </PickRow>
         </li>
         {rows.map((r) => (
@@ -71,7 +72,7 @@ export function FolderPicker({ vault, node, onPick, onClose }: { vault: Record<I
           </li>
         ))}
       </ul>
-      {rows.length === 0 && <p className="px-3 py-4 text-center text-[13px] text-muted">폴더가 없어요. 왼쪽 [새 폴더]로 만들 수 있어요.</p>}
+      {rows.length === 0 && <p className="px-3 py-4 text-center text-[13px] text-muted">{t('vault.picker.noFolders')}</p>}
     </PickerDialog>
   );
 }
@@ -82,9 +83,9 @@ export function PagePicker({ vault, onPick, onClose }: { vault: Record<ID, Vault
     .filter((n): n is VaultPage => n.kind === 'page')
     .sort((a, b) => b.updatedAt - a.updatedAt);
   return (
-    <PickerDialog label="넣을 페이지 고르기" title="페이지에 넣기" onClose={onClose}>
+    <PickerDialog label={t('vault.picker.pageLabel')} title={t('vault.item.addToPage')} onClose={onClose}>
       {pages.length === 0 ? (
-        <p className="px-3 py-6 text-center text-[13.5px] text-muted">아직 페이지가 없어요. 왼쪽 [새 페이지]로 만든 뒤 넣어 보세요.</p>
+        <p className="px-3 py-6 text-center text-[13.5px] text-muted">{t('vault.picker.noPages')}</p>
       ) : (
         <ul data-vault-page-picker>
           {pages.map((p) => (
@@ -112,15 +113,15 @@ export function ItemPicker({ vault, onPick }: { vault: Record<ID, VaultNode>; on
   return (
     <div data-vault-picker className="rounded-xl border border-line bg-surface p-2">
       <input
-        aria-label="조각 찾기"
+        aria-label={t('vault.picker.findAria')}
         value={q}
         autoFocus
         onChange={(e) => setQ(e.target.value)}
-        placeholder="조각 이름으로 찾기"
+        placeholder={t('vault.picker.findPlaceholder')}
         className="mb-1.5 h-9 w-full rounded-lg border border-line bg-bg px-2.5 text-[15px] outline-none focus:border-accent md:text-sm"
       />
       {items.length === 0 ? (
-        <p className="px-2 py-4 text-center text-[13px] text-muted">넣을 조각이 없어요.</p>
+        <p className="px-2 py-4 text-center text-[13px] text-muted">{t('vault.picker.noFragments')}</p>
       ) : (
         <ul className="scroll-thin max-h-60 overflow-y-auto">
           {items.map((n) => (

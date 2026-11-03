@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import { isAttachmentList } from './attachments';
 import type { Attachment, ID, VaultNode, VaultFolder, VaultItem, VaultPage, VaultItemContent, VaultPageBlock } from './model';
 
@@ -152,17 +153,17 @@ export function defaultVaultItemName(item: VaultItemContent): string {
   if (item.type === 'text') {
     // 첫 줄 또는 첫 100자
     const lines = item.text.split('\n');
-    return (lines[0] || '텍스트').slice(0, 100);
+    return (lines[0] || t('core.vault.text')).slice(0, 100);
   }
   if (item.type === 'image') {
-    return item.attachment.name || '이미지';
+    return item.attachment.name || t('core.fallback.image');
   }
   if (item.type === 'audio') {
     // 첫 줄 또는 첫 100자
     const lines = item.text.split('\n');
-    return (lines[0] || '음성').slice(0, 100);
+    return (lines[0] || t('core.vault.voice')).slice(0, 100);
   }
-  return '항목';
+  return t('core.vault.item');
 }
 
 /** 폴더 생성 */

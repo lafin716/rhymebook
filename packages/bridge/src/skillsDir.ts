@@ -1,14 +1,6 @@
 import { lstat, mkdir, readdir, readFile, rename, rm, rmdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  isSkillFilePath,
-  mergeSkillMd,
-  SKILL_FILE_LIMITS,
-  SKILL_NAME_RE,
-  validateSkillFiles,
-  type SkillFile,
-  type SkillFolder,
-} from '@branch/core';
+import { t, isSkillFilePath, mergeSkillMd, SKILL_FILE_LIMITS, SKILL_NAME_RE, validateSkillFiles, type SkillFile, type SkillFolder } from '@branch/core';
 
 /**
  * 스킬 폴더 `<root>/<name>/` (IMP-12, ADR-038).
@@ -43,23 +35,23 @@ function isValidFilePath(p: string): boolean {
 
 /** 렌더러가 보낸 폴더 값을 확인해 깨끗한 사본으로 돌려준다. 잘못되면 throw */
 export function parseSkillFolder(raw: unknown): SkillFolder {
-  if (!raw || typeof raw !== 'object') fail('스킬 폴더 형식이 올바르지 않습니다');
+  if (!raw || typeof raw !== 'object') fail(t('bridge.skills.badFolder'));
   const r = raw as { name?: unknown; skillMd?: unknown; files?: unknown };
-  if (!isValidName(r.name)) fail('스킬 이름이 올바르지 않습니다');
-  if (typeof r.skillMd !== 'string' || r.skillMd.length > SKILL_MD_MAX) fail('SKILL.md 내용이 올바르지 않습니다');
-  if (!Array.isArray(r.files) || r.files.length > SKILL_FILE_LIMITS.count) fail('부수 파일 목록이 올바르지 않습니다');
+  if (!isValidName(r.name)) fail(t('bridge.skills.badName'));
+  if (typeof r.skillMd !== 'string' || r.skillMd.length > SKILL_MD_MAX) fail(t('bridge.skills.badSkillMd'));
+  if (!Array.isArray(r.files) || r.files.length > SKILL_FILE_LIMITS.count) fail(t('bridge.skills.badFileList'));
   const files: SkillFile[] = [];
   for (const f of r.files as unknown[]) {
-    if (!f || typeof f !== 'object') fail('부수 파일 형식이 올바르지 않습니다');
+    if (!f || typeof f !== 'object') fail(t('bridge.skills.badFileFormat'));
     const { path: p, content } = f as { path?: unknown; content?: unknown };
-    if (typeof p !== 'string' || typeof content !== 'string') fail('부수 파일 형식이 올바르지 않습니다');
-    if (!isValidFilePath(p)) fail('부수 파일 경로가 올바르지 않습니다');
+    if (typeof p !== 'string' || typeof content !== 'string') fail(t('bridge.skills.badFileFormat'));
+    if (!isValidFilePath(p)) fail(t('bridge.skills.badFilePath'));
     files.push({ path: p, content });
   }
-  if (validateSkillFiles(files)) fail('부수 파일이 너무 많거나 크거나 겹칩니다');
+  if (validateSkillFiles(files)) fail(t('bridge.skills.tooMany'));
   // `a`(파일)와 `a/b.md`처럼 파일과 폴더가 겹치면 쓸 수 없다
   const dirs = new Set(files.flatMap((f) => f.path.toLowerCase().split('/').slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join('/'))));
-  if (files.some((f) => dirs.has(f.path.toLowerCase()))) fail('부수 파일 경로가 폴더 이름과 겹칩니다');
+  if (files.some((f) => dirs.has(f.path.toLowerCase()))) fail(t('bridge.skills.pathClash'));
   return { name: r.name, skillMd: r.skillMd, files };
 }
 
@@ -138,13 +130,13 @@ export function createSkillsDir(rootDir: string, openPath?: (dir: string) => Pro
 
   function skillDir(name: string): string {
     const dir = path.resolve(root, name);
-    if (!inside(root, dir) || path.dirname(dir) !== root) fail('스킬 폴더 경로가 올바르지 않습니다');
+    if (!inside(root, dir) || path.dirname(dir) !== root) fail(t('bridge.skills.badFolderPath'));
     return dir;
   }
 
   function filePath(dir: string, rel: string): string {
     const p = path.resolve(dir, ...rel.split('/'));
-    if (!inside(dir, p)) fail('부수 파일 경로가 올바르지 않습니다');
+    if (!inside(dir, p)) fail(t('bridge.skills.badFilePath'));
     return p;
   }
 
@@ -155,7 +147,7 @@ export function createSkillsDir(rootDir: string, openPath?: (dir: string) => Pro
       cur = path.join(cur, seg);
       const st = await lstatOrNull(cur);
       if (!st) await mkdir(cur);
-      else if (!st.isDirectory()) fail('스킬 폴더 안에 폴더 대신 파일이나 링크가 있습니다');
+      else if (!st.isDirectory()) fail(t('bridge.skills.fileInFolder'));
     }
   }
 
@@ -165,7 +157,7 @@ export function createSkillsDir(rootDir: string, openPath?: (dir: string) => Pro
     if (st?.isSymbolicLink()) await rm(p);
     else if (st?.isFile() && st.size <= content.length * 4 + 4) {
       if ((await readFile(p, 'utf8')) === content) return;
-    } else if (st && !st.isFile()) fail('파일 자리에 폴더가 있습니다');
+    } else if (st && !st.isFile()) fail(t('bridge.skills.folderInFile'));
     await writeFile(p, content, 'utf8');
   }
 
@@ -249,7 +241,7 @@ export function createSkillsDir(rootDir: string, openPath?: (dir: string) => Pro
     },
 
     async remove(name) {
-      if (!isValidName(name)) fail('스킬 이름이 올바르지 않습니다');
+      if (!isValidName(name)) fail(t('bridge.skills.badName'));
       const dir = skillDir(name);
       await serial(() => rm(dir, { recursive: true, force: true }));
     },
@@ -267,7 +259,7 @@ export function createSkillsDir(rootDir: string, openPath?: (dir: string) => Pro
       }
       if (!openPath) return;
       const err = await openPath(dir);
-      if (err) fail(`폴더를 열 수 없습니다: ${err}`);
+      if (err) fail(t('bridge.skills.openFailed', { error: err }));
     },
 
     // 이름 변경(옮기기 → 쓰기) 도중의 반쯤 된 상태를 읽지 않게 쓰기와 같은 줄에 세운다

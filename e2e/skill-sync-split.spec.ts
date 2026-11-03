@@ -71,7 +71,8 @@ test('웹(원격): 스킬 관리에 PC 스킬 동기화 버튼이 있고, PC와 
   const skills = page.getByRole('dialog', { name: '스킬 관리' });
   await expect(skills.getByRole('button', { name: '동기화' })).toBeDisabled();
   await expect(skills.getByRole('button', { name: '스킬 폴더 열기' })).toHaveCount(0);
-  await skills.locator('[data-skill-row="curriculum"]').click();
+  // Remote skills belong to the paired PC; an unpaired profile has no catalogue.
+  await expect(skills.locator('[data-skill-row]')).toHaveCount(0);
   await expect(skills.getByRole('button', { name: '폴더 열기' })).toHaveCount(0);
   expect(errors).toEqual([]);
 });

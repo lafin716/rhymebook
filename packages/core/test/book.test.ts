@@ -104,3 +104,11 @@ describe('책 파싱', () => {
     expect(bookFileName('어텐션/입문')).toBe('어텐션 입문.pdf');
   });
 });
+
+
+it('keeps quoted continue lesson text while removing an actual English continuation footer', () => {
+  const lesson = 'The "continue" statement skips the remainder of the loop.';
+  const book = parseBook(['# Python\n\n## Chapter 1. Loops\n' + lesson + "\nSend 'continue' to read the next chapter."], 'Python');
+  expect(book.chapters[0]!.markdown).toContain(lesson);
+  expect(book.chapters[0]!.markdown).not.toContain("Send 'continue'");
+});

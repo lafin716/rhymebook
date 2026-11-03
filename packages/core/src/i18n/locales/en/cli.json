@@ -1,0 +1,33 @@
+{
+  "bridge": {
+    "usage": "Usage:\n  branch-bridge [serve] [--pair] [--port 7777] [--host 0.0.0.0] [--name NAME] [--dir PATH]\n                [--relay wss://relay.example.com] [--relay-only]\n    --relay       Register with the relay over an outbound connection so it can be reached behind NAT (E2E encryption kept)\n    --relay-only  Accept connections only through the relay, without opening a direct port\n  branch-bridge pair            (same as serve --pair)\n  branch-bridge devices         List paired devices\n  branch-bridge unpair <id|all> Unpair devices",
+    "noDevices": "No paired devices.",
+    "deviceLine": "{id}  {name}  paired {paired}  last seen {seen}",
+    "unpairMissing": "Specify a device id or all to unpair.",
+    "unpaired": "Unpaired {count} device(s).",
+    "noSuchDevice": "No such device.",
+    "badPort": "Invalid port: {port}",
+    "relayOnlyNeedsRelay": "--relay-only requires a --relay address.",
+    "relayScheme": "The relay address must start with ws:// or wss://.",
+    "insecureRelay": "Warning: the relay uses ws://. On public networks, use wss:// (the payload is E2E encrypted).",
+    "relayConnected": "✓ Relay connected",
+    "relayRetrying": "… Relay connection lost, retrying",
+    "relayNotYet": "Could not connect to the relay yet. Retrying in the background.",
+    "running": "Branch Bridge \"{name}\" running ({target})",
+    "relayOnly": "relay only",
+    "port": "port {port}",
+    "fingerprint": "Bridge fingerprint: {fingerprint}",
+    "scanHint": "In the app, go to Settings → Remote Bridge → Start pairing, then scan the QR below or paste the link.",
+    "link": "Link ({label}): {uri}",
+    "codeLine": "Or enter the address + code: code {code}  (valid for 5 minutes, single use)",
+    "checkFingerprint": "Check that the bridge fingerprint shown in the app matches the one above.",
+    "paired": "✓ Pairing complete: {name} ({id})",
+    "noDevicesPair": "No paired devices. Start pairing with the --pair option."
+  },
+  "relay": {
+    "usage": "Usage:\n  branch-relay [--port 8787] [--host 0.0.0.0] [-v]",
+    "badPort": "Invalid port: {port}",
+    "running": "Branch Relay running: ws://{host}:{port}  (status: http://{host}:{port}/health)",
+    "bridgeHint": "bridge: branch-bridge --relay <this address>   · For public deployments, put it behind a TLS (wss://) proxy."
+  }
+}

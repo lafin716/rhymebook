@@ -28,6 +28,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SessionHeader } from './SessionHeader';
 import { BranchChips, SummaryCard } from './SummaryCard';
 import { usePageAi } from './usePageAi';
+import { t } from '../i18n';
 import { PageSettings } from './PageSettings';
 import { PageKeyboardBar } from './PageKeyboardBar';
 import { minimalChange } from './pageText';
@@ -188,7 +189,7 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
   );
 
   return (
-    <section className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg', className)} data-panel={variant} data-page="" aria-label="페이지">
+    <section className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg', className)} data-panel={variant} data-page="" aria-label={t('page.panel.label')}>
       <SessionHeader
         sessionId={sessionId}
         compact={compact}
@@ -197,7 +198,7 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
           <>
             {/* 되돌리기·다시 실행·설정은 제목 바에 (ADR-095). 누를 때 편집기 포커스를 뺏지 않는다 — 모바일 키보드가 그대로 */}
             <IconButton
-              label="실행 취소"
+              label={t('page.panel.undo')}
               size="sm"
               disabled={!editorRef.current || history.undo === 0}
               onMouseDown={(e) => e.preventDefault()}
@@ -210,7 +211,7 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
               <Undo2 size={16} />
             </IconButton>
             <IconButton
-              label="다시 실행"
+              label={t('page.panel.redo')}
               size="sm"
               disabled={!editorRef.current || history.redo === 0}
               onMouseDown={(e) => e.preventDefault()}
@@ -222,12 +223,12 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
             >
               <Redo2 size={16} />
             </IconButton>
-            <IconButton label="페이지 설정" size="sm" onClick={() => setSettingsOpen(true)} data-page-settings-open="">
+            <IconButton label={t('page.panel.settings')} size="sm" onClick={() => setSettingsOpen(true)} data-page-settings-open="">
               <Settings size={16} />
             </IconButton>
             {ai.busy === 'organize' ? (
-              <Button size="sm" variant="soft" icon={<Square size={13} />} data-page-ai-stop="" onClick={ai.stop} title="정리 멈추기">
-                정리 중…
+              <Button size="sm" variant="soft" icon={<Square size={13} />} data-page-ai-stop="" onClick={ai.stop} title={t('page.panel.stopOrganize')}>
+                {t('page.panel.organizing')}
               </Button>
             ) : (
               <Button
@@ -237,10 +238,10 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
                 data-page-ai-organize=""
                 disabled={!!ai.busy || !draft.trim()}
                 onClick={() => void organize()}
-                title="AI로 노트 내용을 읽기 좋게 정리해요"
-                aria-label="AI로 정리"
+                title={t('page.panel.organizeTitle')}
+                aria-label={t('page.panel.organize')}
               >
-                {narrow ? null : compact ? 'AI 정리' : 'AI로 정리'}
+                {narrow ? null : compact ? t('page.panel.organizeCompact') : t('page.panel.organize')}
               </Button>
             )}
             {variant === 'main' && <PanelFullToggle />}
@@ -251,7 +252,7 @@ export function PagePanel({ sessionId, variant = 'main', headerActions, handleCl
       {ai.error && (
         <div role="alert" className="flex items-center gap-2 border-b border-line bg-surface px-4 py-2 text-[13px] text-danger">
           <span className="min-w-0 flex-1">{ai.error}</span>
-          <button type="button" aria-label="닫기" onClick={ai.clearError} className="grid size-6 place-items-center rounded-md text-muted hover:bg-surface-2">
+          <button type="button" aria-label={t('page.panel.close')} onClick={ai.clearError} className="grid size-6 place-items-center rounded-md text-muted hover:bg-surface-2">
             <X size={14} />
           </button>
         </div>

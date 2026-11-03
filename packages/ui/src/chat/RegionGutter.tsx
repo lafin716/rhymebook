@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ID } from '@branch/core';
 import { memo, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { openBranch } from './open';
@@ -74,8 +75,8 @@ export const RegionGutter = memo(function RegionGutter({ target }: { target: Ref
         <button
           key={bar.sessionId}
           type="button"
-          aria-label="여러 줄 가지 열기"
-          title="여러 줄 가지 열기"
+          aria-label={t('chat.region.open')}
+          title={t('chat.region.open')}
           data-region-bar={bar.sessionId}
           className="anchor-region"
           style={{ top: bar.top, height: bar.height, left: -12 - bar.lane * 6 }}

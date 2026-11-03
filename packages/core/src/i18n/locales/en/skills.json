@@ -1,0 +1,153 @@
+{
+  "assist": {
+    "createWithAi": "Create with AI",
+    "createdNote": "Filled in the new skill.",
+    "defaultTitle": "Uses the default connection from Settings.",
+    "editWithAi": "Edit with AI",
+    "editedNote": "Edited as requested.",
+    "failed": "AI writing failed.",
+    "idea": {
+      "beginner": {
+        "label": "Beginner level",
+        "text": "Adjust it to explain at the level of someone who is just starting out."
+      },
+      "concise": {
+        "label": "More concise",
+        "text": "Tighten the instructions so they are shorter and more concise. Keep the core rules."
+      },
+      "example": {
+        "label": "Add an example",
+        "text": "Add one output example the model can follow."
+      },
+      "format": {
+        "label": "Clarify output format",
+        "text": "Define the output format (headings, lists, tables, length) more clearly."
+      },
+      "quiz": {
+        "label": "Concept quiz",
+        "text": "Give it a topic and it quizzes you on 5 key concepts, with answers folded away so you can check yourself."
+      },
+      "simple": {
+        "label": "Explain simply",
+        "text": "A skill that explains hard concepts so a middle schooler could follow, using analogies and visual examples."
+      },
+      "socratic": {
+        "label": "Socratic dialogue",
+        "text": "A skill that asks questions instead of answering right away, so the learner reaches the answer on their own."
+      },
+      "vocab": {
+        "label": "Vocabulary",
+        "text": "A skill that helps you memorize English words with meanings, example sentences, etymology, and easily confused words."
+      }
+    },
+    "noAi": "No AI connection is available. Check your connections in Settings.",
+    "notConnectedPc": "You are not connected to a PC. Connect to the PC first.",
+    "parseFailed": "Couldn't read a skill from the AI response. Try rephrasing your request.",
+    "pcRemote": "{host} · remote settings",
+    "placeholderEdit": "Describe how to change it. e.g. Make it 3 review questions and organize them in a table.",
+    "placeholderNew": "Describe the skill you need. e.g. A skill that explains code line by line when you give it some code.",
+    "requestLabel": "Request to AI",
+    "running": "AI is writing… the fields below fill in as it goes.",
+    "stop": "Stop",
+    "undo": "Undo AI changes",
+    "viaPcTitle": "Writes using the PC remote settings (agent, model, effort)."
+  },
+  "extras": {
+    "add": "Add",
+    "advanced": "Advanced options",
+    "agent": "Agent",
+    "cancel": "Cancel",
+    "chars": "{n} chars",
+    "connDefault": "Connection default model",
+    "connDefaultWithModel": "Connection default model ({model})",
+    "deleteFile": "Delete {path}",
+    "duplicatePath": "A file with the same path already exists.",
+    "effort": "Effort",
+    "effortDefault": "Default effort",
+    "effortLabel": "Skill effort",
+    "fileContent": "{path} contents",
+    "files": "Files",
+    "filesHint": "Keep long reference material in {references}, example code in {scripts}, and answer templates in {assets} to keep the instructions short. Files are passed to the model along with the instructions when this skill is used.",
+    "filesMeta": "({n} files · {size})",
+    "filesMeta_one": "({n} file · {size})",
+    "filesSection": "Skill files",
+    "followSession": "Follow session settings",
+    "importFile": "Import file",
+    "model": "Model",
+    "modelLabel": "Skill model",
+    "newFile": "New file",
+    "newPathLabel": "New file path",
+    "notApplicable": "N/A",
+    "openFolder": "Open folder",
+    "pcDefaultModel": "PC default model",
+    "provider": "Provider",
+    "providerLabel": "Skill provider",
+    "setHint": "Questions where this skill is selected are answered with the settings above. Later questions follow the session settings again. Leave model and effort empty to use that connection's defaults.",
+    "textOnly": "{name}: only text files can be added.",
+    "thousandChars": "{n}K chars",
+    "tooLarge": "{name}: this file is too large.",
+    "unsetHint": "If left empty, the provider, model, and effort chosen in the chat session are used. Pick them to have only this skill answer with a different model."
+  },
+  "files": {
+    "count": "You can add up to {n} files.",
+    "duplicate": "Two files have the same path.",
+    "path": "File paths can only be relative paths made of English letters, digits, Hangul, ., _ and - (e.g. references/guide.md; SKILL.md is not allowed).",
+    "size": "Each file can be up to {file} characters, and the total up to {total} characters."
+  },
+  "page": {
+    "addedCount": "{n} added",
+    "back": "Back",
+    "builtin": "Built-in",
+    "delete": "Delete",
+    "deleteMessage": "This deletes the skill “{title}” (/{name}). Questions already sent are not affected.",
+    "deleteTitle": "Delete this skill?",
+    "description": "Description",
+    "descriptionHint": "(shown in the list and menu)",
+    "discard": "Discard",
+    "discardMessage": "Discard your changes?",
+    "editor": "Edit skill",
+    "empty": "No skills yet.",
+    "existingHint": "Type {command} in the chat input or pick it from {menu}, and the instructions below will be added to that question.",
+    "folderChangedMessage": "This skill changed in the skill folder while you were editing. Overwrite it with your edits? (Files you added to the folder will be kept.)",
+    "folderChangedTitle": "The folder has changes",
+    "folderHintNew": "Saving creates the skill folder",
+    "folderHintSaved": "{root}/{name} — changes made in the folder are applied when you return to the app",
+    "folderOpenFailed": "Couldn't open the folder",
+    "list": "Skill list",
+    "menuPath": "+ › Skill",
+    "name": "Command name",
+    "new": "New skill",
+    "newHint": "Create a new skill. Tell the AI what you want or fill in the fields below. You can call it from chat by its command name.",
+    "ok": "OK",
+    "open": "Open",
+    "openFolder": "Open skill folder",
+    "openUnsavedMessage": "The folder only has saved content. Open it anyway?",
+    "overwrite": "Overwrite",
+    "prompt": "Instructions",
+    "promptPlaceholder": "Write the instructions the model follows for questions where this skill is selected.",
+    "restoreExamples": "Restore example skills",
+    "revert": "Revert",
+    "save": "Save",
+    "saveFirstMessage": "The folder is created when you save the skill, and you can open it after that.",
+    "saveFirstTitle": "Save first",
+    "skippedNotice": "Skills are limited to {max}, so {n} could not be imported.",
+    "sync": "Sync",
+    "syncFailed": "Couldn't sync skills. {reason}",
+    "syncOffline": "You can sync once connected to the PC",
+    "syncReady": "Pull skills created on the PC",
+    "syncSame": "PC skills are already up to date.",
+    "syncedNotice": "Synced PC skills ({parts})",
+    "title": "Skills",
+    "titleField": "Title",
+    "titlePlaceholder": "Create curriculum",
+    "unsavedTitle": "You have unsaved changes",
+    "updatedCount": "{n} updated"
+  },
+  "problem": {
+    "name": "Command names can use lowercase English letters, digits, Hangul, - and _, up to {max} characters, with no spaces.",
+    "nameTaken": "A skill with the same command name already exists.",
+    "prompt": "Enter instructions.",
+    "title": "Enter a title.",
+    "tooLong": "Titles can be up to {title} characters, descriptions up to {description}, and instructions up to {prompt}."
+  }
+}

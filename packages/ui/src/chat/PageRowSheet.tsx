@@ -8,17 +8,19 @@ import { ArrowDown, ArrowUp, Columns2, PenLine, Plus, Sparkles, Trash2, X } from
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../lib/cn';
+import { t, type MessageKey } from '../i18n';
 import type { RowKind } from './pageRowEditing';
 
-const KINDS: { kind: RowKind; label: string }[] = [
-  { kind: 'paragraph', label: '본문' },
-  { kind: 'h1', label: '제목 1' },
-  { kind: 'h2', label: '제목 2' },
-  { kind: 'h3', label: '제목 3' },
-  { kind: 'bullet', label: '글머리' },
-  { kind: 'ordered', label: '번호' },
-  { kind: 'todo', label: '할 일' },
-  { kind: 'quote', label: '인용' },
+/* 이름은 그릴 때 고른다 (언어 변경 반영) */
+const KINDS: { kind: RowKind; labelKey: MessageKey }[] = [
+  { kind: 'paragraph', labelKey: 'page.rowSheet.kind.paragraph' },
+  { kind: 'h1', labelKey: 'page.rowSheet.kind.h1' },
+  { kind: 'h2', labelKey: 'page.rowSheet.kind.h2' },
+  { kind: 'h3', labelKey: 'page.rowSheet.kind.h3' },
+  { kind: 'bullet', labelKey: 'page.rowSheet.kind.bullet' },
+  { kind: 'ordered', labelKey: 'page.rowSheet.kind.ordered' },
+  { kind: 'todo', labelKey: 'page.rowSheet.kind.todo' },
+  { kind: 'quote', labelKey: 'page.rowSheet.kind.quote' },
 ];
 
 /** 고른 블록의 지금 모양 — 칩에 표시 */
@@ -92,45 +94,45 @@ export function PageRowSheet({
     <div
       data-page-sheet=""
       role="dialog"
-      aria-label="행 메뉴"
+      aria-label={t('page.rowSheet.menu')}
       onPointerDown={(e) => e.preventDefault()}
       className="animate-sheet-up safe-bottom fixed inset-x-0 bottom-0 z-[65] border-t border-line bg-elev shadow-float"
     >
       <div className="flex items-center justify-between px-4 pt-2.5 text-[12.5px] text-muted">
-        <span>행을 골랐어요 · 다시 탭하면 편집</span>
-        <button type="button" aria-label="닫기" onClick={onClose} className="-mr-1 inline-flex size-8 items-center justify-center rounded-lg">
+        <span>{t('page.rowSheet.picked')}</span>
+        <button type="button" aria-label={t('page.rowSheet.close')} onClick={onClose} className="-mr-1 inline-flex size-8 items-center justify-center rounded-lg">
           <X size={16} />
         </button>
       </div>
       <div className="flex gap-1 px-2 pt-1">
         <SheetButton data-row-action="edit" icon={<PenLine size={18} />} onClick={() => onEdit(block.to)}>
-          편집
+          {t('page.rowSheet.edit')}
         </SheetButton>
         <SheetButton data-row-action="add" icon={<Plus size={18} />} onClick={() => onAddBelow(index)}>
-          아래 추가
+          {t('page.rowSheet.addBelow')}
         </SheetButton>
         <SheetButton data-row-action="up" icon={<ArrowUp size={18} />} onClick={() => index > 0 && onAction(index, 'up')}>
-          위로
+          {t('page.rowSheet.up')}
         </SheetButton>
         <SheetButton data-row-action="down" icon={<ArrowDown size={18} />} onClick={() => index < blocks.length - 1 && onAction(index, 'down')}>
-          아래로
+          {t('page.rowSheet.down')}
         </SheetButton>
         {canFill && (
           <SheetButton data-row-action="fill" icon={<Sparkles size={18} />} onClick={() => onFill(block.to)}>
-            AI 쓰기
+            {t('page.rowSheet.fill')}
           </SheetButton>
         )}
         {block.kind === 'columns' && (
           <SheetButton data-row-action="unwrap" icon={<Columns2 size={18} />} onClick={() => onAction(index, 'unwrap')}>
-            칸 풀기
+            {t('page.rowSheet.unwrap')}
           </SheetButton>
         )}
         <SheetButton data-row-action="delete" danger icon={<Trash2 size={18} />} onClick={() => onAction(index, 'delete')}>
-          삭제
+          {t('page.rowSheet.delete')}
         </SheetButton>
       </div>
       {kindable && (
-        <div className="flex gap-1.5 overflow-x-auto px-3 pt-1 pb-3 [scrollbar-width:none]" aria-label="블록 바꾸기">
+        <div className="flex gap-1.5 overflow-x-auto px-3 pt-1 pb-3 [scrollbar-width:none]" aria-label={t('page.rowSheet.changeBlock')}>
           {KINDS.map((k) => (
             <button
               key={k.kind}
@@ -143,7 +145,7 @@ export function PageRowSheet({
                 now === k.kind ? 'border-accent bg-accent/10 text-accent' : 'border-line text-fg-2 active:bg-surface',
               )}
             >
-              {k.label}
+              {t(k.labelKey)}
             </button>
           ))}
         </div>

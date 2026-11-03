@@ -3,22 +3,42 @@ import { Ban, Check, ChevronLeft, Pencil, Star, X } from 'lucide-react';
 import { useState } from 'react';
 import { MAX_FAVORITE_COLORS, useUi } from '../app/uiState';
 import { cn } from '../lib/cn';
+import { t } from '../i18n';
 
 export type ColorKind = 'highlight' | 'underline' | 'textColor';
 
+/* 문구는 읽을 때 고른다 (모듈 로드 시점이 아니라 언어 변경이 바로 반영되게 getter) */
 export const COLOR_KIND_LABELS: Record<ColorKind, string> = {
-  highlight: '형광펜',
-  underline: '밑줄',
-  textColor: '글자색',
+  get highlight() {
+    return t('page.color.kind.highlight');
+  },
+  get underline() {
+    return t('page.color.kind.underline');
+  },
+  get textColor() {
+    return t('page.color.kind.textColor');
+  },
 };
 
 export const COLOR_LABELS: Record<MarkPreset, string> = {
-  yellow: '노랑',
-  green: '초록',
-  blue: '파랑',
-  purple: '보라',
-  red: '빨강',
-  orange: '주황',
+  get yellow() {
+    return t('page.color.preset.yellow');
+  },
+  get green() {
+    return t('page.color.preset.green');
+  },
+  get blue() {
+    return t('page.color.preset.blue');
+  },
+  get purple() {
+    return t('page.color.preset.purple');
+  },
+  get red() {
+    return t('page.color.preset.red');
+  },
+  get orange() {
+    return t('page.color.preset.orange');
+  },
 };
 
 const isPreset = (c: MarkColor): c is MarkPreset => !c.startsWith('#');
@@ -77,7 +97,11 @@ export function ColorPalette({ kind, current, mobile, onPick, onBack }: ColorPal
       <button
         key={c}
         type="button"
-        aria-label={`${label} ${colorLabel(c)}${opts?.removable && editing ? ' 즐겨찾기에서 빼기' : ''}`}
+        aria-label={
+          opts?.removable && editing
+            ? t('page.color.swatchRemove', { kind: label, color: colorLabel(c) })
+            : t('page.color.swatch', { kind: label, color: colorLabel(c) })
+        }
         aria-pressed={on}
         title={colorLabel(c)}
         data-color={c}
@@ -110,31 +134,31 @@ export function ColorPalette({ kind, current, mobile, onPick, onBack }: ColorPal
   };
 
   return (
-    <div className="space-y-2 p-1" aria-label={`${label} 색상표`} role="group">
+    <div className="space-y-2 p-1" aria-label={t('page.color.palette', { kind: label })} role="group">
       <div className="flex items-center gap-1">
         <button
           type="button"
           onClick={onBack}
-          aria-label="서식으로 돌아가기"
+          aria-label={t('page.color.back')}
           className="inline-flex size-7 items-center justify-center rounded-lg text-fg-2 hover:bg-surface-2"
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="flex-1 text-[13px] font-semibold">{label} 색</span>
+        <span className="flex-1 text-[13px] font-semibold">{t('page.color.title', { kind: label })}</span>
         <button
           type="button"
           onClick={() => onPick(null)}
           disabled={!current}
           className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[12px] text-fg-2 hover:bg-surface-2 disabled:opacity-40"
         >
-          <Ban size={13} /> 없음
+          <Ban size={13} /> {t('page.color.none')}
         </button>
       </div>
 
       <div>
         <div className="mb-0.5 flex h-6 items-center justify-between px-1 text-[11.5px] font-medium text-muted">
           <span className="inline-flex items-center gap-1">
-            <Star size={11} /> 즐겨찾기
+            <Star size={11} /> {t('page.color.favorites')}
           </span>
           {favorites.length > 0 && (
             <button
@@ -144,24 +168,24 @@ export function ColorPalette({ kind, current, mobile, onPick, onBack }: ColorPal
               className="inline-flex h-6 items-center gap-0.5 rounded px-1.5 hover:bg-surface-2 hover:text-fg"
             >
               {editing ? <Check size={11} /> : <Pencil size={11} />}
-              {editing ? '완료' : '편집'}
+              {editing ? t('page.color.done') : t('page.color.edit')}
             </button>
           )}
         </div>
         {favorites.length ? (
           <div className="flex flex-wrap gap-0.5">{favorites.map((c) => swatch(c, { removable: true }))}</div>
         ) : (
-          <p className="px-1 text-[12px] leading-snug text-muted">아래 ☆ 버튼으로 자주 쓰는 색을 저장해요.</p>
+          <p className="px-1 text-[12px] leading-snug text-muted">{t('page.color.favoritesEmpty')}</p>
         )}
       </div>
 
       <div>
-        <div className="mb-0.5 px-1 text-[11.5px] font-medium text-muted">추천 색</div>
+        <div className="mb-0.5 px-1 text-[11.5px] font-medium text-muted">{t('page.color.recommended')}</div>
         <div className="flex flex-wrap gap-0.5">{MARK_COLORS.map((c) => swatch(c))}</div>
       </div>
 
       <div>
-        <div className="mb-1 px-1 text-[11.5px] font-medium text-muted">사용자 지정</div>
+        <div className="mb-1 px-1 text-[11.5px] font-medium text-muted">{t('page.color.custom')}</div>
         <form
           className="flex items-center gap-1.5 px-0.5"
           onSubmit={(e) => {
@@ -171,12 +195,12 @@ export function ColorPalette({ kind, current, mobile, onPick, onBack }: ColorPal
         >
           <label
             className="relative inline-flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-line"
-            title="색 고르기"
+            title={t('page.color.pick')}
             style={{ background: draft ?? 'transparent' }}
           >
             <input
               type="color"
-              aria-label={`${label} 색 고르기`}
+              aria-label={t('page.color.pickLabel', { kind: label })}
               value={draft ?? '#888888'}
               onChange={(e) => setHex(e.target.value)}
               className="absolute inset-0 cursor-pointer opacity-0"
@@ -187,7 +211,7 @@ export function ColorPalette({ kind, current, mobile, onPick, onBack }: ColorPal
             onChange={(e) => setHex(e.target.value)}
             spellCheck={false}
             maxLength={7}
-            aria-label="HEX 색 코드"
+            aria-label={t('page.color.hex')}
             aria-invalid={!draft}
             placeholder="#RRGGBB"
             className={cn(
@@ -200,8 +224,8 @@ export function ColorPalette({ kind, current, mobile, onPick, onBack }: ColorPal
             disabled={!starTarget || (!starred && favorites.length >= MAX_FAVORITE_COLORS)}
             onClick={() => starTarget && toggleFavorite(starTarget)}
             aria-pressed={starred}
-            aria-label={starred ? '즐겨찾기에서 빼기' : '즐겨찾기에 추가'}
-            title={starred ? '즐겨찾기에서 빼기' : '즐겨찾기에 추가'}
+            aria-label={starred ? t('page.color.unfavorite') : t('page.color.favorite')}
+            title={starred ? t('page.color.unfavorite') : t('page.color.favorite')}
             className={cn(
               'inline-flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-surface-2 disabled:opacity-40',
               starred ? 'text-note' : 'text-fg-2',
@@ -214,7 +238,7 @@ export function ColorPalette({ kind, current, mobile, onPick, onBack }: ColorPal
             disabled={!draft}
             className="h-8 shrink-0 rounded-lg bg-accent px-2.5 text-[12.5px] font-medium text-accent-fg disabled:opacity-40"
           >
-            적용
+            {t('page.color.apply')}
           </button>
         </form>
       </div>

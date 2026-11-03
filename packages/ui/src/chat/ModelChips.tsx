@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import {
   CLI_MODEL_PRESETS,
   EFFORT_LABELS,
@@ -42,7 +43,7 @@ function WebSearchChip({ sessionId, on }: { sessionId: ID; on: boolean }) {
     <button
       type="button"
       aria-pressed={on}
-      title={on ? '웹 검색 켜짐 — 필요하면 모델이 웹을 검색합니다' : '웹 검색 꺼짐'}
+      title={on ? t('chat.model.webOn') : t('chat.model.webOff')}
       onClick={() => actions().setSessionWebSearch(sessionId, !on)}
       className={cn(
         'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[12px] focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none',
@@ -50,7 +51,7 @@ function WebSearchChip({ sessionId, on }: { sessionId: ID; on: boolean }) {
       )}
     >
       <Globe size={12} className="shrink-0 opacity-80" />
-      <span>{on ? '웹 검색' : '웹 검색 끔'}</span>
+      <span>{on ? t('chat.model.web') : t('chat.model.webDisabled')}</span>
     </button>
   );
 }
@@ -75,20 +76,20 @@ function Chips({
   const efforts = effortsFor(id, curModel);
   // 프리셋에 없는 모델(설정에서 직접 입력)도 선택지로 보여준다
   const extra = [model, defModel].filter((m, i, a): m is string => !!m && a.indexOf(m) === i && !presets.some((p) => p.id === m));
-  const modelText = curModel ? modelLabel(id, curModel) : 'CLI 기본 모델';
+  const modelText = curModel ? modelLabel(id, curModel) : t('chat.model.cliDefault');
   const curEffort = effort || (defEffort && efforts.includes(defEffort) ? defEffort : undefined);
-  const effortText = curEffort ? (EFFORT_LABELS[curEffort] ?? curEffort) : '기본 노력치';
+  const effortText = curEffort ? (EFFORT_LABELS[curEffort] ?? curEffort) : t('chat.model.defaultEffort');
 
   return (
     <>
-      <Chip icon={<Cpu size={12} />} text={modelText} active={!!model} title="이 채팅의 모델">
+      <Chip icon={<Cpu size={12} />} text={modelText} active={!!model} title={t('chat.model.thisChatModel')}>
         <select
-          aria-label="이 채팅의 모델"
+          aria-label={t('chat.model.thisChatModel')}
           value={model ?? ''}
           onChange={(e) => actions().setSessionModel(sessionId, { model: e.target.value || undefined })}
           className="absolute inset-0 cursor-pointer opacity-0"
         >
-          <option value="">기본값 ({defModel ? modelLabel(id, defModel) : 'CLI 기본'})</option>
+          <option value="">{t('chat.model.defaultValue', { value: defModel ? modelLabel(id, defModel) : t('chat.model.cliShort') })}</option>
           {presets.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label}
@@ -101,14 +102,14 @@ function Chips({
           ))}
         </select>
       </Chip>
-      <Chip icon={<Gauge size={12} />} text={effortText} active={!!effort} title="이 채팅의 노력치">
+      <Chip icon={<Gauge size={12} />} text={effortText} active={!!effort} title={t('chat.model.thisChatEffort')}>
         <select
-          aria-label="이 채팅의 노력치"
+          aria-label={t('chat.model.thisChatEffort')}
           value={effort ?? ''}
           onChange={(e) => actions().setSessionModel(sessionId, { effort: e.target.value || undefined })}
           className="absolute inset-0 cursor-pointer opacity-0"
         >
-          <option value="">기본값 ({defEffort && efforts.includes(defEffort) ? (EFFORT_LABELS[defEffort] ?? defEffort) : 'CLI 기본'})</option>
+          <option value="">{t('chat.model.defaultValue', { value: defEffort && efforts.includes(defEffort) ? (EFFORT_LABELS[defEffort] ?? defEffort) : t('chat.model.cliShort') })}</option>
           {efforts.map((x) => (
             <option key={x} value={x}>
               {EFFORT_LABELS[x] ?? x}

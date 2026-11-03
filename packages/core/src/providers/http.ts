@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ProviderErrorCode } from '../model';
 import { providerError, type ProviderError } from '../provider';
 
@@ -15,14 +16,15 @@ export function statusToCode(status: number): ProviderErrorCode {
   return 'unknown';
 }
 
+/** 오류 종류별 안내 (호출 시점에 언어를 고른다) */
 const CODE_MESSAGE: Record<ProviderErrorCode, string> = {
-  auth: 'API 키가 거부되었습니다. 설정에서 키를 확인하세요.',
-  'rate-limit': '요청 한도를 초과했습니다. 잠시 후 다시 시도하세요.',
-  network: '서버 응답에 문제가 있습니다. 잠시 후 다시 시도하세요.',
-  offline: '네트워크에 연결할 수 없습니다.',
-  cli: 'CLI 실행 중 오류가 발생했습니다.',
-  aborted: '사용자가 중지했습니다.',
-  unknown: '요청을 처리하지 못했습니다.',
+  get auth() { return t('errors.http.auth'); },
+  get 'rate-limit'() { return t('errors.http.rate-limit'); },
+  get network() { return t('errors.http.network'); },
+  get offline() { return t('errors.http.offline'); },
+  get cli() { return t('errors.http.cli'); },
+  get aborted() { return t('errors.aborted'); },
+  get unknown() { return t('errors.http.unknown'); },
 };
 
 /** HTTP 오류 응답을 ProviderError로. 본문의 error.message를 덧붙이되 키 같은 비밀은 응답에 없으므로 안전 */

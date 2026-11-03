@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { parseSpeakBlock, SPEAK_LANG, type SpeakScript } from '@branch/core';
 import type { Element } from 'hast';
 import { Archive, AudioLines, Play, Square, Volume2 } from 'lucide-react';
@@ -12,7 +13,7 @@ import { codeSource, QuizContext } from './QuizCard';
 /** ```speak 코드 블록이면 그 본문 */
 export const speakSource = (node: Element | undefined) => codeSource(node, SPEAK_LANG);
 
-const LANG_LABEL = { vi: '베트남어', en: '영어', ko: '한국어' } as const;
+const LANG_LABEL_KEYS = { vi: 'chat.speak.langVi', en: 'chat.speak.langEn', ko: 'chat.speak.langKo' } as const;
 
 /**
  * 코드 블록(pre) 자리에 읽기 카드를 그린다 (IMP-21). 줄마다 듣기, [모두 듣기]로 차례로 읽는다.
@@ -40,7 +41,7 @@ export function SpeakBlock({ node, source, children, ...props }: ComponentProps<
         ) : (
           <div className="flex items-center gap-2 px-4 py-3.5 text-[14px] text-muted">
             <AudioLines size={16} className="text-accent" />
-            읽을 글을 준비하는 중…
+            {t('chat.speak.preparing')}
           </div>
         )}
       </div>
@@ -69,9 +70,9 @@ function SpeakList({ script, blockKey, messageId }: { script: SpeakScript; block
     <>
       <header className="flex items-center gap-2 border-b border-line bg-accent-soft/60 px-4 py-2.5">
         <AudioLines size={16} className="shrink-0 text-accent" />
-        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{script.title || '소리 내어 읽기'}</span>
-        <Button size="sm" variant="ghost" icon={<Archive size={14} />} aria-label="읽기 카드 보관" title="보관함에 담기" onClick={keep}>
-          <span className="max-sm:hidden">보관</span>
+        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-fg">{script.title || t('chat.speak.heading')}</span>
+        <Button size="sm" variant="ghost" icon={<Archive size={14} />} aria-label={t('chat.speak.keepLabel')} title={t('chat.speak.keep')} onClick={keep}>
+          <span className="max-sm:hidden">{t('chat.speak.keepShort')}</span>
         </Button>
         <Button
           size="sm"
@@ -79,7 +80,7 @@ function SpeakList({ script, blockKey, messageId }: { script: SpeakScript; block
           icon={mine ? <Square size={13} /> : <Play size={14} />}
           onClick={() => (mine ? stopSpeaking() : speakAll(lines))}
         >
-          {mine ? '멈춤' : script.items.length > 1 ? '모두 듣기' : '듣기'}
+          {mine ? t('chat.speak.stop') : script.items.length > 1 ? t('chat.speak.playAll') : t('chat.speak.play')}
         </Button>
       </header>
       <ol className="divide-y divide-line">
@@ -89,8 +90,8 @@ function SpeakList({ script, blockKey, messageId }: { script: SpeakScript; block
             <li key={i} data-speak-item className={cn('flex items-start gap-2.5 px-3 py-2.5 transition-colors', active && 'bg-accent-soft/50')}>
               <button
                 type="button"
-                aria-label={`${active ? '멈춤' : '듣기'}: ${it.text}`}
-                title={active ? '멈춤' : '듣기'}
+                aria-label={active ? t('chat.speak.stopItem', { text: it.text }) : t('chat.speak.playItem', { text: it.text })}
+                title={active ? t('chat.speak.stop') : t('chat.speak.play')}
                 onClick={() => (active ? stopSpeaking() : speak(it.text, { lang: it.lang, key: rowKey(i) }))}
                 className={cn(
                   'mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors',
@@ -103,7 +104,7 @@ function SpeakList({ script, blockKey, messageId }: { script: SpeakScript; block
                 <p className="text-[15px] leading-snug break-words text-fg">{it.text}</p>
                 {it.note && <p className="mt-0.5 text-[13px] leading-snug break-words text-muted">{it.note}</p>}
               </div>
-              <span className="mt-1 shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted">{LANG_LABEL[it.lang]}</span>
+              <span className="mt-1 shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted">{t(LANG_LABEL_KEYS[it.lang])}</span>
             </li>
           );
         })}

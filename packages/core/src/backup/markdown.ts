@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Message, Session } from '../model';
 import type { BackupData } from './snapshot';
 
@@ -20,15 +21,15 @@ export function backupToMarkdown(data: BackupData, at: number): string {
     bySession.set(m.sessionId, list);
   }
 
-  const out: string[] = [`# octobooks 백업`, '', `${new Date(at).toISOString()} 기준. 복원은 앱의 설정 › 백업에서 backup JSON으로 하세요.`, ''];
+  const out: string[] = [t('core.backupMarkdown.title'), '', t('core.backupMarkdown.asOf', { at: new Date(at).toISOString() }), ''];
   const roots = (children.get(null) ?? []).slice().sort((a, b) => b.updatedAt - a.updatedAt);
   const write = (s: Session, depth: number) => {
     const level = Math.min(2 + depth, 6);
     out.push(`${'#'.repeat(level)} ${depth > 0 ? '↳ ' : ''}${s.title}`, '');
-    if (s.anchor) out.push(`> 원문: "${oneLine(s.anchor.text)}"`, '');
-    if (s.summary) out.push(`> **가지 요약**: ${oneLine(s.summary)}`, '');
+    if (s.anchor) out.push(t('core.backupMarkdown.original', { text: oneLine(s.anchor.text) }), '');
+    if (s.summary) out.push(t('core.backupMarkdown.summary', { text: oneLine(s.summary) }), '');
     for (const m of bySession.get(s.id) ?? []) {
-      if (m.role === 'user') out.push(`**나**: ${oneLine(m.content)}`, '');
+      if (m.role === 'user') out.push(t('core.backupMarkdown.me', { text: oneLine(m.content) }), '');
       else out.push(m.content.trim(), '');
     }
     for (const c of children.get(s.id) ?? []) write(c, depth + 1);

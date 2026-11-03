@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(TextMenuPlugin.class);
+        registerPlugin(LocalNotificationsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

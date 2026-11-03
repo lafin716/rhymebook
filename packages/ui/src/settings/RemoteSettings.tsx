@@ -13,6 +13,8 @@ import { confirm } from '../components/ConfirmDialog';
 import { PC_STATUS_LABEL } from '../components/PcStatus';
 import { saveTextFile } from '../lib/download';
 import { Field, Section, Segmented } from './controls';
+import { LanguageField } from './LanguageField';
+import { t } from '../i18n';
 import { PairForm } from './connectionCards';
 import { SelectionTriggerField } from './SelectionTriggerField';
 import { AutoSkillField } from './AutoSkillField';
@@ -28,7 +30,7 @@ export function RemoteSettings() {
   const settings = useApp((s) => s.settings);
   return (
     <div className="space-y-6">
-      <Section title="연결된 PC" hint="이 기기는 PC의 학습 내용을 보여 주고, 질문은 PC로 보내요. 답변은 PC의 CLI가 만들어요. PC 없이 쓰려면 사이드바 아래 [프로필 바꾸기]에서 이 기기를 골라요.">
+      <Section title={t('settings.remote.pcTitle')} hint={t('settings.remote.pcHint')}>
         <PcCard />
         <SavedHosts />
       </Section>
@@ -39,13 +41,14 @@ export function RemoteSettings() {
 
       <SpeechSettings />
 
-      <Section title="화면">
-        <Field label="가지를 열 위치 (태블릿·데스크톱)" hint="모바일에서는 항상 바텀시트로 열립니다.">
+      <Section title={t('settings.remote.screenTitle')}>
+        <LanguageField />
+        <Field label={t('settings.screen.anchorTarget')} hint={t('settings.screen.anchorTargetHint')}>
           <Segmented
             value={settings.anchorOpenTarget}
             options={[
-              ['popup', '플로팅 팝업'],
-              ['split', '분할 패널'],
+              ['popup', t('settings.screen.popup')],
+              ['split', t('settings.screen.split')],
             ]}
             onChange={(v) => actions().updateSettings({ anchorOpenTarget: v })}
           />
@@ -98,9 +101,9 @@ function PcCard() {
 
   const unpair = async () => {
     const ok = await confirm({
-      title: 'PC 연결을 해제할까요?',
-      message: 'PC의 학습 내용은 그대로 남아요. 이 PC는 저장한 목록에서도 빠지고, 다시 쓰려면 PC에서 새 페어링 코드를 받아야 해요.',
-      confirmLabel: '연결 해제',
+      title: t('settings.remote.unpairTitle'),
+      message: t('settings.remote.unpairMessage'),
+      confirmLabel: t('settings.remote.unpairConfirm'),
       tone: 'danger',
     });
     if (ok) await setPairing(null);
@@ -114,7 +117,7 @@ function PcCard() {
           <Laptop size={18} />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-medium">{paired ? (hostName ?? pairing.bridgeName) : '페어링한 PC 없음'}</div>
+          <div className="truncate text-[14px] font-medium">{paired ? (hostName ?? pairing.bridgeName) : t('settings.remote.noPc')}</div>
           <div className="flex items-center gap-1.5 text-[12px] text-muted">
             <StatusDot tone={TONE[status]} className={status === 'connecting' ? 'animate-pulse' : undefined} />
             {PC_STATUS_LABEL[status]}
@@ -128,33 +131,33 @@ function PcCard() {
           <>
             {!paired && !form && (
               <ol className="list-decimal space-y-0.5 pl-4">
-                <li>PC에서 octobooks 앱을 열고 설정 → 연결 → [원격 페어링 열기]를 켜요.</li>
-                <li>[휴대폰·웹 연결]을 누르면 QR과 6자리 코드가 나와요.</li>
-                <li>아래에서 QR을 찍거나 링크·주소와 코드를 입력해요.</li>
+                <li>{t('settings.remote.pairStep1')}</li>
+                <li>{t('settings.remote.pairStep2')}</li>
+                <li>{t('settings.remote.pairStep3')}</li>
               </ol>
             )}
             <PairForm key={initialLink} initialLink={initialLink} onPaired={onPaired} onCancel={paired ? close : undefined} />
           </>
         ) : (
           <>
-            {status === 'offline' && error && <p className="text-warn">PC에 연결하지 못했어요. PC 앱이 켜져 있고 원격 페어링이 열려 있는지 확인하세요.</p>}
-            {status === 'unsupported' && <p className="text-danger">PC의 octobooks 앱이 원격 학습을 지원하지 않아요. PC 앱을 최신 버전으로 업데이트하세요.</p>}
+            {status === 'offline' && error && <p className="text-warn">{t('settings.remote.offline')}</p>}
+            {status === 'unsupported' && <p className="text-danger">{t('settings.remote.unsupported')}</p>}
             <div className="flex flex-wrap gap-2">
               {status !== 'online' && (
                 <Button size="sm" variant="soft" icon={<RefreshCw size={13} />} disabled={status === 'connecting'} onClick={() => syncClient?.reconnect()}>
-                  다시 연결
+                  {t('settings.remote.reconnect')}
                 </Button>
               )}
               <Button size="sm" variant="ghost" icon={<Link2 size={13} />} onClick={() => setForm(true)}>
-                다른 PC와 페어링
+                {t('settings.remote.pairOther')}
               </Button>
               <Button size="sm" variant="ghost" icon={<Unlink size={13} />} onClick={() => void unpair()}>
-                연결 해제
+                {t('settings.remote.unpairButton')}
               </Button>
             </div>
             <p className="text-muted">
-              PC 지문 <span className="font-mono">{keyFingerprint(pairing.bridgeKey)}</span>
-              {pairing.trust === 'code' && ' · 코드로 연결했어요. PC 화면의 지문과 같은지 확인하세요.'}
+              {t('settings.remote.fingerprint')} <span className="font-mono">{keyFingerprint(pairing.bridgeKey)}</span>
+              {pairing.trust === 'code' && t('settings.remote.codeTrust')}
             </p>
           </>
         )}
@@ -191,20 +194,26 @@ function OldDataCard() {
       if (!raw) return;
       const snap = createSnapshot(raw);
       await saveTextFile(backupFileName(snap.createdAt, false), await serializeBackup(snap), 'application/json');
-      setNote('파일로 내보냈어요. PC 앱의 설정 → 백업 → [파일 가져오기]로 옮길 수 있어요.');
+      setNote(t('settings.remote.exported'));
     } catch {
-      setNote('내보내지 못했어요. 다시 시도해 주세요.');
+      setNote(t('settings.remote.exportFailed'));
     }
   };
 
   return (
-    <Section title="이 기기에 저장한 학습" hint={`이 ${caps.kind === 'mobile' ? '휴대폰' : '브라우저'}에 저장한 학습 ${count}개가 있어요. PC를 보는 동안에는 화면에 나오지 않아요.`}>
+    <Section
+      title={t('settings.remote.oldTitle')}
+      hint={t('settings.remote.oldHint', {
+        count,
+        device: caps.kind === 'mobile' ? t('settings.remote.phone') : t('settings.remote.browser'),
+      })}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="soft" icon={<Smartphone size={14} />} onClick={chooseThisDevice}>
-          이 기기에서 쓰기
+          {t('settings.remote.useThisDevice')}
         </Button>
         <Button size="sm" icon={<Download size={14} />} onClick={() => void exportOld()}>
-          파일로 내보내기
+          {t('settings.remote.exportFile')}
         </Button>
       </div>
       {note && <p className="text-[12.5px] text-fg-2">{note}</p>}
@@ -214,19 +223,19 @@ function OldDataCard() {
 
 function RemoteNote() {
   const items = [
-    '학습 기록은 PC에만 저장되고, 이 기기는 연결되어 있는 동안 PC의 내용을 보여 줘요.',
-    '질문·가지·요약은 PC로 보내고, 답변은 PC에 로그인된 공식 CLI가 만들어요. 에이전트·모델·노력치는 채팅 위 칩에서 바꿀 수 있고, 비워 두면 PC 설정을 따라요.',
-    'PC에서 진행 중인 답변과 요약 초안도 함께 보여요. PC와 이 기기에서 동시에 볼 수 있어요.',
-    '연결은 기기 키로 서명하고 종단간 암호화해요. relay를 거쳐도 내용은 보이지 않아요.',
+    t('settings.remote.note1'),
+    t('settings.remote.note2'),
+    t('settings.remote.note3'),
+    t('settings.remote.note4'),
   ];
   return (
     <div className="flex gap-2.5 rounded-xl bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-fg-2">
       <Info size={17} className="mt-0.5 shrink-0 text-accent" />
       <div>
-        <p className="font-medium text-fg">원격 학습은 이렇게 동작해요</p>
+        <p className="font-medium text-fg">{t('settings.remote.howTitle')}</p>
         <ul className="mt-1 list-disc space-y-0.5 pl-4">
-          {items.map((t) => (
-            <li key={t}>{t}</li>
+          {items.map((text) => (
+            <li key={text}>{text}</li>
           ))}
         </ul>
       </div>

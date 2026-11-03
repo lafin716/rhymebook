@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { remoteRoute, type RemotePairing } from '@branch/core';
 import { Check, Laptop, Monitor, Plus, Smartphone, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -9,8 +10,10 @@ import { StatusDot } from './Badge';
 import { confirm } from './ConfirmDialog';
 import { PC_STATUS_LABEL, PC_STATUS_TONE } from './PcStatus';
 
-/** 프로필 목록에서 이 기기를 부르는 이름 */
-export const THIS_DEVICE = kind === 'desktop' ? '이 PC' : '이 기기';
+/** 프로필 목록에서 이 기기를 부르는 이름 (렌더 시점에 번역한다) */
+export const thisDeviceName = () => (kind === 'desktop' ? t('components.host.thisPc') : t('components.host.thisDevice'));
+/** 제목·줄 맨 앞에 쓸 때 (영어 'this PC' → 'This PC') */
+export const thisDeviceTitle = () => { const s = thisDeviceName(); return s.charAt(0).toUpperCase() + s.slice(1); };
 
 /**
  * 프로필 목록 (ADR-063·103): [이 기기] · 저장한 PC들 · [PC 추가].
@@ -34,7 +37,7 @@ export function HostList({ addable = true, device = true, initialLink = '' }: { 
       {device && !sessionWindowId && <DeviceRow />}
       {hosts.length > 0 && (
         <div>
-          <p className="mb-1.5 px-1 text-[12px] font-medium text-muted">내 PC</p>
+          <p className="mb-1.5 px-1 text-[12px] font-medium text-muted">{t('components.host.myPcs')}</p>
           <ul className="space-y-1.5">
             {hosts.map((h) => (
               <HostRow key={h.bridgeId} host={h} active={remoteMode && h.bridgeId === activeId} />
@@ -54,7 +57,7 @@ export function HostList({ addable = true, device = true, initialLink = '' }: { 
             className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong text-[14px] text-fg-2 hover:bg-surface-2"
           >
             <Plus size={15} />
-            PC 추가
+            {t('components.host.addPc')}
           </button>
         ))}
     </div>
@@ -65,23 +68,23 @@ export function HostList({ addable = true, device = true, initialLink = '' }: { 
 function DeviceRow() {
   const active = !remoteMode;
   const Icon = kind === 'desktop' ? Monitor : Smartphone;
-  const sub = active ? '지금 쓰는 중 · 학습을 이 기기에 저장' : kind === 'desktop' ? '이 PC에 저장하고 이 PC의 CLI·API로 답변' : 'PC 없이 쓰기 · API 키로 답변';
+  const sub = active ? t('components.host.deviceActive') : kind === 'desktop' ? t('components.host.deviceDesktop') : t('components.host.deviceOther');
   return (
     <div>
-      <p className="mb-1.5 px-1 text-[12px] font-medium text-muted">{THIS_DEVICE}</p>
+      <p className="mb-1.5 px-1 text-[12px] font-medium text-muted">{thisDeviceTitle()}</p>
       <button
         type="button"
         onClick={chooseThisDevice}
         disabled={active}
         data-active={active || undefined}
-        aria-label={`${THIS_DEVICE}에서 쓰기`}
+        aria-label={t('components.host.useHere', { device: thisDeviceName() })}
         className={`flex min-h-14 w-full items-center gap-3 rounded-xl border bg-surface px-3 py-2 text-left ${active ? 'border-accent/60' : 'border-line hover:border-line-strong'}`}
       >
         <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${active ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-fg-2'}`}>
           <Icon size={18} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-medium">{THIS_DEVICE}에서 쓰기</span>
+          <span className="block truncate text-[14px] font-medium">{t('components.host.useHere', { device: thisDeviceName() })}</span>
           <span className="block truncate text-[12px] text-muted">{sub}</span>
         </span>
         {active && <Check size={16} className="shrink-0 text-accent" aria-hidden />}
@@ -98,9 +101,9 @@ function HostRow({ host, active }: { host: RemotePairing; active: boolean }) {
 
   const forget = async () => {
     const ok = await confirm({
-      title: `${host.bridgeName}을(를) 목록에서 지울까요?`,
-      message: 'PC의 학습 내용은 그대로 남아요. 다시 쓰려면 PC에서 새 페어링 코드를 받아야 해요.',
-      confirmLabel: '지우기',
+      title: t('components.host.forgetTitle', { name: host.bridgeName }),
+      message: t('components.host.forgetMessage'),
+      confirmLabel: t('components.host.forgetConfirm'),
       tone: 'danger',
     });
     if (ok) await forgetHost(host.bridgeId);
@@ -115,7 +118,7 @@ function HostRow({ host, active }: { host: RemotePairing; active: boolean }) {
         type="button"
         onClick={() => void openHost(host.bridgeId)}
         disabled={active && (status === 'online' || status === 'connecting')}
-        aria-label={`${name} ${active ? sub : '연결'}`}
+        aria-label={t('components.host.ariaRow', { name, sub: active ? sub : t('components.host.connect') })}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left"
       >
         <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${active ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-fg-2'}`}>
@@ -133,7 +136,7 @@ function HostRow({ host, active }: { host: RemotePairing; active: boolean }) {
       <button
         type="button"
         onClick={() => void forget()}
-        aria-label={`${host.bridgeName} 목록에서 지우기`}
+        aria-label={t('components.host.ariaForget', { name: host.bridgeName })}
         className="mr-1 grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-danger"
       >
         <Trash2 size={15} />

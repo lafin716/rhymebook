@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { Archive, BookOpenCheck, Menu, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Search, Settings2, Sun } from 'lucide-react';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
@@ -11,7 +12,11 @@ import { PcStatusChip } from './PcStatus';
 
 const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
-const THEME_LABEL = { system: '시스템', light: '라이트', dark: '다크' };
+const THEME_LABEL = {
+  get system() { return t('components.top.themeSystem'); },
+  get light() { return t('components.top.themeLight'); },
+  get dark() { return t('components.top.themeDark'); },
+};
 
 /** 상단 바: 목록(모바일/태블릿 드로어, 데스크톱 접기), 마인드맵 토글, 검색, 설정, 테마 */
 export function TopBar() {
@@ -27,15 +32,15 @@ export function TopBar() {
     <header className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-surface px-2 md:h-13 md:px-3">
       {bp === 'desktop' ? (
         <IconButton
-          label={collapsed ? '세션 목록 펼치기' : '세션 목록 접기'}
-          title={`${collapsed ? '세션 목록 펼치기' : '세션 목록 접기'} (${modKeyLabel}B)`}
+          label={collapsed ? t('components.top.listExpand') : t('components.top.listCollapse')}
+          title={t('components.top.listToggleTitle', { label: collapsed ? t('components.top.listExpand') : t('components.top.listCollapse'), shortcut: `${modKeyLabel}B` })}
           aria-expanded={!collapsed}
           onClick={() => useUi.getState().toggleSidebar()}
         >
           {collapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
         </IconButton>
       ) : (
-        <IconButton label="세션 목록" onClick={() => useUi.getState().setDrawer(true)}>
+        <IconButton label={t('components.top.sessionList')} onClick={() => useUi.getState().setDrawer(true)}>
           <Menu size={19} />
         </IconButton>
       )}
@@ -47,8 +52,8 @@ export function TopBar() {
         <button
           type="button"
           aria-pressed={mode === 'mindmap'}
-          title={mode === 'mindmap' ? '마인드맵 닫기' : '마인드맵'}
-          aria-label="마인드맵"
+          title={mode === 'mindmap' ? t('components.top.closeMindmap') : t('components.top.mindmap')}
+          aria-label={t('components.top.mindmap')}
           onClick={() => (mode === 'mindmap' ? actions().closeMindmap() : actions().setMode('mindmap'))}
           className={cn(
             'flex h-8 items-center gap-1.5 rounded-lg px-2 text-[13px] transition-colors',
@@ -56,11 +61,11 @@ export function TopBar() {
           )}
         >
           <Network size={15} />
-          {!mobile && <span>마인드맵</span>}
+          {!mobile && <span>{t('components.top.mindmap')}</span>}
         </button>
       )}
       {mobile ? (
-        <IconButton label="세션 검색" onClick={() => actions().setOverlay('search')}>
+        <IconButton label={t('components.top.sessionSearch')} onClick={() => actions().setOverlay('search')}>
           <Search size={18} />
         </IconButton>
       ) : (
@@ -70,20 +75,20 @@ export function TopBar() {
           className="ml-1 flex h-8 items-center gap-2 rounded-lg border border-line px-2.5 text-[13px] text-muted hover:bg-surface-2"
         >
           <Search size={15} />
-          {bp === 'desktop' && <span>검색</span>}
+          {bp === 'desktop' && <span>{t('components.top.search')}</span>}
           <Kbd>{modKeyLabel}K</Kbd>
         </button>
       )}
-      <IconButton label="보관함" title="보관함" onClick={() => actions().setOverlay('vault')}>
+      <IconButton label={t('components.top.vault')} title={t('components.top.vault')} onClick={() => actions().setOverlay('vault')}>
         <Archive size={18} />
       </IconButton>
-      <IconButton label="이해 노트" title="이해 노트" onClick={() => actions().setOverlay('notes')}>
+      <IconButton label={t('components.top.notes')} title={t('components.top.notes')} onClick={() => actions().setOverlay('notes')}>
         <BookOpenCheck size={18} />
       </IconButton>
-      <IconButton label={`테마: ${THEME_LABEL[theme]}`} title={`테마: ${THEME_LABEL[theme]}`} onClick={() => actions().setTheme(THEME_NEXT[theme])}>
+      <IconButton label={t('components.top.theme', { mode: THEME_LABEL[theme] })} title={t('components.top.theme', { mode: THEME_LABEL[theme] })} onClick={() => actions().setTheme(THEME_NEXT[theme])}>
         <ThemeIcon size={18} />
       </IconButton>
-      <IconButton label="설정" onClick={() => actions().setOverlay('settings')}>
+      <IconButton label={t('components.top.settings')} onClick={() => actions().setOverlay('settings')}>
         <Settings2 size={18} />
       </IconButton>
     </header>

@@ -1,0 +1,53 @@
+{
+  "importFail": {
+    "offline": "You are not connected to your PC. Import again once you are connected.",
+    "timeout": "Your PC is not responding. Try again in a moment.",
+    "conflict": "Not imported, because another study with the same id exists on the PC.",
+    "forbidden": "To overwrite an existing study, allow remote deletion in the PC settings.",
+    "invalid": "This file is too large or in the wrong format to send remotely. Import it in the PC app.",
+    "rateLimit": "Too many requests. Try again in a moment.",
+    "fallback": "Could not import on the PC."
+  },
+  "study": {
+    "loadTimeout": "Could not finish receiving conversations from the PC. Try again in a moment.",
+    "notFound": "Could not find the study.",
+    "exported": "Saved the study bundle (zip). Load it from Understanding notes › [Import study] on another device.",
+    "tooBig": "The file is too large.",
+    "name": "“{title}”",
+    "importedToPc": "Imported the {name} study to the PC.",
+    "partAdded": "Added {count}",
+    "partUpdated": "Updated {count}",
+    "partKept": "Kept {count}",
+    "partSkipped": "Skipped while generating {count}",
+    "imported": "Imported the {name} study — branches {parts}.",
+    "importFailPc": "Could not import on the PC.",
+    "bookSessionTitle": "📖 {title}",
+    "digestFileName": "{title} study source.md",
+    "makeBookPrompt": "Please turn this study record into a book.",
+    "newSessionFail": "Could not create a new session.",
+    "sendFail": "Could not send the question."
+  },
+  "modal": {
+    "label": "Understanding notes",
+    "close": "Close understanding notes",
+    "titleWith": "Understanding notes · {title}",
+    "emptyImport": "No study is open. You can import a zip saved with [Export study] on another device and continue studying.",
+    "summaryLine": "{cards} branches · {summarized} summaries. Gather what you understood from the branches to review or export it to a file.",
+    "noBranches": "No branches yet. Select a part of an answer you do not understand to create a branch.",
+    "noSummary": "No summary — use [Attach summary to parent] in a branch to fill it in.",
+    "makeBookHint": "Organize the whole study into a structured book, starting from the table of contents (/book skill)",
+    "makeBook": "Make a book",
+    "exportStudyHint": "Save the whole conversation as a zip so you can continue studying on another device",
+    "exportStudy": "Export study",
+    "importStudy": "Import study",
+    "importFileLabel": "Choose a study bundle file",
+    "open": "Open",
+    "saveMarkdown": "Save Markdown",
+    "markdownSaved": "Saved the Markdown notes.",
+    "noCardsHint": "Only branches with a summary become cards",
+    "ankiCards": "Anki cards",
+    "ankiSaved": "Saved {count} Anki cards. Import them with Anki › File › Import.",
+    "copy": "Copy",
+    "markdownCopied": "Copied the Markdown to the clipboard."
+  }
+}

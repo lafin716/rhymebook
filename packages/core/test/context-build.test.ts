@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BASE_SYSTEM,
-  BRANCH_INSTRUCTION,
-  SUBSESSION_INSTRUCTION,
+  baseSystem,
+  branchInstruction,
+  subsessionInstruction,
   buildChatRequest,
   buildSummaryRequest,
   buildSystemPrompt,
@@ -67,13 +67,13 @@ describe('맥락 구성 — 서브세션 system 프롬프트', () => {
   it('조상 앵커 체인을 루트 → 현재 순서로, 원문 문맥과 함께 넣는다', () => {
     const { sessions, messages } = fixture();
     const sys = buildSystemPrompt({ sessions, messages, sessionId: 'b' });
-    expect(sys.startsWith(BASE_SYSTEM)).toBe(true);
+    expect(sys.startsWith(baseSystem())).toBe(true);
     expect(sys).toContain('루트 주제: 선형대수');
     const i1 = sys.indexOf('1. "고유값" — 문맥: "[고유값]은 선형 변환');
     const i2 = sys.indexOf('2. "고유벡터" — 문맥: "배율 λ를 고유값, 그 벡터를 [고유벡터]라 합니다."');
     expect(i1).toBeGreaterThan(0);
     expect(i2).toBeGreaterThan(i1);
-    expect(sys).toContain(`## 지시\n${BRANCH_INSTRUCTION}\n현재 질문 대상: "고유벡터"`);
+    expect(sys).toContain(`## 지시\n${branchInstruction()}\n현재 질문 대상: "고유벡터"`);
   });
 
   it('직접 만든 하위 세션은 생성 시점까지의 부모 대화와 하위 질문 지시를 쓴다', () => {
@@ -84,7 +84,7 @@ describe('맥락 구성 — 서브세션 system 프롬프트', () => {
     expect(sys).toContain('(직접 만든 하위 세션) "응용"');
     expect(sys).toContain('고유값은 선형 변환이');
     expect(sys).not.toContain('앵커 이후의 질문');
-    expect(sys).toContain(`## 지시\n${SUBSESSION_INSTRUCTION}`);
+    expect(sys).toContain(`## 지시\n${subsessionInstruction()}`);
     expect(sys).not.toContain('현재 질문 대상');
   });
 
@@ -122,10 +122,10 @@ describe('맥락 구성 — 서브세션 system 프롬프트', () => {
 
   it('부모가 없거나(루트) 없는 세션은 기본 프롬프트', () => {
     const { sessions, messages } = fixture();
-    expect(buildSystemPrompt({ sessions, messages, sessionId: 'r' })).toBe(BASE_SYSTEM);
-    expect(buildSystemPrompt({ sessions, messages, sessionId: 'nope' })).toBe(BASE_SYSTEM);
+    expect(buildSystemPrompt({ sessions, messages, sessionId: 'r' })).toBe(baseSystem());
+    expect(buildSystemPrompt({ sessions, messages, sessionId: 'nope' })).toBe(baseSystem());
     const { anchor: _, ...noAnchor } = sessions.a!;
-    expect(buildSystemPrompt({ sessions: { ...sessions, a: noAnchor }, messages, sessionId: 'a' })).toContain(SUBSESSION_INSTRUCTION);
+    expect(buildSystemPrompt({ sessions: { ...sessions, a: noAnchor }, messages, sessionId: 'a' })).toContain(subsessionInstruction());
   });
 });
 

@@ -1,6 +1,7 @@
+import { t } from '../i18n';
 import type { ChatTurn } from '../provider';
 
-const ROLE_LABEL: Record<ChatTurn['role'], string> = { user: '학습자', assistant: '튜터' };
+const roleLabel = (role: ChatTurn['role']): string => (role === 'user' ? t('core.bridgePrompt.learner') : t('core.bridgePrompt.tutor'));
 
 /**
  * 무상태 CLI 실행용 프롬프트. CLI 세션 재개를 쓰지 않으므로 앱이 가진 대화를 한 번에 넘긴다.
@@ -14,14 +15,14 @@ export function cliPrompt(messages: readonly ChatTurn[]): string {
   if (turns.length === 1) return last.content;
   const history = turns
     .slice(0, -1)
-    .map((m) => `[${ROLE_LABEL[m.role]}]\n${m.content.trim()}`)
+    .map((m) => `[${roleLabel(m.role)}]\n${m.content.trim()}`)
     .join('\n\n');
   return [
     '<conversation>',
     history,
     '</conversation>',
     '',
-    '위 대화에 이어서, 아래 학습자의 마지막 메시지에 답하세요. 대화 기록의 형식은 따라 하지 마세요.',
+    t('core.bridgePrompt.answer'),
     '',
     last.content,
   ].join('\n');

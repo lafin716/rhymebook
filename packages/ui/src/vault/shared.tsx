@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { ID, VaultItemContent, VaultNode } from '@branch/core';
 import { AudioLines, FileText, Folder, FolderOpen, Image as ImageIcon, LayoutTemplate, Play, Square } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -10,12 +11,16 @@ import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
 import { speakAll, stopSpeaking, useSpeech } from '../voice/speak';
 
-const LANG_LABEL = { vi: '베트남어', en: '영어', ko: '한국어' } as const;
+const LANG_LABEL = {
+  get vi() { return t('vault.lang.vi'); },
+  get en() { return t('vault.lang.en'); },
+  get ko() { return t('vault.lang.ko'); },
+} as const;
 export const put = (node: VaultNode) => actions().putVaultNode(node);
 
 /** 저장하지 않은 수정을 버릴지 묻는다 */
 export const confirmDiscard = () =>
-  confirm({ title: '저장하지 않은 변경을 버릴까요?', message: '수정한 내용이 사라져요.', confirmLabel: '버리기', tone: 'danger' });
+  confirm({ title: t('vault.unsaved.title'), message: t('vault.unsaved.message'), confirmLabel: t('vault.unsaved.confirm'), tone: 'danger' });
 
 export function NodeIcon({ node, open, size = 15 }: { node: VaultNode; open?: boolean; size?: number }) {
   if (node.kind === 'folder') return open ? <FolderOpen size={size} className="shrink-0 text-accent" /> : <Folder size={size} className="shrink-0 text-accent" />;
@@ -63,7 +68,7 @@ export function ItemContent({ item, playKey }: { item: VaultItemContent; playKey
           icon={playing ? <Square size={13} /> : <Play size={14} />}
           onClick={() => (playing ? stopSpeaking() : speakAll(lines.map((text, i) => ({ text, lang: item.lang, key: `${playKey}#${i}` }))))}
         >
-          {playing ? '멈춤' : '듣기'}
+          {playing ? t('vault.audio.stop') : t('vault.audio.listen')}
         </Button>
       </div>
       <div className="space-y-1 px-3 py-2.5 text-[15px] leading-snug text-fg">

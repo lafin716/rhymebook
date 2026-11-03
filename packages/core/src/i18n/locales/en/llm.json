@@ -1,0 +1,169 @@
+{
+  "prompts": {
+    "base": "You are a tutor who helps with learning. Explain accurately and in a structured way, matched to the learner's level. Use Markdown (lists, tables, code blocks) when it helps.",
+    "branch": "This is the part of the context the learner is stuck on. Explain it briefly and clearly, with analogies and examples that fit this context.",
+    "subsession": "The learner is reading this conversation and asks a follow-up question directly. Based on the context of the parent conversation, explain briefly and clearly, with analogies and examples.",
+    "branchSuggest": "## Suggested branches\nAfter the answer, attach exactly one ```branches code block at the very end, in the format below. It is hidden on screen and turned into buttons.\n```branches\n{\"chapters\":[{\"title\":\"chapter title exactly as written in the body\",\"question\":\"one question the learner asks to study that chapter\"}],\"next\":[{\"title\":\"name within 20 characters\",\"question\":\"one question the learner would ask next\"}]}\n```\n- chapters: if the answer is a curriculum, roadmap, or step-by-step plan, write each chapter (chapter, week, stage) with its title exactly as in the body. If a major chapter has sub-chapters (sections), list only the major chapter. Otherwise an empty array.\n- next: 2 to 3 questions to dig deeper into, or to learn next, based on this answer.\n- Do not mention this block outside the block. For a short greeting or small talk, you may omit the block.",
+    "summary": "The following is a conversation in which the learner asked about one concept and came to understand it. Summarize the core the learner understood in 1 to 2 sentences in English. Output only the summary, with no preamble.",
+    "title": "Make a short title in English (3 to 8 words) for the topic of the following conversation. Output only the title, with no quotes or period.",
+    "pageBase": "You help edit Markdown study notes.\n- Output only the Markdown body that goes straight into the page. Do not add greetings, explanations, or preambles (\"Here is…\").\n- Do not wrap the whole output in a ``` code fence.\n- Follow the language of the note (if empty, English).\n- Keep sub-page links like `[Title](#page:…)` exactly as they are, character for character.\n- Keep attached images and files like `![…](embed:N)` and `[…](embed:N …)` with their addresses unchanged.",
+    "pageOrganizeTask": "Task: Reorganize the whole note so it is easy to read.\n- Do not drop content (facts, examples, formulas, code, links). Do not make anything up.\n- Merge duplicates, and build the structure with headings (##, ###), lists, and tables that fit the flow.\n- Polish awkward sentences and spelling, but keep the original tone.",
+    "pageFillTask": "Task: Write only the content that goes into the [여기에 채우기] slots of the note.\n- Write so it connects with the text before and after; do not repeat what is already there.\n- If the line just before is a heading, write the body under that heading. If it is in the middle of a list, write list items of the same form.\n- Write only accurate content. If you are not sure, keep it short.",
+    "skillAssist": "You are the \"skill\" writing assistant of a learning chat app.\nA skill is a reusable instruction that gets added to the system instructions for a single question when the learner picks it with a /command in the chat.\nLike Claude and Codex skills, a skill can have supporting files in its folder, and they are passed to the model together with the instructions when the skill is used.\nLearners in this app dig deeper by dragging terms in an answer into branches (follow-up sub-questions).\n\nCreate a new skill, or edit the given current skill, as requested. Output only in the format below and write nothing else:\n\n<name>command name</name>\n<title>title</title>\n<description>description</description>\n<prompt>\ninstructions\n</prompt>\n<file path=\"references/example.md\">\nfile content (only when needed, multiple allowed)\n</file>\n<delete path=\"file path to delete\"/>\n<note>one or two sentences on what was made or changed</note>\n\nRules:\n- name: 2 to 24 characters of lowercase English letters, digits, - or _, with no spaces. Short and easy to remember. Do not use a command name that already exists.\n- title: 20 characters or fewer, in English.\n- description: one sentence in English on what the skill does (80 characters or fewer).\n- prompt: the instructions the model will follow. Use a numbered list of steps in the form \"Do ...\", and specify the output format (headings, lists, tables), the length, and concretely how to handle empty or unclear input. Where it fits, include an instruction to put key terms in bold so the learner can drag them to ask more. Up to 4000 characters.\n- Make supporting files only when they help keep the instructions short. If the instructions alone are enough, do not make any.\n  Put long reference material, glossaries, and grading criteria in references/, example code and practice scripts in scripts/, and answer-format templates in assets/.\n  Paths use lowercase English letters, digits, - or _, and an extension (.md, .py, .txt, etc.). One file is up to 8000 characters, text only.\n  If you make a file, point to its path by name in the prompt and say when to consult it. Scripts inside files are not executed; only their content is passed along.\n- When editing, change only the requested parts and keep the rest as it is. Output name, title, description, and prompt even if unchanged.\n  Output only the supporting files you create or change, in full, inside <file>. Existing files you do not output are kept. Use <delete> only for files to remove."
+  },
+  "info": {
+    "groups": {
+      "chat": "Chat",
+      "branch": "Branching",
+      "auto": "Auto-generated",
+      "page": "Page AI",
+      "skill": "Skills"
+    },
+    "base": {
+      "label": "Base system prompt",
+      "description": "The tutor instructions placed at the very start of every learning conversation. A new session starts with this text."
+    },
+    "branchSuggest": {
+      "label": "Suggested branches instruction",
+      "description": "Tells the model to attach a suggested-branches block (chapters and next questions) to the end of an answer. Changing the format may stop the buttons from appearing."
+    },
+    "branch": {
+      "label": "Branch (anchor) instruction",
+      "description": "Added after the parent context in a branch made from text selected in an answer."
+    },
+    "subsession": {
+      "label": "Sub-session instruction",
+      "description": "Added after the parent conversation in a sub-session the learner creates with [+]."
+    },
+    "summary": {
+      "label": "Branch summary",
+      "description": "Instructions for writing the 1 to 2 sentence summary that returns a branch's conversation to its parent."
+    },
+    "title": {
+      "label": "Session title",
+      "description": "Instructions for naming a session from its first conversation."
+    },
+    "pageOrganize": {
+      "label": "Note cleanup",
+      "description": "Used by \"Organize with AI\" on a page."
+    },
+    "pageFill": {
+      "label": "Fill the blank",
+      "description": "Used to fill content at the page cursor. Handles the [여기에 채우기] marker."
+    },
+    "skillAssist": {
+      "label": "AI skill builder",
+      "description": "Instructions for the AI helper in skill management. Changing the tag output format may make the result unreadable."
+    }
+  },
+  "context": {
+    "user": "Learner",
+    "tutor": "Tutor",
+    "clipped": "…(omitted)",
+    "rootTopic": "Root topic: {title}",
+    "pathHeading": "### Branch path (root → current)",
+    "learningContext": "## Learning context",
+    "createdSubsession": "{n}. (sub-session the learner created) \"{title}\"",
+    "anchorContext": " — context: \"{before}[{text}]{after}\"",
+    "parentCanvas": "### Parent canvas (materials and notes the learner collected)",
+    "parentDoc": "### Parent document (page the learner wrote)",
+    "parentChat": "### Parent conversation ({label}, latest {count})",
+    "untilAnchor": "up to the anchor message",
+    "untilCreated": "up to when the sub-session was created",
+    "instruction": "## Instruction",
+    "targetQuestion": "Current question target: \"{text}\"",
+    "imageNote": "[Made and showed {count} image(s)]",
+    "attachmentFallback": "Please look at the attached content.",
+    "summaryTarget": "Question target: \"{target}\"",
+    "branchWhat": "What is \"{text}\"?",
+    "branchDetail": "Please explain \"{text}\" in more detail.",
+    "reorganizeRequest": "Reorganize the whole conversation in this session into one question and one answer.",
+    "sessionHeading": "## Session conversation",
+    "sessionTurn": "### {role} {n}",
+    "sessionUser": "Question",
+    "sessionAssistant": "Answer",
+    "notesHeading": "## Footnotes (point to these by number after reorganizing)",
+    "noteFrom": "Derived from \"{text}\" in the body",
+    "noteSummary": "Summary: {text}",
+    "requestHeading": "## Request"
+  },
+  "page": {
+    "titleHeading": "## Page title",
+    "noteHeading": "## Note",
+    "extraRequest": "## Additional request",
+    "requestHeading": "## Request",
+    "fillDefault": "Fill in content that fits the surrounding context."
+  },
+  "skillAssist": {
+    "currentHeading": "## Current skill (edit this)",
+    "newHeading": "## Make a new skill",
+    "takenHeading": "## Command names already in use",
+    "requestHeading": "## Request",
+    "defaultEdit": "Refine it overall so it is clearer and easier to use.",
+    "defaultNew": "Make one skill that helps with learning.",
+    "truncated": "…({count} characters omitted — too long to edit, do not output this)"
+  },
+  "branch": {
+    "question": "Let's study the \"{title}\" chapter. Explain the core concepts first, step by step, with examples."
+  },
+  "book": {
+    "fallbackTitle": "Book",
+    "chapter": "Chapter {n}"
+  },
+  "quiz": {
+    "fallbackTitle": "Quiz"
+  },
+  "skill": {
+    "heading": "## Skill: {title} (/{name})",
+    "intro": "For this question, follow the instructions below.",
+    "filesHeading": "### Skill files",
+    "filesNote": "These are files that belong to this skill's folder. Refer to the files the instructions point to by path. Scripts cannot run here, so when needed, explain their content, how to run them, and the expected result."
+  },
+  "reorganize": {
+    "requestHeading": "## Request"
+  },
+  "study": {
+    "error": {
+      "invalid": "This is not an octobooks study file, or it is damaged.",
+      "newerVersion": "This study was exported from a newer version of the app. Update the app, then import it.",
+      "conflict": "Some items overlap with other studies on this device, so it cannot be imported."
+    },
+    "fallbackName": "study",
+    "fileSuffix": "-study-",
+    "md": {
+      "path": "> Path: {path} › {title}",
+      "anchor": "**Branched passage**",
+      "summary": "## What I understood",
+      "canvas": "## Canvas",
+      "doc": "## Document",
+      "chat": "## Conversation",
+      "question": "### 🙋 Question",
+      "answer": "### 💬 Answer",
+      "skill": "_Skill: /{name}_",
+      "errorNote": "_(error)_",
+      "stoppedNote": "_(stopped)_",
+      "attachment": "📎 {name}",
+      "children": "## Sub-branches",
+      "anchorInline": " — passage “{text}”"
+    },
+    "readme": {
+      "meta": "> octobooks study pack · {date} · {branches} branches · {summaries} summaries · {messages} messages",
+      "toc": "## Contents",
+      "howTitle": "## Continue studying on another device",
+      "howImport": "In the octobooks app, open Understanding notes › **Import study** and choose this zip file (or the `study.json` inside it).",
+      "howMerge": "If the same study already exists, each branch keeps whichever side changed more recently, and branches that exist only on this device are left as they are."
+    },
+    "digest": {
+      "title": "# Study source: {title}",
+      "guide": "> octobooks study tree. Numbers show branch position (\"1.2\" = the 2nd sub-branch of branch 1). \"Branched passage\" is text the learner selected because they did not know it; \"What I understood\" is the summary the learner wrote.",
+      "anchor": "Branched passage:",
+      "summary": "What I understood:",
+      "root": "[Root] ",
+      "branch": "[{n}] ",
+      "question": "**Q.** {body}",
+      "answer": "**A.** {body}",
+      "truncated": " …(shortened)",
+      "cutNote": "\n> The source was long, so only the beginning of {count} answers is included.\n"
+    }
+  }
+}

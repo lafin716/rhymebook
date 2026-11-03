@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { ConnectionState, ID, ModelPref, ProviderId, Session } from './model';
 
 /**
@@ -40,12 +41,12 @@ export const CLI_MODEL_PRESETS: Record<CliId, readonly ModelPreset[]> = {
 };
 
 export const EFFORT_LABELS: Record<string, string> = {
-  low: '낮음',
-  medium: '보통',
-  high: '높음',
-  xhigh: '매우 높음',
-  max: '최대',
-  ultra: '울트라',
+  get low() { return t('core.effort.low'); },
+  get medium() { return t('core.effort.medium'); },
+  get high() { return t('core.effort.high'); },
+  get xhigh() { return t('core.effort.xhigh'); },
+  get max() { return t('core.effort.max'); },
+  get ultra() { return t('core.effort.ultra'); },
 };
 
 export function isCliId(id: ProviderId): id is CliId {

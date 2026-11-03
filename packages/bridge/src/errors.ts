@@ -1,4 +1,4 @@
-import { providerError, type ProviderError } from '@branch/core';
+import { t, providerError, type ProviderError } from '@branch/core';
 
 /** 오류 문구에서 비밀처럼 보이는 값과 제어 문자를 지우고 짧게 자른다 */
 export function sanitize(raw: string, max = 240): string {
@@ -26,23 +26,23 @@ export interface CliErrorContext {
 export function classifyCliError(raw: string, ctx: CliErrorContext): ProviderError {
   const text = raw.trim();
   if (/not logged in|please (run )?\/?login|log ?in again|unauthori[sz]ed|\b401\b|invalid (api )?key|credential|authenticat|token (has )?expired|oauth/i.test(text)) {
-    return providerError('auth', `${ctx.label}에 로그인되어 있지 않습니다. 터미널에서 \`${ctx.loginHint}\`을(를) 실행하세요.`);
+    return providerError('auth', t('bridge.errors.authRequired', { label: ctx.label, loginHint: ctx.loginHint }));
   }
   if (/\b429\b|rate.?limit|usage limit|quota|too many requests|limit reached|overloaded|\b529\b/i.test(text)) {
-    return providerError('rate-limit', `${ctx.label} 사용 한도에 도달했습니다. 잠시 후 다시 시도하세요.${text ? ` (${sanitize(text, 160)})` : ''}`);
+    return providerError('rate-limit', t('bridge.errors.rateLimit', { label: ctx.label, detail: text ? ` (${sanitize(text, 160)})` : '' }));
   }
   if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|network|fetch failed|getaddrinfo|socket hang up|stream disconnected/i.test(text)) {
-    return providerError('network', `${ctx.label}가 네트워크에 연결하지 못했습니다.${text ? ` (${sanitize(text, 160)})` : ''}`);
+    return providerError('network', t('bridge.errors.network', { label: ctx.label, detail: text ? ` (${sanitize(text, 160)})` : '' }));
   }
   // 예: "The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account."
   // 앱 문제가 아니라 로그인 계정(요금제)이 그 모델을 허용하지 않는 경우다
   const unsupported = /['"`]([^'"`\s]+)['"`] model is not supported/i.exec(text);
   if (unsupported) {
-    const why = /chatgpt account/i.test(text) ? ' ChatGPT 계정 로그인으로는 쓸 수 없는 모델입니다.' : '';
+    const why = /chatgpt account/i.test(text) ? t('bridge.errors.chatgptOnly') : '';
     return providerError(
       'cli',
-      `${ctx.label}에서 '${sanitize(unsupported[1]!, 80)}' 모델을 사용할 수 없습니다.${why} 설정(또는 스킬 고급 설정)에서 다른 모델을 고르세요.`,
+      t('bridge.errors.unsupportedModel', { label: ctx.label, model: sanitize(unsupported[1]!, 80), why }),
     );
   }
-  return providerError('cli', `${ctx.label} 실행 오류${text ? `: ${sanitize(text)}` : '가 발생했습니다.'}`);
+  return providerError('cli', text ? t('bridge.errors.cliErrorDetail', { label: ctx.label, text: sanitize(text) }) : t('bridge.errors.cliErrorNone', { label: ctx.label }));
 }

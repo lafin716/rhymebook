@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { create } from 'zustand';
 import { desktop, sttClient } from '../app/runtime';
 import { usePcOnline } from '../components/PcStatus';
+import { t } from '../i18n';
 
 /**
  * 음성 입력 상태 (ADR-045). 켜짐·모델은 PC 설정이 정하고, 웹·모바일은 페어링된 PC에 물어 따른다.
@@ -97,7 +98,7 @@ function refreshRemoteState(): Promise<void> {
       const state = await sttClient.client.sttState();
       useSttStore.setState({ state, status: pick(state), stateError: null });
     } catch (e) {
-      useSttStore.setState({ stateError: e instanceof Error ? e.message : '음성 설정을 불러오지 못했습니다.' });
+      useSttStore.setState({ stateError: e instanceof Error ? e.message : t('voice.stt.stateError') });
     } finally {
       stateInflight = null;
     }

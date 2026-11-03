@@ -1,0 +1,105 @@
+{
+  "audio": {
+    "listen": "Listen",
+    "stop": "Stop"
+  },
+  "defaults": {
+    "folder": "Folder",
+    "fragment": "Fragment",
+    "newFolder": "New folder",
+    "newPage": "New page"
+  },
+  "delete": {
+    "confirm": "Delete",
+    "irreversible": "This cannot be undone.",
+    "title": "Delete '{name}'?",
+    "withContents": "The {count} items inside will also be deleted.",
+    "withContents_one": "The 1 item inside will also be deleted."
+  },
+  "folder": {
+    "empty": "This folder is empty. Drag items here from the list on the left, or use [Move] on an item."
+  },
+  "item": {
+    "addToPage": "Add to page",
+    "cancel": "Cancel",
+    "contentAria": "Content",
+    "copy": "Copy",
+    "edit": "Edit",
+    "move": "Move",
+    "nameAria": "Name",
+    "openChat": "Open original chat",
+    "save": "Save",
+    "saveImage": "Save image",
+    "saveMarkdown": "Save as Markdown",
+    "savedOn": "Saved on {date}",
+    "toolbarAria": "Item tools"
+  },
+  "lang": {
+    "en": "English",
+    "ko": "Korean",
+    "vi": "Vietnamese"
+  },
+  "move": {
+    "toFolder": "Moved to '{name}'.",
+    "toTop": "Moved to the top of the library."
+  },
+  "notice": {
+    "addedToPage": "Added to '{name}'.",
+    "copied": "Copied.",
+    "copyFailed": "Could not copy.",
+    "emptyContent": "The content is empty.",
+    "pageFull": "This page cannot hold any more.",
+    "saved": "Saved.",
+    "savedToLibrary": "Saved to the library."
+  },
+  "overlay": {
+    "backToList": "Back to library list",
+    "close": "Close library",
+    "dropHint": "Drop between rows to place it there, on a folder to move it inside, or on empty space to move it to the top.",
+    "empty": "No fragments saved yet. Under an answer, click [Save], or select some text and click [Save].",
+    "folderAria": "Library folders",
+    "fullScreen": "Show full screen",
+    "label": "Library",
+    "pickHint": "Pick a folder, fragment, or page on the left. Drag items onto a folder to move them, or use [New page] to combine fragments into one page.",
+    "windowed": "Show in window"
+  },
+  "page": {
+    "addFragment": "Add fragment",
+    "addText": "Add text",
+    "besideHint": "Drag the handle to the left or right edge of another block to place them side by side.",
+    "blank": "Add fragments or text to build out this page.",
+    "down": "Down",
+    "dragAria": "Drag to move",
+    "empty": "This page is empty. Use [Edit] above to add fragments and text.",
+    "pairBeside": "Place beside previous block",
+    "remove": "Remove from page",
+    "removedFragment": "Deleted fragment",
+    "removedFragmentNote": "This fragment was deleted.",
+    "text": "Text",
+    "textPlaceholder": "Text to add here (Markdown)",
+    "unpairBeside": "Unpair",
+    "up": "Up"
+  },
+  "picker": {
+    "close": "Close",
+    "current": "Current location",
+    "findAria": "Find fragment",
+    "findPlaceholder": "Find fragment by name",
+    "moveLabel": "Choose a folder to move to",
+    "moveTitle": "Move '{name}'",
+    "noFolders": "No folders yet. Create one with [New folder] on the left.",
+    "noFragments": "No fragments to add.",
+    "noPages": "No pages yet. Create one with [New page] on the left, then add to it.",
+    "pageLabel": "Choose a page to add to",
+    "top": "Top of library"
+  },
+  "tree": {
+    "collapse": "Collapse {name}",
+    "expand": "Expand {name}"
+  },
+  "unsaved": {
+    "confirm": "Discard",
+    "message": "Your edits will be lost.",
+    "title": "Discard unsaved changes?"
+  }
+}
