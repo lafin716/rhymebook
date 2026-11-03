@@ -53,8 +53,14 @@ function installFakeKnowledge() {
     remove: async (id: string) => {
       bases.delete(id);
     },
-    tree: async (id: string) =>
-      [...get(id).files.keys()].sort().map((path) => ({ path, dir: false, size: 10 })),
+    tree: async (id: string) => {
+      // 실제 브리지처럼 폴더 항목도 함께 돌려준다
+      const files = [...get(id).files.keys()];
+      const dirs = new Set(files.flatMap((f) => f.split('/').slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join('/'))));
+      return [...dirs].map((path) => ({ path, dir: true }))
+        .concat(files.map((path) => ({ path, dir: false, size: 10 })))
+        .sort((a, b) => a.path.localeCompare(b.path));
+    },
     pathForFile: () => '',
     addPaths: async (id: string, paths: string[]) => put(get(id), paths.map((p) => p.split('/').pop() ?? p)),
     addFiles: async (id: string, files: { name: string }[]) => put(get(id), files.map((f) => f.name)),
@@ -128,6 +134,31 @@ test('학습에 지식베이스를 만들어 연결하고 자료를 넣고 지�
   await dialog.getByRole('button', { name: '가져오기' }).click();
   await expect(dialog.locator('[data-entry="links/cell.md"]')).toBeVisible();
 
+  // 폴더는 접고 펼 수 있다 (새로 넣은 자료의 폴더는 펼쳐져 있다)
+  const linksDir = dialog.locator('[data-entry="links"]').locator('button[aria-expanded]');
+  await expect(linksDir).toHaveAttribute('aria-expanded', 'true');
+  await linksDir.click();
+  await expect(dialog.locator('[data-entry="links/cell.md"]')).toHaveCount(0);
+  await dialog.getByRole('button', { name: '모두 펼치기' }).click();
+  await expect(dialog.locator('[data-entry="links/cell.md"]')).toBeVisible();
+  await dialog.getByRole('button', { name: '모두 접기' }).click();
+  await expect(dialog.locator('[data-entry="links/cell.md"]')).toHaveCount(0);
+  await linksDir.click();
+  await expect(dialog.locator('[data-entry="links/cell.md"]')).toBeVisible();
+
+  // 전체 화면 토글 (모바일은 이미 화면을 다 쓰므로 버튼이 없다)
+  const fullBtn = dialog.getByRole('button', { name: '전체 화면' });
+  if (page.viewportSize()!.width < 768) {
+    await expect(fullBtn).toBeHidden();
+  } else {
+    await fullBtn.click();
+    await expect(dialog.getByRole('button', { name: '전체 화면 끝내기' })).toHaveAttribute('aria-pressed', 'true');
+    const vw = page.viewportSize()!.width;
+    expect((await dialog.boundingBox())!.width).toBeGreaterThan(vw * 0.9);
+    await dialog.getByRole('button', { name: '전체 화면 끝내기' }).click();
+    await expect(fullBtn).toHaveAttribute('aria-pressed', 'false');
+  }
+
   // 파일 선택과 끌어다 놓기 (경로가 없는 파일은 내용으로 들어간다)
   await dialog.getByRole('button', { name: '파일 선택' }).click();
   await expect(dialog.locator('[data-entry="notes/intro.md"]')).toBeVisible();
@@ -165,6 +196,9 @@ test('학습에 지식베이스를 만들어 연결하고 자료를 넣고 지�
   await dialog.getByRole('button', { name: '클론' }).click();
   await expect(dialog.getByRole('alert')).toContainText('추가하지 못했어요. 다시 시도해 주세요. (저장소를 받지 못했습니다 (Repository not found.))');
   await expect(bar).toBeHidden();
+
+  // 기본 브랜치(main·master)만 받는다는 안내
+  await expect(dialog.locator('[data-git-hint]')).toContainText('기본 브랜치');
 
   // 미리보기
   await dialog.locator('[data-entry="links/cell.md"]').getByRole('button', { name: 'cell.md', exact: true }).click();

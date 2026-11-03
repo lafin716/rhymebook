@@ -10,7 +10,7 @@ import {
   type KnowledgeProgress,
   type ID,
 } from '@branch/core';
-import { ArrowLeft, File, FileText, Folder, FolderOpen, Link2, Pencil, Plus, Trash2, Upload, X, GitBranch } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, File, FileText, Folder, FolderOpen, Link2, Maximize2, Minimize2, Pencil, Plus, Trash2, Upload, X, GitBranch } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
@@ -54,6 +54,13 @@ function withDetail(message: string, e: unknown): string {
   return detail ? `${message} (${detail})` : message;
 }
 
+/** 'main 브랜치만' 선택을 기억한다 */
+/** 경로의 상위 폴더들 (a/b/c → a, a/b) */
+function ancestors(p: string): string[] {
+  const parts = p.split('/');
+  return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join('/'));
+}
+
 export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogProps) {
   const api = knowledgeApi();
   const linkedId = useApp((s) => {
@@ -77,6 +84,9 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const [linkUrl, setLinkUrl] = useState('');
   const [gitUrl, setGitUrl] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [full, setFull] = useState(false);
+  /** 펼친 폴더 경로. 폴더는 처음에 접혀 있다 */
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const selectedRef = useRef<string | null>(null);
 
   const setNotice = (text: string | null, tone: NoticeState['tone'] = 'info') => setNoticeState(text ? { text, tone } : null);
@@ -169,6 +179,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     selectedRef.current = id;
     setSelected(id);
     setTree([]);
+    setExpanded(new Set());
     setPreview(null);
     setRenaming(false);
     setCreating(false);
@@ -192,6 +203,8 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     if (!r) return;
     const parts = [r.added.length ? t('knowledge.add.done', { count: r.added.length }) : '', r.skipped ? t('knowledge.add.skipped', { count: r.skipped }) : ''];
     const text = parts.filter(Boolean).join(' ');
+    // 새로 넣은 항목이 보이도록 상위 폴더를 펼친다
+    if (r.added.length) setExpanded((prev) => new Set([...prev, ...r.added.flatMap(ancestors)]));
     // 하나도 못 넣었으면 그대로 넘어가지 않고 알린다
     setNotice(text || t('knowledge.add.nothing'), r.added.length ? 'info' : 'error');
   };
@@ -334,6 +347,18 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     setDraftName(current.name);
     setRenaming(true);
   };
+
+  const dirs = tree.filter((e) => e.dir).map((e) => e.path);
+  const allOpen = dirs.length > 0 && dirs.every((d) => expanded.has(d));
+  // 접힌 폴더 안의 항목은 숨긴다
+  const visibleTree = tree.filter((e) => ancestors(e.path).every((a) => expanded.has(a)));
+  const toggleDir = (p: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
 
   const body = (() => {
     if (remote) return <Notice text={t('knowledge.remote.notice')} />;
@@ -504,6 +529,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                     {t('knowledge.add.gitSubmit')}
                   </Button>
                 </form>
+                <p data-git-hint className="pl-[23px] text-[12px] text-fg-2">{t('knowledge.add.gitHint')}</p>
                 {task && <ImportProgress task={task} progress={progress} now={now} onCancel={api.cancel ? cancelImport : undefined} />}
               </div>
 
@@ -517,25 +543,47 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
               )}
 
               <div className="flex flex-col gap-2">
-                <h4 className="text-[13px] font-semibold text-fg-2">{t('knowledge.tree.heading')}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="flex-1 text-[13px] font-semibold text-fg-2">{t('knowledge.tree.heading')}</h4>
+                  {dirs.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={allOpen ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />}
+                      onClick={() => setExpanded(allOpen ? new Set() : new Set(dirs))}
+                    >
+                      {allOpen ? t('knowledge.tree.collapseAll') : t('knowledge.tree.expandAll')}
+                    </Button>
+                  )}
+                </div>
                 {tree.length === 0 ? (
                   <p className="text-[13px] text-fg-2">{t('knowledge.tree.empty')}</p>
                 ) : (
                   <ul aria-label={t('knowledge.tree.heading')} className="flex flex-col">
-                    {tree.map((entry) => {
+                    {visibleTree.map((entry) => {
                       const depth = entry.path.split('/').length - 1;
                       const name = entry.path.split('/').pop() ?? entry.path;
-                      const Icon = entry.dir ? Folder : name.match(/\.(md|txt)$/i) ? FileText : File;
+                      const open = entry.dir && expanded.has(entry.path);
+                      const Icon = entry.dir ? (open ? FolderOpen : Folder) : name.match(/\.(md|txt)$/i) ? FileText : File;
                       return (
                         <li key={entry.path} data-entry={entry.path} className="group flex items-center gap-1 rounded-md py-0.5 pr-1 hover:bg-surface-2" style={{ paddingLeft: depth * 14 + 4 }}>
-                          <Icon size={14} className="shrink-0 text-fg-2" />
                           {entry.dir ? (
-                            <span className="min-w-0 flex-1 truncate text-[13px]" title={entry.path}>
-                              {name}
-                            </span>
+                            <button
+                              type="button"
+                              aria-expanded={open}
+                              title={entry.path}
+                              onClick={() => toggleDir(entry.path)}
+                              className="flex min-w-0 flex-1 items-center gap-1 text-left text-[13px] hover:text-accent"
+                            >
+                              <ChevronRight size={13} className={cn('shrink-0 text-fg-2 transition-transform', open && 'rotate-90')} />
+                              <Icon size={14} className="shrink-0 text-fg-2" />
+                              <span className="min-w-0 flex-1 truncate">{name}</span>
+                            </button>
                           ) : (
-                            <button type="button" title={entry.path} onClick={() => void showPreview(entry)} className="min-w-0 flex-1 truncate text-left text-[13px] hover:text-accent">
-                              {name}
+                            <button type="button" title={entry.path} onClick={() => void showPreview(entry)} className="flex min-w-0 flex-1 items-center gap-1 text-left text-[13px] hover:text-accent">
+                              <span className="w-[13px] shrink-0" />
+                              <Icon size={14} className="shrink-0 text-fg-2" />
+                              <span className="min-w-0 flex-1 truncate">{name}</span>
                             </button>
                           )}
                           {entry.dir && (
@@ -576,9 +624,12 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   })();
 
   return (
-    <Modal open={open} onClose={onClose} label={t('knowledge.dialog.title')} size="tall" className="md:max-w-4xl">
+    <Modal open={open} onClose={onClose} label={t('knowledge.dialog.title')} size={full ? 'full' : 'tall'} className="md:max-w-4xl">
       <div className="flex h-13 shrink-0 items-center gap-2 border-b border-line px-4">
         <h2 className="flex-1 truncate text-[16px] font-semibold">{t('knowledge.dialog.title')}</h2>
+        <IconButton label={full ? t('knowledge.dialog.exitFull') : t('knowledge.dialog.full')} aria-pressed={full} className="max-md:hidden" onClick={() => setFull((v) => !v)}>
+          {full ? <Minimize2 size={17} /> : <Maximize2 size={16} />}
+        </IconButton>
         <IconButton label={t('knowledge.dialog.close')} onClick={onClose}>
           <X size={18} />
         </IconButton>

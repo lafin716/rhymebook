@@ -359,6 +359,13 @@ describe('knowledge store: GitHub 클론 입력', () => {
     expect(sep).toBeGreaterThan(-1);
     expect(args.slice(sep + 1)).toEqual(['https://github.com/a/b.git', '/tmp/dest']);
   });
+
+  it('gitCloneArgs는 브랜치를 지정하지 않고 기본 브랜치(main이든 master든) 하나만 받는다', () => {
+    const args = gitCloneArgs('https://github.com/a/b.git', '/tmp/dest');
+    expect(args).toContain('--single-branch');
+    expect(args).not.toContain('--branch');
+    expect(args).not.toContain('--no-single-branch');
+  });
 });
 
 describe('knowledge store: 순수 도우미', () => {

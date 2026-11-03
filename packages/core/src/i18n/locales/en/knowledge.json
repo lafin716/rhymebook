@@ -7,7 +7,9 @@
   "dialog": {
     "title": "Knowledge base",
     "close": "Close knowledge base",
-    "back": "Back to list"
+    "back": "Back to list",
+    "full": "Full screen",
+    "exitFull": "Exit full screen"
   },
   "remote": {
     "notice": "Knowledge bases are managed in the PC app. Answers on this device also use the knowledge base on the PC."
@@ -51,7 +53,9 @@
     "open": "Open folder",
     "previewEmpty": "Pick a file to preview it.",
     "binary": "This file cannot be previewed as text.",
-    "truncated": "Showing the beginning only."
+    "truncated": "Showing the beginning only.",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all"
   },
   "add": {
     "drop": "Drop files or folders here",
@@ -69,7 +73,8 @@
     "failed": "Could not add it. Please try again.",
     "busyDrop": "Still importing. Drop again when it finishes.",
     "dropEmpty": "No files found in what you dropped.",
-    "nothing": "Nothing was added. Check the file size or type."
+    "nothing": "Nothing was added. Check the file size or type.",
+    "gitHint": "Only the latest files of the default branch (main, master, …) are downloaded"
   },
   "error": {
     "generic": "Something went wrong. Please try again."
