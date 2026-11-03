@@ -9,6 +9,7 @@ import { Badge } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
+import { PromptAssist } from './PromptAssist';
 
 const groupsOf = () => [...new Set(promptInfo().map((p) => p.group))];
 
@@ -32,6 +33,7 @@ function PromptsPageBody() {
   const dirty = draft !== saved;
   const info = promptInfo().find((p) => p.key === selected);
   const readOnly = remoteMode;
+  const [busy, setBusy] = useState(false);
 
   // 다른 프롬프트를 고르면 그 저장본으로
   useEffect(() => {
@@ -42,11 +44,12 @@ function PromptsPageBody() {
     !dirty || (await confirm({ title: t('prompts.unsaved.title'), message: t('prompts.unsaved.message'), confirmLabel: t('prompts.unsaved.confirm'), tone: 'danger' }));
 
   const close = async () => {
+    if (busy) return;
     if (await leave()) actions().setOverlay('none');
   };
 
   const pick = async (key: PromptKey | null) => {
-    if (key === selected) return;
+    if (key === selected || busy) return;
     if (await leave()) setSelected(key);
   };
 
@@ -66,7 +69,7 @@ function PromptsPageBody() {
   };
 
   const save = () => {
-    if (!selected || readOnly || !dirty) return;
+    if (!selected || readOnly || !dirty || busy) return;
     // 비워 두면 기본 문구로 돌아간다
     const text = draft.trim() ? draft : defaultPrompts()[selected];
     write(selected, text);
@@ -154,6 +157,8 @@ function PromptsPageBody() {
                 <p className="mt-1 text-[13px] text-muted">{info.description}</p>
               </div>
 
+              {!readOnly && <PromptAssist key={selected} promptKey={selected} draft={draft} onDraft={setDraft} onBusy={setBusy} />}
+
               <label className="flex flex-col gap-1.5">
                 <span className="flex items-baseline justify-between text-[13px] font-medium text-fg-2">
                   {t('prompts.system')}
@@ -165,7 +170,7 @@ function PromptsPageBody() {
                   value={draft}
                   maxLength={PROMPT_MAX_CHARS}
                   rows={18}
-                  readOnly={readOnly}
+                  readOnly={readOnly || busy}
                   aria-label={t('prompts.labelAria', { label: info.label })}
                   placeholder={t('prompts.placeholder')}
                   onChange={(e) => setDraft(e.target.value)}
@@ -176,16 +181,16 @@ function PromptsPageBody() {
 
               {!readOnly && (
                 <div className="safe-bottom flex items-center gap-2 pb-2">
-                  <Button variant="ghost" icon={<RotateCcw size={15} />} disabled={!custom(selected) && draft === defaultPrompts()[selected]} onClick={() => void reset()}>
+                  <Button variant="ghost" icon={<RotateCcw size={15} />} disabled={busy || (!custom(selected) && draft === defaultPrompts()[selected])} onClick={() => void reset()}>
                     {t('prompts.reset.button')}
                   </Button>
                   <span className="flex-1" />
                   {dirty && (
-                    <Button variant="ghost" onClick={() => setDraft(saved)}>
+                    <Button variant="ghost" disabled={busy} onClick={() => setDraft(saved)}>
                       {t('prompts.cancel')}
                     </Button>
                   )}
-                  <Button type="submit" variant="primary" icon={<Save size={15} />} disabled={!dirty}>
+                  <Button type="submit" variant="primary" icon={<Save size={15} />} disabled={!dirty || busy}>
                     {t('prompts.save')}
                   </Button>
                 </div>

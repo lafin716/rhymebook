@@ -15,7 +15,8 @@ export type PromptKey =
   | 'title'
   | 'pageOrganize'
   | 'pageFill'
-  | 'skillAssist';
+  | 'skillAssist'
+  | 'promptAssist';
 
 /** 사용자가 고친 프롬프트. 없거나 빈 값이면 기본 문구 */
 export type PromptOverrides = Partial<Record<PromptKey, string>>;
@@ -30,6 +31,7 @@ const PROMPT_KEYS: readonly PromptKey[] = [
   'pageOrganize',
   'pageFill',
   'skillAssist',
+  'promptAssist',
 ];
 
 /** 키별 기본 문구 (지금 언어) */
@@ -53,7 +55,7 @@ export interface PromptInfo {
   description: string;
 }
 
-const PROMPT_GROUP: Record<PromptKey, 'chat' | 'branch' | 'auto' | 'page' | 'skill'> = {
+const PROMPT_GROUP: Record<PromptKey, 'chat' | 'branch' | 'auto' | 'page' | 'assist'> = {
   base: 'chat',
   branchSuggest: 'chat',
   branch: 'branch',
@@ -62,7 +64,8 @@ const PROMPT_GROUP: Record<PromptKey, 'chat' | 'branch' | 'auto' | 'page' | 'ski
   title: 'auto',
   pageOrganize: 'page',
   pageFill: 'page',
-  skillAssist: 'skill',
+  skillAssist: 'assist',
+  promptAssist: 'assist',
 };
 
 /** 프롬프트 관리 화면에 보여 줄 순서와 설명 (지금 언어) */

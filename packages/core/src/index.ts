@@ -9,6 +9,7 @@ export * from './skills';
 export * from './knowledge';
 export * from './schedules';
 export * from './skillAssist';
+export * from './promptAssist';
 export * from './skillFolder';
 export * from './splitLayout';
 export * from './provider';

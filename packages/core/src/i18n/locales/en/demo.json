@@ -94,5 +94,8 @@
       "title": "Common confusions",
       "question": "What do beginners find most confusing about {topic}?"
     }
+  },
+  "prompt": {
+    "note": "Added the request as a rule (demo)."
   }
 }

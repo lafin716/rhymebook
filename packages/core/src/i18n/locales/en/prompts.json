@@ -1,4 +1,38 @@
 {
+  "assist": {
+    "title": "Edit with AI",
+    "editedNote": "Edited as requested. Save to apply.",
+    "failed": "AI editing failed.",
+    "noAi": "No AI connection is available. Check your connections in Settings.",
+    "notConnectedPc": "Not connected to your PC. Connect to your PC first.",
+    "parseFailed": "Could not read a prompt from the AI response. Try rewording your request.",
+    "pcRemote": "{host} · remote settings",
+    "defaultTitle": "Uses the default connection from Settings",
+    "viaPcTitle": "Edits with your PC's remote settings (agent, model, effort)",
+    "placeholder": "Describe how to change it. Leave empty to polish it overall. e.g. Add a three-line key summary at the end of answers",
+    "requestLabel": "Edit request for the AI",
+    "running": "The AI is editing… it fills in the box below as it goes.",
+    "stop": "Stop",
+    "undo": "Undo AI change",
+    "idea": {
+      "concise": {
+        "label": "More concise",
+        "text": "Keep the meaning and rules, but make the sentences shorter and more concise."
+      },
+      "plain": {
+        "label": "Plain words",
+        "text": "Replace difficult wording with plain words. Keep the rules and formats."
+      },
+      "example": {
+        "label": "Add an example",
+        "text": "Add one example of a good answer the model can follow."
+      },
+      "format": {
+        "label": "Tidy format",
+        "text": "Organize the instructions into a numbered list so they are easy to read. Do not change the output format rules."
+      }
+    }
+  },
   "back": "Back",
   "cancel": "Cancel",
   "default": "Default",

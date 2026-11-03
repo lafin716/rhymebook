@@ -30,7 +30,7 @@ test('프롬프트 관리: 고치기 · 유지 · 기본값으로 되돌리기',
   await page.getByRole('button', { name: '프롬프트 관리' }).click();
   const dlg = page.getByRole('dialog', { name: '프롬프트 관리' });
   await expect(dlg).toBeVisible();
-  for (const key of ['base', 'branchSuggest', 'branch', 'subsession', 'summary', 'title', 'pageOrganize', 'pageFill', 'skillAssist']) {
+  for (const key of ['base', 'branchSuggest', 'branch', 'subsession', 'summary', 'title', 'pageOrganize', 'pageFill', 'skillAssist', 'promptAssist']) {
     await expect(dlg.locator(`[data-prompt-row="${key}"]`)).toBeVisible();
   }
   if (mobile) await dlg.locator('[data-prompt-row="base"]').click();
@@ -66,4 +66,58 @@ test('프롬프트 관리: 원격에서는 읽기 전용', async ({ page }, info
   await dlg.locator('[data-prompt-row="title"]').click();
   await expect(dlg.getByLabel('세션 제목 프롬프트')).not.toBeEditable();
   await expect(dlg.getByRole('button', { name: '저장' })).toHaveCount(0);
+  await expect(dlg.locator('[data-prompt-assist]')).toHaveCount(0);
+});
+
+/** 프롬프트 관리: AI로 수정하기 — 요청대로 편집 칸을 채우고, 되돌리거나 저장한다 (ADR-112) */
+test('프롬프트 관리: AI로 수정하기 · 되돌리기 · 저장', async ({ page }, info) => {
+  await page.routeWebSocket('**/*', (socket) => socket.close());
+  await page.addInitScript(() => { localStorage.setItem('branch.profile', 'local'); localStorage.setItem('octobooks.locale', 'ko'); });
+  await page.goto('/?platform=desktop');
+  await expect(page.locator('main')).toBeVisible();
+  await page.evaluate(async () => {
+    const path = performance.getEntriesByType('resource').map((e) => e.name).find((n) => new URL(n).pathname === '/src/app/store.ts')!;
+    const { actions, registry } = await import(path);
+    const w = window as unknown as { requests: { system: string; content: string }[] };
+    w.requests = [];
+    actions().updateSettings({ setupDone: true, defaultProviderId: 'anthropic-api' });
+    actions().setConnection('anthropic-api', { enabled: true, status: 'ready' });
+    registry.register({
+      id: 'anthropic-api', label: 'Prompt assist test', available: async () => ({ status: 'ready' }),
+      async *stream(req: { system?: string; purpose?: string; messages: { content: string }[] }) {
+        w.requests.push({ system: req.system ?? '', content: req.messages.at(-1)?.content ?? '' });
+        yield { type: 'delta', text: '<prompt>\n대화 제목을 열 자 이내로' };
+        await new Promise((r) => setTimeout(r, 150));
+        yield { type: 'delta', text: ' 짓는다.\n</prompt>\n<note>더 짧게 고쳤어요.</note>' };
+        yield { type: 'done' };
+      },
+    });
+    actions().setOverlay('prompts');
+  });
+  const dlg = page.getByRole('dialog', { name: '프롬프트 관리' });
+  await dlg.locator('[data-prompt-row="title"]').click();
+  const box = dlg.getByLabel('세션 제목 프롬프트');
+  const original = await box.inputValue();
+  const assist = dlg.locator('[data-prompt-assist]');
+  await assist.getByRole('button', { name: '더 간결하게' }).click();
+  await assist.getByRole('button', { name: 'AI로 수정하기' }).click();
+  // 스트리밍 중에는 부분 결과가 채워지고 저장은 막힌다
+  await expect(box).toHaveValue('대화 제목을 열 자 이내로');
+  await expect(dlg.getByRole('button', { name: '저장' })).toBeDisabled();
+  await expect(box).toHaveValue('대화 제목을 열 자 이내로 짓는다.');
+  await expect(assist.getByRole('status')).toContainText('더 짧게 고쳤어요.');
+  const req = await page.evaluate(() => (window as unknown as { requests: { system: string; content: string }[] }).requests);
+  expect(req).toHaveLength(1);
+  expect(req[0]!.system).toContain('시스템 프롬프트');
+  expect(req[0]!.content).toContain(original.trim().split('\n')[0]!);
+  expect(req[0]!.content).toContain('더 짧고 간결하게');
+  await page.screenshot({ path: `test-results/prompt-assist-${info.project.name}.png` });
+
+  // 되돌리기 → 원래 문구, 다시 고쳐 저장하면 수정됨
+  await assist.getByRole('button', { name: 'AI 변경 취소' }).click();
+  await expect(box).toHaveValue(original);
+  await assist.getByRole('button', { name: 'AI로 수정하기' }).click();
+  await expect(box).toHaveValue('대화 제목을 열 자 이내로 짓는다.');
+  await dlg.getByRole('button', { name: '저장' }).click();
+  await expect(dlg.locator('[data-prompt-row="title"]')).toContainText('수정됨');
 });

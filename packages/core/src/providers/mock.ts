@@ -108,6 +108,12 @@ export function mockAnswer(req: StreamRequest): string {
     const first = user.replace(/\[[^\]]+\]\s*/g, '').split(/\s+/).slice(0, 3).join(' ');
     return first || t('demo.title.fallback');
   }
+  if (req.purpose === 'skill' && user.startsWith(t('llm.promptAssist.targetHeading'))) {
+    // 프롬프트 도우미 (ADR-112): 지금 문구 끝에 요청을 규칙으로 덧붙인다
+    const cur = /<prompt>\n([\s\S]*?)\n<\/prompt>/.exec(user)?.[1] ?? '';
+    const ask = user.slice(user.lastIndexOf(t('llm.promptAssist.requestHeading')) + t('llm.promptAssist.requestHeading').length).trim();
+    return ['<prompt>', `${cur}\n- ${ask}`, '</prompt>', `<note>${t('demo.prompt.note')}</note>`].join('\n');
+  }
   if (req.purpose === 'skill') {
     const ask = skillAskRe().exec(user)?.[1]?.trim() ?? '';
     const cur = /<prompt>\n([\s\S]*?)\n<\/prompt>/.exec(user)?.[1];
