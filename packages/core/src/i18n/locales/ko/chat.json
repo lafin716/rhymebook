@@ -151,7 +151,10 @@
     "codeExecution": "코드 실행",
     "used": "도구 사용",
     "failed": "실패",
-    "sources": "출처 {count}"
+    "sources": "출처 {count}",
+    "read": "파일 읽기",
+    "glob": "파일 찾기",
+    "grep": "내용 검색"
   },
   "summaryDraft": {
     "generating": "요약 만드는 중…",

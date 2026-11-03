@@ -60,6 +60,7 @@ import { planStudyImport, type StudyBundle, type StudyImportResult } from '../st
 import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../tree';
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
 import { newCanvasTitle } from '../canvas';
+import { isKnowledgeId } from '../knowledge';
 import { newPageTitle, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
 import { hasScheduleIntent, scheduleSystemHint } from '../schedules';
@@ -88,6 +89,12 @@ interface CustomRun {
   done(text: string): boolean;
   /** 실패·중지: 임시 메시지를 걷어낸다 (여러 번 불려도 안전해야 한다) */
   failed(): void;
+}
+
+/** 세션이 속한 학습(루트)의 지식베이스 id. 없으면 undefined */
+export function rootKnowledgeId(sessions: Record<ID, Session>, id: ID): string | undefined {
+  const s = sessions[id];
+  return s ? sessions[s.rootId]?.knowledgeId : undefined;
 }
 
 /** 재정리 기본 스킬 사본 (사용자가 스킬을 지웠어도 동작) */
@@ -181,6 +188,8 @@ export interface AppState extends AppData {
   setSessionModel(id: ID, patch: { model?: string | undefined; effort?: string | undefined }): void;
   /** 이 채팅의 웹 검색·페이지 읽기 도구 켜기/끄기 (기본 켜짐, ADR-070) */
   setSessionWebSearch(id: ID, on: boolean): void;
+  /** 이 학습(루트 세션)에 지식베이스를 연결하거나(id) 해제한다(null). 가지는 루트 것을 쓴다 (ADR-107) */
+  setSessionKnowledge(id: ID, knowledgeId: string | null): void;
 
   // 메시지
   /** 질문 보내기. 첨부가 있으면 text가 비어도 된다 */
@@ -486,7 +495,12 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         req.system += `\n\n${scheduleSystemHint()}`;
       }
       // 일반 대화에만 웹 도구를 붙인다. 재정리 같은 내부 요청은 도구 없이 (ADR-070)
-      if (!custom) req.webSearch = state.sessions[sessionId]?.webSearch !== false;
+      if (!custom) {
+        req.webSearch = state.sessions[sessionId]?.webSearch !== false;
+        // 학습의 지식베이스는 루트 세션에 있다 (가지도 같은 지식베이스를 쓴다, ADR-107)
+        const knowledgeId = rootKnowledgeId(state.sessions, sessionId);
+        if (knowledgeId) req.knowledgeId = knowledgeId;
+      }
       req.signal = ctrl.signal;
 
       let text = '';
@@ -958,6 +972,18 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         if (on) delete next.webSearch;
         else next.webSearch = false;
         set((s) => ({ sessions: { ...s.sessions, [id]: next } }));
+        repo.saveSession(next);
+      },
+
+      setSessionKnowledge(id, knowledgeId) {
+        const cur = get().sessions[id];
+        if (!cur || (knowledgeId !== null && !isKnowledgeId(knowledgeId))) return;
+        const root = get().sessions[cur.rootId];
+        if (!root || (root.knowledgeId ?? null) === knowledgeId) return;
+        const next: Session = { ...root };
+        if (knowledgeId) next.knowledgeId = knowledgeId;
+        else delete next.knowledgeId;
+        set((s) => ({ sessions: { ...s.sessions, [next.id]: next } }));
         repo.saveSession(next);
       },
 

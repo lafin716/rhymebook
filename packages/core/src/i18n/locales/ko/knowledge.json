@@ -1,0 +1,75 @@
+{
+  "button": {
+    "label": "지식베이스",
+    "title": "이 학습의 지식베이스",
+    "remoteTitle": "지식베이스 (PC 앱에서 관리)"
+  },
+  "dialog": {
+    "title": "지식베이스",
+    "close": "지식베이스 닫기",
+    "back": "목록으로"
+  },
+  "remote": {
+    "notice": "지식베이스는 PC 앱에서 관리해요. 이 기기의 답변도 PC에 있는 지식베이스를 함께 써요."
+  },
+  "unavailable": {
+    "notice": "이 기기에서는 지식베이스를 쓸 수 없어요. 데스크톱 앱에서 열어 주세요."
+  },
+  "list": {
+    "heading": "지식베이스",
+    "empty": "아직 지식베이스가 없어요.",
+    "emptyHint": "자료를 모아 두면 답변이 그 안에서 찾아 경로를 인용해요.",
+    "create": "새 지식베이스",
+    "linkedBadge": "이 학습에 연결됨",
+    "link": "이 학습에 연결",
+    "unlink": "연결 해제",
+    "count": "파일 {count}개"
+  },
+  "create": {
+    "title": "새 지식베이스",
+    "namePlaceholder": "이름 (예: 세포생물학 교재)",
+    "submit": "만들기",
+    "cancel": "취소"
+  },
+  "rename": {
+    "action": "이름 바꾸기",
+    "submit": "저장",
+    "cancel": "취소"
+  },
+  "delete": {
+    "action": "지식베이스 지우기",
+    "title": "'{name}'을(를) 지울까요?",
+    "message": "안의 파일 {count}개도 함께 지워져요. 되돌릴 수 없어요.",
+    "confirm": "지우기"
+  },
+  "tree": {
+    "heading": "파일",
+    "empty": "아직 파일이 없어요.",
+    "remove": "지우기",
+    "removeTitle": "'{name}'을(를) 지울까요?",
+    "removeMessage": "지운 뒤에는 되돌릴 수 없어요.",
+    "open": "폴더 열기",
+    "previewEmpty": "파일을 고르면 내용을 보여요.",
+    "binary": "텍스트로 미리볼 수 없는 파일이에요.",
+    "truncated": "앞부분만 보여요."
+  },
+  "add": {
+    "drop": "여기에 파일이나 폴더를 끌어다 놓으세요",
+    "pick": "파일 선택",
+    "linkLabel": "웹 페이지 주소",
+    "linkPlaceholder": "https://...",
+    "linkSubmit": "가져오기",
+    "gitLabel": "GitHub 저장소",
+    "gitPlaceholder": "owner/repo 또는 https://github.com/owner/repo",
+    "gitSubmit": "클론",
+    "busy": "가져오는 중…",
+    "invalidUrl": "http(s) 주소만 쓸 수 있어요.",
+    "invalidGit": "GitHub 저장소 주소만 쓸 수 있어요.",
+    "done": "{count}개를 추가했어요.",
+    "skipped": "{count}개는 크기나 형식 때문에 건너뛰었어요.",
+    "failed": "추가하지 못했어요. 다시 시도해 주세요."
+  },
+  "error": {
+    "generic": "문제가 생겼어요. 다시 시도해 주세요."
+  }
+}

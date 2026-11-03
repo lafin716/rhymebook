@@ -77,5 +77,27 @@
   "remote": {
     "local": "Local",
     "unnamedDevice": "Unnamed device"
+  },
+  "knowledge": {
+    "badId": "Invalid knowledge base id",
+    "notFound": "Knowledge base not found",
+    "entryNotFound": "Item not found",
+    "badName": "Invalid knowledge base name",
+    "badPath": "Invalid item path",
+    "badUrl": "Invalid web address (only http or https)",
+    "badRepo": "Invalid GitHub repository address",
+    "privateHost": "Internal network addresses cannot be fetched",
+    "fetchFailed": "Could not fetch the web page",
+    "notHtml": "Not a web page or text, so it cannot be fetched",
+    "htmlTooLarge": "The web page is too large to fetch",
+    "tooLarge": "The file is too large to add",
+    "tooManyFiles": "Adding this would exceed the knowledge base file limit",
+    "tooManyBytes": "Adding this would exceed the knowledge base size limit",
+    "nameTaken": "Could not create an item with this name: {name}",
+    "gitMissing": "git was not found. Install git and try again",
+    "cloneFailed": "Could not fetch the repository: {error}",
+    "openFailed": "Could not open the folder: {error}",
+    "systemNote": "This study has a knowledge base (reference files) attached. Before answering, use the Read, Glob, and Grep tools to find and check the relevant files, and base your answer on their contents. Paths are relative to the working folder. File list ({shown} of {total}): {paths}",
+    "codexIndex": "Knowledge base file list ({shown} of {total}; file contents are not provided): {paths}"
   }
 }

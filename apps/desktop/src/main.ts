@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, shell, Menu, Tray, Notification, screen, type WebContents } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell, Menu, Tray, Notification, screen, type WebContents } from 'electron';
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
-import { createBridgeServer, createSkillsDir, createSttEngine, type BridgeConnection } from '@branch/bridge';
-import { t, isHostPolicy, isLocale, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
+import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, type BridgeConnection } from '@branch/bridge';
+import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { htmlToPdf } from './pdf';
@@ -42,7 +42,15 @@ const stt = createSttEngine({
   log: bridgeLog,
 });
 
-const bridge = createBridgeServer({ log: bridgeLog, stt });
+/**
+ * 학습별 지식베이스 (ADR-107): `<userData>/knowledge/<id>/files/`. git 클론은 로그인 셸 PATH가 필요해
+ * 환경을 비동기로 채운다(같은 객체를 고치므로 store가 클론할 때 읽는 값이 바뀐다).
+ */
+const knowledgeEnv: NodeJS.ProcessEnv = { ...process.env };
+void resolveCliEnv().then(({ env }) => Object.assign(knowledgeEnv, env)).catch(() => undefined);
+const knowledge = createKnowledgeStore({ root: path.join(userData, 'knowledge'), env: knowledgeEnv });
+
+const bridge = createBridgeServer({ log: bridgeLog, stt, knowledge });
 
 /** 원격 페어링 호스트 (whenReady에서 만든다) */
 let host: HostService | null = null;
@@ -97,6 +105,10 @@ function isClientMsg(v: unknown): v is BridgeClientMsg {
   const m = v as { type?: unknown; reqId?: unknown };
   if (typeof m.reqId !== 'string') return false;
   if (m.type === 'stt.transcribe') return isSttAudio((v as { audio?: unknown }).audio);
+  if (m.type === 'chat.start') {
+    const kb = (v as { knowledgeId?: unknown }).knowledgeId;
+    if (kb !== undefined && !isKnowledgeId(kb)) return false;
+  }
   return m.type === 'status.get' || m.type === 'chat.start' || m.type === 'chat.abort' || m.type === 'stt.status.get';
 }
 
@@ -346,6 +358,72 @@ void app.whenReady().then(() => {
         resolve(false);
       }
     });
+  });
+
+  // 학습별 지식베이스 (ADR-107). 앱 창의 메인 프레임만 받는다. id·경로·URL은 여기와 knowledgeStore에서 다시 확인한다
+  const knowledgeSender = (e: Electron.IpcMainInvokeEvent) => e.senderFrame === e.sender.mainFrame && isAppUrl(e.sender.getURL());
+  const kbHandle = (channel: string, fn: (e: Electron.IpcMainInvokeEvent, ...args: unknown[]) => unknown) =>
+    ipcMain.handle(channel, (e, ...args: unknown[]) => {
+      if (!knowledgeSender(e)) throw new Error('unauthorized');
+      return fn(e, ...args);
+    });
+  const kbId = (v: unknown): string => {
+    if (!isKnowledgeId(v)) throw new Error(t('bridge.knowledge.badId'));
+    return v;
+  };
+  const kbPath = (v: unknown): string => {
+    if (!isKnowledgePath(v)) throw new Error(t('bridge.knowledge.badPath'));
+    return v;
+  };
+  const kbDest = (v: unknown): string | undefined => (v === undefined || v === '' ? undefined : kbPath(v));
+  const kbName = (v: unknown): string => {
+    const name = cleanKnowledgeName(v);
+    if (!name) throw new Error(t('bridge.knowledge.badName'));
+    return name;
+  };
+  const kbPaths = (v: unknown): string[] => {
+    if (!Array.isArray(v) || v.length > 500 || !v.every((x) => typeof x === 'string')) throw new Error(t('bridge.knowledge.badPath'));
+    return v as string[];
+  };
+  kbHandle(CH.knowledgeList, () => knowledge.list());
+  kbHandle(CH.knowledgeCreate, (_e, name) => knowledge.create(kbName(name)));
+  kbHandle(CH.knowledgeRename, (_e, id, name) => knowledge.rename(kbId(id), kbName(name)));
+  kbHandle(CH.knowledgeRemove, (_e, id) => knowledge.remove(kbId(id)));
+  kbHandle(CH.knowledgeTree, (_e, id) => knowledge.tree(kbId(id)));
+  kbHandle(CH.knowledgeAddPaths, (_e, id, paths, dest) => knowledge.addPaths(kbId(id), kbPaths(paths), kbDest(dest)));
+  kbHandle(CH.knowledgeAddFiles, (_e, id, files, dest) => {
+    if (!Array.isArray(files) || files.length > 500) throw new Error(t('bridge.knowledge.badPath'));
+    return knowledge.addFiles(kbId(id), files as { name: string; data: Uint8Array }[], kbDest(dest));
+  });
+  // OS 파일 선택 창 (취소하면 빈 결과)
+  kbHandle(CH.knowledgePickFiles, async (e, id, dest) => {
+    const kid = kbId(id);
+    const d = kbDest(dest);
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const options: Electron.OpenDialogOptions = { properties: ['openFile', 'multiSelections'] };
+    const r = win && !win.isDestroyed() ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    if (r.canceled || r.filePaths.length === 0) return { added: [], skipped: 0 };
+    return knowledge.addPaths(kid, r.filePaths, d);
+  });
+  kbHandle(CH.knowledgeAddLink, (_e, id, url) => {
+    if (!isKnowledgeLinkUrl(url)) throw new Error(t('bridge.knowledge.badUrl'));
+    return knowledge.addLink(kbId(id), url);
+  });
+  kbHandle(CH.knowledgeCloneGit, (_e, id, url) => {
+    if (typeof url !== 'string' || url.length > 2048) throw new Error(t('bridge.knowledge.badRepo'));
+    return knowledge.cloneGit(kbId(id), url);
+  });
+  kbHandle(CH.knowledgeRemoveEntry, (_e, id, p) => knowledge.removeEntry(kbId(id), kbPath(p)));
+  kbHandle(CH.knowledgePreview, (_e, id, p) => knowledge.preview(kbId(id), kbPath(p)));
+  // 폴더는 OS로 연다. 항목은 탐색기에서 선택만 한다 (파일을 실행하지 않는다)
+  kbHandle(CH.knowledgeOpen, async (_e, id, p) => {
+    const kid = kbId(id);
+    if (p === undefined || p === '') {
+      const err = await shell.openPath(knowledge.dirFor(kid));
+      if (err) throw new Error(t('bridge.knowledge.openFailed', { error: err }));
+      return;
+    }
+    shell.showItemInFolder(await knowledge.resolvePath(kid, kbPath(p)));
   });
 
   // 책 PDF (ADR-044). 숨은 창에서 인쇄한다

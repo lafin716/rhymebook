@@ -151,7 +151,10 @@
     "codeExecution": "Code execution",
     "used": "Tool use",
     "failed": "Failed",
-    "sources": "Sources: {count}"
+    "sources": "Sources: {count}",
+    "read": "Read file",
+    "glob": "Find files",
+    "grep": "Search contents"
   },
   "summaryDraft": {
     "generating": "Writing summary…",

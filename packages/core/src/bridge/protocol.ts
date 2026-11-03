@@ -30,6 +30,8 @@ export interface ChatStartMsg {
   imageGen?: boolean;
   /** 웹 검색·페이지 읽기 도구 허용 (일반 대화일 때, ADR-070). 도구 사용은 chat.tool로 온다 */
   webSearch?: boolean;
+  /** 지식베이스 id (일반 대화일 때, ADR-107). bridge가 id를 확인하고 그 폴더를 작업 폴더로 쓴다 */
+  knowledgeId?: string;
 }
 
 export type BridgeClientMsg =

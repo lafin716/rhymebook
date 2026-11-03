@@ -1,0 +1,75 @@
+{
+  "button": {
+    "label": "Knowledge base",
+    "title": "This study's knowledge base",
+    "remoteTitle": "Knowledge base (managed in the PC app)"
+  },
+  "dialog": {
+    "title": "Knowledge base",
+    "close": "Close knowledge base",
+    "back": "Back to list"
+  },
+  "remote": {
+    "notice": "Knowledge bases are managed in the PC app. Answers on this device also use the knowledge base on the PC."
+  },
+  "unavailable": {
+    "notice": "Knowledge bases are not available on this device. Open the desktop app."
+  },
+  "list": {
+    "heading": "Knowledge bases",
+    "empty": "No knowledge bases yet.",
+    "emptyHint": "Collect material here and answers will search it and cite the paths.",
+    "create": "New knowledge base",
+    "linkedBadge": "Linked to this study",
+    "link": "Link to this study",
+    "unlink": "Unlink",
+    "count": "{count} files"
+  },
+  "create": {
+    "title": "New knowledge base",
+    "namePlaceholder": "Name (e.g. Cell biology textbook)",
+    "submit": "Create",
+    "cancel": "Cancel"
+  },
+  "rename": {
+    "action": "Rename",
+    "submit": "Save",
+    "cancel": "Cancel"
+  },
+  "delete": {
+    "action": "Delete knowledge base",
+    "title": "Delete '{name}'?",
+    "message": "The {count} files inside will be deleted too. This cannot be undone.",
+    "confirm": "Delete"
+  },
+  "tree": {
+    "heading": "Files",
+    "empty": "No files yet.",
+    "remove": "Delete",
+    "removeTitle": "Delete '{name}'?",
+    "removeMessage": "This cannot be undone.",
+    "open": "Open folder",
+    "previewEmpty": "Pick a file to preview it.",
+    "binary": "This file cannot be previewed as text.",
+    "truncated": "Showing the beginning only."
+  },
+  "add": {
+    "drop": "Drop files or folders here",
+    "pick": "Choose files",
+    "linkLabel": "Web page address",
+    "linkPlaceholder": "https://...",
+    "linkSubmit": "Fetch",
+    "gitLabel": "GitHub repository",
+    "gitPlaceholder": "owner/repo or https://github.com/owner/repo",
+    "gitSubmit": "Clone",
+    "busy": "Working…",
+    "invalidUrl": "Only http(s) addresses can be used.",
+    "invalidGit": "Only GitHub repository addresses can be used.",
+    "done": "Added {count} items.",
+    "skipped": "{count} items were skipped because of size or format.",
+    "failed": "Could not add it. Please try again."
+  },
+  "error": {
+    "generic": "Something went wrong. Please try again."
+  }
+}

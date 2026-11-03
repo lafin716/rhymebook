@@ -1,5 +1,5 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
+import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
 import { CH } from './ipc';
 
 /** DesktopApi.sync with onPeerGone extension (ADR-026) */
@@ -119,6 +119,36 @@ const api: DesktopApiExt = {
   // 책 PDF (ADR-044)
   pdf: {
     fromHtml: (html) => ipcRenderer.invoke(CH.pdfFromHtml, html) as Promise<Uint8Array>,
+  },
+  // 학습별 지식베이스 (ADR-107). main이 id·경로·URL·크기를 다시 확인한다
+  knowledge: {
+    list: () => ipcRenderer.invoke(CH.knowledgeList) as Promise<KnowledgeBase[]>,
+    create: (name: string) => ipcRenderer.invoke(CH.knowledgeCreate, name) as Promise<KnowledgeBase>,
+    rename: (id: string, name: string) => ipcRenderer.invoke(CH.knowledgeRename, id, name) as Promise<KnowledgeBase>,
+    remove: (id: string) => ipcRenderer.invoke(CH.knowledgeRemove, id) as Promise<void>,
+    tree: (id: string) => ipcRenderer.invoke(CH.knowledgeTree, id) as Promise<KnowledgeEntry[]>,
+    // 끌어다 놓은 파일의 절대 경로. 못 얻으면 ''
+    pathForFile(file: File): string {
+      try {
+        return webUtils.getPathForFile(file) || '';
+      } catch {
+        return '';
+      }
+    },
+    addPaths: (id: string, paths: string[], dest?: string) =>
+      ipcRenderer.invoke(CH.knowledgeAddPaths, id, paths, dest) as Promise<KnowledgeAddResult>,
+    addFiles: (id: string, files: { name: string; data: Uint8Array }[], dest?: string) =>
+      ipcRenderer.invoke(CH.knowledgeAddFiles, id, files, dest) as Promise<KnowledgeAddResult>,
+    pickFiles: (id: string, dest?: string) =>
+      ipcRenderer.invoke(CH.knowledgePickFiles, id, dest) as Promise<KnowledgeAddResult>,
+    addLink: (id: string, url: string) =>
+      ipcRenderer.invoke(CH.knowledgeAddLink, id, url) as Promise<KnowledgeAddResult>,
+    cloneGit: (id: string, url: string) =>
+      ipcRenderer.invoke(CH.knowledgeCloneGit, id, url) as Promise<KnowledgeAddResult>,
+    removeEntry: (id: string, path: string) => ipcRenderer.invoke(CH.knowledgeRemoveEntry, id, path) as Promise<void>,
+    preview: (id: string, path: string) =>
+      ipcRenderer.invoke(CH.knowledgePreview, id, path) as Promise<KnowledgePreview>,
+    open: (id: string, path?: string) => ipcRenderer.invoke(CH.knowledgeOpen, id, path) as Promise<void>,
   },
   // 음성 입력 관리 (ADR-045). 전사 자체는 bridge 메시지로 한다
   stt: {

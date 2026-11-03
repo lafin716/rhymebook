@@ -10,6 +10,7 @@ import { Badge, StatusDot } from '../components/Badge';
 import { IconButton } from '../components/Button';
 import { RemoteAgentPicker } from './RemoteAgentPicker';
 import { BookPdfButton } from '../book/BookPdfButton';
+import { KnowledgeButton } from '../knowledge/KnowledgeButton';
 import { cn } from '../lib/cn';
 import { RenameInput } from '../session/SessionMenu';
 import { PROVIDER_ORDER, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
@@ -130,6 +131,7 @@ export function SessionHeader({ sessionId, compact, actions: extra, handleClassN
           </IconButton>
         )}
         {!page && <BookPdfButton sessionId={sessionId} compact={compact} />}
+        {!page && <KnowledgeButton sessionId={sessionId} compact={compact} />}
         {!remoteMode && !page && <ProviderSelect sessionId={sessionId} compact={compact} />}
         {!remoteMode && <NavRestoreButton />}
         {collapsible && (

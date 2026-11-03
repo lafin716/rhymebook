@@ -8,10 +8,27 @@ export const CLAUDE_CTX: CliErrorContext = { label: 'Claude CLI', loginHint: 'cl
 /**
  * 공식 claude CLI 무상태 실행 인자 (03-PROVIDERS 정책).
  * 세션 저장 안 함, MCP/사용자 설정 미적용. 프롬프트는 stdin으로 넘긴다.
- * 도구는 기본 전부 비활성이고, webSearch면 웹 검색·페이지 읽기만 허용한다 (파일·셸 도구는 계속 막는다, ADR-070).
- * -p 모드는 권한 확인을 물을 수 없어 --allowedTools로 두 도구만 미리 허용한다
+ * 도구는 기본 전부 비활성이다. webSearch면 웹 검색·페이지 읽기, knowledge면 지식베이스 읽기(Read·Glob·Grep)만 허용한다.
+ * 셸·쓰기 도구는 계속 막는다 (ADR-070, ADR-107).
+ * -p 모드는 권한 확인을 물을 수 없어 --allowedTools로 켠 도구만 미리 허용한다.
+ * knowledgeDir는 --add-dir로 읽기 허용만 준다 (작업 폴더는 그대로 두어, 자료 폴더의 CLAUDE.md 등을 설정으로 읽지 않게 한다)
  */
-export function claudeArgs(opts: { systemFile: string; model?: string; effort?: string; inputJson?: boolean; webSearch?: boolean }): string[] {
+export function claudeArgs(opts: {
+  systemFile: string;
+  model?: string;
+  effort?: string;
+  inputJson?: boolean;
+  webSearch?: boolean;
+  knowledge?: boolean;
+  knowledgeDir?: string;
+}): string[] {
+  // --tools: 쓸 수 있는 도구 목록 (지식베이스 읽기 + 웹)
+  // 지식베이스가 있으면 웹 도구를 끈다: 자료 속 지시문이 자료 내용을 외부 주소로 내보내지 못하게 (ADR-107)
+  const web = opts.webSearch && !opts.knowledge;
+  const toolList = [...(opts.knowledge ? CLAUDE_KNOWLEDGE_TOOLS : []), ...(web ? CLAUDE_WEB_TOOLS : [])].join(',');
+  // --allowedTools: -p 모드에서 확인 없이 허용할 도구. 웹 도구만 둔다.
+  // Read·Glob·Grep은 넣지 않는다 (넓게 허용하면 폴더 밖 파일도 읽힌다). 폴더 안 읽기는 --add-dir로 충분하다.
+  const allowList = web ? CLAUDE_WEB_TOOLS.join(',') : '';
   return [
     '-p',
     '--output-format',
@@ -21,8 +38,8 @@ export function claudeArgs(opts: { systemFile: string; model?: string; effort?: 
     '--verbose',
     '--include-partial-messages',
     '--tools',
-    opts.webSearch ? CLAUDE_WEB_TOOLS : '',
-    ...(opts.webSearch ? ['--allowedTools', CLAUDE_WEB_TOOLS] : []),
+    toolList,
+    ...(allowList ? ['--allowedTools', allowList] : []),
     '--system-prompt-file',
     opts.systemFile,
     '--no-session-persistence',
@@ -31,10 +48,28 @@ export function claudeArgs(opts: { systemFile: string; model?: string; effort?: 
     '',
     ...(opts.model ? ['--model', opts.model] : []),
     ...(opts.effort ? ['--effort', opts.effort] : []),
+    // 가변 인자 옵션이라 항상 마지막에 둔다
+    ...(opts.knowledge && opts.knowledgeDir ? ['--add-dir', opts.knowledgeDir] : []),
   ];
 }
 
-const CLAUDE_WEB_TOOLS = 'WebSearch,WebFetch';
+const CLAUDE_WEB_TOOLS = ['WebSearch', 'WebFetch'];
+/** 지식베이스 읽기 도구 (쓰기·셸 없음) */
+const CLAUDE_KNOWLEDGE_TOOLS = ['Read', 'Glob', 'Grep'];
+
+/** 지식베이스 폴더 안 경로면 그 폴더 기준 상대 경로로 (화면 표시용) */
+function relativeTo(dir: string | undefined, p: string): string {
+  if (!dir) return p;
+  const prefix = dir.endsWith('/') ? dir : `${dir}/`;
+  return p.startsWith(prefix) ? p.slice(prefix.length) : p;
+}
+
+/** 도구 입력에서 화면에 보일 대상 (검색어·파일 경로·패턴) */
+function toolQuery(name: string, input: Record<string, unknown>, knowledgeDir?: string): string | undefined {
+  if (name === 'Read') return str(input.file_path) ? relativeTo(knowledgeDir, str(input.file_path)!) : undefined;
+  if (name === 'Glob' || name === 'Grep') return str(input.pattern);
+  return str(input.query);
+}
 
 /** CLI 도구 이름 → 앱 도구 이름 */
 function toolName(name: string): string {
@@ -78,7 +113,7 @@ function textOf(content: unknown): string {
     .join('');
 }
 
-export function createClaudeParser(): CliParser {
+export function createClaudeParser(opts: { knowledgeDir?: string } = {}): CliParser {
   let sawPartial = false;
   let emitted = false;
   /** 도구 사용이나 새 메시지 뒤 첫 글이면 앞 글과 문단을 나눈다 */
@@ -121,11 +156,13 @@ export function createClaudeParser(): CliParser {
           const id = str(b.id);
           if (!id || tools.has(id)) continue;
           const input = isObj(b.input) ? b.input : {};
+          const rawName = str(b.name) ?? 'tool';
+          const q = toolQuery(rawName, input, opts.knowledgeDir);
           const tool: ToolActivity = {
             id,
-            name: toolName(str(b.name) ?? 'tool'),
+            name: toolName(rawName),
             status: 'running',
-            ...(str(input.query) ? { query: str(input.query)! } : {}),
+            ...(q ? { query: q } : {}),
             ...(str(input.url) ? { url: str(input.url)! } : {}),
           };
           tools.set(id, tool);

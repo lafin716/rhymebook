@@ -19,6 +19,8 @@ export interface StreamRequest {
   purpose?: 'chat' | 'summary' | 'title' | 'skill' | 'page';
   /** 웹 검색·페이지 읽기 도구 허용 (일반 대화에서만 쓴다, ADR-070) */
   webSearch?: boolean;
+  /** 학습의 지식베이스 id. CLI bridge가 그 폴더를 읽기 전용으로 탐색하게 한다 (일반 대화에서만, ADR-107) */
+  knowledgeId?: string;
 }
 
 /** 웹 검색 도구를 쓸 수 있는 provider. OpenAI API(Chat Completions)는 지원하지 않는다 (ADR-070) */
@@ -41,6 +43,11 @@ export function upsertTool(list: ToolActivity[] | undefined, tool: ToolActivity)
 /** 도구를 붙일 요청인가: 웹 검색이 켜진 일반 대화 */
 export function wantsWebTools(req: Pick<StreamRequest, 'webSearch' | 'purpose'>): boolean {
   return req.webSearch === true && (!req.purpose || req.purpose === 'chat');
+}
+
+/** 지식베이스를 붙일 요청인가: 지식베이스가 있는 일반 대화 */
+export function wantsKnowledge(req: Pick<StreamRequest, 'knowledgeId' | 'purpose'>): boolean {
+  return typeof req.knowledgeId === 'string' && !!req.knowledgeId && (!req.purpose || req.purpose === 'chat');
 }
 
 export interface ProviderError {

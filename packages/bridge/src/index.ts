@@ -12,3 +12,4 @@ export * from './remote/relay';
 export * from './skillsDir';
 export * from './codexImages';
 export * from './stt/engine';
+export * from './knowledgeStore';

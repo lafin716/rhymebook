@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { t, binaryNote, cliPrompt, isAttachment, isSttAudio, isValidEffort, isValidModelName, providerError, withInstructions, type BridgeClientMsg, type BridgeServerMsg, type BridgeStatus, type ChatStartMsg, type StreamEvent, type SttManageMsg, type SttState } from '@branch/core';
+import { t, binaryNote, cliPrompt, isAttachment, isKnowledgeId, isSttAudio, isValidEffort, isValidModelName, providerError, withInstructions, type BridgeClientMsg, type BridgeServerMsg, type BridgeStatus, type ChatStartMsg, type StreamEvent, type SttManageMsg, type SttState } from '@branch/core';
 import { claudeArgs, claudeJsonInput, createClaudeParser } from './claude';
 import { codexArgs, createCodexParser } from './codex';
 import { codexImagesDir, collectCodexImages } from './codexImages';
@@ -9,6 +9,7 @@ import { detectAll } from './detect';
 import { resolveCliEnv, type CliEnv } from './env';
 import type { CliParser } from './parser';
 import { runCli } from './run';
+import { KnowledgeNotFoundError, type KnowledgeStore } from './knowledgeStore';
 import type { SttEngine } from './stt/engine';
 
 export interface BridgeServerOptions {
@@ -24,6 +25,8 @@ export interface BridgeServerOptions {
   log?: (msg: string) => void;
   /** 음성 전사 엔진 (ADR-045). 없으면 stt.* 요청에 '지원 안 함'으로 답한다 */
   stt?: SttEngine;
+  /** 학습별 지식베이스 (ADR-107). chat.start.knowledgeId가 있을 때만 쓴다 */
+  knowledge?: KnowledgeStore;
 }
 
 export interface BridgeConnection {
@@ -45,6 +48,17 @@ const IMAGE_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'j
 const imageGenNote = () => t('bridge.server.imageGenNote');
 
 const sttUnsupported = () => t('bridge.server.sttUnsupported');
+
+/** 답변에 붙는 지식베이스 정보: 폴더(작업 경로)와 파일 목록 요약 */
+interface KnowledgeContext {
+  dir: string;
+  total: number;
+  paths: string[];
+}
+
+function knowledgeNote(kb: KnowledgeContext, key: 'bridge.knowledge.systemNote' | 'bridge.knowledge.codexIndex'): string {
+  return t(key, { total: kb.total, shown: kb.paths.length, paths: kb.paths.join(', ') || '-' });
+}
 
 /**
  * 원격 기기의 음성 설정 요청 (ADR-046). 페어링된 기기는 PC 설정 화면과 같은 일을 할 수 있다.
@@ -148,6 +162,21 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
     return statusInflight;
   }
 
+  /**
+   * 학습의 지식베이스 (ADR-107). 저장소가 없거나, knowledgeId가 없거나 형식이 틀리거나,
+   * 없는 지식베이스면 null (지식베이스 없이 답한다). 그 밖의 읽기 오류만 throw
+   */
+  async function knowledgeFor(msg: ChatStartMsg): Promise<KnowledgeContext | null> {
+    if (!opts.knowledge || !isKnowledgeId(msg.knowledgeId)) return null;
+    try {
+      const { paths, total } = await opts.knowledge.index(msg.knowledgeId);
+      return { dir: opts.knowledge.dirFor(msg.knowledgeId), total, paths };
+    } catch (err) {
+      if (err instanceof KnowledgeNotFoundError) return null;
+      throw err;
+    }
+  }
+
   async function runChat(msg: ChatStartMsg, signal: AbortSignal, emit: (ev: StreamEvent) => void): Promise<void> {
     if (!(await gate.acquire(signal))) {
       emit({ type: 'error', error: providerError('aborted', t('bridge.common.stopped')) });
@@ -156,6 +185,13 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
     const env = await cliEnv;
     const workDir = await mkdtemp(path.join(os.tmpdir(), 'branch-bridge-'));
     try {
+      let kb: KnowledgeContext | null;
+      try {
+        kb = await knowledgeFor(msg);
+      } catch (err) {
+        emit({ type: 'error', error: providerError('unknown', err instanceof Error ? err.message : String(err)) });
+        return;
+      }
       const prompt = cliPrompt(msg.messages);
       const system = msg.system.trim() || fallbackSystem();
       // 대화 전체의 이미지·PDF 첨부 (형식이 맞는 것만)
@@ -166,10 +202,18 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
       let codexThread: (() => string | undefined) | null = null;
       if (msg.providerId === 'claude-cli') {
         const systemFile = path.join(workDir, 'system.txt');
-        await writeFile(systemFile, system, { mode: 0o600 });
-        args = claudeArgs({ systemFile, ...cliModelOptions(msg), inputJson: files.length > 0, webSearch: msg.webSearch === true });
+        const claudeSystem = kb ? `${system}\n\n${knowledgeNote(kb, 'bridge.knowledge.systemNote')}` : system;
+        await writeFile(systemFile, claudeSystem, { mode: 0o600 });
+        args = claudeArgs({
+          systemFile,
+          ...cliModelOptions(msg),
+          inputJson: files.length > 0,
+          webSearch: msg.webSearch === true,
+          knowledge: kb !== null,
+          knowledgeDir: kb?.dir,
+        });
         stdin = files.length ? claudeJsonInput(prompt, files) : prompt;
-        parser = createClaudeParser();
+        parser = createClaudeParser({ knowledgeDir: kb?.dir });
       } else {
         // Codex는 이미지만 파일로 넘길 수 있다. PDF는 이름만 알린다
         const images: string[] = [];
@@ -180,8 +224,10 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
         }
         const note = binaryNote(files.filter((f) => f.kind === 'pdf'));
         const imageGen = msg.imageGen === true;
+        // Codex는 셸이 꺼져 있어 파일 내용을 읽지 못한다 (ADR-070). 파일 목록만 알린다
+        const codexSystem = kb ? `${system}\n\n${knowledgeNote(kb, 'bridge.knowledge.codexIndex')}` : system;
         args = codexArgs({ ...cliModelOptions(msg), images, imageGen, webSearch: msg.webSearch === true });
-        stdin = withInstructions(imageGen ? `${system}\n\n${imageGenNote()}` : system, note ? `${prompt}\n\n${note}` : prompt);
+        stdin = withInstructions(imageGen ? `${codexSystem}\n\n${imageGenNote()}` : codexSystem, note ? `${prompt}\n\n${note}` : prompt);
         const codex = createCodexParser();
         parser = codex;
         if (imageGen) codexThread = codex.threadId;

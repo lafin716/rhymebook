@@ -1,3 +1,4 @@
+import type { KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview } from '../knowledge';
 import type { HostPolicy } from '../platform';
 import type { SkillFolder } from '../skillFolder';
 import type { SttModelId, SttState } from '../stt';
@@ -37,6 +38,39 @@ export interface DesktopApi {
   pdf?: DesktopPdfApi;
   /** 음성 입력 관리 (ADR-045). 전사 자체는 bridge의 stt.transcribe로 한다. 없으면 설정 탭을 숨긴다 */
   stt?: DesktopSttApi;
+  /** 학습별 지식베이스 (ADR-107). 없으면 지식베이스 버튼을 숨긴다 */
+  knowledge?: DesktopKnowledgeApi;
+}
+
+/**
+ * 지식베이스 폴더 `<userData>/knowledge/<id>/files/`.
+ * main 프로세스가 id·경로·URL·크기를 다시 확인하고 그 폴더 밖에는 쓰지 않는다. 오류는 보여줄 문구로 throw.
+ */
+export interface DesktopKnowledgeApi {
+  list(): Promise<KnowledgeBase[]>;
+  create(name: string): Promise<KnowledgeBase>;
+  rename(id: string, name: string): Promise<KnowledgeBase>;
+  /** 지식베이스와 그 파일 전체를 지운다 */
+  remove(id: string): Promise<void>;
+  /** files/ 아래 모든 항목 (경로순, 숨김 항목·.git 제외) */
+  tree(id: string): Promise<KnowledgeEntry[]>;
+  /** 끌어다 놓은 파일의 절대 경로 (Electron webUtils). 못 얻으면 '' */
+  pathForFile(file: File): string;
+  /** 디스크의 파일·폴더를 복사해 넣는다 (끌어다 놓기). dest는 files/ 기준 폴더 경로 */
+  addPaths(id: string, paths: string[], dest?: string): Promise<KnowledgeAddResult>;
+  /** 경로를 못 얻은 파일을 내용으로 넣는다 */
+  addFiles(id: string, files: { name: string; data: Uint8Array }[], dest?: string): Promise<KnowledgeAddResult>;
+  /** OS 파일 선택 창으로 고른 파일을 넣는다. 취소하면 added가 빈 배열 */
+  pickFiles(id: string, dest?: string): Promise<KnowledgeAddResult>;
+  /** 웹 페이지를 받아 본문을 마크다운으로 links/ 아래에 저장한다 */
+  addLink(id: string, url: string): Promise<KnowledgeAddResult>;
+  /** GitHub 저장소를 repos/<repo>/로 얕게 클론한다 (.git은 지운다) */
+  cloneGit(id: string, url: string): Promise<KnowledgeAddResult>;
+  /** 파일·폴더 하나를 지운다 */
+  removeEntry(id: string, path: string): Promise<void>;
+  preview(id: string, path: string): Promise<KnowledgePreview>;
+  /** OS 파일 탐색기로 연다 (path 없으면 지식베이스 폴더) */
+  open(id: string, path?: string): Promise<void>;
 }
 
 /** PC의 로컬 whisper.cpp 설정·모델 관리. 원격 기기는 이 설정을 따르기만 한다 */

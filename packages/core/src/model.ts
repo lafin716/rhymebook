@@ -28,6 +28,8 @@ export interface Session {
   webSearch?: boolean;
   /** 세션 종류. 없으면 대화, 'page'면 마크다운 문서 페이지, 'canvas'면 필기 캔버스 — 본문은 문서 메시지 하나 (ADR-072, ADR-079) */
   kind?: 'page' | 'canvas';
+  /** 이 학습의 지식베이스 id (루트 세션에만 둔다, 가지는 루트 것을 쓴다, ADR-107) */
+  knowledgeId?: string;
   createdAt: number;
   updatedAt: number;
 }

@@ -15,6 +15,7 @@ const INTENTS: Record<string, RegExp> = {
   speak: /소리\s*(내|로)|음성으로|발음\s*(을|좀)?\s*(들려|듣|알려|읽|해\s*(줘|주))|(?<!(이야기|얘기|설명|소식|경험|썰)\s*(를|을|좀)?\s*)들려\s*(줘|주세요|줄래|주라)|듣고\s*싶|낭독|읽어\s*(줘|주세요|줄래)[^\n]*(소리|음성|발음)|read\s+(it\s+)?(out\s+)?aloud|pronounc|say\s+it/i,
   curriculum: /커리큘럼|curriculum|로드맵|roadmap|학습\s*(계획|순서|경로)|공부\s*(계획|순서)/i,
   book: /책\s*(으로|처럼)\s*(만들|엮|정리|써)/,
+  knowledge: /지식\s*베이스\s*(에서|안에서|속에서|안의)|(자료|문서|소스|파일)\s*(에서|속에서)\s*(찾|검색|뒤져)|knowledge\s*base\s*(search|lookup)|search\s+(the\s+)?knowledge/i,
 };
 
 const squash = (s: string) => s.normalize('NFC').toLowerCase().replace(/\s+/g, '');

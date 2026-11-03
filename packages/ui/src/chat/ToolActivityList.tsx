@@ -8,6 +8,10 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   web_search: 'chat.tool.webSearch',
   web_fetch: 'chat.tool.webFetch',
   code_execution: 'chat.tool.codeExecution',
+  // 지식베이스 탐색 (ADR-107): CLI의 Read·Glob·Grep
+  read: 'chat.tool.read',
+  glob: 'chat.tool.glob',
+  grep: 'chat.tool.grep',
 };
 
 function hostOf(url: string): string {

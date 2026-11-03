@@ -320,6 +320,8 @@ export const SPEAK_SKILL_ID = 'skill-speak';
 /** 세션 [재정리] 버튼이 쓰는 기본 스킬 */
 export const REORGANIZE_SKILL_ID = 'skill-reorganize';
 export const SCHEDULE_SKILL_ID = 'skill-schedule';
+/** 학습의 지식베이스(작업 폴더)를 탐색해 답하는 기본 스킬 (ADR-107) */
+export const KNOWLEDGE_SKILL_ID = 'skill-knowledge';
 
 /** 커리큘럼 스킬 설명·지시 (호출 시점의 로케일) */
 export function curriculumDescription(): string {
@@ -420,6 +422,16 @@ export function defaultSkills(now = Date.now()): Skill[] {
       id: SCHEDULE_SKILL_ID,
       name: 'schedule',
       ...scheduleSkillContent(),
+      builtin: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: KNOWLEDGE_SKILL_ID,
+      name: 'knowledge',
+      title: t('skillsBuiltin.knowledge.title'),
+      description: t('skillsBuiltin.knowledge.description'),
+      prompt: t('skillsBuiltin.knowledge.prompt'),
       builtin: true,
       createdAt: now,
       updatedAt: now,

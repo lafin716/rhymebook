@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 import { newId } from '../id';
 import type { ProviderId } from '../model';
-import { PROVIDER_LABELS, providerError, wantsWebTools, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
+import { PROVIDER_LABELS, providerError, wantsKnowledge, wantsWebTools, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
 import type { SttModelId, SttState, SttStatus } from '../stt';
 import type { BridgeClientMsg, BridgeServerMsg, BridgeStatus, CliProviderId, SttManageOp } from './protocol';
 import { CLI_PROVIDER_IDS } from './protocol';
@@ -209,6 +209,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
               ...(req.effort ? { effort: req.effort } : {}),
               ...(!req.purpose || req.purpose === 'chat' ? { imageGen: true } : {}),
               ...(wantsWebTools(req) ? { webSearch: true } : {}),
+              ...(wantsKnowledge(req) ? { knowledgeId: req.knowledgeId! } : {}),
             });
           } catch {
             push({ type: 'error', error: providerError('offline', offlineText()) });
