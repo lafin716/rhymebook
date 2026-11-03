@@ -8,6 +8,19 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 학습별 지식베이스 (2026-11-03)
+
+계획: `docs/plans/knowledge-base-plan.md`, 결정: ADR-107. 프로젝트 모드(리더 계약 + bridge/desktop 1명 + core/UI 1명 병렬 + 독립 리뷰 1명).
+- [x] K0 공통 계약(core knowledge.ts, Session/StreamRequest/ChatStartMsg knowledgeId, DesktopKnowledgeApi)
+- [x] K1 bridge knowledgeStore(파일·폴더 복사, 링크→마크다운, GitHub 얕은 클론, 한도·경로 검증), Claude `--tools Read,Glob,Grep --add-dir`, Codex 파일 목록
+- [x] K2 desktop IPC·preload·main 핸들러
+- [x] K3 core store `setSessionKnowledge`, 기본 스킬 '지식베이스 탐색'
+- [x] K4 UI 헤더 버튼·지식베이스 대화상자(끌어다 놓기·링크·GitHub·트리·미리보기)·도구 표시, ko/en 문구, e2e knowledge.spec
+- [x] K5 독립 리뷰
+- [x] K6 실제 CLI 읽기 범위 확인, 패키지 앱 smoke(대화상자 전체 흐름 + Claude CLI가 cell.md를 Glob/Read 하여 "MITO-9" 인용, renderer 오류 0)
+- [x] 리뷰 반영: DNS 해석·리디렉트별 사설 주소 차단, IPv4-mapped/NAT64 표기 차단, 지식베이스 연결 시 웹 도구 끔, 저장소 겹침 경로 건너뜀, meta 원자적 저장, 진행 중 드롭 무시, 미사용 문구 제거
+- [x] PASS: typecheck/lint, core695 + UI108 + bridge108(skip3) + relay9 + server10, 재패키징 앱 smoke(스킬 '지식베이스 탐색' → Grep → MITO-9·cell.md 인용, 390px 대화상자)
+
 ## 완료 알림 백그라운드 유지·모바일 로컬 기본 스킬·사이드바 생성 중/안 읽음 표시 (2026-11-03)
 
 결정: ADR-106, 사람 조치: B-16(iOS APNs).
