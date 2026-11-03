@@ -16,7 +16,8 @@ describe('PC별 스킬 목록', () => {
 
     await switchSkillHost('pc-a');
     expect(names()).toEqual(['legacy']);
-    expect(await db.skills.count()).toBe(0);
+    // 이 기기(로컬 프로필) 목록은 남긴다 (ADR-106)
+    expect(await db.skills.count()).toBe(1);
 
     await pullSkillsFromPc(async () => [skill('a1')]);
     expect(names()).toEqual(['a1', 'legacy']);

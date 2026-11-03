@@ -220,7 +220,7 @@ async function migrateLegacy(d: BranchDB, host: string) {
   await d.transaction('rw', d.skills, d.hostSkills, d.kv, async () => {
     const legacy = (await d.skills.toArray()).filter(isSkill);
     if (legacy.length) await d.hostSkills.bulkPut(legacy.map((s) => ({ ...s, hostId: host })));
-    await d.skills.clear();
+    // 이 기기(로컬 프로필) 목록은 지우지 않는다 — 로컬 프로필로 돌아왔을 때 스킬이 사라지지 않게 (ADR-106)
     await d.kv.put({ key: 'hostSkillsMigrated', value: true });
   });
 }
@@ -283,19 +283,22 @@ export async function loadSkills(database: BranchDB | null) {
   try {
     if (database) {
       const dbSkills = (await database.skills.toArray()).filter(isSkill);
-      const seeded = await database.kv.get('skillsSeeded');
+      // PC별 목록으로 옮긴 뒤의 시드 기록은 옮기기 전 기기 목록의 것이다. 옛 이전 작업이 이 기기 목록을
+      // 비웠으므로 로컬 프로필은 따로 기록해 기본 스킬을 데스크톱과 같게 다시 채운다 (ADR-106)
+      const seedKey = (await database.kv.get('hostSkillsMigrated'))?.value ? 'localSkillsSeeded' : 'skillsSeeded';
+      const seeded = await database.kv.get(seedKey);
       const { add, seeded: newSeeded } = skillsToSeed(dbSkills, seeded?.value);
       if (add.length) {
         await database.transaction('rw', database.skills, database.kv, async () => {
           await database.skills.bulkPut(add);
-          await database.kv.put({ key: 'skillsSeeded', value: newSeeded });
+          await database.kv.put({ key: seedKey, value: newSeeded });
         });
         skills = [...dbSkills, ...add];
       } else {
         skills = dbSkills;
         // 예전 형식(true)이나 기록 없음도 지금 id 목록으로 남긴다 — 지운 내장 스킬이 다시 들어오지 않게
         if (JSON.stringify(seeded?.value) !== JSON.stringify(newSeeded)) {
-          await database.kv.put({ key: 'skillsSeeded', value: newSeeded });
+          await database.kv.put({ key: seedKey, value: newSeeded });
         }
       }
       // 고치지 않은 예전 기본 스킬은 새 기본값으로 올린다

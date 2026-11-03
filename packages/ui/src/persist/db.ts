@@ -20,7 +20,7 @@ import Dexie, { type Table } from 'dexie';
 type MessageRow = Message & { seq: number };
 
 interface KvRow {
-  key: 'view' | 'settings' | 'connections' | 'backup' | 'skillsSeeded' | 'hostSkillsMigrated';
+  key: 'view' | 'settings' | 'connections' | 'backup' | 'skillsSeeded' | 'localSkillsSeeded' | 'hostSkillsMigrated';
   value: unknown;
 }
 
