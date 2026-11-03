@@ -20,6 +20,8 @@ const RENDERER = path.join(__dirname, 'renderer', 'index.html');
 // 표시 이름은 OctoBooks지만 내부 앱 이름은 rhymebook 그대로 둔다(ADR-062):
 // userData 경로와 safeStorage 키체인 항목이 이름에 묶여 있어, 바꾸면 기존 학습 기록·API 키를 못 읽는다.
 app.setName('rhymebook');
+// NSIS 바로가기와 같은 AUMID를 사용해야 Windows 알림이 앱에 연결된다.
+if (process.platform === 'win32') app.setAppUserModelId('app.branchlearn.desktop');
 const userData = process.env.BRANCH_USER_DATA || path.join(app.getPath('appData'), 'rhymebook');
 mkdirSync(userData, { recursive: true });
 app.setPath('userData', userData);

@@ -16,6 +16,7 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 - 기존 remote skill E2E는 미연결 PC의 카탈로그가 비어 있다는 ADR064에 맞게 기대를 고쳐 desktop/mobile 모두 PASS. 초기 PDF 실패는 코드 변경 중 실행된 검증에서만 발생했고 단독 재실행2 PASS 및 최종 전체 실행 PASS.
 - PASS: 최종 desktop package:dir 및 isolated 앱 smoke(renderer오류0), Android0.48.0/code55 APK, iOS0.48.0/build25 simulator 통합 빌드. Android 실제 권한/알림 카드/warm tap 및 알림으로 cold app 재기동 확인.
 - 한계: 로컬 macOS native banner shown=false(시스템 알림 지원/IPC는 확인); iOS 실제 알림 배너/tap 직접 검증은 미실행. GitHub Release 워크플로는 iOS 설치 파일을 만들지 않는다.
+- 공개 전 Windows NSIS 알림 AUMID를 installer appId(app.branchlearn.desktop)와 통일. desktop typecheck/lint PASS. 공식 근거: https://www.electron.build/v26/docs/nsis/ . 최초 미공개 태그 빌드는 취소하고 수정 커밋에서 재실행.
 - 버전 파일: desktop/mobile package.json, Android build.gradle, iOS project.pbxproj. 공개 배포 검증은 태그의 GitHub Actions/Release 자산을 기준으로 확인한다.
 
 ## 다국어(i18n) — 언어 설정·첫 실행 언어 창·언어 파일 분리 (2026-11-03)
