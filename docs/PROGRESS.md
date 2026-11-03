@@ -1,12 +1,69 @@
 # Project Progress
 
-Last Updated: 2026-11-02
+Last Updated: 2026-11-03
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
 > 재개 방법: 루트 `CLAUDE.md` → 이 파일 → `docs/02-ARCHITECTURE.md` → `git log`/`git status` 순으로 읽고,
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
+
+## v0.48.0 릴리즈 검증 (2026-11-03)
+
+- 포함: 한국어·영어와 언어 파일 분리, 기본 예약 스킬/관리 페이지, desktop·Android·iOS 응답 완료 로컬 알림.
+- 독립 릴리즈 리뷰에서 언어 전환 후 기본 제목 비교와 영어 책의 quoted continue 본문 누락을 발견해 수정하고 회귀 테스트 추가(별도 재리뷰/11 tests PASS).
+- PASS: 전체 typecheck/lint, core684 + UI104 + bridge66 + relay9 + server10 = 873 tests (기존4 skip), 전체 E2E214 PASS/22 skip.
+- 기존 remote skill E2E는 미연결 PC의 카탈로그가 비어 있다는 ADR064에 맞게 기대를 고쳐 desktop/mobile 모두 PASS. 초기 PDF 실패는 코드 변경 중 실행된 검증에서만 발생했고 단독 재실행2 PASS 및 최종 전체 실행 PASS.
+- PASS: 최종 desktop package:dir 및 isolated 앱 smoke(renderer오류0), Android0.48.0/code55 APK, iOS0.48.0/build25 simulator 통합 빌드. Android 실제 권한/알림 카드/warm tap 및 알림으로 cold app 재기동 확인.
+- 한계: 로컬 macOS native banner shown=false(시스템 알림 지원/IPC는 확인); iOS 실제 알림 배너/tap 직접 검증은 미실행. GitHub Release 워크플로는 iOS 설치 파일을 만들지 않는다.
+- 버전 파일: desktop/mobile package.json, Android build.gradle, iOS project.pbxproj. 공개 배포 검증은 태그의 GitHub Actions/Release 자산을 기준으로 확인한다.
+
+## 다국어(i18n) — 언어 설정·첫 실행 언어 창·언어 파일 분리 (2026-11-03)
+
+계획: `docs/plans/i18n-plan.md`, 결정: ADR-105, 번역 참여 안내: `docs/i18n.md`. 프로젝트 모드(리더 + 문구 추출 8명 병렬 + 독립 리뷰 1명).
+
+| ID | Task | Owner | Status | Validation |
+|---|---|---|---|---|
+| I1 | core `t()`·언어 목록·키 타입·언어 검사 테스트 | lead | DONE | PASS: core i18n.test (키·자리표시자 ko=en) |
+| I2 | UI 언어 초기화·첫 실행 언어 창·설정 → 일반 언어 선택 | lead | DONE | PASS: e2e language.spec, 웹 390/820/1440 스크린샷, 설정에서 en→ko 전환 확인 |
+| I3 | 문구 추출 ui(settings·chat·page·canvas·views·book·session 등) | A·B1·B2·C·D | DONE | PASS: typecheck·lint·ui 95 |
+| I4 | 문구 추출 core(LLM 프롬프트·기본 스킬·시드·오류)·bridge·relay·desktop·mobile·server | E1·E2·E3 | DONE | PASS: core 676/677(실패 1건은 병행 예약 작업 schedules.test), bridge 66·relay 9·server 10 |
+| I5 | 통합·독립 리뷰 반영 | lead + reviewer | DONE | 자리표시자 불일치(`{label} 사용`) 수정, 저장소 차단 시 언어 창 생략, 영어 책 상자 제목 인식, 'This PC' 대문자, 첫 실행 기본 스킬 시드를 언어 선택 뒤로 미룸, 트레이 툴팁 언어 반영, 오프라인 문구 지연 평가 |
+| I6 | 데스크톱 package:dir·실행 | lead | DONE | PASS: 빌드·실행. 창 스크린샷은 화면 캡처 권한이 없어 웹 화면으로 대신 확인 |
+
+E2E: 대상 재실행 54 passed / 4 failed → 원인 분리 후 남은 실패는 `skill-sync-split.spec:64`(원격 웹·PC 미연결 시 스킬 없음, i18n과 무관한 기존 동작 추정 — HEAD에서 미확인; 릴리즈 검증에서 미연결 PC 카탈로그는 비어야 한다는 기존 설계에 맞게 테스트 기대 수정)와 `annotations.spec:278` 간헐 실패(재실행 6회 중 2회, reload 전 저장 타이밍).
+한계: 이미 저장된 시드·기본 스킬 사본·세션 제목은 저장된 언어로 남는다. 데모 시나리오(`scenarios.ts`)는 한국어 유지.
+
+## 모바일 네이티브 로컬 알림 확장 (2026-11-03)
+
+계획: `docs/plans/scheduling/MOBILE_NOTIFICATIONS.md`, 검증: `MOBILE_VALIDATION.md`. 구현·독립 리뷰 완료. 후속 릴리즈 검증에서 Android/iOS 통합 빌드와 Android 실제 알림을 확인했으며 iOS 배너·탭 직접 검증만 남음. 이전 예약 작업의 완료와 구분한다.
+
+| ID | Task | Status | Validation |
+|---|---|---|---|
+| MN1 | Android/iOS 네이티브 플러그인과 권한·로컬 배너·클릭 | DONE | PASS: Android Java 소스 compile + 리소스명 XML 검증, iOS simulator source build/최종 Swift typecheck |
+| MN2 | MobileApi·모바일 adapter·UI 설정·cold click 연결 | DONE | PASS: 알림 관련17 tests, core682+UI104, 전체 typecheck/lint, mobile web build/cap sync |
+| MN3 | 독립 설계·실제 소스 리뷰 | DONE | PASS: Android 최초 권한, profile/host scope, cold launch 처리 반영; blocking findings 없음 |
+| MN4 | 최신 native APK/iOS 통합 패키징·설치·기기 배너/tap smoke | REVIEW | Android/iOS 최종 통합 빌드·설치 PASS, Android 권한/배너/warm tap/cold app 재시작 확인. iOS 실제 배너/tap은 미확인 |
+| MN5 | 사용 안내·검증 기록 갱신 | DONE | PASS: docs/scheduling.md 및 MOBILE_VALIDATION.md |
+
+Overall: 4/5 DONE (80%). 새 의존성/외부 배포/커밋 없음. 기존 i18n/예약 변경 보존. 추가 수동 QA는 iOS OS 권한/배너/warm·cold tap 확인. 이전 실행 제한은 해소됐음.
+
+## 예약·로컬 알림 (2026-11-03)
+
+계획: `docs/plans/scheduling/MASTER_PLAN.md`, 계약: 같은 폴더 `ARCHITECTURE.md`, 검증: `VALIDATION.md`, 사용 안내: `docs/scheduling.md`. 프로젝트 모드, 기존 i18n 변경 보존. Overall: 6/6 DONE (100%).
+
+| ID | Epic | Task | Owner | Complexity | Model | Reasoning | Status | Progress | Depends On | Validation |
+|---|---|---|---|---|---|---|---|---:|---|---|
+| S1 | 예약/알림 | 계약·독립 설계 검토 | lead + critic | HIGH | gpt-6.1-sol reviewer | high | DONE | 100% | - | PASS: 독립 검토 5개 반영: anchorDay, pending 복구, provenance, 단일 엔진, mirror 알림 |
+| S2 | 예약/알림 | 도메인·기본 스킬·의도 | domain agent + lead | HIGH | gpt-6.1-sol + inherited | high | DONE | 100% | S1 | PASS: 반복/DST/월말/의도/파서/seed 회귀, core682 tests |
+| S3 | 예약/알림 | 로컬 알림·설정·native IPC | notification agent | MEDIUM | gpt-6.1-sol | medium | DONE | 100% | S1 | PASS: 알림8 tests, 기본켬/권한/실패/remote 전환, native 입력 검증 |
+| S4 | 예약/알림 | 예약 저장·실행·관리 UI | lead + page agent | HIGH | inherited + gpt-6.1-sol | inherited | DONE | 100% | S1 | PASS: IDB8 tests, 실제 CRUD/자동 실행/2탭 E2E8 |
+| S5 | 예약/알림 | 통합·독립 리뷰 | lead + reviewer | HIGH | inherited + gpt-6.1-sol | high | DONE | 100% | S2,S3,S4 | PASS: 실제 구현 독립 지적 수정, 전체862 tests + typecheck/lint/build |
+| S6 | 예약/알림 | 실제 UI·desktop smoke·문서 | lead | HIGH | inherited | inherited | DONE | 100% | S5 | PASS: 390/1440 화면/E2E8, 최종 package:dir, isolated native supported/IPC/page smoke; OS 배너는 미확인 |
+
+제한: 앱 종료/절전 중 실행하지 않으며 다음 시작 때 누락 회차를 한 번 처리. 당시 모바일 native 알림은 미지원(위 후속 확장에서 구현). 원격 예약 CRUD는 미지원. OS 권한에 따른 실제 배너 표시 미확인(native show=false). 앱을 끈 상태에서 동작하는 OS 작업 스케줄러는 범위 밖.
+
+모델: legacy explore/critic 모델은 계정 미지원으로 실행 실패해 지원되는 installed 역할의 Sol로 복구. 최종 수정 이후 별도 재리뷰는 subagent 사용량 제한으로 불가했고 리더가 통합 검증했다. 새 의존성/외부 배포/커밋 없음. 테스트 포트 권한 실패는 허용된 로컬 네트워크 실행으로 해결했고, 병행 국제화 검증과는 포트5194/8804로 분리했다.
 
 ## OctoBooks 정식판 v0.20.0 — main 머지 (2026-10-16)
 
