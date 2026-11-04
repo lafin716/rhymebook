@@ -64,7 +64,7 @@ gh run list --workflow release.yml --limit 1
   - `## 새 기능` → `### 영역` 별 bullet(무엇을 할 수 있게 됐는지, "~해요" 체)
   - 원격 프로토콜(sync op 등)이 바뀌었으면 "**PC 앱도 <버전>으로 업데이트해야 해요.**"
   - `## 설치 파일` 표 (실제 자산 이름으로)
-  - `**Full Changelog**: https://github.com/lafin716/rhymebook/compare/v<직전>...v<버전>`
+  - `**Full Changelog**: https://github.com/lafin716/octobooks/compare/v<직전>...v<버전>`
 - 노트를 scratchpad 파일로 쓰고 공개:
   `gh release edit v<버전> --notes-file <file> --draft=false --latest`
 - `gh release view v<버전> --json isDraft,url`로 공개됐는지 확인한다.

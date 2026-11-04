@@ -1,207 +1,206 @@
-# octobooks — 나만의 가지치기 학습 바다
+# OctoBooks
 
-문어의 팔처럼, 작은 호기심이 여러 갈래의 배움으로 뻗어나갑니다. 답변 속 모르는 단어·문장을 드래그해 **서브세션(가지)** 으로 질문하고, 부모 맥락을 상속받아 설명을 듣고, 이해한 내용을 **요약 카드**로 부모에 되돌리는 학습용 채팅앱입니다.
-분할 패널 · 플로팅 팝업(모바일은 바텀시트) · 마인드맵으로 세션 트리를 볼 수 있습니다.
-답변의 SVG 코드 블록·단독 SVG는 이미지로 표시되며, **SVG 코드 보기**로 원본을 펼칠 수 있습니다. 기존 세션에도 적용됩니다.
+**English** | [한국어](README.ko.md)
 
-- 설계 문서: [`docs/`](docs) (비전 · PRD · 아키텍처 · Provider · UX · 로드맵 · 진행 현황 · ADR · 블로커)
-- 지원: 웹 · 데스크톱(macOS/Windows/Linux, Electron) · 모바일(iOS/Android, Capacitor)
+> Like an octopus's arms, one small question branches into many paths of learning.
 
-## OctoBooks (v0.20.0~)
+OctoBooks is a branching study chat app. While reading an answer, drag over any word or sentence you don't understand to open a **sub-session (branch)** right there. The branch inherits its parent's context, so you can ask short questions like "what does this mean here?" Branches can branch again without limit, and when you're done you send a **summary card** back to the parent so the main conversation absorbs what you learned.
 
-rhymebook은 v0.20.0부터 **OctoBooks**로 이름과 디자인이 바뀌었습니다. 기존 앱을 그대로 업데이트하면 학습 기록·설정·API 키가 유지됩니다.
+- Platforms: web · desktop (macOS / Windows / Linux, Electron) · mobile (iOS / Android, Capacitor)
+- Answers come from your own **official `claude` / `codex` CLI** login or your own **API key** (Anthropic / OpenAI)
+- Current version: **v0.51.0** · Design docs: [`docs/`](docs) (Korean)
 
-- 학사모와 연필을 든 문어 아이콘, 설정 → **테마**에서 오션·라군·코랄·어비스·펄 색상과 시스템/라이트/다크를 따로 선택. 웹·모바일은 설정의 **나의 바다**에서 선택합니다. 색상은 기기별로 저장됩니다.
-- 호환을 위해 앱 ID, 데스크톱 데이터 폴더(`<appData>/rhymebook`), `branch://` 페어링 링크, `@branch/*` 패키지, `RHYMEBOOK_*` 환경변수, 백업 형식은 그대로입니다. `pnpm octobooks -- serve`는 `pnpm rhymebook -- serve`의 별칭입니다.
-- 리브랜딩 과정 기록: [docs/rebrand/](docs/rebrand) (베타 v0.20.0-beta.1~3).
+## Features
 
-## 요구 사항
+**Branching study**
+- Drag text in an answer → ask in a branch; ancestor anchors and parent conversation are passed as context
+- Summary cards returned to the parent, footnote-style sub-sessions without an anchor
+- View the session tree as split panels (left/right, top/bottom, drag to split), floating popups (bottom sheet on mobile), or a mind map
+- Conversation navigation (table of contents, ↑/↓ jump), search, separate session windows (desktop)
 
-- Node.js 22 이상, pnpm 10 (`corepack enable`)
-- 선택: 공식 `claude` / `codex` CLI(구독 연결), Xcode(iOS), Android Studio(Android)
+**Reading & notes**
+- Highlights, underlines, text colors, fonts, bold/italic and memos on answer text
+- KaTeX math, SVG previews (with **View SVG code**), copy / listen (TTS) from the selection menu
+- **Understanding notes**: export a session tree as Markdown or Anki cards, export/import whole studies as a zip, turn them into a book
+- **Vault**: save answers, selections and images into a tree of pages; page editor with columns, emoji and a canvas board with presentation mode
+
+**Assistant tools**
+- **Skills** (`/quiz`, `/speak`, …): slash skills, auto-matched skills, SKILL.md folders, AI-assisted skill and prompt editing
+- **Knowledge base per study**: drop files/folders, links or a GitHub repo (default branch only); the CLI reads them with read-only tools
+- Web search / fetch tools (toggle per session), file and image attachments
+- Voice input via local whisper.cpp (desktop / headless host)
+- **Schedules & notifications**: "quiz me every day at 9am" or `/schedule`, manage in the sidebar, local notifications when answers finish ([guide](docs/scheduling.md))
+
+**Devices & sync**
+- Multiple profiles: use a device on its own (local data + API key) or mirror a paired PC
+- Pair phones / browsers with your PC by QR code or 6-digit code; payloads are end-to-end encrypted
+- Headless host `octobooks serve` for servers without the desktop app, and a relay for hosts behind NAT
+- Backups: file, Google Drive, GitHub, automatic and encrypted
+- UI languages: Korean (default) and English — chosen on first launch, changeable in Settings ([translating](docs/i18n.md))
+- Themes: Ocean · Lagoon · Coral · Abyss · Pearl, each with system / light / dark
+
+## Requirements
+
+- Node.js 22+, pnpm 10 (`corepack enable`)
+- Optional: official `claude` / `codex` CLI (subscription use), Xcode (iOS), Android Studio (Android)
 
 ```bash
+git clone https://github.com/lafin716/octobooks.git
+cd octobooks
 pnpm install
 ```
 
-## 구조
+## Repository layout
 
-| 경로 | 내용 |
+| Path | Contents |
 |---|---|
-| `packages/core` | 도메인 모델·앵커·맥락 구성·트리, Zustand 스토어, Provider 인터페이스 (플랫폼 무관) |
-| `packages/ui` | Vite + React + Tailwind SPA (모든 플랫폼 공유, 웹 빌드 산출물) |
-| `packages/bridge` | 공식 CLI 실행 + WebSocket 서버 (데스크톱 내장 / 헤드리스) |
-| `packages/server` | `rhymebook serve` — 데스크톱 앱 없이 도는 헤드리스 호스트 (학습 데이터 + 웹·모바일 원격) |
-| `packages/relay` | 아웃바운드 WebSocket 중계 (페이로드 E2E 암호화) |
-| `apps/desktop` | Electron (main 프로세스에 bridge 내장) |
-| `apps/mobile` | Capacitor (iOS/Android) |
-| `e2e/` | Playwright 핵심 플로우 E2E + 모의 Anthropic SSE 서버 |
+| `packages/core` | Domain model, anchors, context building, tree, Zustand store, provider interface (platform-agnostic) |
+| `packages/ui` | Vite + React + Tailwind SPA shared by every platform (also the web build) |
+| `packages/bridge` | Runs official CLIs + WebSocket server (embedded in desktop / headless) |
+| `packages/server` | `octobooks serve` — headless host without the desktop app |
+| `packages/relay` | Outbound WebSocket relay (end-to-end encrypted payloads) |
+| `apps/desktop` | Electron (bridge embedded in the main process) |
+| `apps/mobile` | Capacitor (iOS / Android) |
+| `e2e/` | Playwright end-to-end tests + mock Anthropic SSE server |
 
-## 웹
+## Web
 
 ```bash
-pnpm dev          # http://0.0.0.0:5173 (LAN·Tailscale *.ts.net 접속 허용)
+pnpm dev          # http://0.0.0.0:5173 (LAN and Tailscale *.ts.net allowed)
 ```
 
-- 휴대폰: 같은 와이파이에서 `http://<PC LAN IP>:5173`, Tailscale이면 `http://<호스트명>.<tailnet>.ts.net:5173`
-- 웹은 원격 전용입니다: PC 데스크톱 앱에 페어링해 PC의 학습을 보고 질문합니다(페어링은 탭 메모리에만 있어 새로고침하면 다시 페어링). 개발 서버에서 `?platform=desktop` 을 붙이면 예전 로컬 모드(API 키·IndexedDB)로 동작합니다.
-- 데모 모드: 개발 서버에서 상단 시나리오 메뉴(또는 `#scenario=home` 등)로 Mock provider·시드 데이터 화면을 바로 볼 수 있습니다. [실제 모드로]를 누르면 실제 provider와 IndexedDB 저장을 씁니다.
-- 정적 빌드: `pnpm --filter @branch/ui build` → `packages/ui/dist/` 를 아무 정적 호스팅에 올리면 됩니다. 미리보기 `pnpm --filter @branch/ui preview`.
-- 빌드 시 환경 변수(선택):
-  - `VITE_GOOGLE_CLIENT_ID` — 구글 드라이브 백업용 OAuth 클라이언트 ID (없으면 모의 드라이브)
-  - `VITE_ANTHROPIC_BASE_URL`, `VITE_OPENAI_BASE_URL` — API 엔드포인트 변경(프록시·테스트용)
+- From a phone: `http://<PC LAN IP>:5173` on the same Wi-Fi, or `http://<host>.<tailnet>.ts.net:5173` over Tailscale.
+- On the start screen pick a profile: **this device** (local IndexedDB + API key) or a paired PC (mirror). Add `?platform=desktop` on the dev server to force the local desktop mode.
+- Demo mode: the scenario menu on the dev server (or `#scenario=home` etc.) shows seeded screens with a mock provider.
+- Static build: `pnpm --filter @branch/ui build` → host `packages/ui/dist/` anywhere. Preview with `pnpm --filter @branch/ui preview`.
+- Optional build-time env vars:
+  - `VITE_GOOGLE_CLIENT_ID` — OAuth client ID for Google Drive backup (mock drive if missing)
+  - `VITE_ANTHROPIC_BASE_URL`, `VITE_OPENAI_BASE_URL` — override API endpoints (proxies, tests)
 
-## 데스크톱 (Electron)
+## Desktop (Electron)
 
 ```bash
-pnpm dev                                   # 터미널 1: Vite 개발 서버
-pnpm --filter @branch/desktop dev          # 터미널 2: Electron (개발 서버 로드)
+pnpm dev                                   # terminal 1: Vite dev server
+pnpm --filter @branch/desktop dev          # terminal 2: Electron (loads the dev server)
 
-pnpm --filter @branch/desktop build        # 렌더러 + main 번들 → apps/desktop/dist
-pnpm --filter @branch/desktop start        # 빌드 결과 실행
+pnpm --filter @branch/desktop build        # renderer + main bundle → apps/desktop/dist
+pnpm --filter @branch/desktop start        # run the build
 ```
 
-패키징 (electron-builder, 결과물은 `apps/desktop/release/`):
+Packaging (electron-builder, output in `apps/desktop/release/`):
 
 ```bash
-pnpm --filter @branch/desktop package:dir  # 설치본 없이 앱 폴더만 (빠른 확인)
-pnpm --filter @branch/desktop package      # 현재 OS용: mac dmg/zip · win nsis · linux AppImage/deb
+pnpm --filter @branch/desktop package:dir  # app folder only (quick check) → release/mac-arm64/OctoBooks.app
+pnpm --filter @branch/desktop package      # installers for the current OS: mac dmg/zip · win nsis · linux AppImage/deb
 ```
 
-- 다른 OS용 설치본은 해당 OS(또는 CI 러너)에서 만드는 것을 권장합니다.
-- 코드 서명/공증은 설정되어 있지 않습니다(BLOCKERS B-03). 서명 없이 빌드하려면 macOS에서 `CSC_IDENTITY_AUTO_DISCOVERY=false` 를 붙이세요. 서명하려면 `CSC_LINK`/`CSC_KEY_PASSWORD`(+ macOS 공증 `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`)를 CI 비밀 값으로 등록합니다.
-- **백그라운드 실행**: 원격 페어링이 켜져 있으면 창을 닫아도 트레이(메뉴 막대) 아이콘으로 남아 페어링된 휴대폰·웹이 계속 동작합니다. 완전히 끄려면 트레이 메뉴 [완전 종료](macOS는 ⌘Q도 가능).
-- 데스크톱은 bridge를 내장하므로 PC에 설치·로그인된 `claude` / `codex` CLI를 바로 씁니다. API 키는 OS 보안 저장소(safeStorage)에 저장됩니다.
+- Build installers for each OS on that OS (or a CI runner).
+- Code signing / notarization isn't configured by default (BLOCKERS B-03). To build unsigned on macOS set `CSC_IDENTITY_AUTO_DISCOVERY=false`. To sign, provide `CSC_LINK` / `CSC_KEY_PASSWORD` (+ `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` for notarization) as CI secrets.
+- **Background mode**: with remote pairing on, closing the window keeps OctoBooks in the tray / menu bar so paired phones and browsers keep working. Quit fully from the tray menu (or ⌘Q on macOS).
+- The desktop app embeds the bridge, so it uses the `claude` / `codex` CLI installed and logged in on your PC. API keys are stored in the OS secure storage (safeStorage).
 
-## 모바일 (Capacitor)
+## Mobile (Capacitor)
 
 ```bash
-pnpm --filter @branch/mobile build:android   # Android debug APK (Android Studio/SDK 필요)
-pnpm --filter @branch/mobile build:ios-sim   # iOS 시뮬레이터 빌드 (Xcode, 서명 없음)
-pnpm --filter @branch/mobile android         # Android Studio로 열기
-pnpm --filter @branch/mobile ios             # Xcode로 열기
+pnpm --filter @branch/mobile build:android   # Android debug APK (Android Studio / SDK required)
+pnpm --filter @branch/mobile build:ios-sim   # iOS simulator build (Xcode, unsigned)
+pnpm --filter @branch/mobile android         # open in Android Studio
+pnpm --filter @branch/mobile ios             # open in Xcode
 ```
 
-- 웹·모바일은 **원격 전용**입니다(ADR-026). PC의 rhymebook 앱에 페어링하면 PC에서 학습 중인 내용을 그대로 보고, 질문하면 PC가 자기 CLI로 답합니다. 학습 기록은 PC에만 저장됩니다.
-- 페어링: PC 앱 설정 › 연결 › [원격 페어링 열기] → [휴대폰·웹 연결] → 휴대폰에서 **[QR 스캔]**, 또는 링크·주소 + 6자리 코드 입력. OS 카메라로 찍으면 `branch://pair` 딥링크로 앱이 열립니다(카메라 권한 필요, Android 8.0+).
-- 스토어 배포·서명은 BLOCKERS B-07.
+- Use the phone on its own with an API key, or pair it with your PC: the PC's studies are mirrored and the PC answers with its own CLI.
+- Pairing: on the PC, Settings › Connection › **Open remote pairing** → **Connect phone / web**, then **Scan QR** on the phone, or enter the link / address + 6-digit code. Scanning with the OS camera opens the app via the `branch://pair` deep link.
+- Store distribution and signing: BLOCKERS B-07.
 
-## 언어 (i18n)
+## Headless host `octobooks serve`
 
-앱 언어는 한국어(기본)와 영어를 지원해요. 설치 후 첫 실행 때 언어를 고르고, 설정 → 일반(원격 연결 중에는 설정 → 화면)에서 바꿀 수 있어요. CLI는 `OCTOBOOKS_LANG=en`. 번역 참여는 [docs/i18n.md](docs/i18n.md).
-
-## 서식·메모
-
-답변에서 텍스트를 선택하면 가지 버튼 아래에 서식 행이 나옵니다: 형광펜·밑줄·글자색(6색), 명조·고정폭 글꼴, 굵게·기울임, 서식 지우기, 메모. 메모가 달린 텍스트를 누르면 보기·수정·삭제할 수 있습니다. 여러 문단에 걸친 가지는 왼쪽 세로 막대로 표시됩니다.
-
-## 이해 노트 (내보내기)
-
-상단 바의 **이해 노트** 아이콘을 누르면 현재 세션 트리의 가지(앵커 원문 + 요약)를 한눈에 보고 내보낼 수 있습니다.
-
-- **Markdown 저장** — 가지 계층을 헤딩으로, 원문 인용 속 앵커를 굵게, 요약을 "이해한 내용"으로 정리합니다.
-- **Anki 카드** — Anki › 파일 › 가져오기로 불러오는 TSV(앞면 = 앵커·문맥·경로, 뒷면 = 요약). 요약을 붙인 가지만 카드가 됩니다.
-- 모바일 앱에서는 공유 시트로 파일을 저장·전송합니다.
-
-## 앱 아이콘
-
-원본은 `assets/icon/glyph.svg` 입니다. 바꾼 뒤 `node scripts/gen-icons.mjs` 를 실행하면 데스크톱(`apps/desktop/build/icon.png`), iOS·Android 앱 아이콘, 웹 favicon을 다시 만듭니다(Playwright Chromium 사용).
-
-## 헤드리스 호스트 `rhymebook serve` (데스크톱 앱 없이 모바일·웹에서 사용)
-
-서버(PC)에서 데스크톱 앱 대신 실행하면, 모바일·웹 앱이 페어링해서 데스크톱 원격 연결과 똑같이 씁니다. 학습 목록·질문·가지·요약·서식이 동기화되고, 답변은 이 PC의 claude/codex CLI(또는 API 키)로 만들어집니다.
+Run this on a server or PC instead of the desktop app; mobile and web apps pair with it exactly like with the desktop. Studies, questions, branches, summaries and formatting are synced, and answers are generated with that machine's `claude` / `codex` CLI (or an API key).
 
 ```bash
-pnpm rhymebook -- serve --pair          # 빌드 후 실행. :7777, QR·링크·1회용 코드(5분) 표시
-pnpm rhymebook -- serve                 # 이미 페어링한 기기만 접속
-pnpm rhymebook -- devices               # 페어링된 기기 목록
-pnpm rhymebook -- unpair <id|all>       # 해제 (실행 중인 serve는 다시 시작해야 끊김)
-# 빌드 산출물 하나로도 실행 가능: node packages/server/dist/rhymebook.cjs serve --pair
+pnpm octobooks -- serve --pair          # build and run. :7777, shows QR / link / one-time code (5 min)
+pnpm octobooks -- serve                 # only already-paired devices can connect
+pnpm octobooks -- devices               # list paired devices
+pnpm octobooks -- unpair <id|all>       # unpair (restart a running serve to disconnect)
+# Single build artifact: node packages/server/dist/rhymebook.cjs serve --pair
 ```
 
-저장소 루트의 실행 스크립트로 더 짧게 실행할 수 있습니다. 처음 실행하면 의존성을 설치하고, 실행할 때마다 서버를 다시 빌드합니다(1~2초, `RHYMEBOOK_NO_BUILD=1`이면 건너뜀). 인자가 없으면 `serve`로 실행하고, 옵션으로 시작하는 인자를 주면 앞에 `serve`를 붙입니다.
+Shortcut scripts at the repo root install dependencies on first run and rebuild the server each time (1–2 s, skip with `RHYMEBOOK_NO_BUILD=1`). Without arguments they run `serve`; arguments starting with an option get `serve` prepended.
 
 ```bash
-./rhymebook.sh --pair          # macOS·Linux  (= serve --pair)
-./rhymebook.sh                 # = serve
+./rhymebook.sh --pair          # macOS / Linux (= serve --pair)
 ./rhymebook.sh devices
-rhymebook.cmd --pair           # Windows (탐색기에서 더블클릭하면 serve, 오류 시 창이 멈춤)
+rhymebook.cmd --pair           # Windows (double-click in Explorer runs serve)
 ```
 
-| 옵션 | 내용 |
+| Option | Description |
 |---|---|
-| `--port` / `--host` | 기본 `7777`(`RHYMEBOOK_PORT`) / `0.0.0.0` |
-| `--name` | 앱에 보일 이름 (처음 실행 때 컴퓨터 이름으로 정해져 저장) |
-| `--dir` | 데이터 폴더 (기본 `$RHYMEBOOK_HOME` → `~/.config/rhymebook`, Windows `%APPDATA%\rhymebook`) |
-| `--agent auto\|claude-cli\|codex-cli` | 새 학습 에이전트 (auto: 준비된 claude → codex → API 키 순) |
-| `--no-delete` | 원격 기기의 학습·질문 삭제 막기 |
-| `--relay <url>` / `--relay-only` | NAT 뒤에서 relay로 접속 받기 (아래 Relay 참고) |
-| `--whisper-cli <경로>` | 음성 입력에 쓸 whisper-cli (기본: `BRANCH_WHISPER_CLI` → PATH·Homebrew) |
-| `-v` | 자세한 로그 |
+| `--port` / `--host` | default `7777` (`RHYMEBOOK_PORT`) / `0.0.0.0` |
+| `--name` | name shown in the apps (defaults to the computer name on first run) |
+| `--dir` | data folder (default `$RHYMEBOOK_HOME` → `~/.config/rhymebook`, Windows `%APPDATA%\rhymebook`) |
+| `--agent auto\|claude-cli\|codex-cli` | agent for new studies (auto: ready claude → codex → API key) |
+| `--no-delete` | prevent remote devices from deleting studies / questions |
+| `--relay <url>` / `--relay-only` | accept connections through a relay when behind NAT |
+| `--whisper-cli <path>` | whisper-cli for voice input (default: `BRANCH_WHISPER_CLI` → PATH / Homebrew) |
+| `-v` | verbose logs |
 
-- 앱: 처음 화면 "내 PC와 연결하기"에 링크를 붙여 넣거나 QR 스캔 → 터미널의 bridge 지문과 같은지 확인.
-- 데이터 폴더: `data.json`(학습, 0600), `skills/<이름>/SKILL.md`(원격 기기에 보일 스킬, 처음엔 예시 스킬), `bridge/`(페어링 정보), `stt/`(음성 설정·모델).
-- 음성 입력(ADR-047): 서버 PC에 whisper-cli를 설치(macOS `brew install whisper-cpp`, 그 밖은 whisper.cpp 빌드 후 `--whisper-cli`)하면, 페어링한 모바일·웹 앱의 설정 › 음성 입력에서 켜고 모델(190MB·574MB)을 받아 쓸 수 있습니다. 전사는 서버 PC에서만 하고, 시작 화면에 현재 상태가 한 줄로 나옵니다.
-- API 키는 `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` 환경변수로 줍니다(메모리에만 보관, 파일·로그에 남지 않음). CLI는 사용자 본인이 로그인한 공식 CLI를 실행할 뿐 인증 파일을 읽지 않습니다.
-- 데스크톱 앱과 데이터를 공유하지 않습니다(별개 호스트). Ctrl+C로 끄면 진행 중 답변을 멈추고 저장한 뒤 종료합니다.
+- Data folder: `data.json` (studies, 0600), `skills/<name>/SKILL.md`, `bridge/` (pairing), `stt/` (voice settings and models).
+- Provide API keys via `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` (kept in memory only, never written to files or logs).
+- It does not share data with the desktop app (separate host). Ctrl+C stops in-progress answers, saves and exits.
 
-## 헤드리스 Bridge (원격 CLI 사용)
+## Headless bridge & relay
 
-CLI가 로그인된 PC에서 bridge만 띄우고, 데스크톱 앱의 "다른 PC에 연결"로 그 PC의 CLI를 씁니다. 웹·모바일에서 PC에 저장되는 학습을 쓰려면 데스크톱 앱 또는 아래 `rhymebook serve`가 필요합니다(헤드리스 bridge는 CLI 실행만 제공).
+Run only the bridge on a PC where a CLI is logged in, and use that PC's CLI from the desktop app ("Connect to another PC").
 
 ```bash
-pnpm bridge -- --pair                 # :7777, QR·링크·1회용 코드(5분) 표시
-pnpm bridge -- devices                # 페어링된 기기 목록
-pnpm bridge -- unpair <id|all>        # 페어링 해제
+pnpm bridge -- --pair                 # :7777, QR / link / one-time code (5 min)
+pnpm bridge -- devices
+pnpm bridge -- unpair <id|all>
+
+pnpm relay                                                          # relay on :8787
+pnpm bridge -- --pair --relay ws://<relay-host>:8787                 # direct + relay
+pnpm bridge -- --pair --relay wss://relay.example.com --relay-only   # no open ports
 ```
 
-- 앱: 설정 › 연결 › 원격 Bridge › 페어링 시작 → 링크 붙여넣기 또는 주소 + 코드 입력. 앱에 보이는 bridge 지문이 터미널 지문과 같은지 확인하세요.
-- 같은 LAN 또는 Tailscale에서 TCP 7777로 직접 접속합니다.
+- Check that the bridge fingerprint shown in the app matches the one in the terminal.
+- The relay only forwards ciphertext. For public deployments run it behind a TLS proxy (Caddy / nginx) as `wss://` (B-09).
 
-### Relay (NAT 뒤 bridge)
+## Providers & policy
 
-```bash
-pnpm relay                                                     # :8787
-pnpm bridge -- --pair --relay ws://<relay 호스트>:8787           # 직접 + relay
-pnpm bridge -- --pair --relay wss://relay.example.com --relay-only   # 포트를 열지 않음
-```
-
-- relay는 암호문만 중계합니다(페이로드 E2E 암호화). 공개 배포 시 TLS 프록시(Caddy/nginx) 뒤에서 `wss://` 로 운영하세요(B-09).
-
-## Provider와 정책
-
-| Provider | 쓰는 곳 | 비고 |
+| Provider | Where | Notes |
 |---|---|---|
-| Anthropic API / OpenAI API | 모든 플랫폼 | 본인 API 키(BYOK). 공개 배포의 기본 provider |
-| Claude CLI / Codex CLI | 데스크톱, 헤드리스 bridge | 사용자 본인이 로그인한 **공식 CLI 실행**만 사용. 도구 비활성/읽기 전용 샌드박스, 매 호출 무상태 |
-| 원격 Bridge | 데스크톱(다른 PC에 연결) | 페어링된 bridge 경유(직접 또는 relay) |
-| PC 원격 학습 | 웹·모바일 | PC 데스크톱 앱 스토어 미러 + 질문 신호, CLI는 PC가 실행(ADR-026) |
-| Mock | 데모 모드 | 가짜 스트리밍 |
+| Anthropic API / OpenAI API | all platforms | bring your own key; default provider for public builds |
+| Claude CLI / Codex CLI | desktop, headless bridge / host | runs **your own logged-in official CLI** only; tools limited (read-only), stateless calls |
+| Remote bridge | desktop | through a paired bridge (direct or relay) |
+| PC remote study | web, mobile | mirrors the PC store; the PC runs the CLI |
+| Mock | demo mode | fake streaming |
 
-- OAuth 토큰·인증 파일을 읽거나 추출하지 않으며, 클라이언트 헤더를 위조하지 않습니다. 로그인 여부는 CLI 공식 상태 명령으로만 확인합니다.
-- 구독 연결은 본인 기기의 본인 CLI로 한정합니다(다른 사람과 구독 공유 금지).
-- API 키·페어링 키는 OS 보안 저장소에만 저장합니다(웹은 탭 메모리 전용 — 새로고침 시 다시 입력). 로그·커밋·relay 평문에 남기지 않습니다.
+- OctoBooks never reads or extracts OAuth tokens or CLI auth files and never spoofs client headers. Login status is checked only with the CLI's official status command.
+- Subscription use is limited to your own CLI on your own devices — don't share subscriptions.
+- API keys and pairing keys live only in the OS secure storage (web: tab memory only). They are never written to logs, commits or relay plaintext.
 
-## 검증
+## Development
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm test     # 타입체크 · ESLint · Vitest (core/ui/bridge/relay)
+pnpm typecheck && pnpm lint && pnpm test     # TypeScript · ESLint · Vitest
 
-pnpm exec playwright install chromium        # 최초 1회
-pnpm e2e                                     # Playwright E2E (데스크톱 1440×900 · 모바일 390×844)
+pnpm exec playwright install chromium        # once
+pnpm e2e                                     # Playwright E2E (desktop 1440×900 · mobile 390×844)
 ```
 
-E2E는 모의 Anthropic SSE 서버(`e2e/mock-anthropic.mjs`, :8799)와 Vite(:5191)를 자동으로 띄워 키 확인 → 3단계 가지 → 요약 붙이기 → 새로고침 유지, 분할·마인드맵·검색, 데모 시나리오 렌더, 이해 노트 Markdown·Anki 내보내기를 확인합니다. 실제 API 키는 필요 없습니다.
+E2E starts a mock Anthropic SSE server (`e2e/mock-anthropic.mjs`, :8799) and Vite (:5191) automatically — no real API key needed.
 
-## CI / 릴리스 (GitHub Actions)
+App icon: the source is `assets/icon/glyph.svg`; run `node scripts/gen-icons.mjs` to regenerate desktop, iOS, Android and web icons.
 
-- `.github/workflows/ci.yml` — push(main)·PR: 타입체크·린트·단위 테스트, Playwright E2E(실패 시 trace 아티팩트).
-- `.github/workflows/release.yml` — 태그 `v*` 또는 수동 실행: macOS·Windows·Linux 러너가 각 OS용 데스크톱 설치본, ubuntu가 Android debug APK를 만들고, 태그면 초안 GitHub Release에 첨부합니다.
-- 서명: 저장소 secrets(`MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`)가 있을 때만 적용되고, 없으면 미서명으로 빌드합니다. 인증서를 저장소에 커밋하지 마세요(B-10).
+### CI / releases (GitHub Actions)
 
-## 문서
+- `.github/workflows/ci.yml` — push to main / PRs: typecheck, lint, unit tests, Playwright E2E.
+- `.github/workflows/release.yml` — tag `v*` or manual: desktop installers on macOS / Windows / Linux runners and an Android debug APK, attached to a draft GitHub Release for tags.
+- Signing is applied only when repository secrets (`MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`) exist. Never commit certificates (B-10).
 
-진행 현황은 [`docs/PROGRESS.md`](docs/PROGRESS.md), 사람의 조치가 필요한 항목은 [`docs/BLOCKERS.md`](docs/BLOCKERS.md), 설계 결정은 [`docs/DECISIONS.md`](docs/DECISIONS.md)를 보세요.
+## Naming & compatibility
 
-### 예약과 응답 완료 알림
+The project started as **Branch Learn**, was renamed **rhymebook**, and has been **OctoBooks** since v0.20.0 (repository: `lafin716/octobooks`). Updating an existing install keeps studies, settings and API keys. For compatibility these are unchanged: the app ID, the desktop data folder (`<appData>/rhymebook`), `branch://` pairing links, `@branch/*` packages, `RHYMEBOOK_*` env vars, the `rhymebook` CLI alias and the backup format. Rebrand notes: [docs/rebrand/](docs/rebrand).
 
-대화에서 “매일 오전 9시에 퀴즈 내줘” 또는 `/schedule`로 예약하고, 사이드바 **예약 관리**에서 수정·일시정지·삭제할 수 있습니다. 응답 완료 로컬 알림은 기본으로 켜져 있으며 설정에서 바꿉니다. 예약은 앱 실행 중에 동작합니다. [사용 안내와 플랫폼 지원 범위](docs/scheduling.md)를 확인하세요.
+## Docs
+
+Progress: [`docs/PROGRESS.md`](docs/PROGRESS.md) · items needing human action: [`docs/BLOCKERS.md`](docs/BLOCKERS.md) · design decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md) (Korean).

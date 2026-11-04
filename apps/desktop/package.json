@@ -84,5 +84,5 @@
     "artifactName": "octobooks-${version}-${os}-${arch}.${ext}"
   },
   "author": "octobooks",
-  "homepage": "https://github.com/lafin716/rhymebook"
+  "homepage": "https://github.com/lafin716/octobooks"
 }
