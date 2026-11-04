@@ -1,206 +1,93 @@
-# OctoBooks
+<p align="center">
+  <a href="https://github.com/lafin716/octobooks">
+    <img src="apps/desktop/build/icon.png" alt="OctoBooks logo" width="128">
+  </a>
+</p>
+<h1 align="center">OctoBooks</h1>
+<p align="center">The open source branching study chat. Branch out. Dive deep.</p>
+<p align="center">
+  <a href="https://github.com/lafin716/octobooks/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/lafin716/octobooks?style=flat-square" /></a>
+  <a href="https://github.com/lafin716/octobooks/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/lafin716/octobooks/ci.yml?style=flat-square&branch=main&label=ci" /></a>
+  <a href="https://github.com/lafin716/octobooks/releases"><img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20iOS%20%7C%20Android%20%7C%20Web-0e7c86?style=flat-square" /></a>
+</p>
 
-**English** | [한국어](README.ko.md)
+<p align="center">
+  <a href="README.md">English</a> |
+  <a href="README.ko.md">한국어</a>
+</p>
 
-> Like an octopus's arms, one small question branches into many paths of learning.
+[![OctoBooks desktop](docs/rebrand/screenshots/desktop.png)](https://github.com/lafin716/octobooks/releases/latest)
 
-OctoBooks is a branching study chat app. While reading an answer, drag over any word or sentence you don't understand to open a **sub-session (branch)** right there. The branch inherits its parent's context, so you can ask short questions like "what does this mean here?" Branches can branch again without limit, and when you're done you send a **summary card** back to the parent so the main conversation absorbs what you learned.
+---
 
-- Platforms: web · desktop (macOS / Windows / Linux, Electron) · mobile (iOS / Android, Capacitor)
-- Answers come from your own **official `claude` / `codex` CLI** login or your own **API key** (Anthropic / OpenAI)
-- Current version: **v0.51.0** · Design docs: [`docs/`](docs) (Korean)
+While reading an AI answer, drag over any word or sentence you don't understand to open a **branch** right there. The branch inherits its parent's context, branches can branch again, and when you're done a **summary card** flows back to the parent. Your main conversation stays clean, and your whole path of curiosity stays visible as a tree.
 
-## Features
+### Installation
 
-**Branching study**
-- Drag text in an answer → ask in a branch; ancestor anchors and parent conversation are passed as context
-- Summary cards returned to the parent, footnote-style sub-sessions without an anchor
-- View the session tree as split panels (left/right, top/bottom, drag to split), floating popups (bottom sheet on mobile), or a mind map
-- Conversation navigation (table of contents, ↑/↓ jump), search, separate session windows (desktop)
+Download the latest build from [GitHub Releases](https://github.com/lafin716/octobooks/releases/latest).
 
-**Reading & notes**
-- Highlights, underlines, text colors, fonts, bold/italic and memos on answer text
-- KaTeX math, SVG previews (with **View SVG code**), copy / listen (TTS) from the selection menu
-- **Understanding notes**: export a session tree as Markdown or Anki cards, export/import whole studies as a zip, turn them into a book
-- **Vault**: save answers, selections and images into a tree of pages; page editor with columns, emoji and a canvas board with presentation mode
+| Platform              | Download                                  |
+| --------------------- | ----------------------------------------- |
+| macOS (Apple Silicon) | `octobooks-<version>-mac-arm64.dmg`       |
+| Windows               | `octobooks-<version>-win-x64.exe`         |
+| Linux                 | `.AppImage` or `.deb`                     |
+| Android               | `octobooks-android.apk`                   |
 
-**Assistant tools**
-- **Skills** (`/quiz`, `/speak`, …): slash skills, auto-matched skills, SKILL.md folders, AI-assisted skill and prompt editing
-- **Knowledge base per study**: drop files/folders, links or a GitHub repo (default branch only); the CLI reads them with read-only tools
-- Web search / fetch tools (toggle per session), file and image attachments
-- Voice input via local whisper.cpp (desktop / headless host)
-- **Schedules & notifications**: "quiz me every day at 9am" or `/schedule`, manage in the sidebar, local notifications when answers finish ([guide](docs/scheduling.md))
+> [!NOTE]
+> Builds are not code-signed yet, so macOS Gatekeeper and Windows SmartScreen will show a warning on first launch. On macOS, right-click the app and choose **Open**.
 
-**Devices & sync**
-- Multiple profiles: use a device on its own (local data + API key) or mirror a paired PC
-- Pair phones / browsers with your PC by QR code or 6-digit code; payloads are end-to-end encrypted
-- Headless host `octobooks serve` for servers without the desktop app, and a relay for hosts behind NAT
-- Backups: file, Google Drive, GitHub, automatic and encrypted
-- UI languages: Korean (default) and English — chosen on first launch, changeable in Settings ([translating](docs/i18n.md))
-- Themes: Ocean · Lagoon · Coral · Abyss · Pearl, each with system / light / dark
-
-## Requirements
-
-- Node.js 22+, pnpm 10 (`corepack enable`)
-- Optional: official `claude` / `codex` CLI (subscription use), Xcode (iOS), Android Studio (Android)
+#### From source
 
 ```bash
 git clone https://github.com/lafin716/octobooks.git
 cd octobooks
-pnpm install
+corepack enable && pnpm install   # Node.js 22+, pnpm 10
+pnpm dev                          # web app on http://localhost:5173
 ```
 
-## Repository layout
+For desktop, mobile, the headless host and packaging, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-| Path | Contents |
-|---|---|
-| `packages/core` | Domain model, anchors, context building, tree, Zustand store, provider interface (platform-agnostic) |
-| `packages/ui` | Vite + React + Tailwind SPA shared by every platform (also the web build) |
-| `packages/bridge` | Runs official CLIs + WebSocket server (embedded in desktop / headless) |
-| `packages/server` | `octobooks serve` — headless host without the desktop app |
-| `packages/relay` | Outbound WebSocket relay (end-to-end encrypted payloads) |
-| `apps/desktop` | Electron (bridge embedded in the main process) |
-| `apps/mobile` | Capacitor (iOS / Android) |
-| `e2e/` | Playwright end-to-end tests + mock Anthropic SSE server |
+### Bring your own model
 
-## Web
+OctoBooks doesn't run its own AI service. Answers come from:
+
+- **Claude CLI / Codex CLI** — your own logged-in official CLI on your PC (desktop app or headless host)
+- **Anthropic API / OpenAI API** — your own API key, on every platform
+
+OctoBooks never reads OAuth tokens or CLI auth files, and API keys stay in your OS secure storage.
+
+### Features
+
+- **Branching** — branch from any text, unlimited depth, summary cards back to the parent, footnote sub-sessions
+- **Views** — split panels, floating popups (bottom sheets on mobile), mind map, search, table of contents
+- **Notes** — highlights, colors and memos on answers; export to Markdown, Anki cards, zip study packs or a book
+- **Vault** — save answers and images into pages, with a page editor and a canvas board with presentation mode
+- **Skills** — `/quiz`, `/speak` and your own SKILL.md skills; AI-assisted skill and prompt editing
+- **Knowledge base** — attach files, links or a GitHub repo to a study; the CLI reads them with read-only tools
+- **More** — web search, attachments, KaTeX, SVG preview, text-to-speech, local whisper voice input, schedules and notifications
+- **Everywhere** — pair your phone or browser with your PC by QR code (end-to-end encrypted), or run `octobooks serve` on a server
+- **Yours** — backups to file, Google Drive or GitHub; Korean / English UI; five ocean themes with light and dark
+
+### Documentation
+
+- [Development guide](docs/DEVELOPMENT.md) — build, run, package, headless host, relay
+- [Scheduling](docs/scheduling.md) · [Translating](docs/i18n.md)
+- Design docs (Korean): [vision](docs/00-VISION.md), [PRD](docs/01-PRD.md), [architecture](docs/02-ARCHITECTURE.md), [providers](docs/03-PROVIDERS.md), [decisions](docs/DECISIONS.md)
+
+### Contributing
+
+Issues and pull requests are welcome. Before opening a PR, run:
 
 ```bash
-pnpm dev          # http://0.0.0.0:5173 (LAN and Tailscale *.ts.net allowed)
+pnpm typecheck && pnpm lint && pnpm test && pnpm e2e
 ```
 
-- From a phone: `http://<PC LAN IP>:5173` on the same Wi-Fi, or `http://<host>.<tailnet>.ts.net:5173` over Tailscale.
-- On the start screen pick a profile: **this device** (local IndexedDB + API key) or a paired PC (mirror). Add `?platform=desktop` on the dev server to force the local desktop mode.
-- Demo mode: the scenario menu on the dev server (or `#scenario=home` etc.) shows seeded screens with a mock provider.
-- Static build: `pnpm --filter @branch/ui build` → host `packages/ui/dist/` anywhere. Preview with `pnpm --filter @branch/ui preview`.
-- Optional build-time env vars:
-  - `VITE_GOOGLE_CLIENT_ID` — OAuth client ID for Google Drive backup (mock drive if missing)
-  - `VITE_ANTHROPIC_BASE_URL`, `VITE_OPENAI_BASE_URL` — override API endpoints (proxies, tests)
+Domain logic lives in `packages/core` as pure functions with Vitest tests; UI text has Korean and English versions ([docs/i18n.md](docs/i18n.md)).
 
-## Desktop (Electron)
+### Name
 
-```bash
-pnpm dev                                   # terminal 1: Vite dev server
-pnpm --filter @branch/desktop dev          # terminal 2: Electron (loads the dev server)
+OctoBooks was formerly **rhymebook** (and **Branch Learn** before that). Some internal names (`@branch/*`, `RHYMEBOOK_*`, `branch://`) are kept for compatibility.
 
-pnpm --filter @branch/desktop build        # renderer + main bundle → apps/desktop/dist
-pnpm --filter @branch/desktop start        # run the build
-```
+---
 
-Packaging (electron-builder, output in `apps/desktop/release/`):
-
-```bash
-pnpm --filter @branch/desktop package:dir  # app folder only (quick check) → release/mac-arm64/OctoBooks.app
-pnpm --filter @branch/desktop package      # installers for the current OS: mac dmg/zip · win nsis · linux AppImage/deb
-```
-
-- Build installers for each OS on that OS (or a CI runner).
-- Code signing / notarization isn't configured by default (BLOCKERS B-03). To build unsigned on macOS set `CSC_IDENTITY_AUTO_DISCOVERY=false`. To sign, provide `CSC_LINK` / `CSC_KEY_PASSWORD` (+ `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` for notarization) as CI secrets.
-- **Background mode**: with remote pairing on, closing the window keeps OctoBooks in the tray / menu bar so paired phones and browsers keep working. Quit fully from the tray menu (or ⌘Q on macOS).
-- The desktop app embeds the bridge, so it uses the `claude` / `codex` CLI installed and logged in on your PC. API keys are stored in the OS secure storage (safeStorage).
-
-## Mobile (Capacitor)
-
-```bash
-pnpm --filter @branch/mobile build:android   # Android debug APK (Android Studio / SDK required)
-pnpm --filter @branch/mobile build:ios-sim   # iOS simulator build (Xcode, unsigned)
-pnpm --filter @branch/mobile android         # open in Android Studio
-pnpm --filter @branch/mobile ios             # open in Xcode
-```
-
-- Use the phone on its own with an API key, or pair it with your PC: the PC's studies are mirrored and the PC answers with its own CLI.
-- Pairing: on the PC, Settings › Connection › **Open remote pairing** → **Connect phone / web**, then **Scan QR** on the phone, or enter the link / address + 6-digit code. Scanning with the OS camera opens the app via the `branch://pair` deep link.
-- Store distribution and signing: BLOCKERS B-07.
-
-## Headless host `octobooks serve`
-
-Run this on a server or PC instead of the desktop app; mobile and web apps pair with it exactly like with the desktop. Studies, questions, branches, summaries and formatting are synced, and answers are generated with that machine's `claude` / `codex` CLI (or an API key).
-
-```bash
-pnpm octobooks -- serve --pair          # build and run. :7777, shows QR / link / one-time code (5 min)
-pnpm octobooks -- serve                 # only already-paired devices can connect
-pnpm octobooks -- devices               # list paired devices
-pnpm octobooks -- unpair <id|all>       # unpair (restart a running serve to disconnect)
-# Single build artifact: node packages/server/dist/rhymebook.cjs serve --pair
-```
-
-Shortcut scripts at the repo root install dependencies on first run and rebuild the server each time (1–2 s, skip with `RHYMEBOOK_NO_BUILD=1`). Without arguments they run `serve`; arguments starting with an option get `serve` prepended.
-
-```bash
-./rhymebook.sh --pair          # macOS / Linux (= serve --pair)
-./rhymebook.sh devices
-rhymebook.cmd --pair           # Windows (double-click in Explorer runs serve)
-```
-
-| Option | Description |
-|---|---|
-| `--port` / `--host` | default `7777` (`RHYMEBOOK_PORT`) / `0.0.0.0` |
-| `--name` | name shown in the apps (defaults to the computer name on first run) |
-| `--dir` | data folder (default `$RHYMEBOOK_HOME` → `~/.config/rhymebook`, Windows `%APPDATA%\rhymebook`) |
-| `--agent auto\|claude-cli\|codex-cli` | agent for new studies (auto: ready claude → codex → API key) |
-| `--no-delete` | prevent remote devices from deleting studies / questions |
-| `--relay <url>` / `--relay-only` | accept connections through a relay when behind NAT |
-| `--whisper-cli <path>` | whisper-cli for voice input (default: `BRANCH_WHISPER_CLI` → PATH / Homebrew) |
-| `-v` | verbose logs |
-
-- Data folder: `data.json` (studies, 0600), `skills/<name>/SKILL.md`, `bridge/` (pairing), `stt/` (voice settings and models).
-- Provide API keys via `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` (kept in memory only, never written to files or logs).
-- It does not share data with the desktop app (separate host). Ctrl+C stops in-progress answers, saves and exits.
-
-## Headless bridge & relay
-
-Run only the bridge on a PC where a CLI is logged in, and use that PC's CLI from the desktop app ("Connect to another PC").
-
-```bash
-pnpm bridge -- --pair                 # :7777, QR / link / one-time code (5 min)
-pnpm bridge -- devices
-pnpm bridge -- unpair <id|all>
-
-pnpm relay                                                          # relay on :8787
-pnpm bridge -- --pair --relay ws://<relay-host>:8787                 # direct + relay
-pnpm bridge -- --pair --relay wss://relay.example.com --relay-only   # no open ports
-```
-
-- Check that the bridge fingerprint shown in the app matches the one in the terminal.
-- The relay only forwards ciphertext. For public deployments run it behind a TLS proxy (Caddy / nginx) as `wss://` (B-09).
-
-## Providers & policy
-
-| Provider | Where | Notes |
-|---|---|---|
-| Anthropic API / OpenAI API | all platforms | bring your own key; default provider for public builds |
-| Claude CLI / Codex CLI | desktop, headless bridge / host | runs **your own logged-in official CLI** only; tools limited (read-only), stateless calls |
-| Remote bridge | desktop | through a paired bridge (direct or relay) |
-| PC remote study | web, mobile | mirrors the PC store; the PC runs the CLI |
-| Mock | demo mode | fake streaming |
-
-- OctoBooks never reads or extracts OAuth tokens or CLI auth files and never spoofs client headers. Login status is checked only with the CLI's official status command.
-- Subscription use is limited to your own CLI on your own devices — don't share subscriptions.
-- API keys and pairing keys live only in the OS secure storage (web: tab memory only). They are never written to logs, commits or relay plaintext.
-
-## Development
-
-```bash
-pnpm typecheck && pnpm lint && pnpm test     # TypeScript · ESLint · Vitest
-
-pnpm exec playwright install chromium        # once
-pnpm e2e                                     # Playwright E2E (desktop 1440×900 · mobile 390×844)
-```
-
-E2E starts a mock Anthropic SSE server (`e2e/mock-anthropic.mjs`, :8799) and Vite (:5191) automatically — no real API key needed.
-
-App icon: the source is `assets/icon/glyph.svg`; run `node scripts/gen-icons.mjs` to regenerate desktop, iOS, Android and web icons.
-
-### CI / releases (GitHub Actions)
-
-- `.github/workflows/ci.yml` — push to main / PRs: typecheck, lint, unit tests, Playwright E2E.
-- `.github/workflows/release.yml` — tag `v*` or manual: desktop installers on macOS / Windows / Linux runners and an Android debug APK, attached to a draft GitHub Release for tags.
-- Signing is applied only when repository secrets (`MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`) exist. Never commit certificates (B-10).
-
-## Naming & compatibility
-
-The project started as **Branch Learn**, was renamed **rhymebook**, and has been **OctoBooks** since v0.20.0 (repository: `lafin716/octobooks`). Updating an existing install keeps studies, settings and API keys. For compatibility these are unchanged: the app ID, the desktop data folder (`<appData>/rhymebook`), `branch://` pairing links, `@branch/*` packages, `RHYMEBOOK_*` env vars, the `rhymebook` CLI alias and the backup format. Rebrand notes: [docs/rebrand/](docs/rebrand).
-
-## Docs
-
-Progress: [`docs/PROGRESS.md`](docs/PROGRESS.md) · items needing human action: [`docs/BLOCKERS.md`](docs/BLOCKERS.md) · design decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md) (Korean).
+**Found a bug or have an idea?** [Open an issue](https://github.com/lafin716/octobooks/issues)
