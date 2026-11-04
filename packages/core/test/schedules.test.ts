@@ -187,15 +187,15 @@ describe('schedule builtin integration', () => {
   });
 
   it('attaches an optional skill to a schedule (ADR-110)', () => {
-    expect(validateScheduleInput({ ...INPUT, skill: '/Quiz ' })).toMatchObject({ skill: 'quiz' });
-    expect(validateScheduleInput({ ...INPUT, skill: null })).not.toHaveProperty('skill');
-    expect(validateScheduleInput({ ...INPUT, skill: '' })).not.toHaveProperty('skill');
-    expect(validateScheduleInput(INPUT)).not.toHaveProperty('skill');
-    expect(validateScheduleInput({ ...INPUT, skill: 'schedule' })).toBeNull();
-    expect(validateScheduleInput({ ...INPUT, skill: 'bad name!' })).toBeNull();
-    expect(validateScheduleInput({ ...INPUT, skill: 3 })).toBeNull();
-    expect(validateScheduleInput({ ...INPUT, extra: 1 })).toBeNull();
-    expect(parseScheduleBlock(block({ ...INPUT, skill: 'quiz' }))?.skill).toBe('quiz');
+    expect(validateScheduleInput({ ...INPUT, skill: '/Quiz ' }, NOW)).toMatchObject({ skill: 'quiz' });
+    expect(validateScheduleInput({ ...INPUT, skill: null }, NOW)).not.toHaveProperty('skill');
+    expect(validateScheduleInput({ ...INPUT, skill: '' }, NOW)).not.toHaveProperty('skill');
+    expect(validateScheduleInput(INPUT, NOW)).not.toHaveProperty('skill');
+    expect(validateScheduleInput({ ...INPUT, skill: 'schedule' }, NOW)).toBeNull();
+    expect(validateScheduleInput({ ...INPUT, skill: 'bad name!' }, NOW)).toBeNull();
+    expect(validateScheduleInput({ ...INPUT, skill: 3 }, NOW)).toBeNull();
+    expect(validateScheduleInput({ ...INPUT, extra: 1 }, NOW)).toBeNull();
+    expect(parseScheduleBlock(block({ ...INPUT, skill: 'quiz' }), NOW)?.skill).toBe('quiz');
   });
 
   it('infers the task skill and never the schedule skill', () => {
