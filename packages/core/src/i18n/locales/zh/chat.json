@@ -111,7 +111,8 @@
     "manageSkills": "管理技能…"
   },
   "panel": {
-    "label": "对话"
+    "label": "对话",
+    "responding": "正在回复… 点击跳到底部"
   },
   "footnotes": {
     "label": "脚注",

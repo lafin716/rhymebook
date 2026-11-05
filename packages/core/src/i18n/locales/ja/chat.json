@@ -111,7 +111,8 @@
     "manageSkills": "スキルを管理…"
   },
   "panel": {
-    "label": "会話"
+    "label": "会話",
+    "responding": "応答中… クリックで最新へ移動"
   },
   "footnotes": {
     "label": "脚注",

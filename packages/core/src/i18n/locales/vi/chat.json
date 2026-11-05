@@ -111,7 +111,8 @@
     "manageSkills": "Quản lý kỹ năng…"
   },
   "panel": {
-    "label": "Cuộc trò chuyện"
+    "label": "Cuộc trò chuyện",
+    "responding": "Đang trả lời… bấm để xuống cuối"
   },
   "footnotes": {
     "label": "Chú thích",

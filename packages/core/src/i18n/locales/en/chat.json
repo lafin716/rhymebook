@@ -111,7 +111,8 @@
     "manageSkills": "Manage skills…"
   },
   "panel": {
-    "label": "Conversation"
+    "label": "Conversation",
+    "responding": "Responding… click to jump to the latest"
   },
   "footnotes": {
     "label": "Footnotes",

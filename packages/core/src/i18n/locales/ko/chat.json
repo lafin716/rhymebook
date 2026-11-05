@@ -111,7 +111,8 @@
     "manageSkills": "스킬 관리…"
   },
   "panel": {
-    "label": "대화"
+    "label": "대화",
+    "responding": "응답 중… 클릭하면 맨 아래로"
   },
   "footnotes": {
     "label": "각주",

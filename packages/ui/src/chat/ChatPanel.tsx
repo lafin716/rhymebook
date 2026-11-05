@@ -38,6 +38,7 @@ function ConversationPanel({ sessionId, variant = 'main', headerActions, handleC
     return list?.length ? list[list.length - 1]!.content.length : 0;
   });
   const lastStatus = useApp((s) => s.messages[sessionId]?.at(-1)?.status);
+  const streaming = useApp((s) => !!s.streaming[sessionId]);
   const compact = variant !== 'main';
   const scrollRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -89,6 +90,29 @@ function ConversationPanel({ sessionId, variant = 'main', headerActions, handleC
             {count === 0 ? <EmptyChat sessionId={sessionId} compact={compact} /> : <MessageList sessionId={sessionId} />}
           </div>
         </div>
+        {streaming && (
+          <button
+            type="button"
+            data-responding=""
+            onClick={() => {
+              const el = scrollRef.current;
+              if (!el) return;
+              stick.current = true;
+              el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+            }}
+            title={t('chat.panel.responding')}
+            aria-label={t('chat.panel.responding')}
+            className="animate-pop-in absolute bottom-3 left-1/2 z-10 flex h-7 -translate-x-1/2 items-center gap-1 rounded-full border border-line bg-elev/95 px-3 shadow-pop backdrop-blur hover:bg-surface"
+          >
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="animate-typing-dot size-1.5 rounded-full bg-muted"
+                style={{ animationDelay: `${i * 160}ms` }}
+              />
+            ))}
+          </button>
+        )}
         <ChatNav
           sessionId={sessionId}
           scrollRef={scrollRef}
