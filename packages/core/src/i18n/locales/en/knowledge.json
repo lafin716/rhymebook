@@ -158,7 +158,9 @@
     "rerank": "Rerank results",
     "reset": "Defaults",
     "save": "Save",
-    "topK": "Evidence count"
+    "topK": "Evidence count",
+    "open": "Search settings",
+    "hint": "Applies to every knowledge base."
   },
   "sources": {
     "empty": "No sources added.",
@@ -184,5 +186,17 @@
     "inherited": "Following the parent branch's knowledge bases.",
     "overridden": "This branch uses its own knowledge bases.",
     "reset": "Follow parent"
+  },
+  "settings": {
+    "open": "Knowledge base settings",
+    "title": "Knowledge base settings",
+    "titleOf": "{name} settings",
+    "close": "Close",
+    "descriptionHint": "Describing the material helps search find better matches.",
+    "embeddingHint": "Changing the model requires re-indexing."
+  },
+  "autoIndex": {
+    "label": "Auto index",
+    "hint": "When on, files are indexed as soon as you add them. When off, press Re-index yourself."
   }
 }

@@ -11,7 +11,7 @@ import {
   type KnowledgeProgress,
   type ID,
 } from '@branch/core';
-import { ArrowLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, File, FileText, Folder, FolderOpen, Link2, Maximize2, Minimize2, Pencil, Plus, Trash2, Upload, X, GitBranch } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, File, FileText, Folder, FolderOpen, Link2, Maximize2, Minimize2, Pencil, Plus, Settings2, SlidersHorizontal, Trash2, Upload, X, GitBranch } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
@@ -21,7 +21,7 @@ import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
 import { ipcErrorMessage, knowledgeApi } from './api';
 import { IndexStatus } from './IndexStatus';
-import { KnowledgeInsights, RagSettingsPanel } from './KnowledgeInsights';
+import { AutoIndexSwitch, KnowledgeInsights, KnowledgeSettingsDialog, RagSettingsDialog } from './KnowledgeInsights';
 import { resetSessionKnowledge, toggleSessionKnowledge, useSessionKnowledge } from './sessionKnowledge';
 
 export interface KnowledgeDialogProps {
@@ -81,6 +81,8 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const cancelledRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [ragOpen, setRagOpen] = useState(false);
+  const [kbSettingsOpen, setKbSettingsOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [renaming, setRenaming] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -375,6 +377,9 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
             <Button size="sm" variant="soft" icon={<Plus size={14} />} disabled={busy} onClick={() => setCreating((v) => !v)}>
               {t('knowledge.list.create')}
             </Button>
+            <IconButton size="sm" label={t('knowledge.rag.open')} onClick={() => setRagOpen(true)}>
+              <SlidersHorizontal size={15} />
+            </IconButton>
           </div>
           {creating && (
             <form onSubmit={submitCreate} className="flex flex-col gap-2 px-4 pb-3">
@@ -432,12 +437,6 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                 </li>
               ))}
             </ul>
-            <div className="mt-4 px-2">
-              <RagSettingsPanel
-                value={{ ...DEFAULT_RAG_SETTINGS, ...ragSettings }}
-                onSave={(next) => actions().updateSettings({ rag: next })}
-              />
-            </div>
           </div>
         </aside>
 
@@ -492,9 +491,17 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                     <IconButton size="sm" label={t('knowledge.tree.open')} disabled={busy} onClick={() => openFolder()}>
                       <FolderOpen size={15} />
                     </IconButton>
+                    <IconButton size="sm" label={t('knowledge.settings.open')} onClick={() => setKbSettingsOpen(true)}>
+                      <Settings2 size={15} />
+                    </IconButton>
                     <IconButton size="sm" label={t('knowledge.delete.action')} disabled={busy} onClick={removeBase} className="hover:text-danger">
                       <Trash2 size={15} />
                     </IconButton>
+                  </div>
+                )}
+                {!renaming && (
+                  <div className="ml-auto border-line pl-1 md:ml-2 md:border-l md:pl-3">
+                    <AutoIndexSwitch kbId={current.id} />
                   </div>
                 )}
               </div>
@@ -512,12 +519,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
 
               <IndexStatus kbId={current.id} />
 
-              <KnowledgeInsights
-                kbId={current.id}
-                description={(current as { description?: string }).description}
-                revision={tree}
-                onChanged={() => void refresh(current.id)}
-              />
+              <KnowledgeInsights kbId={current.id} revision={tree} onChanged={() => void refresh(current.id)} />
 
               <div
                 data-knowledge-drop=""
@@ -665,6 +667,22 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
         </IconButton>
       </div>
       {body}
+      <RagSettingsDialog
+        open={ragOpen}
+        onClose={() => setRagOpen(false)}
+        value={{ ...DEFAULT_RAG_SETTINGS, ...ragSettings }}
+        onSave={(next) => actions().updateSettings({ rag: next })}
+      />
+      {current && (
+        <KnowledgeSettingsDialog
+          open={kbSettingsOpen}
+          onClose={() => setKbSettingsOpen(false)}
+          kbId={current.id}
+          name={current.name}
+          description={(current as { description?: string }).description}
+          onChanged={() => void refresh(current.id)}
+        />
+      )}
     </Modal>
   );
 }

@@ -158,7 +158,9 @@
     "rerank": "重新排序结果",
     "reset": "默认值",
     "save": "保存",
-    "topK": "证据数量"
+    "topK": "证据数量",
+    "open": "检索设置",
+    "hint": "适用于所有知识库。"
   },
   "sources": {
     "empty": "没有已添加的来源。",
@@ -184,5 +186,17 @@
     "inherited": "正在沿用父分支的知识库。",
     "overridden": "此分支使用自己的知识库。",
     "reset": "跟随父分支"
+  },
+  "settings": {
+    "open": "知识库设置",
+    "title": "知识库设置",
+    "titleOf": "{name} 设置",
+    "close": "关闭",
+    "descriptionHint": "描述资料内容可让检索更准确。",
+    "embeddingHint": "更换模型后需要重新索引。"
+  },
+  "autoIndex": {
+    "label": "自动索引",
+    "hint": "开启后添加文件时立即索引。关闭时请手动点击“重新索引”。"
   }
 }

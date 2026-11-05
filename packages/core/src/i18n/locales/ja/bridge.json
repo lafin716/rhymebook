@@ -91,7 +91,6 @@
     "notHtml": "Web ページでもテキストでもないため、取得できません",
     "htmlTooLarge": "Web ページが大きすぎて取得できません",
     "tooLarge": "ファイルが大きすぎて追加できません",
-    "tooManyFiles": "ナレッジベースのファイル数の上限を超えるため、追加できません",
     "tooManyBytes": "ナレッジベースの容量の上限を超えるため、追加できません",
     "nameTaken": "同じ名前の項目は作成できません: {name}",
     "gitMissing": "git が見つかりません。git をインストールしてから再度お試しください",
@@ -108,9 +107,7 @@
       "embedFailed": "埋め込みを作成できないため索引を中断しました: {message}",
       "fileTooLarge": "ファイルが大きすぎるため索引から除外しました",
       "keyMissing": "OpenAI API キーがないため埋め込みを作成できません。キーを設定するか、ローカルの埋め込みを選んでください",
-      "pdfUnavailable": "PDF のテキストを読めないため除外しました",
-      "tooManyChunks": "チャンク数の上限（{count}件）を超えたため索引を中断しました",
-      "tooManyFiles": "ファイル数の上限（{count}件）を超えるため索引を作成できません"
+      "pdfUnavailable": "PDF のテキストを読めないため除外しました"
     },
     "badSettings": "索引設定の値が正しくありません",
     "diskLow": "ディスクの空き容量が足りないため追加できません",

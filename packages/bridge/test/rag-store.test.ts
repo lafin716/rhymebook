@@ -45,6 +45,14 @@ describe('knowledge store: RAG 확장', () => {
     expect(await store.getSettings(kb.id)).toEqual({ embedding: { provider: 'openai', model: 'text-embedding-3-small' } });
   });
 
+  it('자동 색인 끔 설정을 보존하고, 켜면 기본값으로 돌아간다', async () => {
+    const kb = await store.create('자동 색인');
+    await store.setSettings(kb.id, { embedding: { provider: 'local-hash' }, autoIndex: false });
+    expect(await store.getSettings(kb.id)).toEqual({ embedding: { provider: 'local-hash' }, autoIndex: false });
+    await store.setSettings(kb.id, { embedding: { provider: 'local-hash' }, autoIndex: true });
+    expect((await store.getSettings(kb.id)).autoIndex).toBeUndefined();
+  });
+
   it('잘못된 설정은 거절한다', async () => {
     const kb = await store.create('설정 오류');
     await expect(

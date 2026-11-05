@@ -91,7 +91,6 @@
     "notHtml": "Not a web page or text, so it cannot be fetched",
     "htmlTooLarge": "The web page is too large to fetch",
     "tooLarge": "The file is too large to add",
-    "tooManyFiles": "Adding this would exceed the knowledge base file limit",
     "tooManyBytes": "Adding this would exceed the knowledge base size limit",
     "nameTaken": "Could not create an item with this name: {name}",
     "gitMissing": "git was not found. Install git and try again",
@@ -108,9 +107,7 @@
       "embedFailed": "Stopped indexing because embeddings could not be created: {message}",
       "fileTooLarge": "File is too large and was left out of the index",
       "keyMissing": "No OpenAI API key, so embeddings cannot be created. Set a key or choose local embeddings",
-      "pdfUnavailable": "Could not read PDF text, so the file was left out",
-      "tooManyChunks": "Stopped indexing because the chunk limit ({count}) was exceeded",
-      "tooManyFiles": "Cannot index because the file limit ({count}) was exceeded"
+      "pdfUnavailable": "Could not read PDF text, so the file was left out"
     },
     "badSettings": "Invalid index settings",
     "diskLow": "Not enough free disk space to add items",

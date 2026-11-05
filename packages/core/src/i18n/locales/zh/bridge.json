@@ -91,7 +91,6 @@
     "notHtml": "不是网页或文本，无法获取",
     "htmlTooLarge": "网页过大，无法获取",
     "tooLarge": "文件过大，无法添加",
-    "tooManyFiles": "超出知识库文件数量上限，无法添加",
     "tooManyBytes": "超出知识库容量上限，无法添加",
     "nameTaken": "无法创建同名项目：{name}",
     "gitMissing": "找不到 git。请安装 git 后重试",
@@ -108,9 +107,7 @@
       "embedFailed": "无法生成嵌入向量，已中止索引：{message}",
       "fileTooLarge": "文件过大，已排除在索引之外",
       "keyMissing": "没有 OpenAI API 密钥，无法生成嵌入向量。请设置密钥或选择本地嵌入",
-      "pdfUnavailable": "无法读取 PDF 文本，已排除该文件",
-      "tooManyChunks": "超出片段数量上限（{count}个），已中止索引",
-      "tooManyFiles": "超出文件数量上限（{count}个），无法建立索引"
+      "pdfUnavailable": "无法读取 PDF 文本，已排除该文件"
     },
     "badSettings": "索引设置值无效",
     "diskLow": "磁盘剩余空间不足，无法添加",

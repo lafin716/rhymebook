@@ -91,7 +91,6 @@
     "notHtml": "Không phải trang web hay văn bản nên không thể tải",
     "htmlTooLarge": "Trang web quá lớn nên không thể tải",
     "tooLarge": "Tệp quá lớn nên không thể thêm",
-    "tooManyFiles": "Vượt giới hạn số tệp của cơ sở tri thức nên không thể thêm",
     "tooManyBytes": "Vượt giới hạn dung lượng của cơ sở tri thức nên không thể thêm",
     "nameTaken": "Không thể tạo mục với tên này: {name}",
     "gitMissing": "Không tìm thấy git. Hãy cài git rồi thử lại",
@@ -108,9 +107,7 @@
       "embedFailed": "Đã dừng lập chỉ mục vì không tạo được embedding: {message}",
       "fileTooLarge": "Tệp quá lớn nên đã bị loại khỏi chỉ mục",
       "keyMissing": "Chưa có khóa API OpenAI nên không thể tạo embedding. Hãy đặt khóa hoặc chọn embedding cục bộ",
-      "pdfUnavailable": "Không đọc được văn bản PDF nên đã loại tệp này",
-      "tooManyChunks": "Đã dừng lập chỉ mục vì vượt giới hạn số đoạn ({count})",
-      "tooManyFiles": "Không thể lập chỉ mục vì vượt giới hạn số tệp ({count})"
+      "pdfUnavailable": "Không đọc được văn bản PDF nên đã loại tệp này"
     },
     "badSettings": "Cài đặt chỉ mục không hợp lệ",
     "diskLow": "Không đủ dung lượng trống trên ổ đĩa để thêm mục",

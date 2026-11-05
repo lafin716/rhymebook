@@ -15,7 +15,7 @@ function installFakeKnowledge() {
     files: Map<string, string>;
     description?: string;
     sources: Src[];
-    settings: { embedding: { provider: 'local-hash' | 'openai'; model?: string } };
+    settings: { embedding: { provider: 'local-hash' | 'openai'; model?: string }; autoIndex?: boolean };
   };
   const bases = new Map<string, Base>();
   let seq = 0;
@@ -188,7 +188,7 @@ test('학습에 지식베이스를 만들어 연결하고 자료를 넣고 지�
   const main = await start(page);
 
   await main.locator('[data-knowledge-button]').click();
-  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('아직 지식베이스가 없어요.');
 
@@ -317,7 +317,7 @@ test('설명·문서 검색·출처 갱신·임베딩 설정', async ({ page }) 
   const main = await start(page);
 
   await main.locator('[data-knowledge-button]').click();
-  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
   await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
   await dialog.getByLabel('새 지식베이스').fill('논문');
   await dialog.getByRole('button', { name: '만들기' }).click();
@@ -329,14 +329,6 @@ test('설명·문서 검색·출처 갱신·임베딩 설정', async ({ page }) 
   await dialog.getByLabel('GitHub 저장소').fill('acme/notes');
   await dialog.getByRole('button', { name: '클론' }).click();
   await expect(dialog.locator('[data-entry="repos/repo/README.md"]')).toBeVisible();
-
-  // 설명: 비어 있으면 안내가 보이고, 저장하면 바뀐다
-  await expect(dialog.locator('[data-knowledge-description]')).toContainText('설명이 없어요');
-  await dialog.getByRole('button', { name: '수정', exact: true }).click();
-  const descInput = dialog.getByPlaceholder('예: 우리 팀 배포 절차 문서 모음');
-  await descInput.fill('세포 신호전달 논문 모음');
-  await descInput.locator('xpath=ancestor::form[1]').getByRole('button', { name: '저장', exact: true }).click();
-  await expect(dialog.locator('[data-knowledge-description]')).toContainText('세포 신호전달 논문 모음');
 
   // 문서 목록: 두 문서가 보이고, 검색어로 걸러진다
   const docs = dialog.locator('[data-doc]');
@@ -350,9 +342,6 @@ test('설명·문서 검색·출처 갱신·임베딩 설정', async ({ page }) 
   await search.fill('');
   await expect(docs).toHaveCount(2);
 
-  // 저장 용량 패널
-  await expect(dialog.locator('[data-storage-usage]')).toContainText('색인');
-
   // 출처: GitHub 출처만 갱신 버튼이 있고, 누르면 완료 문구가 뜬다
   const sources = dialog.locator('[data-source]');
   await expect(sources).toHaveCount(1);
@@ -360,14 +349,35 @@ test('설명·문서 검색·출처 갱신·임베딩 설정', async ({ page }) 
   await sources.first().getByRole('button', { name: '갱신', exact: true }).click();
   await expect(dialog.getByText('출처를 갱신했어요.')).toBeVisible();
 
+  // 설명·저장 용량·임베딩은 지식베이스 설정 팝업에 있다
+  await dialog.getByRole('button', { name: '지식베이스 설정', exact: true }).click();
+  const kbSettings = page.getByRole('dialog', { name: '지식베이스 설정', exact: true });
+  await expect(kbSettings).toBeVisible();
+  await expect(kbSettings).toContainText('논문 설정');
+
+  // 설명: 비어 있으면 안내가 보이고, 저장하면 바뀐다
+  await expect(kbSettings.locator('[data-knowledge-description]')).toContainText('설명이 없어요');
+  await kbSettings.getByRole('button', { name: '수정', exact: true }).click();
+  const descInput = kbSettings.getByPlaceholder('예: 우리 팀 배포 절차 문서 모음');
+  await descInput.fill('세포 신호전달 논문 모음');
+  await descInput.locator('xpath=ancestor::form[1]').getByRole('button', { name: '저장', exact: true }).click();
+  await expect(kbSettings.locator('[data-knowledge-description]')).toContainText('세포 신호전달 논문 모음');
+
+  // 저장 용량
+  await expect(kbSettings.locator('[data-storage-usage]')).toContainText('색인');
+
   // 임베딩: OpenAI를 고르면 외부 전송 안내가 뜨고, 저장하면 다시 색인을 권한다
-  const provider = dialog.locator('label', { hasText: '방식' }).locator('select');
+  const provider = kbSettings.locator('label', { hasText: '방식' }).locator('select');
   await expect(provider).toHaveValue('local-hash');
-  await expect(dialog.locator('[data-external-notice]')).toHaveCount(0);
+  await expect(kbSettings.locator('[data-external-notice]')).toHaveCount(0);
   await provider.selectOption('openai');
-  await expect(dialog.locator('[data-external-notice]')).toContainText('OpenAI 서버로 전송');
+  await expect(kbSettings.locator('[data-external-notice]')).toContainText('OpenAI 서버로 전송');
   await provider.locator('xpath=ancestor::form[1]').getByRole('button', { name: '저장', exact: true }).click();
-  await expect(dialog).toContainText('모델이 바뀌었어요');
+  await expect(kbSettings).toContainText('모델이 바뀌었어요');
+
+  await kbSettings.getByRole('button', { name: '닫기', exact: true }).click();
+  await expect(kbSettings).toBeHidden();
+  await expect(dialog).toBeVisible();
 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
@@ -381,7 +391,7 @@ test('여러 지식베이스를 세션마다 고르고, 가지는 상속하며 �
   const main = await start(page);
 
   await main.locator('[data-knowledge-button]').click();
-  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
   // 모바일은 자료를 고르면 목록이 가려지므로 목록으로 돌아간다
   const backToList = async () => {
     const back = dialog.getByRole('button', { name: '목록으로' });
@@ -464,7 +474,7 @@ test('연결된 지식베이스의 근거가 답변 출처 칩으로 붙고, 누
   const main = await start(page);
 
   await main.locator('[data-knowledge-button]').click();
-  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
   await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
   await dialog.getByLabel('새 지식베이스').fill('생명과학');
   await dialog.getByRole('button', { name: '만들기' }).click();
@@ -497,10 +507,13 @@ test('검색 설정의 근거 개수를 저장하면 전역 설정에 남는다'
   const main = await start(page);
 
   await main.locator('[data-knowledge-button]').click();
-  const dialog = page.getByRole('dialog', { name: '지식베이스' });
-  const topK = dialog.getByLabel('근거 개수');
+  const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
+  await dialog.getByRole('button', { name: '검색 설정', exact: true }).click();
+  const rag = page.getByRole('dialog', { name: '검색 설정', exact: true });
+  const topK = rag.getByLabel('근거 개수');
   await topK.fill('4');
-  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+  await rag.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(rag).toBeHidden();
 
   const stored = await page.evaluate(async () => {
     const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
@@ -508,4 +521,29 @@ test('검색 설정의 근거 개수를 저장하면 전역 설정에 남는다'
     return appStore.getState().settings.rag?.topK;
   });
   expect(stored).toBe(4);
+});
+
+test('자동 색인 스위치를 끄면 지식베이스 설정에 autoIndex false가 저장된다', async ({ page }) => {
+  await page.addInitScript(installFakeKnowledge);
+  const main = await start(page);
+
+  await main.locator('[data-knowledge-button]').click();
+  const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
+  await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
+  await dialog.getByLabel('새 지식베이스').fill('자동');
+  await dialog.getByRole('button', { name: '만들기' }).click();
+  await expect(dialog.getByRole('heading', { name: '자동', level: 3 })).toBeVisible();
+
+  const sw = dialog.getByRole('switch', { name: '자동 색인' });
+  await expect(sw).toBeChecked();
+  await sw.click();
+  await expect(sw).not.toBeChecked();
+  const saved = await page.evaluate(async () => {
+    const api = (window as unknown as { __branchKnowledgeFake: { list: () => Promise<{ id: string }[]>; getIndexSettings: (id: string) => Promise<{ autoIndex?: boolean }> } }).__branchKnowledgeFake;
+    const [kb] = await api.list();
+    return (await api.getIndexSettings(kb!.id)).autoIndex;
+  });
+  expect(saved).toBe(false);
+  await sw.click();
+  await expect(sw).toBeChecked();
 });

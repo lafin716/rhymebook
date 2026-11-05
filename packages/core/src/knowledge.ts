@@ -62,8 +62,6 @@ export interface KnowledgePreview {
 export const KNOWLEDGE_LIMITS = {
   /** 파일 하나 최대 크기 */
   fileBytes: 20 * 1024 * 1024,
-  /** 지식베이스 하나 최대 파일 수 */
-  files: 5_000,
   /** 지식베이스 하나 최대 크기 */
   totalBytes: 500 * 1024 * 1024,
   /** 미리보기 최대 길이 (문자) */

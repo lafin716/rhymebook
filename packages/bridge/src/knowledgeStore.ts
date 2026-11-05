@@ -330,7 +330,13 @@ const MIN_FREE_FOR_ADD = 100 * 1024 * 1024;
 
 function isIndexSettings(v: unknown): v is KnowledgeIndexSettings {
   const e = (v as { embedding?: { provider?: unknown; model?: unknown } } | null | undefined)?.embedding;
-  return !!e && (e.provider === 'local-hash' || e.provider === 'openai') && (e.model === undefined || typeof e.model === 'string');
+  const auto = (v as { autoIndex?: unknown } | null | undefined)?.autoIndex;
+  return (
+    !!e &&
+    (e.provider === 'local-hash' || e.provider === 'openai') &&
+    (e.model === undefined || typeof e.model === 'string') &&
+    (auto === undefined || typeof auto === 'boolean')
+  );
 }
 
 function parseSources(v: unknown): KnowledgeSource[] {
@@ -574,7 +580,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       budget.skipped++;
       return null;
     }
-    if (st.size > KNOWLEDGE_LIMITS.fileBytes || budget.files + 1 > KNOWLEDGE_LIMITS.files || budget.bytes + st.size > KNOWLEDGE_LIMITS.totalBytes) {
+    if (st.size > KNOWLEDGE_LIMITS.fileBytes || budget.bytes + st.size > KNOWLEDGE_LIMITS.totalBytes) {
       budget.skipped++;
       return null;
     }
@@ -604,7 +610,6 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
   }
 
   function checkBudget(b: { files: number; bytes: number }, adding: { files: number; bytes: number }) {
-    if (b.files + adding.files > KNOWLEDGE_LIMITS.files) fail(t('bridge.knowledge.tooManyFiles'));
     if (b.bytes + adding.bytes > KNOWLEDGE_LIMITS.totalBytes) fail(t('bridge.knowledge.tooManyBytes'));
   }
 
@@ -971,7 +976,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
             budget.skipped++;
             continue;
           }
-          if (budget.files + 1 > KNOWLEDGE_LIMITS.files || budget.bytes + f.data.byteLength > KNOWLEDGE_LIMITS.totalBytes) {
+          if (budget.bytes + f.data.byteLength > KNOWLEDGE_LIMITS.totalBytes) {
             budget.skipped++;
             continue;
           }
@@ -1094,6 +1099,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
             provider: settings.embedding.provider,
             ...(settings.embedding.model ? { model: settings.embedding.model } : {}),
           },
+          ...(settings.autoIndex === false ? { autoIndex: false } : {}),
         };
         await saveMeta(id, { ...meta, settings: clean, updatedAt: Date.now() });
         return clean;

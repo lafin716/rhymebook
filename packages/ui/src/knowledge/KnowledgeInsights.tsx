@@ -1,7 +1,10 @@
 import { t } from '../i18n';
 import { DEFAULT_RAG_SETTINGS, type KnowledgeDoc, type KnowledgeIndexSettings, type KnowledgeIndexState, type KnowledgeSource, type RagSettings } from '@branch/core';
 import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import { Button } from '../components/Button';
+import { X } from 'lucide-react';
+import { Button, IconButton } from '../components/Button';
+import { Modal } from '../components/Modal';
+import { Toggle } from '../settings/controls';
 import { cn } from '../lib/cn';
 import { ipcErrorMessage, knowledgeApi } from './api';
 
@@ -23,7 +26,8 @@ export function bytesLabel(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, children, bare }: { title: string; children: ReactNode; bare?: boolean }) {
+  if (bare) return <>{children}</>;
   return (
     <section className="flex flex-col gap-2">
       <h4 className="text-[13px] font-semibold text-fg-2">{title}</h4>
@@ -81,7 +85,7 @@ export function DescriptionEditor({ kbId, description, onSaved }: { kbId: string
           autoFocus
           value={draft}
           maxLength={500}
-          rows={2}
+          rows={3}
           placeholder={t('knowledge.description.placeholder')}
           onChange={(e) => setDraft(e.target.value)}
           className="scroll-thin resize-none rounded-lg border border-line bg-surface px-2 py-1.5 text-[13px] text-fg outline-none focus:border-accent"
@@ -240,7 +244,7 @@ export function SourcesPanel({ kbId, revision, onChanged }: { kbId: string; revi
 }
 
 /** 임베딩 모델. OpenAI는 문서 본문이 외부 서버로 전송되므로 먼저 알린다 */
-export function EmbeddingPanel({ kbId }: { kbId: string }) {
+export function EmbeddingPanel({ kbId, bare }: { kbId: string; bare?: boolean }) {
   const api = knowledgeApi();
   const [settings, setSettings] = useState<KnowledgeIndexSettings | null>(null);
   const [notice, setNotice] = useState<{ text: string; tone: 'info' | 'error' } | null>(null);
@@ -257,7 +261,9 @@ export function EmbeddingPanel({ kbId }: { kbId: string }) {
     if (!api.setIndexSettings) return;
     setBusy(true);
     try {
-      const state = await api.setIndexSettings(kbId, settings);
+      // 자동 색인 등 다른 설정은 최신 값을 유지한다
+      const latest = await api.getIndexSettings!(kbId).catch(() => settings);
+      const state = await api.setIndexSettings(kbId, { ...latest, embedding: settings.embedding });
       setNotice({ text: state.status === 'stale' || state.status === 'queued' ? t('knowledge.embedding.reindexNeeded') : t('knowledge.embedding.saved'), tone: 'info' });
     } catch (err) {
       setNotice({ text: failure(err), tone: 'error' });
@@ -267,13 +273,13 @@ export function EmbeddingPanel({ kbId }: { kbId: string }) {
   };
   const provider = settings.embedding.provider;
   return (
-    <Section title={t('knowledge.embedding.heading')}>
+    <Section title={t('knowledge.embedding.heading')} bare={bare}>
       <form onSubmit={save} className="flex flex-col gap-2 text-[13px]">
         <label className="flex items-center gap-2">
           <span className="w-24 shrink-0 text-fg-2">{t('knowledge.embedding.provider')}</span>
           <select
             value={provider}
-            onChange={(e) => setSettings({ embedding: { provider: e.target.value as 'local-hash' | 'openai', model: undefined } })}
+            onChange={(e) => setSettings({ ...settings, embedding: { provider: e.target.value as 'local-hash' | 'openai', model: undefined } })}
             className="h-8 rounded-lg border border-line bg-surface px-2 outline-none focus:border-accent"
           >
             <option value="local-hash">{t('knowledge.embedding.local')}</option>
@@ -290,7 +296,7 @@ export function EmbeddingPanel({ kbId }: { kbId: string }) {
           <input
             value={settings.embedding.model ?? ''}
             placeholder={provider === 'openai' ? 'text-embedding-3-small' : t('knowledge.embedding.modelDefault')}
-            onChange={(e) => setSettings({ embedding: { provider, model: e.target.value.trim() || undefined } })}
+            onChange={(e) => setSettings({ ...settings, embedding: { provider, model: e.target.value.trim() || undefined } })}
             className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 outline-none focus:border-accent"
           />
         </label>
@@ -310,7 +316,7 @@ export function EmbeddingPanel({ kbId }: { kbId: string }) {
 }
 
 /** 검색 설정. 값은 호출하는 쪽이 보관한다 (Settings.rag, 스토어 연결 후) */
-export function RagSettingsPanel({ value, onSave }: { value: RagSettings; onSave(next: RagSettings): void }) {
+export function RagSettingsPanel({ value, onSave, bare }: { value: RagSettings; onSave(next: RagSettings): void; bare?: boolean }) {
   const [draft, setDraft] = useState(value);
   const set = <K extends keyof RagSettings>(k: K, v: RagSettings[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const num = (e: ChangeEvent<HTMLInputElement>, min: number, max: number) => Math.min(max, Math.max(min, Number(e.target.value) || min));
@@ -319,8 +325,7 @@ export function RagSettingsPanel({ value, onSave }: { value: RagSettings; onSave
     e.preventDefault();
     onSave(draft);
   };
-  return (
-    <Section title={t('knowledge.rag.heading')}>
+  const form = (
       <form onSubmit={submit} className="flex flex-col gap-2 text-[13px]">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={draft.enabled} onChange={(e) => set('enabled', e.target.checked)} />
@@ -363,12 +368,12 @@ export function RagSettingsPanel({ value, onSave }: { value: RagSettings; onSave
           </Button>
         </div>
       </form>
-    </Section>
   );
+  return bare ? form : <Section title={t('knowledge.rag.heading')}>{form}</Section>;
 }
 
 /** 저장 용량: 원본 크기와 색인 크기, 문서·청크 수 */
-export function StoragePanel({ kbId }: { kbId: string }) {
+export function StoragePanel({ kbId, bare }: { kbId: string; bare?: boolean }) {
   const api = knowledgeApi();
   const [state, setState] = useState<KnowledgeIndexState | null>(null);
   useEffect(() => {
@@ -383,7 +388,7 @@ export function StoragePanel({ kbId }: { kbId: string }) {
   }, [api, kbId]);
   if (!api?.indexStates || !state) return null;
   return (
-    <Section title={t('knowledge.storage.heading')}>
+    <Section title={t('knowledge.storage.heading')} bare={bare}>
       <dl data-storage-usage="" className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] sm:grid-cols-4">
         <div>
           <dt className="text-muted">{t('knowledge.storage.source')}</dt>
@@ -406,15 +411,135 @@ export function StoragePanel({ kbId }: { kbId: string }) {
   );
 }
 
-/** 상세 부가 패널 묶음. 설명은 호출하는 쪽이 저장 후 다시 읽는다 */
-export function KnowledgeInsights({ kbId, description, revision, onChanged }: { kbId: string; description?: string; revision: unknown; onChanged(): void }) {
+/** 상세에 남는 패널: 문서 목록·검색과 출처 (설명·용량·임베딩은 설정 팝업으로) */
+export function KnowledgeInsights({ kbId, revision, onChanged }: { kbId: string; revision: unknown; onChanged(): void }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-line p-3">
-      {knowledgeApi()?.setDescription && <DescriptionEditor kbId={kbId} description={description} onSaved={onChanged} />}
-      <StoragePanel kbId={kbId} />
-      <EmbeddingPanel kbId={kbId} />
       <DocsPanel kbId={kbId} revision={revision} />
       <SourcesPanel kbId={kbId} revision={revision} onChanged={onChanged} />
+    </div>
+  );
+}
+
+/** 팝업 머리글과 닫기 버튼 */
+function PopupFrame({ title, onClose, children }: { title: string; onClose(): void; children: ReactNode }) {
+  return (
+    <>
+      <div className="flex items-center gap-2 border-b border-line px-5 py-3">
+        <h2 className="flex-1 truncate text-[16px] font-semibold">{title}</h2>
+        <IconButton size="sm" label={t('knowledge.settings.close')} onClick={onClose}>
+          <X size={16} />
+        </IconButton>
+      </div>
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">{children}</div>
+    </>
+  );
+}
+
+/** 팝업 안의 한 구역: 제목, 짧은 안내, 내용 */
+function Block({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 px-5 py-4">
+      <div>
+        <h3 className="text-[14px] font-semibold text-fg">{title}</h3>
+        {hint && <p className="mt-0.5 text-[12.5px] text-muted">{hint}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** 검색 설정 팝업 (전역 Settings.rag). 저장하면 닫는다 */
+export function RagSettingsDialog({ open, onClose, value, onSave }: { open: boolean; onClose(): void; value: RagSettings; onSave(next: RagSettings): void }) {
+  return (
+    <Modal open={open} onClose={onClose} label={t('knowledge.rag.heading')} className="md:max-w-md">
+      <PopupFrame title={t('knowledge.rag.heading')} onClose={onClose}>
+        <Block title={t('knowledge.rag.heading')} hint={t('knowledge.rag.hint')}>
+          <RagSettingsPanel
+            bare
+            value={value}
+            onSave={(next) => {
+              onSave(next);
+              onClose();
+            }}
+          />
+        </Block>
+      </PopupFrame>
+    </Modal>
+  );
+}
+
+/** 지식베이스 설정 팝업: 설명, 저장 용량, 임베딩 모델 */
+export function KnowledgeSettingsDialog({
+  open,
+  onClose,
+  kbId,
+  name,
+  description,
+  onChanged,
+}: {
+  open: boolean;
+  onClose(): void;
+  kbId: string;
+  name: string;
+  description?: string;
+  onChanged(): void;
+}) {
+  const api = knowledgeApi();
+  return (
+    <Modal open={open} onClose={onClose} label={t('knowledge.settings.title')} className="md:max-w-lg">
+      <PopupFrame title={t('knowledge.settings.titleOf', { name })} onClose={onClose}>
+        <div data-knowledge-settings="" className="flex flex-col divide-y divide-line">
+          {api?.setDescription && (
+            <Block title={t('knowledge.description.label')} hint={t('knowledge.settings.descriptionHint')}>
+              <DescriptionEditor kbId={kbId} description={description} onSaved={onChanged} />
+            </Block>
+          )}
+          <Block title={t('knowledge.storage.heading')}>
+            <StoragePanel kbId={kbId} bare />
+          </Block>
+          <Block title={t('knowledge.embedding.heading')} hint={t('knowledge.settings.embeddingHint')}>
+            <EmbeddingPanel kbId={kbId} bare />
+          </Block>
+        </div>
+      </PopupFrame>
+    </Modal>
+  );
+}
+
+/** 자동 색인 스위치: 끄면 파일을 넣어도 색인하지 않는다 (다시 색인으로 직접 실행) */
+export function AutoIndexSwitch({ kbId }: { kbId: string }) {
+  const api = knowledgeApi();
+  const [on, setOn] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setOn(null);
+    if (!api?.getIndexSettings) return;
+    let alive = true;
+    void api
+      .getIndexSettings(kbId)
+      .then((s) => alive && setOn(s.autoIndex !== false))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [api, kbId]);
+  if (!api?.getIndexSettings || !api.setIndexSettings || on === null) return null;
+  const change = async (next: boolean) => {
+    setOn(next);
+    setError(null);
+    try {
+      const cur = await api.getIndexSettings!(kbId);
+      await api.setIndexSettings!(kbId, { ...cur, autoIndex: next });
+    } catch (err) {
+      setOn(!next);
+      setError(failure(err));
+    }
+  };
+  return (
+    <div className="flex items-center gap-2" data-auto-index={on ? 'on' : 'off'} title={error ?? t('knowledge.autoIndex.hint')}>
+      <span className={cn('text-[12.5px]', error ? 'text-danger' : 'text-fg-2')}>{t('knowledge.autoIndex.label')}</span>
+      <Toggle checked={on} onChange={(v) => void change(v)} label={t('knowledge.autoIndex.label')} />
     </div>
   );
 }

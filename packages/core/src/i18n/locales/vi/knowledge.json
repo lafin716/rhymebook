@@ -158,7 +158,9 @@
     "rerank": "Sắp xếp lại kết quả",
     "reset": "Mặc định",
     "save": "Lưu",
-    "topK": "Số lượng bằng chứng"
+    "topK": "Số lượng bằng chứng",
+    "open": "Cài đặt tìm kiếm",
+    "hint": "Áp dụng cho mọi cơ sở tri thức."
   },
   "sources": {
     "empty": "Chưa có nguồn nào.",
@@ -184,5 +186,17 @@
     "inherited": "Đang dùng kho tri thức của nhánh cha.",
     "overridden": "Nhánh này dùng kho tri thức riêng.",
     "reset": "Theo nhánh cha"
+  },
+  "settings": {
+    "open": "Cài đặt cơ sở tri thức",
+    "title": "Cài đặt cơ sở tri thức",
+    "titleOf": "Cài đặt {name}",
+    "close": "Đóng",
+    "descriptionHint": "Mô tả tài liệu giúp tìm kiếm chính xác hơn.",
+    "embeddingHint": "Đổi mô hình thì cần lập chỉ mục lại."
+  },
+  "autoIndex": {
+    "label": "Tự động lập chỉ mục",
+    "hint": "Khi bật, tệp được lập chỉ mục ngay khi thêm. Khi tắt, hãy tự nhấn Lập chỉ mục lại."
   }
 }
