@@ -16,6 +16,7 @@ import {
   type RetrievalResult,
   type SearchHit,
   type SourceView,
+  tokenize,
 } from '@branch/core';
 import { throwIfAborted } from './ingestion';
 import type { ChunkRow, IndexRepository, SearchFilter } from './sqliteRepository';
@@ -38,24 +39,29 @@ export interface SearchOptions {
 }
 
 export interface RankList {
-  kind: 'vector' | 'keyword';
+  kind: 'vector' | 'keyword' | 'symbol';
   weight: number;
   keys: string[];
+  /** 가산 신호: 정규화 분모에서 빼서, 없는 질의의 점수를 깎지 않는다 (ADR-115 심볼) */
+  bonus?: boolean;
 }
+
+type Fused = { score: number; vectorRank?: number; keywordRank?: number; symbolRank?: number };
 
 /** 여러 랭킹 목록을 RRF로 합친다. 점수는 0~1로 정규화, 목록별 순위를 함께 돌려준다 */
 export function fuseRrf(
   lists: RankList[],
   k: number,
-): Map<string, { score: number; vectorRank?: number; keywordRank?: number }> {
-  const out = new Map<string, { score: number; vectorRank?: number; keywordRank?: number }>();
-  const maxPossible = lists.reduce((s, l) => s + l.weight, 0) / (k + 1);
+): Map<string, Fused> {
+  const out = new Map<string, Fused>();
+  const maxPossible = lists.reduce((s, l) => s + (l.bonus ? 0 : l.weight), 0) / (k + 1);
   for (const list of lists) {
     list.keys.forEach((key, idx) => {
       const cur = out.get(key) ?? { score: 0 };
       cur.score += list.weight / (k + idx + 1);
       if (list.kind === 'vector' && cur.vectorRank === undefined) cur.vectorRank = idx + 1;
       if (list.kind === 'keyword' && cur.keywordRank === undefined) cur.keywordRank = idx + 1;
+      if (list.kind === 'symbol' && cur.symbolRank === undefined) cur.symbolRank = idx + 1;
       out.set(key, cur);
     });
   }
@@ -87,7 +93,30 @@ export function toCoreChunk(row: ChunkRow): Chunk {
   };
 }
 
-/** 한 KB의 후보 키 (벡터·키워드 각각 상위 candidates) */
+const IDENT_RE = /[A-Za-z_$][\w$]*(?:(?:\.|::|->|#)[A-Za-z_$][\w$]*)*/g;
+
+/**
+ * 심볼 검색어 (ADR-115): 질의 속 식별자(`UserService.getById` → 마지막 조각 포함), 키워드,
+ * 이웃 키워드 2~3개를 붙인 것(`get user by id` → `getuserbyid`의 일부). 키 비교는 저장소가 정규화한다.
+ */
+export function symbolTermsOf(plan: QueryPlan): string[] {
+  const out = new Set<string>();
+  for (const src of [plan.original, plan.rewritten]) {
+    for (const m of (src ?? '').matchAll(IDENT_RE)) {
+      out.add(m[0]);
+      const last = m[0].split(/\.|::|->|#/).at(-1);
+      if (last) out.add(last);
+    }
+  }
+  const toks = tokenize(plan.original);
+  for (const t of plan.keywordQuery) out.add(t);
+  for (let i = 0; i < toks.length; i++) {
+    for (let n = 2; n <= 3 && i + n <= toks.length; n++) out.add(toks.slice(i, i + n).join(''));
+  }
+  return [...out].filter((t) => t.replace(/[^\p{L}\p{N}]+/gu, '').length >= 3).slice(0, 64);
+}
+
+/** 한 KB의 후보 키 (벡터·키워드·심볼 각각 상위 candidates) */
 async function candidatesOf(
   target: KbSearchTarget,
   plan: QueryPlan,
@@ -95,7 +124,7 @@ async function candidatesOf(
   filter: SearchFilter | undefined,
   queryVecs: Map<string, Float32Array>,
   signal?: AbortSignal,
-): Promise<{ vector: number[]; keyword: number[] } | { skip: string }> {
+): Promise<{ vector: number[]; keyword: number[]; symbol: number[] } | { skip: string }> {
   const repo = target.repo;
   if (!repo) return { skip: target.skipReason ?? 'index missing' };
   if (target.skipReason) return { skip: target.skipReason };
@@ -123,7 +152,8 @@ async function candidatesOf(
     }
   }
   const kw = repo.keywordSearch(plan.keywordQuery, settings.candidates, filter);
-  return { vector, keyword: kw.map((h) => h.chunkRowid) };
+  const sym = repo.symbolSearch(symbolTermsOf(plan), settings.candidates, filter);
+  return { vector, keyword: kw.map((h) => h.chunkRowid), symbol: sym.map((h) => h.chunkRowid) };
 }
 
 /** 여러 KB를 검색해 근거를 고른다 */
@@ -140,7 +170,7 @@ export async function retrieveFrom(
   const queryVecs = new Map<string, Float32Array>();
 
   const wanted = targets.filter((t) => req.kbIds.includes(t.kbId));
-  const perKb = new Map<string, { vector: number[]; keyword: number[] }>();
+  const perKb = new Map<string, { vector: number[]; keyword: number[]; symbol: number[] }>();
   for (const target of wanted) {
     const res = await candidatesOf(target, plan, settings, filter, queryVecs, opts.signal);
     if ('skip' in res) {
@@ -155,6 +185,7 @@ export async function retrieveFrom(
   for (const [kbId, r] of perKb) {
     lists.push({ kind: 'vector', weight: settings.vectorWeight, keys: r.vector.map((x) => `${kbId}:${x}`) });
     lists.push({ kind: 'keyword', weight: settings.keywordWeight, keys: r.keyword.map((x) => `${kbId}:${x}`) });
+    if (r.symbol.length) lists.push({ kind: 'symbol', weight: settings.keywordWeight, bonus: true, keys: r.symbol.map((x) => `${kbId}:${x}`) });
   }
   const fused = fuseRrf(lists, settings.rrfK);
   const ranked = [...fused.entries()]
@@ -197,6 +228,7 @@ export async function retrieveFrom(
         score: f.score,
         vectorRank: f.vectorRank,
         keywordRank: f.keywordRank,
+        symbolRank: f.symbolRank,
       };
       candidates.push({
         hit,

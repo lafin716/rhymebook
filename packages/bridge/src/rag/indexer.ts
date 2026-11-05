@@ -22,12 +22,12 @@ import {
 import {
   ingestKnowledge,
   IndexFatalError,
-  LIMITS,
   scanFiles,
   throwIfAborted,
   type IngestProgress,
   type IngestResult,
 } from './ingestion';
+import { createCodeParser } from './codeParser';
 import { createPdfExtractor } from './pdfText';
 import { IndexRepository, type JobRow } from './sqliteRepository';
 import { retrieveFrom, sourceFrom, type KbSearchTarget } from './searchEngine';
@@ -51,6 +51,8 @@ export interface KnowledgeIndexerOptions {
   getOpenAIKey: () => Promise<string | undefined> | string | undefined;
   /** pdfjs-dist legacy 빌드 경로 (생략 시 패키지 해석) */
   pdfjsPath?: string;
+  /** tree-sitter wasm 디렉터리 (ADR-115). 없으면 코드도 정규식 청킹 */
+  treeSitterDir?: string;
   /** OpenAI 호출용 fetch (테스트 주입) */
   fetch?: typeof globalThis.fetch;
   log?: (msg: string) => void;
@@ -74,6 +76,8 @@ export interface KnowledgeIndexer {
   docs(kbId: string): Promise<KnowledgeDoc[]>;
   /** 설정 변경 알림: 임베딩 모델이 다르면 stale 표시 */
   settingsChanged(kbId: string): Promise<void>;
+  /** 자동 색인이 꺼진 채 파일이 바뀜: 색인하지 않고 'stale'로 표시 */
+  markStale(kbId: string): Promise<void>;
   /** 검색 */
   retrieve(req: RetrievalRequest, signal?: AbortSignal): Promise<RetrievalResult>;
   /** 출처 보기 */
@@ -108,6 +112,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
   const freeBytes = opts.freeBytes ?? defaultFreeBytes;
   const retryDelayMs = opts.retryDelayMs ?? 500;
   const pdfExtract = createPdfExtractor(opts.pdfjsPath);
+  const codeParser = createCodeParser({ dir: opts.treeSitterDir, log });
   const repos = new Map<string, IndexRepository>();
   const states = new Map<string, KnowledgeIndexState>();
   const runtime = new Map<string, KbRuntime>();
@@ -289,9 +294,6 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
 
       const { files } = await scanFiles(filesDir);
       const sourceBytes = files.reduce((s, f) => s + f.size, 0);
-      if (files.length > LIMITS.maxFiles) {
-        throw new IndexFatalError('too_many_files', t('bridge.knowledge.index.tooManyFiles', { count: LIMITS.maxFiles }));
-      }
       await ensureDisk(kbId, sourceBytes);
       throwIfAborted(controller.signal);
 
@@ -309,6 +311,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
             provider,
             mode: 'full',
             pdfExtract,
+            codeParser,
             signal: controller.signal,
             onProgress,
             retryDelayMs,
@@ -346,6 +349,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
           provider,
           mode: 'incremental',
           pdfExtract,
+          codeParser,
           signal: controller.signal,
           onProgress,
           retryDelayMs,
@@ -485,6 +489,16 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
         persistState(repo, { status: 'stale' });
         emit({ ...stateFromRepo(kbId, repo), status: 'stale' });
       }
+    },
+
+    async markStale(kbId) {
+      if (closed || dropped.has(kbId)) return;
+      const rt = runtime.get(kbId);
+      if (rt?.running || queue.includes(kbId)) return;
+      kbDir(kbId);
+      const repo = ensureRepo(kbId);
+      persistState(repo, { status: 'stale' });
+      emit({ ...stateFromRepo(kbId, repo), status: 'stale', progress: undefined });
     },
 
     async retrieve(req, signal) {

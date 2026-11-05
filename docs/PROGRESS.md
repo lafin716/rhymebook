@@ -8,6 +8,22 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 코드 AST 청킹 + 심볼 표 (2026-11-05, ADR-115)
+
+- [x] `bridge/src/rag/codeParser.ts`: tree-sitter(WASM) 함수·클래스 단위 청킹, 한정 이름·주석·docstring, 정규식 폴백
+- [x] 색인 스키마 v3 `symbols` 표, `symbolSearch` → RRF 세 번째(가산) 목록, `SearchHit.symbolRank`
+- [x] 청커 메타(`chunker`)가 바뀌면 코드 문서 재청킹(임베딩 캐시 재사용)
+- [x] 패키지: `dist/treesitter` 복사 + asarUnpack, main → worker 경로 전달
+- [x] PASS: typecheck, lint, unit(core 774, ui 110, bridge 168+3 skip)
+- [x] `pnpm e2e` 236 passed, 패키지 smoke 1 passed (`userRepository.ts` → `UserRepository.findUserById` 1위), 패키지 앱 재빌드·실행
+
+## 지식베이스 설정 팝업·자동 색인·한도 제거 (2026-11-05, ADR-114)
+
+- [x] 검색 설정 → 목록 머리 "검색 설정" 팝업, 설명·저장 용량·임베딩 → 상세 "지식베이스 설정" 팝업
+- [x] 상세 우측 상단 "자동 색인" 스위치 (`autoIndex`, 꺼지면 `markStale`만)
+- [x] 파일 수 5,000개·청크 한도 제거 (500MB·파일당 20MB는 유지), 스트리밍 벡터 검색 top-k만 유지
+- [x] PASS: typecheck, lint, unit(core 774, ui 110, bridge 160+3 skip), `pnpm e2e` 235 passed (prompts.spec 1건 패키징 동시 실행 중 타이밍 flaky, 단독 재실행 16/16 통과), 패키지 앱 재빌드·실행
+
 ## 지식베이스 로컬 색인 + Context-Aware RAG (2026-11-05)
 
 계획: `docs/plans/knowledge-rag-plan.md`, 결정: ADR-113. 프로젝트 모드(리더 계약 + core/bridge/desktop·UI 3명 병렬 + 독립 리뷰).

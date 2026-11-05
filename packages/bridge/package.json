@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@branch/core": "workspace:*",
+    "@vscode/tree-sitter-wasm": "0.3.1",
     "jpeg-js": "^0.4.4",
     "pdfjs-dist": "6.4.299",
     "pngjs": "^7.0.0",

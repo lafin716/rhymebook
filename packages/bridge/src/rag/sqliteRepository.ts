@@ -6,7 +6,7 @@ import { existsSync, statSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import type { DocKind, EmbeddingModelInfo } from '@branch/core';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** 벡터 행렬 메모리 캐시 상한 */
 const VECTOR_CACHE_LIMIT_BYTES = 256 * 1024 * 1024;
@@ -62,6 +62,32 @@ export interface ChunkInsert {
   symbol?: string;
   hash: string;
   vec?: Float32Array;
+}
+
+/** 코드 심볼 한 건 (ADR-115). chunkId는 심볼 시작 줄을 담은 leaf */
+export interface SymbolInsert {
+  name: string;
+  kind: string;
+  lineStart: number;
+  lineEnd: number;
+  signature: string;
+  doc?: string;
+  chunkId: string;
+}
+
+export interface SymbolHit {
+  chunkRowid: number;
+  chunkId: string;
+  docId: string;
+  name: string;
+  /** 일치한 검색어 수 */
+  matched: number;
+}
+
+/** 심볼 검색 키: 마지막 이름 조각을 소문자·영숫자만 남긴 것 (`UserService.getById` → `getbyid`) */
+export function symbolKey(name: string): string {
+  const last = name.split(/[.:#]+|->/).filter(Boolean).at(-1) ?? name;
+  return last.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
 }
 
 export interface JobRow {
@@ -155,6 +181,25 @@ const MIGRATIONS: ((db: DatabaseSync) => void)[] = [
   },
   (db) => {
     db.exec('ALTER TABLE docs ADD COLUMN ctime INTEGER NOT NULL DEFAULT 0');
+  },
+  // ADR-115: 코드 심볼 표
+  (db) => {
+    db.exec(`
+      CREATE TABLE symbols (
+        id INTEGER PRIMARY KEY,
+        doc_id TEXT NOT NULL,
+        chunk_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        key TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        line_start INTEGER NOT NULL,
+        line_end INTEGER NOT NULL,
+        signature TEXT NOT NULL,
+        doc TEXT
+      );
+      CREATE INDEX symbols_key ON symbols(key);
+      CREATE INDEX symbols_doc ON symbols(doc_id);
+    `);
   },
 ];
 
@@ -327,7 +372,7 @@ export class IndexRepository {
    * 문서 하나를 통째로 교체한다 (한 트랜잭션). 기존 청크·벡터·키워드 행을 지운다.
    * 중간 실패 시 이전 상태가 그대로 남는다.
    */
-  replaceDocument(doc: DocRow, chunks: ChunkInsert[]): void {
+  replaceDocument(doc: DocRow, chunks: ChunkInsert[], symbols: SymbolInsert[] = []): void {
     this.transaction(() => {
       this.deleteDocRows(doc.docId);
       this.db
@@ -380,6 +425,17 @@ export class IndexRepository {
           if (c.vec) insVec.run(rowid, c.vec.length, toBlob(c.vec));
         }
       }
+      if (symbols.length) {
+        const insSym = this.db.prepare(
+          `INSERT INTO symbols (doc_id, chunk_id, name, key, kind, line_start, line_end, signature, doc)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        );
+        for (const s of symbols) {
+          const key = symbolKey(s.name);
+          if (!key) continue;
+          insSym.run(doc.docId, s.chunkId, s.name, key, s.kind, s.lineStart, s.lineEnd, s.signature, s.doc ?? null);
+        }
+      }
     });
   }
 
@@ -411,6 +467,7 @@ export class IndexRepository {
     const delFts = this.db.prepare('DELETE FROM fts WHERE rowid = ?');
     for (const rid of rowids) delFts.run(rid);
     this.db.prepare('DELETE FROM chunks WHERE doc_id = ?').run(docId);
+    this.db.prepare('DELETE FROM symbols WHERE doc_id = ?').run(docId);
   }
 
   stats(): { docCount: number; chunkCount: number; leafCount: number; failedDocs: number } {
@@ -486,6 +543,53 @@ export class IndexRepository {
     }));
   }
 
+  // ── symbol search (ADR-115) ──────────────────────
+
+  /**
+   * 심볼 이름 키가 검색어와 정확히 같은 leaf 청크. 너무 흔한 키(maxPerTerm 초과)는 신호가 약해 버린다.
+   * 일치 검색어 수 → 짧은 이름 순.
+   */
+  symbolSearch(terms: string[], limit: number, filter?: SearchFilter, maxPerTerm = 20): SymbolHit[] {
+    const keys = [...new Set(terms.map((t) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')).filter((t) => t.length >= 3))];
+    if (keys.length === 0) return [];
+    const f = filterSql(filter);
+    const q = this.db.prepare(
+      `SELECT c.rowid AS rowid, c.chunk_id AS chunk_id, c.doc_id AS doc_id, s.name AS name
+       FROM symbols s JOIN chunks c ON c.chunk_id = s.chunk_id JOIN docs d ON d.doc_id = s.doc_id
+       WHERE s.key = ? AND c.level = 'leaf'${f.sql}
+       LIMIT ?`,
+    );
+    const byRow = new Map<number, SymbolHit>();
+    for (const key of keys) {
+      const rows = q.all(key, ...f.params, maxPerTerm + 1) as Record<string, unknown>[];
+      if (rows.length > maxPerTerm) continue;
+      for (const r of rows) {
+        const rowid = Number(r.rowid);
+        const hit = byRow.get(rowid);
+        if (hit) hit.matched++;
+        else byRow.set(rowid, { chunkRowid: rowid, chunkId: String(r.chunk_id), docId: String(r.doc_id), name: String(r.name), matched: 1 });
+      }
+    }
+    return [...byRow.values()].sort((a, b) => b.matched - a.matched || a.name.length - b.name.length).slice(0, limit);
+  }
+
+  /** 문서의 심볼 목록 (줄 순) */
+  listSymbols(docId: string): (SymbolInsert & { key: string })[] {
+    const rows = this.db
+      .prepare('SELECT chunk_id, name, key, kind, line_start, line_end, signature, doc FROM symbols WHERE doc_id = ? ORDER BY line_start, id')
+      .all(docId) as Record<string, unknown>[];
+    return rows.map((r) => ({
+      chunkId: String(r.chunk_id),
+      name: String(r.name),
+      key: String(r.key),
+      kind: String(r.kind),
+      lineStart: Number(r.line_start),
+      lineEnd: Number(r.line_end),
+      signature: String(r.signature),
+      doc: (r.doc as string | null) ?? undefined,
+    }));
+  }
+
   // ── vector search (brute force, unit vectors → dot = cosine) ──
 
   /**
@@ -513,14 +617,19 @@ export class IndexRepository {
          WHERE 1 = 1${f.sql}`,
       )
       .iterate(...f.params) as Iterable<{ rowid: number; vec: Uint8Array }>;
-    const scored: { chunkRowid: number; score: number }[] = [];
+    // 색인이 커도 메모리에는 상위 limit개만 둔다 (점수 내림차순 유지)
+    const top: { chunkRowid: number; score: number }[] = [];
     for (const r of rows) {
       const v = blobToVector(r.vec);
       let s = 0;
       for (let k = 0; k < v.length; k++) s += (v[k] ?? 0) * (query[k] ?? 0);
-      scored.push({ chunkRowid: Number(r.rowid), score: s });
+      if (top.length >= limit && s <= (top[top.length - 1]?.score ?? -Infinity)) continue;
+      let at = top.length;
+      while (at > 0 && (top[at - 1]?.score ?? 0) < s) at--;
+      top.splice(at, 0, { chunkRowid: Number(r.rowid), score: s });
+      if (top.length > limit) top.pop();
     }
-    return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+    return top;
   }
 
   private loadMatrix(): { gen: number; rowids: Float64Array; dim: number; data: Float32Array } | null {

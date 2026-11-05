@@ -19,18 +19,17 @@ import {
   type EmbeddingProvider,
 } from '@branch/core';
 import { t } from '@branch/core';
-import type { ChunkInsert, DocRow, IndexRepository } from './sqliteRepository';
+import { REGEX_CHUNKER_ID, type CodeParser, type CodeSymbol } from './codeParser';
+import type { ChunkInsert, DocRow, IndexRepository, SymbolInsert } from './sqliteRepository';
 
 export const LIMITS = {
   maxFileBytes: 20 * 1024 * 1024,
-  maxFiles: 5000,
-  maxChunks: 60000,
 } as const;
 
 /** 디스크 공간·용량 한도 등 작업을 중단해야 하는 실패 */
 export class IndexFatalError extends Error {
   constructor(
-    readonly code: 'disk_full' | 'too_many_files' | 'too_many_chunks' | 'embed_failed' | 'key_missing',
+    readonly code: 'disk_full' | 'embed_failed' | 'key_missing',
     message: string,
   ) {
     super(message);
@@ -54,6 +53,8 @@ export interface IngestOptions {
   mode: 'incremental' | 'full';
   /** PDF 페이지 텍스트 추출기 (없으면 PDF는 건너뛴다) */
   pdfExtract?: (bytes: Uint8Array) => Promise<string[]>;
+  /** 코드 파일 AST 청커 (ADR-115). 없거나 실패하면 정규식 파서를 쓴다 */
+  codeParser?: CodeParser;
   signal?: AbortSignal;
   onProgress?: (p: IngestProgress) => void;
   /** 임베딩 재시도 간격 기본 500ms (테스트에서 0) */
@@ -139,9 +140,6 @@ export async function scanFiles(filesDir: string): Promise<{ files: ScannedFile[
         await walk(abs);
       } else if (real.isFile()) {
         if (!isIndexablePath(rel)) continue;
-        if (files.length >= LIMITS.maxFiles) {
-          throw new IndexFatalError('too_many_files', t('bridge.knowledge.index.tooManyFiles', { count: LIMITS.maxFiles }));
-        }
         files.push({ rel, abs, size: real.size, mtime: Math.floor(real.mtimeMs), ctime: Math.floor(real.ctimeMs) });
       }
     }
@@ -260,6 +258,25 @@ function toInserts(docId: string, chunks: Chunk[], vecs: Map<string, Float32Arra
   });
 }
 
+/** 메타 키: 코드 문서를 만든 청커 id. 바뀌면 코드 문서를 다시 청킹한다 */
+export const CHUNKER_META_KEY = 'chunker';
+
+/** 각 심볼을 시작 줄을 담은 가장 작은 leaf에 잇는다. 담는 leaf가 없으면 뺀다 */
+export function mapSymbols(symbols: CodeSymbol[], chunks: Chunk[]): SymbolInsert[] {
+  const leaves = chunks.filter((c) => c.level === 'leaf' && c.lineStart !== undefined && c.lineEnd !== undefined);
+  const out: SymbolInsert[] = [];
+  for (const s of symbols) {
+    let best: Chunk | undefined;
+    for (const c of leaves) {
+      if (c.lineStart! <= s.lineStart && s.lineStart <= c.lineEnd!) {
+        if (!best || c.lineEnd! - c.lineStart! < best.lineEnd! - best.lineStart!) best = c;
+      }
+    }
+    if (best) out.push({ ...s, chunkId: best.id });
+  }
+  return out;
+}
+
 /**
  * 파일 목록과 저장소를 맞춘다. incremental은 바뀐 파일만, full은 전부 다시 만든다.
  * 실패·취소 시 이미 끝난 문서는 저장돼 있어 다음 실행에서 이어진다.
@@ -293,8 +310,10 @@ export async function ingestKnowledge(opts: IngestOptions): Promise<IngestResult
   result.pruned = repo.pruneDocs(keep).length;
 
   const existingLive = new Map(repo.listDocs().map((d) => [d.path, d]));
-  let liveChunks = repo.stats().chunkCount;
   repo.setModel(provider.info);
+  // 청커가 바뀌면(정규식 → AST 등) 코드 문서는 내용이 같아도 다시 청킹한다. 임베딩은 캐시로 대부분 재사용된다
+  const chunker = opts.codeParser ? await opts.codeParser.chunkerId() : REGEX_CHUNKER_ID;
+  const rechunkCode = (repo.getMeta(CHUNKER_META_KEY) ?? REGEX_CHUNKER_ID) !== chunker;
 
   for (let i = 0; i < files.length; i++) {
     throwIfAborted(opts.signal);
@@ -311,34 +330,47 @@ export async function ingestKnowledge(opts: IngestOptions): Promise<IngestResult
       continue;
     }
 
-    if (opts.mode === 'incremental' && prev && prev.status === 'ok' && prev.mtime === f.mtime && prev.ctime === f.ctime && prev.bytes === f.size) {
+    const kind: DocKind = docKindOf(f.rel) ?? 'text';
+    const forced = rechunkCode && kind === 'code';
+    if (opts.mode === 'incremental' && !forced && prev && prev.status === 'ok' && prev.mtime === f.mtime && prev.ctime === f.ctime && prev.bytes === f.size) {
       result.unchanged++;
       continue;
     }
 
     const bytes = new Uint8Array(await readFile(f.abs));
     const contentHash = sha256Bytes(bytes);
-    if (opts.mode === 'incremental' && prev && prev.status === 'ok' && prev.contentHash === contentHash) {
+    if (opts.mode === 'incremental' && !forced && prev && prev.status === 'ok' && prev.contentHash === contentHash) {
       repo.touchDoc(docId, f.mtime, f.size, f.ctime);
       result.unchanged++;
       continue;
     }
 
-    const kind: DocKind = docKindOf(f.rel) ?? 'text';
     let chunks: Chunk[] = [];
+    let symbols: SymbolInsert[] = [];
     let title = path.posix.basename(f.rel);
     let docError: string | undefined;
+    let codeSymbols: CodeSymbol[] | undefined;
     try {
-      let parsed;
+      let parsed: ReturnType<typeof parseDocument>;
       if (kind === 'pdf') {
         if (!opts.pdfExtract) throw new Error(t('bridge.knowledge.index.pdfUnavailable'));
         const pages = await opts.pdfExtract(bytes);
         parsed = parseDocument({ path: f.rel, pages });
       } else {
-        parsed = parseDocument({ path: f.rel, text: new TextDecoder('utf-8').decode(bytes) });
+        const text = new TextDecoder('utf-8').decode(bytes);
+        parsed = parseDocument({ path: f.rel, text });
+        if (kind === 'code' && opts.codeParser) {
+          const ast = await opts.codeParser.parse(f.rel, text);
+          if (ast) {
+            const base = parsed;
+            parsed = { ...base, blocks: ast.blocks.map((b) => ({ ...b, lang: base.lang })) };
+            codeSymbols = ast.symbols;
+          }
+        }
       }
       title = parsed.title || title;
       chunks = chunkDocument(parsed, docId);
+      if (codeSymbols) symbols = mapSymbols(codeSymbols, chunks);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') throw err;
       docError = err instanceof Error ? err.message : String(err);
@@ -366,20 +398,18 @@ export async function ingestKnowledge(opts: IngestOptions): Promise<IngestResult
     }
 
     const leaves = chunks.filter((c) => c.level === 'leaf');
-    liveChunks += chunks.length - (prev?.chunkCount ?? 0);
-    if (liveChunks > LIMITS.maxChunks) {
-      throw new IndexFatalError('too_many_chunks', t('bridge.knowledge.index.tooManyChunks', { count: LIMITS.maxChunks }));
-    }
 
     const emb = await embedLeaves(repo, provider, leaves, { signal: opts.signal, retryDelayMs, maxRetries });
     result.embedCalls += emb.calls;
     result.cacheHits += emb.hits;
     opts.onProgress?.({ phase: 'write', done: i + 1, total: files.length, current: f.rel });
-    repo.replaceDocument(row, toInserts(docId, chunks, emb.vecs));
+    repo.replaceDocument(row, toInserts(docId, chunks, emb.vecs), symbols);
     result.indexed++;
     result.chunks += chunks.length;
     await yieldTick();
   }
+  // 끝까지 돈 실행만 청커 id를 남긴다 (중간 취소면 다음 실행이 남은 코드 문서를 이어서 다시 청킹)
+  repo.setMeta(CHUNKER_META_KEY, chunker);
   opts.onProgress?.({ phase: 'write', done: files.length, total: files.length });
   return result;
 }

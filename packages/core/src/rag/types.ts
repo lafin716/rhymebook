@@ -124,6 +124,8 @@ export class EmbeddingError extends Error {
 /** 지식베이스별 색인 설정 (meta.json에 저장, 사용자가 바꾼다) */
 export interface KnowledgeIndexSettings {
   embedding: { provider: EmbeddingProviderId; model?: string };
+  /** 파일을 넣을 때 바로 색인할지 (없으면 켜짐) */
+  autoIndex?: boolean;
 }
 
 export const DEFAULT_INDEX_SETTINGS: KnowledgeIndexSettings = { embedding: { provider: 'local-hash' } };
@@ -273,6 +275,8 @@ export interface SearchHit {
   /** 어느 검색에서 몇 위였나 */
   vectorRank?: number;
   keywordRank?: number;
+  /** 코드 심볼 이름 일치 순위 (ADR-115) */
+  symbolRank?: number;
 }
 
 /** 최종 근거 한 건 = 답변 출처 */

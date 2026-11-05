@@ -306,6 +306,7 @@ void app.whenReady().then(() => {
     workerPath: unpackedPath(path.join(__dirname, 'ragWorker.cjs')),
     root: path.join(userData, 'knowledge'),
     pdfjsPath: unpackedPath(path.join(__dirname, 'pdfjs', 'pdf.mjs')),
+    treeSitterDir: unpackedPath(path.join(__dirname, 'treesitter')),
     getOpenAIKey: () => vault.get(secretName.apiKey('openai-api')) ?? undefined,
     log: bridgeLog,
   });
@@ -419,6 +420,13 @@ void app.whenReady().then(() => {
   const queueIndex = (kid: string, full = false) => {
     indexer?.enqueue(kid, full ? 'full' : 'incremental');
   };
+  // 파일을 넣은 뒤: 자동 색인이 꺼져 있으면 색인하지 않고 '다시 색인 필요'로만 표시한다
+  const queueIndexAuto = (kid: string) => {
+    void knowledge
+      .getSettings(kid)
+      .then((s) => (s.autoIndex === false ? indexer?.markStale(kid) : queueIndex(kid)))
+      .catch(() => queueIndex(kid));
+  };
   const kbDesc = (v: unknown): string => {
     if (typeof v !== 'string' || v.length > 500) throw new Error(t('knowledge.error.badDescription'));
     return v.trim();
@@ -430,7 +438,12 @@ void app.whenReady().then(() => {
     if (emb?.model !== undefined && (typeof emb.model !== 'string' || emb.model.length > 100)) {
       throw new Error(t('knowledge.error.badSettings'));
     }
-    return { embedding: { provider, ...(typeof emb?.model === 'string' ? { model: emb.model } : {}) } };
+    const auto = (v as { autoIndex?: unknown }).autoIndex;
+    if (auto !== undefined && typeof auto !== 'boolean') throw new Error(t('knowledge.error.badSettings'));
+    return {
+      embedding: { provider, ...(typeof emb?.model === 'string' ? { model: emb.model } : {}) },
+      ...(auto === false ? { autoIndex: false } : {}),
+    };
   };
   const kbQuery = (v: unknown): string | undefined => {
     if (v === undefined || v === '') return undefined;
@@ -499,13 +512,13 @@ void app.whenReady().then(() => {
     const kid = kbId(id);
     const list = kbPaths(paths);
     const d = kbDest(dest);
-    return kbTask(e, (ctl) => knowledge.addPaths(kid, list, d, ctl)).then((r) => (queueIndex(kid), r));
+    return kbTask(e, (ctl) => knowledge.addPaths(kid, list, d, ctl)).then((r) => (queueIndexAuto(kid), r));
   });
   kbHandle(CH.knowledgeAddFiles, (e, id, files, dest) => {
     if (!Array.isArray(files) || files.length > 500) throw new Error(t('bridge.knowledge.badPath'));
     const kid = kbId(id);
     const d = kbDest(dest);
-    return kbTask(e, (ctl) => knowledge.addFiles(kid, files as { name: string; data: Uint8Array }[], d, ctl)).then((r) => (queueIndex(kid), r));
+    return kbTask(e, (ctl) => knowledge.addFiles(kid, files as { name: string; data: Uint8Array }[], d, ctl)).then((r) => (queueIndexAuto(kid), r));
   });
   // OS 파일 선택 창 (취소하면 빈 결과)
   kbHandle(CH.knowledgePickFiles, async (e, id, dest) => {
@@ -515,22 +528,22 @@ void app.whenReady().then(() => {
     const options: Electron.OpenDialogOptions = { properties: ['openFile', 'multiSelections'] };
     const r = win && !win.isDestroyed() ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     if (r.canceled || r.filePaths.length === 0) return { added: [], skipped: 0 };
-    return kbTask(e, (ctl) => knowledge.addPaths(kid, r.filePaths, d, ctl)).then((res) => (queueIndex(kid), res));
+    return kbTask(e, (ctl) => knowledge.addPaths(kid, r.filePaths, d, ctl)).then((res) => (queueIndexAuto(kid), res));
   });
   kbHandle(CH.knowledgeAddLink, (e, id, url) => {
     if (!isKnowledgeLinkUrl(url)) throw new Error(t('bridge.knowledge.badUrl'));
     const kid = kbId(id);
-    return kbTask(e, (ctl) => knowledge.addLink(kid, url, ctl)).then((r) => (queueIndex(kid), r));
+    return kbTask(e, (ctl) => knowledge.addLink(kid, url, ctl)).then((r) => (queueIndexAuto(kid), r));
   });
   kbHandle(CH.knowledgeCloneGit, (e, id, url) => {
     if (typeof url !== 'string' || url.length > 2048) throw new Error(t('bridge.knowledge.badRepo'));
     const kid = kbId(id);
-    return kbTask(e, (ctl) => knowledge.cloneGit(kid, url, ctl)).then((r) => (queueIndex(kid), r));
+    return kbTask(e, (ctl) => knowledge.cloneGit(kid, url, ctl)).then((r) => (queueIndexAuto(kid), r));
   });
   kbHandle(CH.knowledgeRemoveEntry, async (_e, id, p) => {
     const kid = kbId(id);
     await knowledge.removeEntry(kid, kbPath(p));
-    queueIndex(kid);
+    queueIndexAuto(kid);
   });
 
   // ── 색인·검색 (ADR-113). 검증 후 worker RPC로 넘긴다 ──
@@ -573,7 +586,7 @@ void app.whenReady().then(() => {
     const kid = kbId(id);
     if (typeof sourceId !== 'string' || !/^[a-z0-9]{6,40}$/.test(sourceId)) throw new Error(t('knowledge.error.badId'));
     const sid = sourceId;
-    return kbTask(e, (ctl) => knowledge.updateSource(kid, sid, ctl)).then((r) => (queueIndex(kid), r));
+    return kbTask(e, (ctl) => knowledge.updateSource(kid, sid, ctl)).then((r) => (queueIndexAuto(kid), r));
   });
   kbHandle(CH.knowledgeRetrieve, (_e, req) => {
     // 모양·길이·숫자 범위를 검증하고 정규화한다 (worker도 같은 검증을 한 번 더 한다)

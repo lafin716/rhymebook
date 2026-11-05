@@ -19,6 +19,7 @@ import {
 export interface WorkerData {
   root: string;
   pdfjsPath?: string;
+  treeSitterDir?: string;
 }
 
 export interface WorkerRequest {
@@ -107,6 +108,7 @@ export function runIndexerWorker(port: PortLike | null = parentPort, data: Worke
   const indexerOpts: KnowledgeIndexerOptions = {
     root: data.root,
     pdfjsPath: data.pdfjsPath,
+    treeSitterDir: data.treeSitterDir,
     getOpenAIKey: async () => (await askMain('getKey', [])) as string | undefined,
     log: (msg) => out.postMessage({ event: 'log', msg } satisfies WorkerEvent),
   };
@@ -128,6 +130,8 @@ export function runIndexerWorker(port: PortLike | null = parentPort, data: Worke
         return indexer.docs(a0 as string);
       case 'settingsChanged':
         return indexer.settingsChanged(a0 as string);
+      case 'markStale':
+        return indexer.markStale(a0 as string);
       case 'retrieve': {
         const ac = new AbortController();
         controllers.set(req.id, ac);
@@ -185,6 +189,7 @@ export interface IndexerWorkerOptions {
   workerPath: string;
   root: string;
   pdfjsPath?: string;
+  treeSitterDir?: string;
   getOpenAIKey: KnowledgeIndexerOptions['getOpenAIKey'];
   log?: (msg: string) => void;
   resourceLimits?: ResourceLimits;
@@ -208,7 +213,7 @@ function defaultSpawn(workerPath: string, data: WorkerData, limits: ResourceLimi
 export function startIndexerWorker(opts: IndexerWorkerOptions): KnowledgeIndexer {
   const spawn = opts.spawnWorker ?? defaultSpawn;
   const limits = opts.resourceLimits ?? DEFAULT_WORKER_RESOURCE_LIMITS;
-  const data: WorkerData = { root: opts.root, pdfjsPath: opts.pdfjsPath };
+  const data: WorkerData = { root: opts.root, pdfjsPath: opts.pdfjsPath, treeSitterDir: opts.treeSitterDir };
   const log = (msg: string) => opts.log?.(msg);
 
   let worker: WorkerLike | null = null;
@@ -312,6 +317,7 @@ export function startIndexerWorker(opts: IndexerWorkerOptions): KnowledgeIndexer
     cancel: (kbId) => call<void>('cancel', [kbId]),
     docs: (kbId) => call('docs', [kbId]),
     settingsChanged: (kbId) => call<void>('settingsChanged', [kbId]),
+    markStale: (kbId) => call<void>('markStale', [kbId]),
     retrieve: (req, signal) => call<RetrievalResult>('retrieve', [req], signal),
     source: (kbId, chunkId) => call('source', [kbId, chunkId]),
     drop: (kbId) => call<void>('drop', [kbId]),

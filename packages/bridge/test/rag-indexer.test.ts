@@ -232,6 +232,20 @@ describe('KB 격리와 삭제', () => {
     expect(kbs.has(KB_B)).toBe(false);
   });
 
+  it('markStale은 색인하지 않고 stale로 표시하며, 다시 색인하면 ready가 된다', async () => {
+    await seed(KB_A, ['k8s/pods.md']);
+    const ix = make();
+    await runJob(ix, KB_A);
+    await seed(KB_A, ['k8s/services.md']);
+    await ix.markStale(KB_A);
+    const [st] = await ix.states([KB_A]);
+    expect(st?.status).toBe('stale');
+    expect(st?.docCount).toBe(1);
+    const again = await runJob(ix, KB_A);
+    expect(again.status).toBe('ready');
+    expect(again.docCount).toBe(2);
+  });
+
   it('drop은 색인 파일만 지우고 원본 files는 남긴다', async () => {
     await seed(KB_A, ['k8s/pods.md']);
     const ix = make();
@@ -344,5 +358,60 @@ describe('증분 색인: 변경 감지', () => {
     expect(state.status).toBe('ready');
     const res = await ix.retrieve(requestFor([KB_A], 'delta'));
     expect(JSON.stringify(res.evidence)).toContain('note.md');
+  });
+});
+
+describe('코드 AST 색인과 심볼 신호 (ADR-115)', () => {
+  const tsDir = path.dirname(require.resolve('@vscode/tree-sitter-wasm'));
+  const SRC = [
+    '// 사용자 저장소',
+    'export class UserRepository {',
+    '  /** id로 사용자 한 명을 찾는다 */',
+    '  findUserById(id: string) {',
+    '    return this.rows.get(id);',
+    '  }',
+    '}',
+    '',
+    'export function normalizeEmail(raw: string): string {',
+    '  return raw.trim().toLowerCase();',
+    '}',
+    '',
+  ].join('\n');
+
+  async function symbolCount(kbId: string): Promise<number> {
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(path.join(root, kbId, INDEX_FILE), { readOnly: true });
+    try {
+      return Number((db.prepare('SELECT COUNT(*) AS n FROM symbols').get() as { n: number }).n);
+    } finally {
+      db.close();
+    }
+  }
+
+  it('코드 파일을 함수·클래스 단위로 색인하고 심볼 이름으로 찾는다', async () => {
+    await writeFile(path.join(filesOf(KB_A), 'users.ts'), SRC);
+    const ix = make({ treeSitterDir: tsDir });
+    expect((await runJob(ix, KB_A)).status).toBe('ready');
+    expect(await symbolCount(KB_A)).toBeGreaterThanOrEqual(3);
+
+    const res = await ix.retrieve(requestFor([KB_A], 'findUserById'));
+    // 작은 클래스는 한 청크로 두고, 멤버 이름은 심볼 표로만 그 청크를 가리킨다
+    expect(res.evidence[0]?.symbol).toBe('UserRepository');
+    expect(res.evidence[0]?.text).toContain('findUserById');
+    const res2 = await ix.retrieve(requestFor([KB_A], 'normalize email'));
+    expect(res2.evidence.some((e) => e.symbol === 'normalizeEmail')).toBe(true);
+  });
+
+  it('청커가 바뀌면 변경 없는 코드 문서도 다시 청킹한다', async () => {
+    await writeFile(path.join(filesOf(KB_A), 'users.ts'), SRC);
+    const regexIx = make();
+    expect((await runJob(regexIx, KB_A)).status).toBe('ready');
+    expect(await symbolCount(KB_A)).toBe(0);
+    await regexIx.close();
+    indexers.splice(indexers.indexOf(regexIx), 1);
+
+    const astIx = make({ treeSitterDir: tsDir });
+    expect((await runJob(astIx, KB_A)).status).toBe('ready');
+    expect(await symbolCount(KB_A)).toBeGreaterThanOrEqual(3);
   });
 });

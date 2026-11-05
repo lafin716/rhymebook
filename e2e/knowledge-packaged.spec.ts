@@ -96,7 +96,7 @@ type Kn = {
   list(): Promise<{ id: string; name: string }[]>;
   indexStates(ids?: string[]): Promise<{ status: string; docCount: number; chunkCount: number; failedDocs: number; error?: string }[]>;
   docs(id: string): Promise<{ docId: string; path: string; kind: string; chunkCount: number; status: string }[]>;
-  retrieve(req: unknown): Promise<{ evidence: { path: string; text: string; page?: number; chunkId: string }[] }>;
+  retrieve(req: unknown): Promise<{ evidence: { path: string; text: string; page?: number; chunkId: string; symbol?: string }[] }>;
 };
 
 const kbIdOf = (page: Page) =>
@@ -164,6 +164,13 @@ test('패키지 앱: 지식베이스 RAG 완료 기준 11개 시나리오', asyn
   const files = [path.join(src, 'networking.md'), path.join(src, 'kube-proxy.pdf')];
   await writeFile(files[0]!, NETWORKING_MD);
   await writeFile(files[1]!, makePdf("pdfsentinel: kube-proxy maintains iptables rules for Service traffic on every node."));
+  // ADR-115: 1,600자를 넘는 클래스는 멤버 단위로 나뉘어 `Class.method` 심볼이 붙는다 (정규식 폴백에서는 붙지 않음)
+  const pad = Array.from({ length: 30 }, (_, i) => `  helper${i}(value: number): number {\n    return value * ${i + 2} + this.rows.size;\n  }`).join('\n');
+  files.push(path.join(src, 'userRepository.ts'));
+  await writeFile(
+    files[files.length - 1]!,
+    `export class UserRepository {\n  private rows = new Map<string, unknown>();\n${pad}\n  /** id로 사용자 한 명을 찾는다 */\n  findUserById(id: string) {\n    return this.rows.get(id);\n  }\n}\n`,
+  );
   for (const f of await readdir(fixtures)) {
     await writeFile(path.join(src, f), await readFile(path.join(fixtures, f)));
     files.push(path.join(src, f));
@@ -203,13 +210,16 @@ test('패키지 앱: 지식베이스 RAG 완료 기준 11개 시나리오', asyn
     const st = await stateOf(page, kbId);
     const docs = await page.evaluate(async (kid) => (window as unknown as { branchDesktop: { knowledge: Kn } }).branchDesktop.knowledge.docs(kid), kbId);
     log(`3 색인 OK ${JSON.stringify(st)} docs=${JSON.stringify(docs.map((d) => [d.path, d.kind, d.chunkCount, d.status]))}`);
-    expect(st.docCount).toBe(4);
+    expect(st.docCount).toBe(5);
     expect(st.failedDocs).toBe(0);
     expect(docs.find((d) => d.kind === 'pdf')?.chunkCount ?? 0).toBeGreaterThan(0);
     const pdfHits = await retrieve(page, kbId, ['pdfsentinel']);
     log(`3 PDF 검색 ${JSON.stringify(pdfHits.map((h) => [h.path, h.page, h.text.slice(0, 80)]))}`);
     expect(pdfHits[0]?.path).toBe('kube-proxy.pdf');
     expect(pdfHits[0]?.page).toBe(1);
+    const codeHits = await retrieve(page, kbId, ['findUserById']);
+    log(`3 코드 심볼 검색 ${JSON.stringify(codeHits.map((h) => [h.path, h.symbol]))}`);
+    expect(codeHits[0]?.symbol).toBe('UserRepository.findUserById');
     await page.screenshot({ path: testInfo.outputPath('kb-indexed.png') });
 
     // 4. 세션에 연결
@@ -274,7 +284,7 @@ test('패키지 앱: 지식베이스 RAG 완료 기준 11개 시나리오', asyn
     await page.keyboard.press('Escape');
     const st = await stateOf(page, kbId);
     expect(st.status).toBe('ready');
-    expect(st.docCount).toBe(4);
+    expect(st.docCount).toBe(5);
     const nav = page.getByRole('navigation', { name: '학습 세션' });
     await nav.locator('[data-tree-title]', { hasText: '쿠버네티스 네트워킹' }).first().click();
     const main = page.locator('[data-panel="main"]');

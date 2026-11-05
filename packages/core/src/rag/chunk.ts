@@ -57,6 +57,9 @@ function groupSections(doc: ParsedDocument): Section[] {
       open([...path, b.symbol ?? ''].filter(Boolean), { symbol: b.symbol });
     } else if (!cur) {
       open(path, { page: b.page });
+    } else if (b.type === 'code' && (cur as Section).symbol) {
+      // AST 청킹: 정의 사이 코드는 앞 심볼 섹션에 붙이지 않는다
+      open(path);
     } else if (b.page !== undefined && b.page !== (cur as Section).page) {
       open(path, { page: b.page });
     }
