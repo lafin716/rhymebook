@@ -1,0 +1,25 @@
+{
+  "tray": {
+    "tooltip": "octobooks — kết nối từ xa đang chạy",
+    "open": "Mở octobooks",
+    "remote": "Kết nối từ xa: {state}{devices}",
+    "devices": " · {count} thiết bị",
+    "on": "bật",
+    "off": "tắt",
+    "quit": "Thoát hoàn toàn"
+  },
+  "notify": {
+    "hiddenTitle": "octobooks vẫn đang chạy ở nền",
+    "hiddenBody": "Việc tạo câu trả lời, thông báo hoàn tất và lịch hẹn vẫn tiếp tục hoạt động. Để tắt hoàn toàn, hãy chọn [{quit}] từ biểu tượng khay hệ thống."
+  },
+  "errors": {
+    "unknownModel": "Không rõ mô hình."
+  },
+  "present": {
+    "title": "Trình bày octobooks"
+  },
+  "host": {
+    "portFailed": "Không thể mở cổng: {reason}",
+    "relayScheme": "Địa chỉ relay phải bắt đầu bằng ws:// hoặc wss://."
+  }
+}

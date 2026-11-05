@@ -1,0 +1,101 @@
+{
+  "label": "Demo (Mẫu)",
+  "availability": {
+    "ready": "Đã kết nối",
+    "offline": "Không thể kết nối tới nhà cung cấp (ngoại tuyến).",
+    "notInstalled": "CLI chưa được cài đặt.",
+    "notLoggedIn": "CLI chưa đăng nhập.",
+    "noKey": "Chưa thiết lập khóa API.",
+    "unpaired": "Chưa ghép cặp với Bridge từ xa."
+  },
+  "error": {
+    "streamCut": "Luồng phản hồi bị ngắt giữa chừng (lỗi demo).",
+    "aborted": "Người dùng đã dừng."
+  },
+  "fallbackTopic": "khái niệm này",
+  "title": {
+    "attention": "Attention trong Transformer",
+    "fallback": "Học mới"
+  },
+  "canned": {
+    "roadmap": {
+      "match": "curriculum|roadmap|study ?plan|lộ trình|kế hoạch học|chương trình học",
+      "flags": "",
+      "answer": "**Lộ trình Transformer 4 tuần**. Mỗi tuần một chương, và mỗi chương đặt nền móng cho chương tiếp theo.\n\n## Tuần 1: Vectơ và tích vô hướng\n_Mục tiêu: xem từ như vectơ và đo mức độ giống nhau giữa chúng · khoảng 4 giờ_\n\n1. **1.1 Vectơ là gì** — hiểu vì sao từ được biểu diễn bằng danh sách số\n2. **1.2 Tích vô hướng** — đo bằng số mức độ giống nhau của hai vectơ\n3. **1.3 Độ tương đồng cosine** — bỏ qua độ dài và chỉ so sánh hướng\n\n## Tuần 2: Softmax và xác suất\n_Mục tiêu: biến các điểm số thành trọng số có tổng bằng 1 · khoảng 3 giờ_\n\n1. **2.1 Hàm mũ** — hiểu vì sao nó làm các điểm số lớn càng lớn hơn\n2. **2.2 Chuẩn hóa** — chia để tổng bằng 1\n\n## Tuần 3: Attention\n_Mục tiêu: tính tổng có trọng số bằng Query, Key và Value · khoảng 5 giờ_\n\n1. **3.1 Query, Key, Value** — phân biệt vai trò của ba vectơ\n2. **3.2 Tích vô hướng có tỷ lệ** — hiểu vì sao điểm số được chia cho √d\n3. **3.3 Tổng có trọng số** — trộn các Value theo trọng số\n\n## Tuần 4: Đa đầu và khối Transformer\n_Mục tiêu: xếp chồng attention thành các khối · khoảng 5 giờ_\n\n1. **4.1 Đa đầu** — nhìn sự vật từ nhiều góc độ cùng lúc\n2. **4.2 Kết nối tắt và chuẩn hóa** — giữ cho việc học ổn định ngay cả khi xếp chồng sâu\n\n> Hãy nhớ dành thời gian cho mỗi chương để tự tay tính toán.\n\n```branches\n{\"chapters\":[{\"title\":\"Tuần 1: Vectơ và tích vô hướng\",\"question\":\"Tuần 1: vectơ và tích vô hướng, giải thích từng bước kèm ví dụ\"},{\"title\":\"Tuần 2: Softmax và xác suất\",\"question\":\"Tuần 2: hãy chỉ cho tôi cách softmax biến điểm số thành xác suất\"},{\"title\":\"Tuần 3: Attention\",\"question\":\"Tuần 3: hãy giải thích công thức attention từng dòng một\"},{\"title\":\"Tuần 4: Đa đầu và khối Transformer\",\"question\":\"Tuần 4: hãy giải thích attention đa đầu và cấu trúc của khối Transformer\"}],\"next\":[{\"title\":\"Toán cần biết trước\",\"question\":\"Trước khi bắt đầu lộ trình này, tôi nên biết những toán gì?\"},{\"title\":\"Thứ tự học mỗi ngày\",\"question\":\"Mỗi ngày học một chương thì nên học theo thứ tự nào?\"}]}\n```"
+    },
+    "cosine": {
+      "match": "cosine|cô-sin|côsin",
+      "flags": "",
+      "answer": "**Độ tương đồng cosine** là thước đo chỉ xét **mức độ hai vectơ cùng chỉ về một hướng**.\n\n- Công thức: `cos θ = (a · b) / (|a| |b|)`\n- Khoảng giá trị: **-1** (ngược hướng) đến **1** (cùng hướng)\n\n> Ví dụ so sánh: chỉ so sánh *hướng* mà hai người dùng ngón tay chỉ, và bỏ qua độ dài cánh tay.\n\nCó thể hiểu tích vô hướng trong attention là \"độ tương đồng cosine thô\", tức là chưa chia cho độ dài."
+    },
+    "dot": {
+      "match": "tích vô hướng|tích trong|dot ?product|inner product",
+      "flags": "i",
+      "answer": "**Tích vô hướng (dot product)** là phép nhân các giá trị ở cùng vị trí của hai vectơ rồi cộng tất cả lại.\n\n```python\nq = [1, 2, 0]\nk = [2, 1, 3]\nscore = sum(a * b for a, b in zip(q, k))  # 1*2 + 2*1 + 0*3 = 4\n```\n\nHai vectơ càng **cùng hướng** thì giá trị càng lớn. Vì vậy attention dùng nó làm điểm số đo mức độ \"Query và Key khớp nhau đến đâu\".\nNếu chuẩn hóa thêm theo độ dài, bạn sẽ được **độ tương đồng cosine**."
+    },
+    "softmax": {
+      "match": "softmax",
+      "flags": "i",
+      "answer": "**Softmax** là hàm biến một danh sách điểm số thành **phân phối xác suất có tổng bằng 1**.\n\n| Điểm số | e^điểm | Tỷ lệ |\n|---|---|---|\n| 2.0 | 7.39 | 0.66 |\n| 1.0 | 2.72 | 0.24 |\n| 0.1 | 1.11 | 0.10 |\n\n> Ví dụ so sánh: giống như đổi số phiếu thành tỷ lệ phiếu, nhưng người dẫn đầu được đẩy lên một chút.\n\nTrong attention, softmax được dùng để quyết định **mức độ chú ý đến từng từ (trọng số)**."
+    },
+    "scale": {
+      "match": "√|căn|sqrt|scal|tỷ lệ",
+      "flags": "i",
+      "answer": "**Chia cho √d_k** là cần thiết vì tích vô hướng tăng lên khi số chiều lớn hơn.\n\n1. Khi số chiều d_k lớn, phương sai của tích vô hướng cũng tăng tỷ lệ với d_k\n2. Khi các giá trị lớn đi vào softmax, một phần tử gần bằng 1 còn các phần tử khác gần bằng 0 → **triệt tiêu gradient**\n3. Chia cho √d_k đưa phương sai về gần 1\n\n> Ví dụ so sánh: nếu bài thi chấm trên thang 1000 điểm, khoảng cách thứ hạng trông quá cực đoan, nên người ta quy đổi về thang 100 điểm."
+    },
+    "qkv": {
+      "match": "Query|Key|Value|Q\\/K\\/V|QKV",
+      "flags": "i",
+      "answer": "**Query / Key / Value** dễ hình dung khi ví với tìm kiếm trong thư viện.\n\n- **Query (truy vấn)**: thứ mình muốn tìm — \"sách về mèo\"\n- **Key (khóa chỉ mục)**: nhãn của mỗi cuốn sách — thứ được so với từ khóa tìm kiếm\n- **Value (giá trị)**: nội dung thực sự của cuốn sách sẽ được lấy ra\n\nAttention tính **tích vô hướng** giữa Query và tất cả các Key để chấm điểm mức liên quan, rồi dùng các điểm đó để trộn các Value và tạo ra kết quả.\nCả ba vectơ đều được lấy từ cùng một embedding của từ, nhân với các ma trận trọng số khác nhau `W_Q`, `W_K`, `W_V`."
+    },
+    "multihead": {
+      "match": "đa đầu|multi.?head",
+      "flags": "i",
+      "answer": "**Attention đa đầu (multi-head attention)** là cách chạy nhiều attention (nhiều đầu) song song.\n\n- Mỗi đầu có bộ `W_Q, W_K, W_V` riêng nên học được quan hệ từ **một góc nhìn khác**\n- Ví dụ: một đầu tập trung vào ngữ pháp, đầu khác tập trung vào đối tượng được nhắc tới (nó → con mèo)\n- Kết quả được ghép nối (concat) rồi kết hợp lại bằng một phép biến đổi tuyến tính\n\n> Ví dụ so sánh: một giáo viên ngữ pháp, một giáo viên văn học và một giáo viên lịch sử cùng đọc một câu rồi ghép ghi chú lại với nhau."
+    },
+    "attention": {
+      "match": "attention|chú ý",
+      "flags": "i",
+      "answer": "**Attention** là cơ chế để mỗi từ trong câu tự quyết định mình cần tham chiếu đến từ nào khác và mức độ bao nhiêu.\n\nCông thức cốt lõi là:\n\n```text\nAttention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V\n```\n\n1. Biến mỗi từ thành ba vectơ Query, Key và Value.\n2. Chấm điểm mức liên quan bằng tích vô hướng giữa Query và mọi Key.\n3. Chia điểm cho √d_k, rồi dùng softmax để biến thành trọng số.\n4. Lấy tổng có trọng số của các Value để có biểu diễn mới.\n\nChẳng hạn, trong câu \"Con mèo ngồi trên tấm thảm, **nó** rất ấm\", *nó* sẽ gán trọng số cao cho *thảm*."
+    }
+  },
+  "quiz": "Hãy kiểm tra lại phần attention chúng ta đã học bằng một bài trắc nghiệm.\n\n```quiz\n{\n  \"title\": \"Bài kiểm tra attention\",\n  \"questions\": [\n    { \"type\": \"ox\", \"question\": \"Điểm attention được tính bằng tích vô hướng của Query và Key.\", \"answer\": true, \"explanation\": \"**Tích vô hướng** giữa Query và từng Key trở thành điểm liên quan, và softmax biến nó thành trọng số.\" },\n    { \"type\": \"choice\", \"question\": \"Lý do chia điểm số cho $\\\\sqrt{d_k}$ là gì?\", \"choices\": [\"Để tính toán nhanh hơn\", \"Để tích vô hướng không tăng quá lớn khiến softmax dồn về một phần tử\", \"Để khớp kích thước của các vectơ Value\", \"Để chuẩn hóa các Key\"], \"answer\": 2, \"explanation\": \"Khi số chiều lớn, phương sai của tích vô hướng tăng và gradient của softmax gần như bằng 0. Phép chia điều chỉnh lại độ lớn của giá trị.\" },\n    { \"type\": \"short\", \"question\": \"Tên của các vectơ được dùng để lấy tổng có trọng số theo trọng số attention là gì?\", \"answer\": \"Value\", \"accept\": [\"V\", \"giá trị\", \"vectơ giá trị\"], \"explanation\": \"Trọng số được nhân với các vectơ **Value** để tạo ra biểu diễn mới.\" }\n  ]\n}\n```",
+  "speak": "Nhấn nút trên các thẻ để nghe từng dòng một, hoặc nghe tất cả liên tiếp.\n\n```speak\n{\n  \"title\": \"Lời chào tiếng Việt\",\n  \"items\": [\n    { \"text\": \"Xin chào\", \"lang\": \"vi\", \"note\": \"Xin chào\" },\n    { \"text\": \"Cảm ơn bạn\", \"lang\": \"vi\", \"note\": \"Cảm ơn bạn\" },\n    { \"text\": \"Nice to meet you.\", \"lang\": \"en\", \"note\": \"Lời chào khi gặp ai đó\" }\n  ]\n}\n```",
+  "search": {
+    "source1": "Tin tức mẫu",
+    "source2": "Tài liệu mẫu"
+  },
+  "skill": {
+    "fallbackTitle": "Kiểm tra khái niệm",
+    "fallbackDescription": "Kiểm tra các khái niệm cốt lõi của chủ đề bằng bài trắc nghiệm.",
+    "appendRequest": "{cur}\n- Phản ánh yêu cầu bổ sung: {ask}",
+    "newBody": "Ra một bài trắc nghiệm về chủ đề mà người học đã đưa ra.\n\n1. Chọn **3** khái niệm cốt lõi và hỏi mỗi khái niệm một câu, lần lượt từng câu.\n2. Yêu cầu: {ask}",
+    "rubricHeading": "# Tiêu chí chấm điểm",
+    "rubricItem": "- Đáp án đúng: có chỉ ra các thuật ngữ then chốt bằng **chữ in đậm** không?",
+    "noteAppended": "Tôi đã thêm yêu cầu của bạn vào chỉ dẫn.",
+    "noteCreated": "Tôi đã tạo kỹ năng trắc nghiệm."
+  },
+  "page": {
+    "fillItems": "- Tóm tắt khái niệm cốt lõi trong một dòng\n- Đưa ra một ví dụ",
+    "organizeHeading": "## Tóm tắt"
+  },
+  "summary": {
+    "gistFallback": "ý nghĩa cốt lõi và cách dùng của {target}",
+    "line": "{gist} Nói cách khác, trong ngữ cảnh của phần giải thích trước, hãy hiểu \"{target}\" theo cách này."
+  },
+  "generic": "Câu hỏi hay đấy. Để tôi giải thích ngắn gọn **{target}** theo đúng ngữ cảnh trước đó.\n\n- **Điểm chính**: {target} là một phần cấu thành khái niệm mà chúng ta đang học.\n- **Ví dụ so sánh**: giống như một bước trong sách hướng dẫn lắp ráp LEGO, bạn cần hiểu bước này thì bước tiếp theo mới khớp.\n- **Ví dụ**: hãy tự tay làm theo một phép tính thực tế, bạn sẽ có cảm giác rõ hơn.\n\n> (Đây là câu trả lời demo. Khi kết nối với nhà cung cấp thật, phần giải thích phù hợp với ngữ cảnh sẽ được tạo ra.)",
+  "reorganize": "Câu hỏi: Hãy tổng hợp lại attention của Transformer từ đầu\n---\n## Attention nhìn tổng quan\n\nAttention là cách tính mức liên quan bằng **Query·Key·Value** rồi lấy tổng có trọng số của các giá trị.\n\n> (Đây là câu trả lời sắp xếp lại của demo.)",
+  "next": {
+    "example": {
+      "title": "Xem thêm ví dụ",
+      "question": "Hãy cho tôi xem {topic} qua một ví dụ thực tế, từ đầu đến cuối"
+    },
+    "confusion": {
+      "title": "Những điểm dễ nhầm lẫn",
+      "question": "Người mới bắt đầu thường thấy khó hiểu nhất ở {topic} là gì?"
+    }
+  },
+  "prompt": {
+    "note": "Đã thêm yêu cầu thành quy tắc (demo)."
+  }
+}

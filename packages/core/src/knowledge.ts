@@ -25,6 +25,8 @@ export function cleanKnowledgeName(raw: unknown): string | null {
 export interface KnowledgeBase {
   id: string;
   name: string;
+  /** 지식베이스 설명 (없으면 생략) */
+  description?: string;
   createdAt: number;
   updatedAt: number;
   /** files/ 아래 파일 수 */

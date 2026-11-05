@@ -1,0 +1,33 @@
+{
+  "bridge": {
+    "usage": "使い方:\n  branch-bridge [serve] [--pair] [--port 7777] [--host 0.0.0.0] [--name 名前] [--dir パス]\n                [--relay wss://relay.example.com] [--relay-only]\n    --relay       NAT の内側からでも接続できるよう、relay へ外向きに登録（E2E 暗号化は維持）\n    --relay-only  ポートを直接開かず、relay経由の接続だけを受け付ける\n  branch-bridge pair            (serve --pair と同じ)\n  branch-bridge devices         ペアリング済み端末の一覧\n  branch-bridge unpair <id|all> 端末のペアリングを解除",
+    "noDevices": "ペアリング済みの端末がありません。",
+    "deviceLine": "{id}  {name}  ペアリング {paired}  最終接続 {seen}",
+    "unpairMissing": "解除する端末の id か all を指定してください。",
+    "unpaired": "{count}台の端末のペアリングを解除しました。",
+    "noSuchDevice": "該当する端末がありません。",
+    "badPort": "不正なポート: {port}",
+    "relayOnlyNeedsRelay": "--relay-only には --relay のアドレスが必要です。",
+    "relayScheme": "relay のアドレスは ws:// または wss:// で始まる必要があります。",
+    "insecureRelay": "注意: relay が ws:// です。公開ネットワークでは wss:// を使ってください（ペイロードは E2E 暗号化されています）。",
+    "relayConnected": "✓ relay に接続しました",
+    "relayRetrying": "… relay の接続が切れました。再試行しています",
+    "relayNotYet": "relay にまだ接続できていません。バックグラウンドで再試行を続けます。",
+    "running": "Branch Bridge \"{name}\" を実行中 ({target})",
+    "relayOnly": "relay のみ",
+    "port": "ポート {port}",
+    "fingerprint": "bridge のフィンガープリント: {fingerprint}",
+    "scanHint": "アプリの設定 → リモート Bridge → ペアリング開始 から、下の QR をスキャンするか、リンクを貼り付けてください。",
+    "link": "リンク ({label}): {uri}",
+    "codeLine": "または アドレス + コードを入力: コード {code}  （5分間有効、1回限り）",
+    "checkFingerprint": "アプリに表示される bridge のフィンガープリントが、上の値と一致するか確認してください。",
+    "paired": "✓ ペアリング完了: {name} ({id})",
+    "noDevicesPair": "ペアリング済みの端末がありません。--pair オプションでペアリングを開始してください。"
+  },
+  "relay": {
+    "usage": "使い方:\n  branch-relay [--port 8787] [--host 0.0.0.0] [-v]",
+    "badPort": "不正なポート: {port}",
+    "running": "Branch Relay を実行中: ws://{host}:{port}  (状態: http://{host}:{port}/health)",
+    "bridgeHint": "bridge: branch-bridge --relay <このアドレス>   · 公開する場合は TLS（wss://）のプロキシの背後に置いてください。"
+  }
+}

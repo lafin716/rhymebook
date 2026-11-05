@@ -16,7 +16,6 @@ import { SettingsModal } from '../settings/SettingsModal';
 import { SkillsPage } from '../skills/SkillsPage';
 import { PromptsPage } from '../prompts/PromptsPage';
 import { SchedulesPage } from '../schedules/SchedulesPage';
-import { ScheduleRunIndicator } from '../schedules/ScheduleRunIndicator';
 import { MainView } from '../views/MainView';
 import { PopupLayer } from '../views/PopupLayer';
 import { SheetStack } from '../views/SheetStack';
@@ -81,7 +80,6 @@ export function App() {
       <SchedulesPage />
       <ConfirmHost />
       <MoveTurnHost />
-      <ScheduleRunIndicator />
       <Toasts />
       {/* 설치 후 첫 실행: 언어부터 고르고 시작 안내를 띄운다 (ADR-105) */}
       {needsLanguage ? <LanguagePrompt /> : <Onboarding />}

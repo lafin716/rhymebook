@@ -8,7 +8,15 @@ import { expect, test, type Page } from '@playwright/test';
 const KEY = 'sk-ant-e2e-ok';
 
 function installFakeKnowledge() {
-  type Base = { id: string; name: string; files: Map<string, string> };
+  type Src = { id: string; type: 'files' | 'folder' | 'github' | 'web'; location: string; dest: string; addedAt: number; updatedAt: number };
+  type Base = {
+    id: string;
+    name: string;
+    files: Map<string, string>;
+    description?: string;
+    sources: Src[];
+    settings: { embedding: { provider: 'local-hash' | 'openai'; model?: string } };
+  };
   const bases = new Map<string, Base>();
   let seq = 0;
   const info = (b: Base) => ({
@@ -18,6 +26,7 @@ function installFakeKnowledge() {
     updatedAt: 0,
     fileCount: b.files.size,
     totalBytes: [...b.files.values()].reduce((a, c) => a + c.length, 0),
+    description: b.description,
   });
   const get = (id: string) => {
     const b = bases.get(id);
@@ -30,6 +39,18 @@ function installFakeKnowledge() {
   };
   // 진행률·취소: 'slow/' 저장소는 진행률을 보낸 뒤 취소될 때까지 기다리고, 'broken/' 저장소는 실패한다
   const listeners = new Set<(p: unknown) => void>();
+  const stateListeners = new Set<(s: unknown) => void>();
+  const indexed = new Map<string, unknown>();
+  const indexState = (kbId: string, status: string, progress?: unknown, chunkCount = 0) => ({
+    kbId,
+    status,
+    docCount: chunkCount ? 2 : 0,
+    chunkCount,
+    indexBytes: 0,
+    sourceBytes: 0,
+    failedDocs: 0,
+    progress,
+  });
   let cancel: (() => void) | undefined;
   const emit = (p: unknown) => listeners.forEach((l) => l(p));
   const api = {
@@ -41,7 +62,7 @@ function installFakeKnowledge() {
     list: async () => [...bases.values()].map(info),
     create: async (name: string) => {
       const id = `kbfake${String(++seq).padStart(4, '0')}`;
-      const b: Base = { id, name, files: new Map() };
+      const b: Base = { id, name, files: new Map(), sources: [], settings: { embedding: { provider: 'local-hash' } } };
       bases.set(id, b);
       return info(b);
     },
@@ -76,7 +97,9 @@ function installFakeKnowledge() {
           cancel = () => reject(new Error('가져오기를 취소했습니다'));
         });
       }
-      return put(get(id), ['repos/repo/README.md']);
+      const res = put(get(id), ['repos/repo/README.md']);
+      get(id).sources.push({ id: `src${++seq}`, type: 'github', location: url, dest: 'repos/repo', addedAt: 0, updatedAt: 0 });
+      return res;
     },
     removeEntry: async (id: string, path: string) => {
       get(id).files.delete(path);
@@ -86,6 +109,61 @@ function installFakeKnowledge() {
       return { text, size: text?.length ?? 0, truncated: false };
     },
     open: async () => {},
+    // 색인 상태: 새 지식베이스는 '아직 색인 전'이고, 다시 색인하면 진행을 거쳐 완료된다
+    indexStates: async (ids?: string[]) =>
+      [...bases.keys()].filter((id) => !ids || ids.includes(id)).map((id) => indexed.get(id) ?? indexState(id, 'empty')),
+    onIndexState: (l: (s: unknown) => void) => {
+      stateListeners.add(l);
+      return () => stateListeners.delete(l);
+    },
+    reindex: async (id: string) => {
+      indexed.set(id, indexState(id, 'indexing', { phase: 'embed', done: 1, total: 2 }));
+      stateListeners.forEach((l) => l(indexed.get(id)));
+      await new Promise((r) => setTimeout(r, 50));
+      indexed.set(id, indexState(id, 'ready', undefined, 3));
+      stateListeners.forEach((l) => l(indexed.get(id)));
+    },
+    setDescription: async (id: string, description: string) => {
+      get(id).description = description;
+      return info(get(id));
+    },
+    // 문서 목록: 경로·제목 부분 일치 검색
+    docs: async (id: string, query?: string) => {
+      const q = query?.toLowerCase();
+      return [...get(id).files.keys()]
+        .filter((p) => !q || p.toLowerCase().includes(q))
+        .map((path, i) => ({ docId: `doc${i}`, path, title: path.split('/').pop() ?? path, kind: 'md', bytes: 10, chunkCount: 2, status: 'ok', indexedAt: 0 }));
+    },
+    sources: async (id: string) => get(id).sources,
+    updateSource: async (id: string, sourceId: string) => {
+      const src = get(id).sources.find((x) => x.id === sourceId);
+      if (!src) throw new Error('no source');
+      src.updatedAt = ++seq;
+      return put(get(id), ['repos/repo/README.md']);
+    },
+    getIndexSettings: async (id: string) => get(id).settings,
+    setIndexSettings: async (id: string, settings: Base['settings']) => {
+      get(id).settings = settings;
+      return indexState(id, 'stale');
+    },
+    cancelIndex: async () => {},
+    // 검색: 연결된 첫 지식베이스에서 근거 한 건을 돌려준다 (답변 인용 번호 [1])
+    retrieve: async (req: { kbIds: string[]; plan: unknown }) => {
+      const kbId = req.kbIds.find((id) => bases.has(id));
+      const evidence = kbId
+        ? [{ n: 1, kbId, kbName: get(kbId).name, chunkId: 'chunk0', docId: 'doc0', path: 'notes/cell.md', title: '세포막', kind: 'md', headingPath: ['1장', '세포막'], text: '세포막은 인지질 이중층으로 이루어져 있다.', score: 0.9 }]
+        : [];
+      return { plan: req.plan, evidence, skipped: [], tookMs: 1 };
+    },
+    source: async (kbId: string) => ({
+      kbId,
+      path: 'notes/cell.md',
+      title: '세포막',
+      kind: 'md',
+      headingPath: ['1장', '세포막'],
+      chunkText: '세포막은 인지질 이중층으로 이루어져 있다.',
+      sectionText: '1장 세포막 본문 전체',
+    }),
   };
   (window as unknown as { __branchKnowledgeFake: unknown }).__branchKnowledgeFake = api;
 }
@@ -119,6 +197,11 @@ test('학습에 지식베이스를 만들어 연결하고 자료를 넣고 지�
   await dialog.getByLabel('새 지식베이스').fill('세포생물학');
   await dialog.getByRole('button', { name: '만들기' }).click();
   await expect(dialog.getByRole('heading', { name: '세포생물학', level: 3 })).toBeVisible();
+
+  // 색인 상태: 새 지식베이스는 색인 전이고, 다시 색인하면 완료 문구로 바뀐다
+  await expect(dialog.locator('[data-index-status="empty"]')).toContainText('아직 색인 전');
+  await dialog.getByRole('button', { name: '다시 색인' }).click();
+  await expect(dialog.locator('[data-index-status="ready"]')).toContainText('색인 완료 · 청크 3개');
 
   // 이 학습에 연결하면 세션 버튼에 연결 표시가 붙는다
   await dialog.getByRole('button', { name: '이 학습에 연결', exact: true }).click();
@@ -225,4 +308,204 @@ test('API가 없는 웹에서는 지식베이스 버튼이 보이지 않는다',
   const main = await start(page);
   await expect(main).toBeVisible();
   await expect(main.locator('[data-knowledge-button]')).toHaveCount(0);
+});
+
+test('설명·문서 검색·출처 갱신·임베딩 설정', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(installFakeKnowledge);
+  const main = await start(page);
+
+  await main.locator('[data-knowledge-button]').click();
+  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
+  await dialog.getByLabel('새 지식베이스').fill('논문');
+  await dialog.getByRole('button', { name: '만들기' }).click();
+  await expect(dialog.getByRole('heading', { name: '논문', level: 3 })).toBeVisible();
+
+  // 자료: 파일 하나와 GitHub 저장소 하나 (저장소는 출처로 남는다)
+  await dialog.getByRole('button', { name: '파일 선택' }).click();
+  await expect(dialog.locator('[data-entry="notes/intro.md"]')).toBeVisible();
+  await dialog.getByLabel('GitHub 저장소').fill('acme/notes');
+  await dialog.getByRole('button', { name: '클론' }).click();
+  await expect(dialog.locator('[data-entry="repos/repo/README.md"]')).toBeVisible();
+
+  // 설명: 비어 있으면 안내가 보이고, 저장하면 바뀐다
+  await expect(dialog.locator('[data-knowledge-description]')).toContainText('설명이 없어요');
+  await dialog.getByRole('button', { name: '수정', exact: true }).click();
+  const descInput = dialog.getByPlaceholder('예: 우리 팀 배포 절차 문서 모음');
+  await descInput.fill('세포 신호전달 논문 모음');
+  await descInput.locator('xpath=ancestor::form[1]').getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog.locator('[data-knowledge-description]')).toContainText('세포 신호전달 논문 모음');
+
+  // 문서 목록: 두 문서가 보이고, 검색어로 걸러진다
+  const docs = dialog.locator('[data-doc]');
+  await expect(docs).toHaveCount(2);
+  const search = dialog.getByRole('searchbox', { name: '경로나 제목으로 검색' });
+  await search.fill('readme');
+  await expect(docs).toHaveCount(1);
+  await expect(docs.first()).toContainText('README.md');
+  await search.fill('없는문서');
+  await expect(dialog).toContainText('검색 결과가 없어요.');
+  await search.fill('');
+  await expect(docs).toHaveCount(2);
+
+  // 저장 용량 패널
+  await expect(dialog.locator('[data-storage-usage]')).toContainText('색인');
+
+  // 출처: GitHub 출처만 갱신 버튼이 있고, 누르면 완료 문구가 뜬다
+  const sources = dialog.locator('[data-source]');
+  await expect(sources).toHaveCount(1);
+  await expect(sources.first()).toContainText('GitHub');
+  await sources.first().getByRole('button', { name: '갱신', exact: true }).click();
+  await expect(dialog.getByText('출처를 갱신했어요.')).toBeVisible();
+
+  // 임베딩: OpenAI를 고르면 외부 전송 안내가 뜨고, 저장하면 다시 색인을 권한다
+  const provider = dialog.locator('label', { hasText: '방식' }).locator('select');
+  await expect(provider).toHaveValue('local-hash');
+  await expect(dialog.locator('[data-external-notice]')).toHaveCount(0);
+  await provider.selectOption('openai');
+  await expect(dialog.locator('[data-external-notice]')).toContainText('OpenAI 서버로 전송');
+  await provider.locator('xpath=ancestor::form[1]').getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog).toContainText('모델이 바뀌었어요');
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('여러 지식베이스를 세션마다 고르고, 가지는 상속하며 덮어쓰고 되돌린다', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(installFakeKnowledge);
+  const main = await start(page);
+
+  await main.locator('[data-knowledge-button]').click();
+  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  // 모바일은 자료를 고르면 목록이 가려지므로 목록으로 돌아간다
+  const backToList = async () => {
+    const back = dialog.getByRole('button', { name: '목록으로' });
+    if (await back.isVisible()) await back.click();
+  };
+  // 두 지식베이스를 만들고 각각 이 학습에 연결한다
+  for (const name of ['세포생물학', '유전학']) {
+    await backToList();
+    await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
+    await dialog.getByLabel('새 지식베이스').fill(name);
+    await dialog.getByRole('button', { name: '만들기' }).click();
+    await expect(dialog.getByRole('heading', { name, level: 3 })).toBeVisible();
+    await dialog.getByRole('button', { name: '이 학습에 연결', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: '연결 해제', exact: true })).toBeVisible();
+  }
+  await expect(dialog.getByText('이 학습에 연결됨', { exact: true })).toHaveCount(2);
+  await expect(main.locator('[data-knowledge-button][data-linked]')).toHaveCount(1);
+  await expect(main.locator('[data-knowledge-button][data-inherited]')).toHaveCount(0);
+
+  const rootId = await page.evaluate(async () => {
+    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const { appStore } = await import(/* @vite-ignore */ path);
+    return appStore.getState().view.activeSessionId as string;
+  });
+  const rootKbs = await page.evaluate(async (root) => {
+    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const { appStore } = await import(/* @vite-ignore */ path);
+    return appStore.getState().sessions[root].knowledgeIds as string[];
+  }, rootId);
+  expect(rootKbs).toHaveLength(2);
+  const [cellId, geneId] = rootKbs;
+
+  // 가지를 만들면 부모의 두 지식베이스를 물려받는다
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  const branchId = await page.evaluate(async (root) => {
+    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const { actions } = await import(/* @vite-ignore */ path);
+    const id = actions().createSubSession(root, '분기 질문') as string;
+    actions().openSession(id);
+    return id;
+  }, rootId);
+  await expect(main.locator('[data-knowledge-button][data-inherited]')).toHaveCount(1);
+  await main.locator('[data-knowledge-button]').click();
+  await backToList();
+  await dialog.getByRole('button', { name: /^세포생물학/ }).click();
+  await expect(dialog.locator('[data-link-scope="inherited"]')).toContainText('부모 가지의 지식베이스를 따르고 있어요.');
+  await expect(dialog.getByText('이 학습에 연결됨', { exact: true })).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: '부모 따르기' })).toHaveCount(0);
+
+  // 가지에서 유전학을 끊으면 이 가지만 덮어쓴 목록이 된다 (부모는 그대로)
+  await backToList();
+  await dialog.getByRole('button', { name: /^유전학/ }).click();
+  await dialog.getByRole('button', { name: '연결 해제', exact: true }).click();
+  await expect(dialog.locator('[data-link-scope="overridden"]')).toContainText('이 가지만 다른 지식베이스를 쓰고 있어요.');
+  await expect(dialog.getByText('이 학습에 연결됨', { exact: true })).toHaveCount(1);
+  const kbsOf = (id: string) => page.evaluate(async (sid) => {
+    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const { appStore } = await import(/* @vite-ignore */ path);
+    return appStore.getState().sessions[sid].knowledgeIds as string[] | undefined;
+  }, id);
+  expect(await kbsOf(branchId)).toEqual([cellId]);
+  expect(await kbsOf(rootId)).toEqual([cellId, geneId]);
+
+  // 부모 따르기로 되돌리면 다시 상속한다
+  await dialog.getByRole('button', { name: '부모 따르기' }).click();
+  await expect(dialog.locator('[data-link-scope="overridden"]')).toHaveCount(0);
+  await expect(dialog.locator('[data-link-scope="inherited"]')).toContainText('부모 가지의 지식베이스를 따르고 있어요.');
+  await expect(dialog.getByText('이 학습에 연결됨', { exact: true })).toHaveCount(2);
+  expect(await kbsOf(branchId)).toBeUndefined();
+
+  await page.keyboard.press('Escape');
+  expect(errors).toEqual([]);
+});
+
+test('연결된 지식베이스의 근거가 답변 출처 칩으로 붙고, 누르면 원문이 열린다', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(installFakeKnowledge);
+  const main = await start(page);
+
+  await main.locator('[data-knowledge-button]').click();
+  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
+  await dialog.getByLabel('새 지식베이스').fill('생명과학');
+  await dialog.getByRole('button', { name: '만들기' }).click();
+  await expect(dialog.getByRole('heading', { name: '생명과학', level: 3 })).toBeVisible();
+  await dialog.getByRole('button', { name: '이 학습에 연결', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: '연결 해제', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+
+  // 질문을 보내면 검색 근거가 답변의 출처 칩으로 붙는다
+  await main.getByLabel('메시지 입력').fill('세포막은 무엇인가요');
+  await main.getByRole('button', { name: '보내기' }).click();
+  await expect(main.getByText('마지막 문장 [세포막은 무엇인가요].')).toBeVisible();
+  const chip = main.locator('[data-citation="1"]');
+  await expect(chip).toBeVisible();
+  await expect(chip).toContainText('세포막');
+
+  // 칩을 누르면 찾은 부분과 원문 문맥이 열린다
+  await chip.click();
+  const viewer = page.getByRole('dialog', { name: '출처 보기' });
+  await expect(viewer).toContainText('세포막은 인지질 이중층으로 이루어져 있다.');
+  await viewer.getByRole('button', { name: '닫기' }).first().click();
+  await expect(viewer).toBeHidden();
+
+  expect(errors).toEqual([]);
+});
+
+test('검색 설정의 근거 개수를 저장하면 전역 설정에 남는다', async ({ page }) => {
+  await page.addInitScript(installFakeKnowledge);
+  const main = await start(page);
+
+  await main.locator('[data-knowledge-button]').click();
+  const dialog = page.getByRole('dialog', { name: '지식베이스' });
+  const topK = dialog.getByLabel('근거 개수');
+  await topK.fill('4');
+  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+
+  const stored = await page.evaluate(async () => {
+    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
+    const { appStore } = await import(/* @vite-ignore */ path);
+    return appStore.getState().settings.rag?.topK;
+  });
+  expect(stored).toBe(4);
 });

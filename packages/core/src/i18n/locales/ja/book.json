@@ -1,0 +1,28 @@
+{
+  "pdf": {
+    "failed": "本のPDFを作成できませんでした。",
+    "save": "本をPDFで保存",
+    "waitTitle": "回答が終わってから保存できます",
+    "saveTitle": "この本を表紙・目次・ページ番号付きのPDFで保存します",
+    "label": "本のPDF"
+  },
+  "html": {
+    "chapterLabel": "第{number}章",
+    "runningHead": "{label}  {title}",
+    "coverKicker": "学習記録をまとめた本",
+    "compiledFrom": "octobooksの学習記録からまとめました",
+    "toc": "目次",
+    "editedOn": "まとめた日",
+    "editedAt": "まとめた場所",
+    "colophonNote": "この本は、学習者の質問と理解をもとにAIが書いた文章です。事実関係は原文と合わせて確認してください。"
+  },
+  "export": {
+    "noContent": "まだ本の内容がありません。本を書き終えてから保存してください。",
+    "noChapters": "本の本文が見つかりませんでした。「## Chapter 1. タイトル」の形式で章を書いた回答が必要です。",
+    "defaultTitle": "本",
+    "printWindow": "印刷ウィンドウを開けませんでした。",
+    "savedPdf": "本をPDFで保存しました。",
+    "savedFile": "印刷用の本のファイルを保存しました。ブラウザで開き、印刷 › PDFとして保存してください。",
+    "pickSaveInPrint": "印刷ウィンドウで「PDFとして保存」を選んでください。"
+  }
+}

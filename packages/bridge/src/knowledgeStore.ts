@@ -2,9 +2,11 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { randomBytes } from 'node:crypto';
 import { constants as fsc } from 'node:fs';
-import { copyFile, lstat, mkdir, open, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { copyFile, lstat, mkdir, open, readFile, readdir, rename, rm, statfs, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { LinkBlockedError, pinnedGet } from './linkFetch';
 import {
+  DEFAULT_INDEX_SETTINGS,
   KNOWLEDGE_ID_RE,
   KNOWLEDGE_LIMITS,
   cleanKnowledgeName,
@@ -19,7 +21,9 @@ import {
   type KnowledgeBase,
   type KnowledgeEntry,
   type KnowledgePreview,
+  type KnowledgeIndexSettings,
   type KnowledgeProgress,
+  type KnowledgeSource,
 } from '@branch/core';
 
 /**
@@ -262,6 +266,14 @@ export interface KnowledgeStoreOptions {
   cloneTimeoutMs?: number;
 }
 
+/** 링크 응답 한 개 (주입 fetch와 연결 검사 요청을 같은 모양으로 맞춘다) */
+interface LinkPage {
+  status: number;
+  url: string;
+  headers: Headers;
+  read(maxBytes: number): Promise<Uint8Array | null>;
+}
+
 const dnsLookupAll = async (hostname: string): Promise<string[]> =>
   (await dnsLookup(hostname, { all: true, verbatim: true })).map((a) => a.address);
 
@@ -291,6 +303,50 @@ export interface KnowledgeStore {
   index(id: string): Promise<{ paths: string[]; total: number }>;
   /** 경로(files/ 기준)를 절대 경로로 바꾼다. 항목이 없거나 링크면 throw */
   resolvePath(id: string, relPath: string): Promise<string>;
+  /** 설명 저장 (빈 문자열이면 지운다) */
+  setDescription(id: string, description: string): Promise<KnowledgeBase>;
+  /** 색인 설정 (저장된 값이 없으면 기본값) */
+  getSettings(id: string): Promise<KnowledgeIndexSettings>;
+  setSettings(id: string, settings: KnowledgeIndexSettings): Promise<KnowledgeIndexSettings>;
+  /** 출처 목록 (추가할 때 기록된 원본 위치) */
+  sources(id: string): Promise<KnowledgeSource[]>;
+  /** 출처를 원본에서 다시 가져와 files/ 안의 같은 자리를 교체한다 */
+  updateSource(id: string, sourceId: string, ctl?: KnowledgeTaskControl): Promise<KnowledgeAddResult>;
+}
+
+/** 메타 파일(meta.json) 내용. 선택 필드는 없을 수 있다 */
+interface KbMeta {
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  description?: string;
+  settings?: KnowledgeIndexSettings;
+  sources?: KnowledgeSource[];
+}
+
+const DESCRIPTION_MAX = 500;
+/** 추가·클론 전에 남아 있어야 하는 여유 공간 */
+const MIN_FREE_FOR_ADD = 100 * 1024 * 1024;
+
+function isIndexSettings(v: unknown): v is KnowledgeIndexSettings {
+  const e = (v as { embedding?: { provider?: unknown; model?: unknown } } | null | undefined)?.embedding;
+  return !!e && (e.provider === 'local-hash' || e.provider === 'openai') && (e.model === undefined || typeof e.model === 'string');
+}
+
+function parseSources(v: unknown): KnowledgeSource[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((s): s is KnowledgeSource => {
+    const o = s as Partial<KnowledgeSource> | null;
+    return (
+      !!o &&
+      typeof o.id === 'string' &&
+      typeof o.type === 'string' &&
+      typeof o.location === 'string' &&
+      typeof o.dest === 'string' &&
+      typeof o.addedAt === 'number' &&
+      typeof o.updatedAt === 'number'
+    );
+  });
 }
 
 interface Budget {
@@ -346,7 +402,6 @@ async function measure(dirAbs: string): Promise<{ fileCount: number; totalBytes:
 
 export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStore {
   const root = path.resolve(opts.root);
-  const doFetch = opts.fetch ?? fetch;
   /** 지식베이스 폴더를 품거나 그 안에 있는 경로 (자기 자신으로 복사해 끝없이 커지는 것을 막는다) */
   const overlapsRoot = (p: string): boolean => {
     const src = path.resolve(p);
@@ -371,17 +426,21 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
   const filesDir = (id: string) => path.join(kbDir(id), 'files');
   const metaPath = (id: string) => path.join(kbDir(id), 'meta.json');
 
-  async function readMeta(id: string): Promise<{ name: string; createdAt: number; updatedAt: number } | null> {
+  async function readMeta(id: string): Promise<KbMeta | null> {
     try {
       const raw = JSON.parse(await readFile(metaPath(id), 'utf8')) as Record<string, unknown>;
       if (typeof raw.name !== 'string' || typeof raw.createdAt !== 'number' || typeof raw.updatedAt !== 'number') return null;
-      return { name: raw.name, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
+      const meta: KbMeta = { name: raw.name, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
+      if (typeof raw.description === 'string' && raw.description) meta.description = raw.description;
+      if (isIndexSettings(raw.settings)) meta.settings = raw.settings;
+      if (raw.sources !== undefined) meta.sources = parseSources(raw.sources);
+      return meta;
     } catch {
       return null;
     }
   }
 
-  async function existingKb(id: string): Promise<{ name: string; createdAt: number; updatedAt: number }> {
+  async function existingKb(id: string): Promise<KbMeta> {
     const st = await lstatOrNull(kbDir(id));
     if (!st?.isDirectory()) throw new KnowledgeNotFoundError(t('bridge.knowledge.notFound'));
     const meta = await readMeta(id);
@@ -389,12 +448,48 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     return meta;
   }
 
-  async function toBase(id: string, meta: { name: string; createdAt: number; updatedAt: number }): Promise<KnowledgeBase> {
+  async function toBase(id: string, meta: KbMeta): Promise<KnowledgeBase> {
     const m = await measure(filesDir(id));
-    return { id, name: meta.name, createdAt: meta.createdAt, updatedAt: meta.updatedAt, ...m };
+    return {
+      id,
+      name: meta.name,
+      ...(meta.description ? { description: meta.description } : {}),
+      createdAt: meta.createdAt,
+      updatedAt: meta.updatedAt,
+      ...m,
+    };
   }
 
-  async function saveMeta(id: string, meta: { name: string; createdAt: number; updatedAt: number }) {
+  /** 추가 전 여유 공간 확인. 조회 자체가 실패하면 막지 않는다 */
+  async function checkDiskRoom(): Promise<void> {
+    let free: number;
+    try {
+      const s = await statfs(root);
+      free = Number(s.bavail) * Number(s.bsize);
+    } catch {
+      return;
+    }
+    if (free < MIN_FREE_FOR_ADD) fail(t('bridge.knowledge.diskLow'));
+  }
+
+  /** 새로 추가된 항목을 출처 목록에 기록한다 */
+  async function recordSources(id: string, rows: { type: KnowledgeSource['type']; location: string; dest: string }[]) {
+    if (rows.length === 0) return;
+    const meta = await readMeta(id);
+    if (!meta) return;
+    const now = Date.now();
+    const added: KnowledgeSource[] = rows.map((r) => ({
+      id: `src${randomBytes(6).toString('hex')}`,
+      type: r.type,
+      location: r.location,
+      dest: r.dest,
+      addedAt: now,
+      updatedAt: now,
+    }));
+    await saveMeta(id, { ...meta, sources: [...(meta.sources ?? []), ...added] });
+  }
+
+  async function saveMeta(id: string, meta: KbMeta) {
     // 임시 파일에 쓰고 바꿔 끼워, 중간에 꺼져도 meta.json이 깨지지 않게 한다
     const tmp = `${metaPath(id)}.${randomBytes(4).toString('hex')}.tmp`;
     await writeFile(tmp, JSON.stringify(meta), 'utf8');
@@ -651,34 +746,53 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
   async function fetchPage(url: string, outer?: AbortSignal): Promise<{ title: string; markdown: string; finalUrl: string }> {
     if (!isKnowledgeLinkUrl(url)) fail(t('bridge.knowledge.badUrl'));
     const first = new URL(url.trim());
-    /** 호스트가 사설 주소이거나 사설 주소로 풀리면 막는다 */
+    const hostAddrs = (hostname: string) => lookupAll(hostname.replace(/^\[|\]$/g, ''));
+    /** 호스트가 사설 주소이거나 사설 주소로 풀리면 막는다 (요청 전 검사) */
     const assertPublic = async (u: URL) => {
       if (u.protocol !== 'https:' && u.protocol !== 'http:') fail(t('bridge.knowledge.badUrl'));
       if (u.username || u.password) fail(t('bridge.knowledge.badUrl'));
       if (isPrivateHost(u.hostname)) fail(t('bridge.knowledge.privateHost'));
       let addrs: string[];
       try {
-        addrs = await lookupAll(u.hostname.replace(/^\[|\]$/g, ''));
+        addrs = await hostAddrs(u.hostname);
       } catch {
         return fail(t('bridge.knowledge.fetchFailed'));
       }
       if (addrs.some((a) => isPrivateHost(a))) fail(t('bridge.knowledge.privateHost'));
     };
+    const headers = { accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' };
+    const signal = outer ? AbortSignal.any([outer, AbortSignal.timeout(FETCH_TIMEOUT_MS)]) : AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    /**
+     * 한 번 요청한다. 주입된 fetch가 있으면 그것을 쓰고(테스트·다른 구현),
+     * 없으면 연결 직전에도 주소를 다시 검사하는 요청을 쓴다 (DNS 리바인딩 방지).
+     */
+    const request = async (u: URL): Promise<LinkPage> => {
+      if (opts.fetch) {
+        const r = await opts.fetch(u.href, { redirect: 'manual', signal, headers });
+        return {
+          status: r.status,
+          url: r.url,
+          headers: r.headers,
+          read: async (max) => {
+            const b = new Uint8Array(await r.arrayBuffer());
+            return b.byteLength > max ? null : b;
+          },
+        };
+      }
+      const p = await pinnedGet(u, { signal, headers, resolve: hostAddrs, isBlocked: isPrivateHost });
+      return { status: p.status, url: '', headers: p.headers, read: p.read };
+    };
     // 리디렉션은 직접 따라가며 매 단계 주소를 확인한다 (요청 전에)
     let current = first;
-    let res: Response | null = null;
-    const signal = outer ? AbortSignal.any([outer, AbortSignal.timeout(FETCH_TIMEOUT_MS)]) : AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    let res: LinkPage | null = null;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       await assertPublic(current);
-      let r: Response;
+      let r: LinkPage;
       try {
-        r = await doFetch(current.href, {
-          redirect: 'manual',
-          signal,
-          headers: { accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' },
-        });
-      } catch {
+        r = await request(current);
+      } catch (err) {
         if (outer?.aborted) throw cancelledError();
+        if (err instanceof LinkBlockedError) fail(t('bridge.knowledge.privateHost'));
         return fail(t('bridge.knowledge.fetchFailed'));
       }
       const loc = r.status >= 300 && r.status < 400 ? r.headers.get('location') : null;
@@ -693,22 +807,22 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       }
     }
     if (!res) return fail(t('bridge.knowledge.fetchFailed'));
-    if (!res.ok) fail(t('bridge.knowledge.fetchFailed'));
-    // fetch가 스스로 따라간 경우(테스트·다른 구현)도 최종 주소를 다시 본다
+    if (res.status < 200 || res.status >= 300) fail(t('bridge.knowledge.fetchFailed'));
+    // 주입된 fetch가 스스로 따라간 경우도 최종 주소를 다시 본다
     const finalUrl = res.url || current.href;
     if (isPrivateHost(new URL(finalUrl).hostname)) fail(t('bridge.knowledge.privateHost'));
     const type = res.headers.get('content-type') ?? '';
     if (type && !/text\/|html|xml/i.test(type)) fail(t('bridge.knowledge.notHtml'));
     const len = Number(res.headers.get('content-length') ?? '0');
     if (len > HTML_MAX_BYTES) fail(t('bridge.knowledge.htmlTooLarge'));
-    let buf: Uint8Array;
+    let buf: Uint8Array | null;
     try {
-      buf = new Uint8Array(await res.arrayBuffer());
+      buf = await res.read(HTML_MAX_BYTES);
     } catch {
       if (outer?.aborted) throw cancelledError();
       return fail(t('bridge.knowledge.fetchFailed'));
     }
-    if (buf.byteLength > HTML_MAX_BYTES) fail(t('bridge.knowledge.htmlTooLarge'));
+    if (!buf) fail(t('bridge.knowledge.htmlTooLarge'));
     const html = new TextDecoder('utf-8').decode(buf);
     const title = extractTitle(html);
     const markdown = htmlToMarkdown(html);
@@ -801,29 +915,37 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       return serial(async () => {
         if (ctl?.signal?.aborted) throw cancelledError();
         await existingKb(id);
+        await checkDiskRoom();
         if (!Array.isArray(paths) || paths.length > 500) fail(t('bridge.knowledge.badPath'));
         const dstDir = await ensureDir(id, dest);
         const budget = await budgetOf(id, ctl);
         ctl?.onProgress?.({ phase: 'copy', files: 0, bytes: 0 });
         const added: string[] = [];
         const created: string[] = [];
+        const sourceRows: { type: KnowledgeSource['type']; location: string; dest: string }[] = [];
         try {
           for (const p of paths) {
             if (typeof p !== 'string' || !path.isAbsolute(p) || p.includes('\0') || overlapsRoot(p)) {
               budget.skipped++;
               continue;
             }
+            const kind: KnowledgeSource['type'] = (await lstatOrNull(p))?.isDirectory() ? 'folder' : 'files';
             let top = true;
             const target = await importEntry(p, path.basename(p), dstDir, budget, (abs) => {
               if (top) created.push(abs);
               top = false;
             });
-            if (target) added.push(relOf(id, target));
+            if (target) {
+              const rel = relOf(id, target);
+              added.push(rel);
+              sourceRows.push({ type: kind, location: p, dest: rel });
+            }
           }
         } catch (e) {
           await rollback(created);
           throw e;
         }
+        await recordSources(id, sourceRows);
         await touch(id);
         return { added, skipped: budget.skipped };
       });
@@ -833,10 +955,12 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       return serial(async () => {
         if (ctl?.signal?.aborted) throw cancelledError();
         await existingKb(id);
+        await checkDiskRoom();
         if (!Array.isArray(files) || files.length > 500) fail(t('bridge.knowledge.badPath'));
         const dstDir = await ensureDir(id, dest);
         const budget = await budgetOf(id, ctl);
         const added: string[] = [];
+        const sourceRows: { type: KnowledgeSource['type']; location: string; dest: string }[] = [];
         for (const f of files) {
           if (ctl?.signal?.aborted) {
             await rollback(added.map((r) => path.join(filesDir(id), ...r.split('/'))));
@@ -851,9 +975,12 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
             budget.skipped++;
             continue;
           }
-          added.push(await addDocument(id, dstDir, name, f.data, budget));
+          const rel = await addDocument(id, dstDir, name, f.data, budget);
+          added.push(rel);
+          sourceRows.push({ type: 'files', location: name, dest: rel });
           reportCopy(budget, f.data.byteLength);
         }
+        await recordSources(id, sourceRows);
         await touch(id);
         return { added, skipped: budget.skipped };
       });
@@ -861,6 +988,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
 
     async addLink(id, url, ctl) {
       await existingKb(id);
+      await checkDiskRoom();
       ctl?.onProgress?.({ phase: 'download' });
       const page = await fetchPage(url, ctl?.signal);
       return serial(async () => {
@@ -873,6 +1001,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
         const body = `# ${page.title || title}\n\n${page.finalUrl}\n\n${page.markdown}\n`;
         const name = `${slugify(title)}.md`;
         const rel = await addDocument(id, dstDir, name, body, budget);
+        await recordSources(id, [{ type: 'web', location: url, dest: rel }]);
         await touch(id);
         return { added: [rel], skipped: 0 };
       });
@@ -880,6 +1009,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
 
     async cloneGit(id, url, ctl) {
       await existingKb(id);
+      await checkDiskRoom();
       const repo = parseGitHubRepo(url);
       if (!repo) fail(t('bridge.knowledge.badRepo'));
       // 임시 클론은 지식베이스 폴더 안(files/ 밖)에 두고, 확인 후 files/repos/로 옮긴다
@@ -897,8 +1027,10 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
           const reposDir = await ensureDir(id, 'repos');
           const target = path.join(reposDir, await uniqueName(reposDir, repo.repo));
           await rename(tmp, target);
+          const rel = relOf(id, target);
+          await recordSources(id, [{ type: 'github', location: repo.url, dest: rel }]);
           await touch(id);
-          return { added: [relOf(id, target)], skipped: 0 };
+          return { added: [rel], skipped: 0 };
         });
       } finally {
         await rm(tmp, { recursive: true, force: true }).catch(() => undefined);
@@ -934,6 +1066,75 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       } finally {
         await fh.close();
       }
+    },
+
+    async setDescription(id, description) {
+      return serial(async () => {
+        const meta = await existingKb(id);
+        const clean = typeof description === 'string' ? description.trim().slice(0, DESCRIPTION_MAX) : '';
+        const next: KbMeta = { ...meta, updatedAt: Date.now() };
+        delete next.description;
+        if (clean) next.description = clean;
+        await saveMeta(id, next);
+        return toBase(id, next);
+      });
+    },
+
+    async getSettings(id) {
+      const meta = await existingKb(id);
+      return meta.settings ?? { embedding: { ...DEFAULT_INDEX_SETTINGS.embedding } };
+    },
+
+    setSettings(id, settings) {
+      return serial(async () => {
+        const meta = await existingKb(id);
+        if (!isIndexSettings(settings)) fail(t('bridge.knowledge.badSettings'));
+        const clean: KnowledgeIndexSettings = {
+          embedding: {
+            provider: settings.embedding.provider,
+            ...(settings.embedding.model ? { model: settings.embedding.model } : {}),
+          },
+        };
+        await saveMeta(id, { ...meta, settings: clean, updatedAt: Date.now() });
+        return clean;
+      });
+    },
+
+    async sources(id) {
+      const meta = await existingKb(id);
+      return meta.sources ?? [];
+    },
+
+    async updateSource(id, sourceId, ctl) {
+      const meta = await existingKb(id);
+      const src = (meta.sources ?? []).find((s) => s.id === sourceId);
+      if (!src) fail(t('bridge.knowledge.entryNotFound'));
+      if (src.type === 'files') fail(t('bridge.knowledge.sourceNoOrigin'));
+      // 새 항목을 먼저 받아 두고, 성공하면 이전 항목을 같은 자리로 바꿔 끼운다
+      const fresh =
+        src.type === 'web'
+          ? await store.addLink(id, src.location, ctl)
+          : src.type === 'github'
+            ? await store.cloneGit(id, src.location, ctl)
+            : await store.addPaths(id, [src.location], path.posix.dirname(src.dest) === '.' ? undefined : path.posix.dirname(src.dest), ctl);
+      const newRel = fresh.added[0];
+      if (!newRel) return fresh;
+      return serial(async () => {
+        const cur = await existingKb(id);
+        const oldAbs = (await locate(id, src.dest, false)).abs;
+        const newAbs = (await locate(id, newRel, true)).abs;
+        if (newRel !== src.dest) {
+          await rm(oldAbs, { recursive: true, force: true });
+          await rename(newAbs, oldAbs);
+        }
+        const now = Date.now();
+        // 방금 추가되며 생긴 새 출처 행은 빼고, 기존 행만 갱신한다
+        const rows = (cur.sources ?? [])
+          .filter((s) => s.id === src.id || s.dest !== newRel)
+          .map((s) => (s.id === src.id ? { ...s, updatedAt: now } : s));
+        await saveMeta(id, { ...cur, sources: rows, updatedAt: now });
+        return { added: [src.dest], skipped: fresh.skipped };
+      });
     },
 
     async resolvePath(id, relPath) {

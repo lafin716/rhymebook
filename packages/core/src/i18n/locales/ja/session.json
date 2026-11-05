@@ -1,0 +1,57 @@
+{
+  "childCreate": {
+    "aria": "子項目を作成",
+    "canvas": "キャンバス",
+    "emptyPage": "空のページ",
+    "session": "セッション"
+  },
+  "delete": {
+    "confirm": "削除",
+    "messageOne": "{title} は完全に削除され、元に戻せません。",
+    "messageWithKids": "{title} と、そのすべての下位の枝が完全に削除され、元に戻せません。",
+    "titleBranch": "枝を削除しますか？",
+    "titleCanvas": "キャンバスを削除しますか？",
+    "titlePage": "ページを削除しますか？",
+    "titleSession": "学習を削除しますか？"
+  },
+  "menu": {
+    "aria": "セッションメニュー",
+    "delete": "削除",
+    "newWindow": "新しいウィンドウで開く",
+    "rename": "名前を変更",
+    "renameAria": "セッション名",
+    "splitDown": "下に分割して開く",
+    "splitMax": "分割は最大 {max} 個までです。",
+    "splitRight": "右に分割して開く"
+  },
+  "sidebar": {
+    "changeProfile": "プロフィールを変更",
+    "closeList": "一覧を閉じる",
+    "collapseAll": "すべて折りたたむ",
+    "connectToSee": "PCと接続すると、学習の一覧が表示されます",
+    "header": "私の学習の海 · {count}個の出発点",
+    "navAria": "学習セッション",
+    "new": "新規作成",
+    "newNeedsPc": "PCと接続すると新規作成できます",
+    "noSessions": "セッションがありません",
+    "prompts": "プロンプトを管理",
+    "resizeAria": "サイドバーの幅を調整",
+    "resizeTitle": "ドラッグして幅を調整 · ダブルクリックで標準の幅",
+    "skills": "スキルを管理",
+    "toolbarAria": "セッション一覧のツール",
+    "usable": "利用可能 {count}個"
+  },
+  "tree": {
+    "canvasIcon": "キャンバス",
+    "collapseBranch": "枝を折りたたむ",
+    "collapseSub": "下位セッションを折りたたむ",
+    "deleteAria": "セッションを削除",
+    "expandBranch": "枝を展開する",
+    "expandSub": "下位セッションを展開する",
+    "pageIcon": "ページ",
+    "rowTitle": "{title} · {time}",
+    "rowTitleKids": "{title} · {time} · 枝 {count}",
+    "streaming": "回答を生成中",
+    "unread": "未読の回答"
+  }
+}

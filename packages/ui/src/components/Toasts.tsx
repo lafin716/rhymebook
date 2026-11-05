@@ -35,7 +35,7 @@ export function Toasts() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+5.5rem))] z-[80] flex flex-col items-center gap-2 px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+5.5rem))] z-[100] flex flex-col items-center gap-2 px-4"
     >
       {items.map((n) => (
         <div key={n.id} role="status" className="animate-pop-in max-w-sm rounded-xl bg-fg px-3.5 py-2 text-[13px] text-bg shadow-float">

@@ -1,0 +1,65 @@
+{
+  "aborted": "Người dùng đã dừng.",
+  "streamCut": "Luồng phản hồi bị ngắt trước khi hoàn tất.",
+  "connectionDisabled": "Kết nối {label} đang bị tắt.",
+  "openai": {
+    "noKey": "Chưa đặt khóa API OpenAI.",
+    "noKeyShort": "Chưa có khóa API OpenAI.",
+    "error": "Lỗi OpenAI: {message}"
+  },
+  "anthropic": {
+    "noKey": "Chưa đặt khóa API Anthropic.",
+    "error": "Lỗi Anthropic: {message}"
+  },
+  "http": {
+    "auth": "Khóa API bị từ chối. Hãy kiểm tra khóa trong Cài đặt.",
+    "rate-limit": "Đã vượt quá giới hạn yêu cầu. Hãy thử lại sau.",
+    "network": "Máy chủ phản hồi có lỗi. Hãy thử lại sau.",
+    "offline": "Không thể kết nối mạng.",
+    "cli": "Đã xảy ra lỗi khi chạy CLI.",
+    "unknown": "Không thể xử lý yêu cầu."
+  },
+  "summaryFailed": "Không tạo được bản tóm tắt.",
+  "backup": {
+    "noTarget": "Chưa kết nối vị trí sao lưu.",
+    "preBackupFailed": "Đã dừng khôi phục vì sao lưu tự động trước khi khôi phục thất bại: {message}"
+  },
+  "bridge": {
+    "offline": "Không thể kết nối với Bridge.",
+    "statusTimeout": "Hết thời gian kiểm tra trạng thái CLI.",
+    "sttStatusFailed": "Không kiểm tra được trạng thái nhập bằng giọng nói.",
+    "sttStateFailed": "Không tải được cài đặt giọng nói.",
+    "sttManageFailed": "Không thay đổi được cài đặt giọng nói.",
+    "transcribeTimeout": "Hết thời gian chuyển giọng nói thành văn bản."
+  },
+  "secure": {
+    "badBase64": "Chuỗi base64url không hợp lệ",
+    "notEncrypted": "Khung dữ liệu chưa được mã hóa",
+    "frameOrder": "Lỗi thứ tự khung dữ liệu",
+    "badVersion": "Phiên bản bridge không được hỗ trợ.",
+    "keyMismatch": "Khóa của bridge khác với khóa đã ghép nối. Có thể là thiết bị khác hoặc một cuộc tấn công man-in-the-middle.",
+    "badSignature": "Chữ ký của bridge không hợp lệ.",
+    "unparseable": "Không thể phân tích phản hồi của bridge."
+  },
+  "remote": {
+    "badToken": "Mã sai hoặc đã được dùng. Hãy kiểm tra lại mã trên màn hình bridge.",
+    "expired": "Mã ghép nối đã hết hạn. Hãy chạy --pair trên bridge để tạo mã mới.",
+    "unknownDevice": "Thiết bị này đã bị hủy ghép nối trên bridge. Hãy ghép nối lại.",
+    "badSignature": "Xác thực thiết bị thất bại. Hãy ghép nối lại.",
+    "protocol": "Định dạng giao tiếp không khớp với bridge. Hãy cập nhật ứng dụng và bridge lên phiên bản mới nhất.",
+    "unreachableUrl": "Không thể mở địa chỉ: {url}",
+    "timeout": "Không có phản hồi từ {url}. Hãy kiểm tra bridge có đang chạy và mạng (cùng Wi‑Fi hoặc Tailscale) không.",
+    "unreachable": "Không thể kết nối tới {url}. Hãy kiểm tra bridge có đang chạy và mạng không.",
+    "relayNoBridge": "Không có bridge nào kết nối với relay. Hãy kiểm tra bridge trên PC có đang chạy với tùy chọn --relay không.",
+    "closed": "Bridge đã đóng kết nối.",
+    "unpaired": "Bridge từ xa chưa được ghép nối.",
+    "reset": "Kết nối đã được đặt lại.",
+    "noCli": "Không có CLI nào dùng được trên PC bridge. Hãy kiểm tra trạng thái cài đặt và đăng nhập."
+  },
+  "store": {
+    "unknownProvider": "Provider chưa được đăng ký: {id}",
+    "providerMissing": "Không tìm thấy provider.",
+    "sessionMissing": "Không tìm thấy phiên: {id}",
+    "annotationIdConflict": "Trùng id chú thích: {id}"
+  }
+}

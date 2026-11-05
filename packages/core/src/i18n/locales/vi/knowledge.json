@@ -1,0 +1,188 @@
+{
+  "button": {
+    "label": "Cơ sở tri thức",
+    "title": "Cơ sở tri thức của việc học này",
+    "remoteTitle": "Cơ sở tri thức (quản lý trong ứng dụng PC)"
+  },
+  "dialog": {
+    "title": "Cơ sở tri thức",
+    "close": "Đóng cơ sở tri thức",
+    "back": "Về danh sách",
+    "full": "Toàn màn hình",
+    "exitFull": "Thoát toàn màn hình"
+  },
+  "remote": {
+    "notice": "Cơ sở tri thức được quản lý trong ứng dụng PC. Câu trả lời trên thiết bị này cũng dùng cơ sở tri thức trên PC."
+  },
+  "unavailable": {
+    "notice": "Không thể dùng cơ sở tri thức trên thiết bị này. Hãy mở ứng dụng máy tính."
+  },
+  "list": {
+    "heading": "Cơ sở tri thức",
+    "empty": "Chưa có cơ sở tri thức nào.",
+    "emptyHint": "Gom tài liệu vào đây, câu trả lời sẽ tìm trong đó và trích dẫn đường dẫn.",
+    "create": "Cơ sở tri thức mới",
+    "linkedBadge": "Đã liên kết với việc học này",
+    "link": "Liên kết với việc học này",
+    "unlink": "Hủy liên kết",
+    "count": "{count} tệp"
+  },
+  "create": {
+    "title": "Cơ sở tri thức mới",
+    "namePlaceholder": "Tên (ví dụ: Giáo trình sinh học tế bào)",
+    "submit": "Tạo",
+    "cancel": "Hủy"
+  },
+  "rename": {
+    "action": "Đổi tên",
+    "submit": "Lưu",
+    "cancel": "Hủy"
+  },
+  "delete": {
+    "action": "Xóa cơ sở tri thức",
+    "title": "Xóa '{name}'?",
+    "message": "{count} tệp bên trong cũng sẽ bị xóa. Không thể khôi phục.",
+    "confirm": "Xóa"
+  },
+  "tree": {
+    "heading": "Tệp",
+    "empty": "Chưa có tệp nào.",
+    "remove": "Xóa",
+    "removeTitle": "Xóa '{name}'?",
+    "removeMessage": "Sau khi xóa sẽ không thể khôi phục.",
+    "open": "Mở thư mục",
+    "previewEmpty": "Chọn một tệp để xem nội dung.",
+    "binary": "Tệp này không thể xem trước dưới dạng văn bản.",
+    "truncated": "Chỉ hiển thị phần đầu.",
+    "expandAll": "Mở rộng tất cả",
+    "collapseAll": "Thu gọn tất cả"
+  },
+  "add": {
+    "drop": "Kéo thả tệp hoặc thư mục vào đây",
+    "pick": "Chọn tệp",
+    "linkLabel": "Địa chỉ trang web",
+    "linkPlaceholder": "https://...",
+    "linkSubmit": "Tải về",
+    "gitLabel": "Kho GitHub",
+    "gitPlaceholder": "owner/repo hoặc https://github.com/owner/repo",
+    "gitSubmit": "Sao chép",
+    "invalidUrl": "Chỉ có thể dùng địa chỉ http(s).",
+    "invalidGit": "Chỉ có thể dùng địa chỉ kho GitHub.",
+    "done": "Đã thêm {count} mục.",
+    "skipped": "{count} mục đã bị bỏ qua do kích thước hoặc định dạng.",
+    "failed": "Không thể thêm. Hãy thử lại.",
+    "busyDrop": "Vẫn đang nhập. Hãy thả lại khi xong.",
+    "dropEmpty": "Không tìm thấy tệp nào trong những mục đã thả.",
+    "nothing": "Chưa thêm tệp nào. Hãy kiểm tra kích thước hoặc loại tệp.",
+    "gitHint": "Chỉ tải các tệp mới nhất của nhánh mặc định (main, master, …)"
+  },
+  "error": {
+    "generic": "Đã xảy ra lỗi. Hãy thử lại.",
+    "badDescription": "Vui lòng kiểm tra mô tả.",
+    "badSettings": "Vui lòng kiểm tra cài đặt.",
+    "badQuery": "Vui lòng kiểm tra từ khóa tìm kiếm.",
+    "badId": "Không tìm thấy cơ sở tri thức.",
+    "unavailable": "Thiết bị này không dùng được cơ sở tri thức."
+  },
+  "progress": {
+    "label": "Tiến trình nhập",
+    "copy": "Đang sao chép tệp…",
+    "copied": "Đã sao chép {count} tệp ({size})",
+    "download": "Đang tải trang web…",
+    "clone": "Đang tải từ GitHub…",
+    "save": "Đang lưu…",
+    "elapsed": "{seconds} giây",
+    "cancel": "Hủy",
+    "cancelled": "Đã hủy nhập."
+  },
+  "citations": {
+    "label": "Nguồn",
+    "open": "Mở nguồn {n}: {title}"
+  },
+  "source": {
+    "title": "Xem nguồn",
+    "close": "Đóng",
+    "loading": "Đang tải bản gốc…",
+    "failed": "Không mở được bản gốc. {message}",
+    "chunk": "Đoạn khớp",
+    "section": "Ngữ cảnh xung quanh",
+    "page": "Trang {page}",
+    "line": "Dòng {line}",
+    "lines": "Dòng {start}–{end}"
+  },
+  "index": {
+    "empty": "Chưa lập chỉ mục",
+    "queued": "Đang chờ lập chỉ mục",
+    "indexing": "Đang lập chỉ mục {done}/{total}",
+    "ready": "Đã lập chỉ mục · {count} đoạn",
+    "stale": "Tệp đã thay đổi, cần lập chỉ mục lại",
+    "error": "Lập chỉ mục thất bại",
+    "reindex": "Lập chỉ mục lại",
+    "cancel": "Hủy lập chỉ mục"
+  },
+  "description": {
+    "cancel": "Hủy",
+    "edit": "Sửa",
+    "empty": "Chưa có mô tả. Hãy cho biết kho tri thức này chứa gì để tìm kiếm chính xác hơn.",
+    "label": "Mô tả",
+    "placeholder": "VD: Tài liệu quy trình triển khai của nhóm",
+    "save": "Lưu"
+  },
+  "docs": {
+    "chunks": "{count} đoạn",
+    "empty": "Chưa có tài liệu nào được lập chỉ mục.",
+    "failed": "Lỗi",
+    "heading": "Tài liệu",
+    "noMatch": "Không có tài liệu phù hợp.",
+    "search": "Tìm theo đường dẫn hoặc tiêu đề",
+    "skipped": "Bỏ qua"
+  },
+  "embedding": {
+    "heading": "Mô hình nhúng",
+    "local": "Cục bộ (ngoại tuyến, mặc định)",
+    "model": "Mô hình",
+    "modelDefault": "Mô hình mặc định",
+    "openai": "OpenAI (text-embedding-3-small)",
+    "openaiNotice": "Khi chọn OpenAI, nội dung tài liệu trong kho này sẽ được gửi tới máy chủ OpenAI. Dùng khóa API OpenAI hiện có. Với tài liệu nhạy cảm, hãy dùng chế độ cục bộ.",
+    "provider": "Phương thức",
+    "reindexNeeded": "Mô hình đã thay đổi. Hãy lập chỉ mục lại để áp dụng cho tìm kiếm.",
+    "save": "Lưu",
+    "saved": "Đã lưu cài đặt nhúng."
+  },
+  "rag": {
+    "enabled": "Dùng tìm kiếm kho tri thức",
+    "expandParent": "Kèm đoạn văn lân cận",
+    "heading": "Cài đặt tìm kiếm",
+    "maxContextChars": "Số ký tự tối đa của bằng chứng",
+    "minScore": "Độ liên quan tối thiểu",
+    "rerank": "Sắp xếp lại kết quả",
+    "reset": "Mặc định",
+    "save": "Lưu",
+    "topK": "Số lượng bằng chứng"
+  },
+  "sources": {
+    "empty": "Chưa có nguồn nào.",
+    "heading": "Nguồn",
+    "type": {
+      "files": "Tệp",
+      "folder": "Thư mục",
+      "github": "GitHub",
+      "web": "Web"
+    },
+    "update": "Cập nhật",
+    "updated": "Đã cập nhật nguồn {name}.",
+    "updating": "Đang cập nhật…"
+  },
+  "storage": {
+    "chunks": "Đoạn",
+    "docs": "Tài liệu",
+    "heading": "Dung lượng",
+    "index": "Chỉ mục",
+    "source": "Nguồn gốc"
+  },
+  "link": {
+    "inherited": "Đang dùng kho tri thức của nhánh cha.",
+    "overridden": "Nhánh này dùng kho tri thức riêng.",
+    "reset": "Theo nhánh cha"
+  }
+}

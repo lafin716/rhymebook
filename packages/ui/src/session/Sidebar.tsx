@@ -458,7 +458,6 @@ function BranchRow({ id, depth, onPick }: { id: ID; depth: number; onPick(): voi
             <span className="truncate">{s.title}</span>
             {hasKids && !open && <span className="shrink-0 text-[11px] text-muted tabular-nums">+{kidCount}</span>}
             <span className="ml-auto" />
-            {s.summary && <span title={t('session.tree.summarized')} className="h-1.5 w-1.5 shrink-0 rounded-full bg-anchor-line" />}
             <ActivityDot state={activity} />
           </button>
           <SubSessionButton parentId={id} className="!size-6 !rounded-md" />

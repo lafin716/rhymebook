@@ -1,0 +1,11 @@
+{
+  "cliElsewhere": "Web・モバイルでは、この端末で CLI を直接実行できません。デスクトップアプリまたはリモート Bridge に接続してください。",
+  "noResponse": "PCから応答がありません。",
+  "disconnected": "PCとの接続が切れました。",
+  "skillListTooLarge": "PCのスキル一覧が大きすぎます。",
+  "unsupported": "このPCは同期に対応していません。",
+  "hostRestarted": "PCが再起動しました。もう一度お試しください。",
+  "stopped": "同期を停止しました。",
+  "reconnecting": "PCに再接続しています。",
+  "notOnline": "PCに接続されていません。"
+}

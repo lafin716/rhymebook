@@ -1,4 +1,5 @@
 import type { PromptOverrides } from './prompts';
+import type { Citation, RagSettings } from './rag/types';
 export type ID = string;
 
 export type Role = 'user' | 'assistant';
@@ -30,6 +31,8 @@ export interface Session {
   kind?: 'page' | 'canvas';
   /** 이 학습의 지식베이스 id (루트 세션에만 둔다, 가지는 루트 것을 쓴다, ADR-107) */
   knowledgeId?: string;
+  /** 이 가지가 쓰는 지식베이스 목록. undefined면 부모를 따르고, []면 끈다 (ADR-113) */
+  knowledgeIds?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -62,6 +65,10 @@ export interface Message {
   /** 예약 요청에서 여러 스킬 중 사용자가 예약 작업에 쓰라고 고른 스킬 (ADR-111) */
   taskSkill?: SkillRef;
   /** 응답 중 쓴 도구 (웹 검색·페이지 읽기, ADR-070) */
+  /** 응답 근거 출처 (RAG, ADR-113) */
+  citations?: Citation[];
+  /** RAG 검색에 쓴 재작성 질의 */
+  ragQuery?: string;
   tools?: ToolActivity[];
 }
 
@@ -214,6 +221,8 @@ export interface Settings {
   hostAgent?: 'auto' | 'claude-cli' | 'codex-cli';
   /** 사용자가 고친 시스템 프롬프트. 없는 키는 기본 문구 (ADR-098) */
   prompts?: PromptOverrides;
+  /** 지식베이스 검색(RAG) 설정. 없으면 DEFAULT_RAG_SETTINGS (ADR-113) */
+  rag?: RagSettings;
 }
 
 export type ConnectionStatus =

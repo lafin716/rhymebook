@@ -1,12 +1,32 @@
 # Project Progress
 
-Last Updated: 2026-11-03
+Last Updated: 2026-11-05
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
 > 재개 방법: 루트 `CLAUDE.md` → 이 파일 → `docs/02-ARCHITECTURE.md` → `git log`/`git status` 순으로 읽고,
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
+
+## 지식베이스 로컬 색인 + Context-Aware RAG (2026-11-05)
+
+계획: `docs/plans/knowledge-rag-plan.md`, 결정: ADR-113. 프로젝트 모드(리더 계약 + core/bridge/desktop·UI 3명 병렬 + 독립 리뷰).
+
+| ID | 작업 | 담당 | 상태 |
+|---|---|---|---|
+| T1 | 계약(`core/src/rag/types.ts`)·계획·ADR | 리더 | DONE |
+| T2 | core RAG 엔진 + 모델/스토어 통합 + 테스트 | Agent A | DONE |
+| T3 | bridge SQLite 색인·수집·검색·worker + 테스트 | Agent B | DONE |
+| T4 | desktop IPC·UI·출처 뷰어·e2e | Agent C | DONE |
+| T5 | 통합·typecheck/lint/test/e2e | 리더 | DONE |
+| T6 | 독립 리뷰(보안·회귀) | 리뷰 agent | DONE (지적 사항 반영, ADR-113 "통합·리뷰 후 보완") |
+| T7 | 패키징 + 실제 앱 Smoke Test 11개 시나리오 | 리더 | DONE (`e2e/knowledge-packaged.spec.ts` 1 passed) |
+| T8 | knowledge-pack-architecture.md·DECISIONS·PROGRESS·README | 리더 | DONE |
+
+- [x] PASS: `pnpm typecheck`, `pnpm lint`, core 773/774(실패 1개는 이번 변경과 무관한 `sync.test.ts` "sync.reset" 타이밍 flaky, 단독 재실행 3회 중 2회 통과), bridge 158 + 3 skip, `pnpm e2e` 232 passed / 24 skipped
+- [x] 패키지 앱(`package:dir`) smoke: 생성 → MD·PDF 등록 → 백그라운드 색인(4문서·24청크, PDF 1쪽 검색) → 세션 연결 → 문맥 질문("그럼 IP는 누가 할당해?" → IPAM 근거) → 출처 칩·출처 보기 → 가지 생성·KB 상속 검색 → KB 없는 채팅 그대로 → 재시작 후 유지 → 문서 수정 후 증분 재색인
+- 실행: `pnpm --filter @branch/desktop package:dir && RHYMEBOOK_PACKAGED=1 pnpm exec playwright test e2e/knowledge-packaged.spec.ts --project=desktop`
+- 남은 제약: 제외 목록(dropped)은 메모리에만 있음, 15초 검색 시간 초과는 실제 타이머로 검증 안 함, 디스크 부족 경로 미검증, OpenAI 임베딩은 mock fetch로만 검증, Windows에서 삭제 시 파일 핸들 미검증, LLM 질의 재작성 없음(결정적 재작성)
 
 ## 프롬프트 관리 — AI로 수정하기 (2026-11-03)
 

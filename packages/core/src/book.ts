@@ -46,12 +46,12 @@ export function bookFileName(title: string): string {
   return `${safeFileName(title, 60)}.pdf`;
 }
 
-const CONTINUE_LINE = /^\s*[—–-]*\s*\d+\s*장까지\s*썼어요.*$|^.*'계속'이라고\s*보내면.*$|^\s*[—–-]*\s*(?:wrote|written)\s+(?:through\s+)?chapters?\s*\d+.*$|^\s*(?:[—–-]+\s*)?(?:please\s+)?(?:send|type|say|reply(?:\s+with)?)\s+['"‘“]continue['"’”](?:\s+(?:to|and)\b.*)?[.!]?\s*$/i;
+const CONTINUE_LINE = /^\s*[「“"]?\s*[—–-]*\s*(?:第\s*)?\d+\s*章まで書きました.*$|^.*「続けて」と送る.*$|^\s*[「“"]?\s*[—–-]*\s*已写到第\s*\d+\s*章.*$|^\s*[「“"]?\s*[—–-]*\s*đã viết đến chương\s*\d+.*$|^\s*[—–-]*\s*\d+\s*장까지\s*썼어요.*$|^.*'계속'이라고\s*보내면.*$|^\s*[—–-]*\s*(?:wrote|written)\s+(?:through\s+)?chapters?\s*\d+.*$|^\s*(?:[—–-]+\s*)?(?:please\s+)?(?:send|type|say|reply(?:\s+with)?)\s+['"‘“]continue['"’”](?:\s+(?:to|and)\b.*)?[.!]?\s*$/i;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
-const SKIP = /^(구조\s*분석|목차|차례|책\s*계획|\d+\s*단계|structure\s*analysis|outline|contents|table\s*of\s*contents|book\s*plan|\d+\s*steps?\b)/i;
-const FRONT = /^(머리말|서문|들어가며|들어가는\s*글|프롤로그|시작하며|preface|foreword|introduction|prologue|before\s+we\s+begin)/i;
-const BACK = /^(맺음말|마치며|나가며|나오며|에필로그|끝맺으며|용어|찾아보기|색인|부록|conclusion|afterword|epilogue|closing\s+thoughts|glossary|index|appendix)/i;
-const CHAPTER = /^(?:(?:제\s*)?(\d{1,3})\s*장|chapter\s*(\d{1,3}))(?:[.:：)\s]|$)\s*(.*)$/i;
+const SKIP = /^(구조\s*분석|構造の分析|结构分析|phân\s*tích\s*cấu\s*trúc|目次|目录|mục\s*lục|第\s*\d+\s*(?:段階|步)|bước\s*\d+|목차|차례|책\s*계획|\d+\s*단계|structure\s*analysis|outline|contents|table\s*of\s*contents|book\s*plan|\d+\s*steps?\b)/i;
+const FRONT = /^(머리말|はじめに|まえがき|序文|前言|序言|引言|lời\s*nói\s*đầu|lời\s*mở\s*đầu|giới\s*thiệu|서문|들어가며|들어가는\s*글|프롤로그|시작하며|preface|foreword|introduction|prologue|before\s+we\s+begin)/i;
+const BACK = /^(맺음말|おわりに|あとがき|用語集|付録|索引|后记|结语|术语表|附录|lời\s*kết|bảng\s*thuật\s*ngữ|phụ\s*lục|마치며|나가며|나오며|에필로그|끝맺으며|용어|찾아보기|색인|부록|conclusion|afterword|epilogue|closing\s+thoughts|glossary|index|appendix)/i;
+const CHAPTER = /^(?:(?:제\s*)?(\d{1,3})\s*장|chapter\s*(\d{1,3})|(?:第\s*)?(\d{1,3})\s*章|chương\s*(\d{1,3}))(?:[.:：。)\s]|$)\s*(.*)$/i;
 
 /** 제목 장식(굵게·따옴표·끝 구두점)을 걷어 낸다 */
 const cleanHeading = (s: string) =>
@@ -149,8 +149,8 @@ export function parseBook(answers: readonly string[], fallbackTitle: string): Bo
       const body = tidy(s.body);
       const ch = CHAPTER.exec(s.heading);
       if (ch) {
-        const number = Number(ch[1] ?? ch[2]);
-        const name = cleanHeading(ch[3]!.replace(/^[.:：)\-—–\s]+/, '')) || t('llm.book.chapter', { n: number });
+        const number = Number(ch[1] ?? ch[2] ?? ch[3] ?? ch[4]);
+        const name = cleanHeading(ch[5]!.replace(/^[.:：。)\-—–\s]+/, '')) || t('llm.book.chapter', { n: number });
         const prev = chapters.get(number);
         if (!prev || body.length > prev.markdown.length) {
           const part: BookPart = { id: `ch-${number}`, kind: 'chapter', number, title: name, markdown: body };

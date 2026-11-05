@@ -1,0 +1,86 @@
+{
+  "confirm": {
+    "cancel": "キャンセル",
+    "ok": "OK"
+  },
+  "error": {
+    "body": "入力した内容は保存されています。もう一度お試しください。",
+    "retry": "再試行",
+    "title": "画面の描画中に問題が発生しました"
+  },
+  "host": {
+    "addPc": "PCを追加",
+    "ariaForget": "{name} を一覧から削除",
+    "ariaRow": "{name} {sub}",
+    "connect": "接続",
+    "deviceActive": "使用中 · 学習はこの端末に保存",
+    "deviceDesktop": "このPCに保存し、このPCのCLI・APIで回答",
+    "deviceOther": "PCなしで使う · APIキーで回答",
+    "forgetConfirm": "削除",
+    "forgetMessage": "PCの学習内容はそのまま残ります。再び使うには、PCで新しいペアリングコードを取得する必要があります。",
+    "forgetTitle": "{name} を一覧から削除しますか？",
+    "myPcs": "マイPC",
+    "thisDevice": "この端末",
+    "thisPc": "このPC",
+    "useHere": "{device}で使う"
+  },
+  "panel": {
+    "exitFull": "全画面表示を終了",
+    "fullScreen": "全画面表示"
+  },
+  "pcStatus": {
+    "ariaConnected": "接続中のPC: {host} · {status}",
+    "bannerConnecting": "{host}に接続しています…",
+    "bannerOffline": "{host}との接続が切れました。PCアプリが起動しているか確認してください",
+    "bannerUnpaired": "PCとペアリングすると、PCで学習中の内容を確認して質問できます",
+    "bannerUnsupported": "PCアプリを最新バージョンに更新してください",
+    "connectSettings": "接続設定",
+    "connecting": "接続中",
+    "connectingTo": "{host} に接続中",
+    "none": "なし",
+    "offline": "接続が切れています",
+    "online": "接続済み",
+    "pair": "ペアリング",
+    "reconnect": "再接続",
+    "title": "接続中のPC · {status}",
+    "unpaired": "ペアリングが必要",
+    "unsupported": "PCアプリの更新が必要"
+  },
+  "profile": {
+    "close": "閉じる",
+    "heading": "プロフィール",
+    "intro": "学習の保存先と回答するユーザーを選びます。この端末とPCを切り替えると、アプリが再起動します。",
+    "title": "プロフィールを選択"
+  },
+  "toast": {
+    "busy": "このセッションはまだ回答中です。完了後にもう一度お試しください。",
+    "conflict": "別の端末で先に変更されていました。最新の内容に合わせました。",
+    "failed": "PCで処理できませんでした。",
+    "forbidden": "PCの設定でリモート削除が許可されていません。",
+    "invalid": "リクエストを処理できません。",
+    "notFound": "PCに該当するセッションがありません。一覧を再取得しました。",
+    "notReady": "PCアプリの準備がまだ整っていません。しばらくしてからもう一度お試しください。",
+    "offline": "PCと接続していないため、送信できませんでした。",
+    "outdated": "PCアプリはこの機能にまだ対応していません。PCアプリ（または octobooks serve）を最新バージョンに更新してください。",
+    "rateLimit": "リクエストが多すぎます。しばらくしてからもう一度お試しください。",
+    "resumeFailed": "{host}に再接続できませんでした。PCアプリが起動しているか確認し、[再接続] を押してください。",
+    "timeout": "PCが応答しなかったため、キャンセルしました。接続を確認してください。"
+  },
+  "top": {
+    "closeMindmap": "マインドマップを閉じる",
+    "listCollapse": "セッション一覧を折りたたむ",
+    "listExpand": "セッション一覧を展開する",
+    "listToggleTitle": "{label} ({shortcut})",
+    "mindmap": "マインドマップ",
+    "notes": "理解ノート",
+    "search": "検索",
+    "sessionList": "セッション一覧",
+    "sessionSearch": "セッション検索",
+    "settings": "設定",
+    "theme": "テーマ: {mode}",
+    "themeDark": "ダーク",
+    "themeLight": "ライト",
+    "themeSystem": "システム",
+    "vault": "ライブラリ"
+  }
+}

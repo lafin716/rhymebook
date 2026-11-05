@@ -1,0 +1,65 @@
+{
+  "aborted": "ユーザーが停止しました。",
+  "streamCut": "応答のストリームが完了前に途切れました。",
+  "connectionDisabled": "{label} の接続は無効になっています。",
+  "openai": {
+    "noKey": "OpenAI APIキーが設定されていません。",
+    "noKeyShort": "OpenAI APIキーがありません。",
+    "error": "OpenAI エラー: {message}"
+  },
+  "anthropic": {
+    "noKey": "Anthropic APIキーが設定されていません。",
+    "error": "Anthropic エラー: {message}"
+  },
+  "http": {
+    "auth": "APIキーが拒否されました。設定でキーを確認してください。",
+    "rate-limit": "リクエストの上限を超えました。しばらくしてから再度お試しください。",
+    "network": "サーバーの応答に問題があります。しばらくしてから再度お試しください。",
+    "offline": "ネットワークに接続できません。",
+    "cli": "CLIの実行中にエラーが発生しました。",
+    "unknown": "リクエストを処理できませんでした。"
+  },
+  "summaryFailed": "要約の作成に失敗しました。",
+  "backup": {
+    "noTarget": "バックアップの保存先が接続されていません。",
+    "preBackupFailed": "復元前の自動バックアップに失敗したため、復元を中止しました: {message}"
+  },
+  "bridge": {
+    "offline": "Bridgeに接続できません。",
+    "statusTimeout": "CLIの状態確認がタイムアウトしました。",
+    "sttStatusFailed": "音声入力の状態を確認できませんでした。",
+    "sttStateFailed": "音声の設定を読み込めませんでした。",
+    "sttManageFailed": "音声の設定を変更できませんでした。",
+    "transcribeTimeout": "音声の文字起こしがタイムアウトしました。"
+  },
+  "secure": {
+    "badBase64": "不正な base64url 文字列",
+    "notEncrypted": "暗号化されていないフレーム",
+    "frameOrder": "フレームの順序エラー",
+    "badVersion": "サポートされていない bridge のバージョンです。",
+    "keyMismatch": "bridge のキーがペアリング時の値と異なります。別の端末か、中間者攻撃の可能性があります。",
+    "badSignature": "bridge の署名が正しくありません。",
+    "unparseable": "bridge の応答を解釈できません。"
+  },
+  "remote": {
+    "badToken": "コードが違うか、すでに使用されています。bridge の画面のコードを再度確認してください。",
+    "expired": "ペアリングコードの有効期限が切れました。bridge で --pair を実行して新しいコードを作成してください。",
+    "unknownDevice": "bridge でこの端末のペアリングが解除されました。もう一度ペアリングしてください。",
+    "badSignature": "端末の認証に失敗しました。もう一度ペアリングしてください。",
+    "protocol": "bridge との通信形式が合っていません。アプリと bridge を最新版にそろえてください。",
+    "unreachableUrl": "アドレスを開けません: {url}",
+    "timeout": "{url} から応答がありません。bridge が起動しているか、ネットワーク（同じWi‑FiまたはTailscale）を確認してください。",
+    "unreachable": "{url} に接続できません。bridge が起動しているか、ネットワークを確認してください。",
+    "relayNoBridge": "relay に bridge が接続されていません。bridge の PC で --relay オプション付きで起動しているか確認してください。",
+    "closed": "bridge が接続を閉じました。",
+    "unpaired": "リモート Bridge がペアリングされていません。",
+    "reset": "接続がリセットされました。",
+    "noCli": "bridge の PC で使用できる CLI がありません。インストールとログインの状態を確認してください。"
+  },
+  "store": {
+    "unknownProvider": "登録されていないプロバイダー: {id}",
+    "providerMissing": "プロバイダーが見つかりません。",
+    "sessionMissing": "セッションが見つかりません: {id}",
+    "annotationIdConflict": "注釈 id が重複しています: {id}"
+  }
+}

@@ -61,6 +61,7 @@ import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
 import { newCanvasTitle } from '../canvas';
 import { isKnowledgeId } from '../knowledge';
+import { buildRagSystem, buildRewriteContext, DEFAULT_RAG_SETTINGS, rewriteQuery, toCitations, type Citation, type RagSettings, type RetrievalService, type RewriteContext } from '../rag';
 import { newPageTitle, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
 import { hasScheduleIntent, scheduleSystemHint, type ScheduleSkillOption } from '../schedules';
@@ -95,6 +96,84 @@ interface CustomRun {
 export function rootKnowledgeId(sessions: Record<ID, Session>, id: ID): string | undefined {
   const s = sessions[id];
   return s ? sessions[s.rootId]?.knowledgeId : undefined;
+}
+
+/** 세션 하나가 쓸 수 있는 지식베이스 개수 상한 (ADR-113) */
+export const MAX_SESSION_KNOWLEDGE = 8;
+
+/** 지식베이스 검색 응답 대기 상한. 넘으면 RAG 없이 답한다 */
+export const RAG_TIMEOUT_MS = 15_000;
+
+/** 지식베이스 id 목록 정리: 형식 검사·중복 제거·상한 */
+export function sanitizeKnowledgeIds(ids: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    if (!isKnowledgeId(id) || out.includes(id)) continue;
+    out.push(id);
+    if (out.length >= MAX_SESSION_KNOWLEDGE) break;
+  }
+  return out;
+}
+
+/**
+ * 세션에 적용되는 지식베이스 목록. 세션에 값(knowledgeIds)이 있으면 그것이고, 없으면 부모를 따른다.
+ * 루트까지 값이 없으면 예전 knowledgeId 하나를 쓴다. []는 끔.
+ */
+export function effectiveKnowledgeIds(sessions: Record<ID, Session>, id: ID): string[] {
+  const seen = new Set<ID>();
+  let cur: Session | undefined = sessions[id];
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    if (cur.knowledgeIds !== undefined) return sanitizeKnowledgeIds(cur.knowledgeIds);
+    if (!cur.parentId) return cur.knowledgeId ? sanitizeKnowledgeIds([cur.knowledgeId]) : [];
+    cur = sessions[cur.parentId];
+  }
+  return [];
+}
+
+/** 이 세션의 지식베이스 목록을 부모에게서 물려받고 있는가 (가지만 해당) */
+export function knowledgeInherited(sessions: Record<ID, Session>, id: ID): boolean {
+  const s = sessions[id];
+  return !!s && s.knowledgeIds === undefined && s.parentId !== null;
+}
+
+/** 채팅 한 번의 지식 검색. 실패·시간 초과·검색 없음이면 null (RAG 없이 답한다) */
+interface ChatRag {
+  system: string;
+  citations: Citation[];
+  ragQuery: string;
+}
+
+async function retrieveForChat(
+  retriever: RetrievalService,
+  ctx: RewriteContext,
+  kbIds: string[],
+  settings: RagSettings,
+  parent: AbortSignal,
+): Promise<ChatRag | null> {
+  const plan = rewriteQuery(ctx);
+  const ctrl = new AbortController();
+  const onAbort = () => ctrl.abort();
+  if (parent.aborted) return null;
+  parent.addEventListener('abort', onAbort);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      ctrl.abort();
+      resolve(null);
+    }, RAG_TIMEOUT_MS);
+  });
+  try {
+    const result = await Promise.race([
+      retriever.retrieve({ kbIds, plan, settings }, ctrl.signal).catch(() => null),
+      timeout,
+    ]);
+    if (!result) return null;
+    return { system: buildRagSystem(result.evidence, plan), citations: toCitations(result.evidence), ragQuery: plan.rewritten };
+  } finally {
+    clearTimeout(timer);
+    parent.removeEventListener('abort', onAbort);
+  }
 }
 
 /** 재정리 기본 스킬 사본 (사용자가 스킬을 지웠어도 동작) */
@@ -192,6 +271,8 @@ export interface AppState extends AppData {
   setSessionWebSearch(id: ID, on: boolean): void;
   /** 이 학습(루트 세션)에 지식베이스를 연결하거나(id) 해제한다(null). 가지는 루트 것을 쓴다 (ADR-107) */
   setSessionKnowledge(id: ID, knowledgeId: string | null): void;
+  /** 이 세션의 지식베이스 목록을 정한다. []는 끔, null이면 부모를 따른다 (ADR-113) */
+  setSessionKnowledgeIds(id: ID, ids: string[] | null): void;
 
   // 메시지
   /** 질문 보내기. 첨부가 있으면 text가 비어도 된다 */
@@ -272,6 +353,8 @@ export interface AppStoreOptions {
   scheduleSkills?(): readonly ScheduleSkillOption[];
   registry: ProviderRegistry;
   repo?: Repository;
+  /** 지식베이스 검색(RAG). 없으면 예전 방식으로 bridge에 knowledgeId를 넘긴다 */
+  retriever?: RetrievalService;
   initial?: Partial<AppData>;
   /** 팝업 기본 위치 계산용 뷰포트 크기 */
   viewport?: () => { width: number; height: number };
@@ -504,8 +587,20 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
       // 일반 대화에만 웹 도구를 붙인다. 재정리 같은 내부 요청은 도구 없이 (ADR-070)
       if (!custom) {
         req.webSearch = state.sessions[sessionId]?.webSearch !== false;
-        // 학습의 지식베이스는 루트 세션에 있다 (가지도 같은 지식베이스를 쓴다, ADR-107)
-        const knowledgeId = rootKnowledgeId(state.sessions, sessionId);
+        const ragSettings: RagSettings = { ...DEFAULT_RAG_SETTINGS, ...state.settings.rag };
+        const kbIds = effectiveKnowledgeIds(state.sessions, sessionId);
+        if (opts.retriever && ragSettings.enabled && kbIds.length > 0 && userMessage) {
+          const ctx = buildRewriteContext(state.sessions, state.messages, sessionId, userMessage.content);
+          const rag = await retrieveForChat(opts.retriever, ctx, kbIds, ragSettings, ctrl.signal);
+          if (rag) {
+            req.system += `\n\n${rag.system}`;
+            const m = getMessage(sessionId, messageId);
+            if (m) putMessage({ ...m, citations: rag.citations, ragQuery: rag.ragQuery });
+          }
+        }
+        // 검색기와 별개로 bridge 파일 도구(Claude CLI)와 검색기가 없는 플랫폼을 위해 첫 KB를 계속 넘긴다 (ADR-107).
+        // 세션에 적용되는 목록(가지 덮어쓰기·끔 반영)의 첫 번째를 쓰고, 목록이 비면 넘기지 않는다
+        const knowledgeId = kbIds[0];
         if (knowledgeId) req.knowledgeId = knowledgeId;
       }
       req.signal = ctrl.signal;
@@ -986,10 +1081,31 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         const cur = get().sessions[id];
         if (!cur || (knowledgeId !== null && !isKnowledgeId(knowledgeId))) return;
         const root = get().sessions[cur.rootId];
-        if (!root || (root.knowledgeId ?? null) === knowledgeId) return;
+        if (!root) return;
         const next: Session = { ...root };
-        if (knowledgeId) next.knowledgeId = knowledgeId;
-        else delete next.knowledgeId;
+        if (knowledgeId) {
+          next.knowledgeId = knowledgeId;
+          next.knowledgeIds = [knowledgeId];
+        } else {
+          delete next.knowledgeId;
+          delete next.knowledgeIds;
+        }
+        set((s) => ({ sessions: { ...s.sessions, [next.id]: next } }));
+        repo.saveSession(next);
+      },
+
+      setSessionKnowledgeIds(id, ids) {
+        const cur = get().sessions[id];
+        if (!cur) return;
+        const next: Session = { ...cur };
+        if (ids === null) delete next.knowledgeIds;
+        else next.knowledgeIds = sanitizeKnowledgeIds(ids);
+        // 루트는 예전 knowledgeId도 맞춘다 (예전 화면과 bridge 경로가 읽는다)
+        if (!cur.parentId) {
+          const first = next.knowledgeIds?.[0];
+          if (first) next.knowledgeId = first;
+          else delete next.knowledgeId;
+        }
         set((s) => ({ sessions: { ...s.sessions, [next.id]: next } }));
         repo.saveSession(next);
       },

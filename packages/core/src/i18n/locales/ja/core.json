@@ -1,0 +1,143 @@
+{
+  "attachments": {
+    "binaryNote": "（添付: {names} — この接続ではファイルの内容を表示できません）"
+  },
+  "effort": {
+    "low": "低",
+    "medium": "標準",
+    "high": "高",
+    "xhigh": "非常に高い",
+    "max": "最大",
+    "ultra": "ウルトラ"
+  },
+  "availability": {
+    "disabled": "無効"
+  },
+  "providers": {
+    "mock": "デモ (Mock)",
+    "remoteBridge": "リモート Bridge"
+  },
+  "tts": {
+    "speechKorean": "標準語を話す韓国語のネイティブスピーカーのように、はっきりと自然に読み上げてください。",
+    "fallback": {
+      "auth": "OpenAI APIキーがないか、拒否されたため",
+      "rateLimit": "OpenAIの利用上限（クレジット）が不足しているか、リクエストが多すぎるため",
+      "offline": "OpenAIに接続できないため",
+      "network": "OpenAIのサーバー応答に問題があるため",
+      "default": "OpenAIの音声を生成できなかったため",
+      "template": "{reason} 端末の音声で読み上げます。"
+    }
+  },
+  "stt": {
+    "large": {
+      "label": "標準（高精度）",
+      "note": "Apple Silicon や最近のGPUを搭載したPCにおすすめです。韓国語の認識精度が最も高いです。"
+    },
+    "small": {
+      "label": "軽量（高速）",
+      "note": "古い・低スペックのPC向けです。高速ですが、精度は少し下がります。"
+    }
+  },
+  "bridgePrompt": {
+    "learner": "学習者",
+    "tutor": "チューター",
+    "answer": "上の会話に続けて、下の学習者の最後のメッセージに答えてください。会話履歴の形式はまねしないでください。"
+  },
+  "session": {
+    "newTitle": "新しい学習"
+  },
+  "store": {
+    "reorganize": "セッションを整理"
+  },
+  "page": {
+    "newTitle": "新しいページ",
+    "blocks": {
+      "h1": "見出し 1",
+      "h2": "見出し 2",
+      "h3": "見出し 3",
+      "bullet": "箇条書き",
+      "number": "番号付きリスト",
+      "todo": "ToDoリスト",
+      "quote": "引用",
+      "code": "コードブロック",
+      "divider": "区切り線",
+      "table": "表",
+      "math": "数式",
+      "image": "画像",
+      "file": "ファイル",
+      "page": "下位ページ"
+    },
+    "tableHeader": {
+      "item": "項目",
+      "desc": "説明"
+    }
+  },
+  "canvas": {
+    "newTitle": "新しいキャンバス",
+    "image": "画像",
+    "omitted": "…（省略）",
+    "pdf": "[PDF: {name}]",
+    "imageNamed": "[画像: {name}]",
+    "imageBare": "[画像]",
+    "handwriting": "[手書きメモ {n}画]",
+    "pages": "[{pages}ページ]"
+  },
+  "fallback": {
+    "image": "画像",
+    "file": "ファイル"
+  },
+  "vault": {
+    "text": "テキスト",
+    "voice": "音声",
+    "item": "項目"
+  },
+  "turns": {
+    "attachments": "[添付] {names}",
+    "splitQuestion": "分けた質問"
+  },
+  "notes": {
+    "header": "> octobooks 理解ノート · {date} · 枝 {branches}個 · 要約 {summaries}個",
+    "empty": "まだ枝がありません。回答の中で分からない部分を選んで、枝を作ってみてください。",
+    "path": "経路: {path}",
+    "summary": "**理解した内容** — {summary}",
+    "noSummary": "_要約なし — 枝で [親に要約を添付] を行うと、ここに入ります。_",
+    "defaultName": "理解ノート",
+    "fileTag": "理解ノート"
+  },
+  "backupMarkdown": {
+    "title": "# octobooks バックアップ",
+    "asOf": "{at} 時点。復元は、アプリの設定 › バックアップから backup JSON を使ってください。",
+    "original": "> 原文: \"{text}\"",
+    "summary": "> **枝の要約**: {text}",
+    "me": "**私**: {text}"
+  },
+  "backupErrors": {
+    "invalid": "octobooks のバックアップファイルではないか、破損しています。",
+    "newerVersion": "新しいバージョンのアプリで作成されたバックアップです。アプリを更新してから復元してください。",
+    "passphraseRequired": "パスフレーズで保護されたバックアップです。パスフレーズを入力してください。",
+    "wrongPassphrase": "パスフレーズが正しくありません。"
+  },
+  "backupTargets": {
+    "file": "ファイル",
+    "gdrive": "Google ドライブ"
+  },
+  "targetHttp": {
+    "unauthorized": "{label} の認証が期限切れになったか、拒否されました。もう一度接続してください。",
+    "forbidden": "{label} の権限が不足しています。書き込み権限を確認してください。",
+    "notFound": "{label} で対象が見つかりませんでした。名前とアクセス権限を確認してください。",
+    "network": "{label} に接続できません。ネットワークを確認してください。",
+    "failed": "{label} へのリクエストが失敗しました（HTTP {status}）。"
+  },
+  "route": {
+    "direct": "直接接続",
+    "lan": "LAN 直接接続",
+    "tailscale": "Tailscale 直接接続",
+    "relay": "Relay 経由"
+  },
+  "remote": {
+    "base": "{name} · {route} · 遅延 {latency}ms",
+    "loginNeeded": "{base} · bridge の PC で CLI へのログインが必要です。{detail}",
+    "notInstalled": "{base} · bridge の PC に Claude/Codex CLI がインストールされていません。",
+    "via": "リモート Bridge（{name}）経由"
+  }
+}

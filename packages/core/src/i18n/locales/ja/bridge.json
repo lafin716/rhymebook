@@ -1,0 +1,119 @@
+{
+  "errors": {
+    "authRequired": "{label} にログインしていません。ターミナルで `{loginHint}` を実行してください。",
+    "rateLimit": "{label} の利用上限に達しました。しばらくしてから再度お試しください。{detail}",
+    "network": "{label} がネットワークに接続できませんでした。{detail}",
+    "chatgptOnly": " このモデルは ChatGPT アカウントでのログインでは使用できません。",
+    "unsupportedModel": "{label} では '{model}' モデルを使用できません。{why} 設定（またはスキルの詳細設定）で別のモデルを選んでください。",
+    "cliErrorDetail": "{label} の実行エラー: {text}",
+    "cliErrorNone": "{label} の実行中にエラーが発生しました。"
+  },
+  "detect": {
+    "slow": "応答が遅く確認できませんでした · チャットは試すことができます",
+    "claudeNotFound": "claude コマンドが見つかりません",
+    "claudeFailed": "claude の実行に失敗しました",
+    "codexNotFound": "codex コマンドが見つかりません",
+    "codexFailed": "codex の実行に失敗しました",
+    "needLogin": "{version} · ログインが必要",
+    "ready": "{version} · ログイン済み",
+    "readyWithMethod": "{version} · ログイン済み（{method}）",
+    "methodApiKey": "APIキー"
+  },
+  "codexImages": {
+    "name": "生成された画像 {n}.{ext}"
+  },
+  "common": {
+    "stopped": "ユーザーが停止しました。"
+  },
+  "claude": {
+    "notFound": "{label} がインストールされていないか、PATH 上に見つかりません。",
+    "timedOut": "{label} の応答がタイムアウトしました。",
+    "exitCode": "終了コード {code}"
+  },
+  "skills": {
+    "badFolder": "スキルフォルダの形式が正しくありません",
+    "badName": "スキル名が正しくありません",
+    "badSkillMd": "SKILL.md の内容が正しくありません",
+    "badFileList": "付属ファイルの一覧が正しくありません",
+    "badFileFormat": "付属ファイルの形式が正しくありません",
+    "badFilePath": "付属ファイルのパスが正しくありません",
+    "tooMany": "付属ファイルが多すぎるか、大きすぎるか、重複しています",
+    "pathClash": "付属ファイルのパスがフォルダ名と重複しています",
+    "badFolderPath": "スキルフォルダのパスが正しくありません",
+    "fileInFolder": "フォルダであるべき場所に、ファイルまたはリンクがあります",
+    "folderInFile": "ファイルであるべき場所に、フォルダがあります",
+    "openFailed": "フォルダを開けませんでした: {error}"
+  },
+  "server": {
+    "imageGenNote": "画像が必要な場合は、画像生成ツールで作成してください。作成された画像はアプリが回答の下に自動で添付するため、ファイルのパスや保存場所は書かないでください。SVG や ASCII アートで代用しないでください。",
+    "sttUnsupported": "この Bridge は音声入力に対応していません。",
+    "fallbackSystem": "あなたは学習を手助けする親切なチューターです。日本語で、短く分かりやすく答えてください。",
+    "pickModel": "モデルを選んでください。",
+    "imagesSkipped": "（画像 {count} 枚は、サイズまたは枚数の上限を超えたため添付できませんでした。）",
+    "unsupportedCli": "サポートされていない CLI です。"
+  },
+  "stt": {
+    "disabled": "この PC では音声入力がオフになっています。",
+    "engineMissing": "音声エンジン（whisper-cli）が見つかりませんでした。",
+    "downloading": "音声モデルをダウンロード中です。",
+    "modelNeeded": "音声モデルをダウンロードする必要があります。",
+    "modelServerError": "モデルサーバーの応答エラー（{status}）",
+    "modelSizeMismatch": "モデルのサイズが想定と異なります。",
+    "modelCorrupt": "ダウンロードしたモデルが破損しています。もう一度ダウンロードしてください。",
+    "queueFull": "音声変換のリクエストが混み合っています。しばらくしてから再度お試しください。",
+    "badFormat": "録音の形式が正しくありません。",
+    "unavailable": "音声入力を利用できません。",
+    "engineNotFound": "音声エンジンが見つかりませんでした。",
+    "timedOut": "音声変換がタイムアウトしました。",
+    "engineRunFailed": "音声エンジン（whisper-cli）を実行できませんでした。",
+    "failed": "音声変換に失敗しました。",
+    "unknownModel": "不明なモデルです。",
+    "otherDownloading": "別のモデルをダウンロード中です。",
+    "cannotDeleteDownloading": "ダウンロード中のモデルは削除できません。"
+  },
+  "store": {
+    "readFailed": "{file} を読み込めません: {reason}"
+  },
+  "remote": {
+    "local": "ローカル",
+    "unnamedDevice": "名前のない端末"
+  },
+  "knowledge": {
+    "badId": "ナレッジベースの id が正しくありません",
+    "notFound": "ナレッジベースが見つかりません",
+    "entryNotFound": "項目が見つかりません",
+    "badName": "ナレッジベースの名前が正しくありません",
+    "badPath": "項目のパスが正しくありません",
+    "badUrl": "Web アドレスが正しくありません（http・https のみ使用できます）",
+    "badRepo": "GitHub リポジトリのアドレスが正しくありません",
+    "privateHost": "内部ネットワークのアドレスは取り込めません",
+    "fetchFailed": "Web ページを取得できません",
+    "notHtml": "Web ページでもテキストでもないため、取得できません",
+    "htmlTooLarge": "Web ページが大きすぎて取得できません",
+    "tooLarge": "ファイルが大きすぎて追加できません",
+    "tooManyFiles": "ナレッジベースのファイル数の上限を超えるため、追加できません",
+    "tooManyBytes": "ナレッジベースの容量の上限を超えるため、追加できません",
+    "nameTaken": "同じ名前の項目は作成できません: {name}",
+    "gitMissing": "git が見つかりません。git をインストールしてから再度お試しください",
+    "cloneFailed": "リポジトリを取得できません: {error}",
+    "cancelled": "取り込みを取り消しました",
+    "cloneStalled": "リポジトリからの応答がないため中断しました。ネットワークを確認して再度お試しください",
+    "cloneTimeout": "リポジトリが大きすぎて、時間内にダウンロードできませんでした",
+    "openFailed": "フォルダを開けませんでした: {error}",
+    "systemNote": "この学習には、ナレッジベース（参考資料）が接続されています。回答する前に、Read・Glob・Grep ツールで関連するファイルを探して確認し、ファイルの内容に基づいて回答してください。パスは作業フォルダを基準としています。ファイル一覧（全 {total} 件中 {shown} 件）: {paths}",
+    "codexIndex": "ナレッジベースのファイル一覧（全 {total} 件中 {shown} 件。ファイルの内容は提供されません）: {paths}",
+    "repoNotFound": "リポジトリが見つかりません。アドレスが正しいか、公開リポジトリかを確認してください",
+    "index": {
+      "diskFull": "ディスクの空き容量が足りず、索引を作成できません",
+      "embedFailed": "埋め込みを作成できないため索引を中断しました: {message}",
+      "fileTooLarge": "ファイルが大きすぎるため索引から除外しました",
+      "keyMissing": "OpenAI API キーがないため埋め込みを作成できません。キーを設定するか、ローカルの埋め込みを選んでください",
+      "pdfUnavailable": "PDF のテキストを読めないため除外しました",
+      "tooManyChunks": "チャンク数の上限（{count}件）を超えたため索引を中断しました",
+      "tooManyFiles": "ファイル数の上限（{count}件）を超えるため索引を作成できません"
+    },
+    "badSettings": "索引設定の値が正しくありません",
+    "diskLow": "ディスクの空き容量が足りないため追加できません",
+    "sourceNoOrigin": "直接アップロードしたファイルは元から再取得できません"
+  }
+}

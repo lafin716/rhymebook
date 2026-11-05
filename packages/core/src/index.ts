@@ -7,6 +7,7 @@ export * from './annotations';
 export * from './attachments';
 export * from './skills';
 export * from './knowledge';
+export * from './rag';
 export * from './schedules';
 export * from './skillAssist';
 export * from './promptAssist';

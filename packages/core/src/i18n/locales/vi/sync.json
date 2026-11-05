@@ -1,0 +1,11 @@
+{
+  "cliElsewhere": "Trên web hoặc di động, không thể chạy CLI trực tiếp trên thiết bị này. Hãy kết nối qua ứng dụng máy tính hoặc Bridge từ xa.",
+  "noResponse": "Không có phản hồi từ PC.",
+  "disconnected": "Đã mất kết nối với PC.",
+  "skillListTooLarge": "Danh sách kỹ năng trên PC quá lớn.",
+  "unsupported": "PC này không hỗ trợ đồng bộ.",
+  "hostRestarted": "PC đã khởi động lại. Hãy thử lại.",
+  "stopped": "Đã dừng đồng bộ.",
+  "reconnecting": "Đang kết nối lại với PC.",
+  "notOnline": "Chưa kết nối với PC."
+}

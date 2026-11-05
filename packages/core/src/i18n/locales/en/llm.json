@@ -176,5 +176,17 @@
       "truncated": " …(shortened)",
       "cutNote": "\n> The source was long, so only the beginning of {count} answers is included.\n"
     }
+  },
+  "schedule": {
+    "heading": "## Schedule request",
+    "intro": "Only for a clear request to schedule future work, output exactly one schedule JSON code block with title, prompt, runAt, repeat and optionally skill.",
+    "limits": "title: 1–{titleMax} characters; prompt: 1–{promptMax} characters, a self-contained question to send in this conversation at the scheduled time.",
+    "runAt": "runAt must be a real future ISO date/time with explicit offset or Z. Resolve relative dates using the current local timezone. repeat must be once, daily, weekdays, weekly or monthly.",
+    "skillChosen": "skill: the user chose one skill for this task: \"{name}\" ({title}). Set \"skill\":\"{name}\". Write prompt for that skill's task only; the other requested tasks are not run because one schedule runs one skill.",
+    "skillOptional": "skill (optional): when the task clearly fits one of these skills, set its command name so the skill runs with the task (for example \"quiz me every day at 3pm\" → \"skill\":\"quiz\"). Omit it otherwise. Use only one skill.",
+    "skillNone": "Omit skill.",
+    "ask": "Ask a brief question if the time, timezone, repetition or task is ambiguous. Do not guess. For past dates, ask for a future time.",
+    "unsupported": "Unsupported recurrence (for example every two hours or selected weekdays) requires asking the user to choose a supported recurrence; never silently coerce it.",
+    "noBlock": "Do not emit a schedule block for explanations, examples, cancellation, negation or the execution of an existing scheduled task. Do not claim a schedule was saved; the app validates and saves it. Tasks run only while this device’s app is open."
   }
 }

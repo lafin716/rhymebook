@@ -1,0 +1,104 @@
+{
+  "audio": {
+    "listen": "聞く",
+    "stop": "停止"
+  },
+  "defaults": {
+    "folder": "フォルダ",
+    "fragment": "断片",
+    "newFolder": "新しいフォルダ",
+    "newPage": "新しいページ"
+  },
+  "delete": {
+    "confirm": "削除",
+    "irreversible": "削除後は元に戻せません。",
+    "title": "「{name}」を削除しますか？",
+    "withContents": "中に入っている {count} 件も一緒に削除されます。"
+  },
+  "folder": {
+    "empty": "空のフォルダです。左の一覧から項目をドラッグしてドロップするか、項目の [移動] で移せます。"
+  },
+  "item": {
+    "addToPage": "ページに入れる",
+    "cancel": "キャンセル",
+    "contentAria": "内容",
+    "copy": "コピー",
+    "edit": "編集する",
+    "move": "移動",
+    "nameAria": "名前",
+    "openChat": "元の会話を開く",
+    "save": "保存",
+    "saveImage": "画像を保存",
+    "saveMarkdown": "Markdownで保存",
+    "savedOn": "{date} に保存",
+    "toolbarAria": "項目のツール"
+  },
+  "lang": {
+    "en": "英語",
+    "ko": "韓国語",
+    "vi": "ベトナム語"
+  },
+  "move": {
+    "toFolder": "「{name}」に移動しました。",
+    "toTop": "ライブラリの一番上に移動しました。"
+  },
+  "notice": {
+    "addedToPage": "「{name}」に入れました。",
+    "copied": "コピーしました。",
+    "copyFailed": "コピーできませんでした。",
+    "emptyContent": "内容が空です。",
+    "pageFull": "このページにはこれ以上入れられません。",
+    "saved": "保存しました。",
+    "savedToLibrary": "ライブラリに保存しました。"
+  },
+  "overlay": {
+    "backToList": "ライブラリの一覧に戻る",
+    "close": "ライブラリを閉じる",
+    "dropHint": "行の間にドロップするとその位置に、フォルダの中央にドロップするとフォルダ内に、空いている場所にドロップすると一番上に移動します。",
+    "empty": "まだ保存した断片がありません。回答の下の [保存] を押すか、文章を選択して [保存] を押してください。",
+    "folderAria": "ライブラリのフォルダ",
+    "fullScreen": "全画面で表示",
+    "label": "ライブラリ",
+    "pickHint": "左からフォルダ・断片・ページを選んでください。項目をフォルダにドラッグして移動できます。[新しいページ] を使うと、断片をまとめて1ページにできます。",
+    "windowed": "ウィンドウで表示"
+  },
+  "page": {
+    "addFragment": "断片を入れる",
+    "addText": "文章を入れる",
+    "besideHint": "ハンドルをほかのブロックの左端または右端までドラッグすると、横に並んで配置されます。",
+    "blank": "断片や文章を入れて、ページを作り込みましょう。",
+    "down": "下へ",
+    "dragAria": "ドラッグして移動",
+    "empty": "空のページです。上の [編集する] から断片や文章を入れてみてください。",
+    "pairBeside": "前のブロックの横に並べる",
+    "remove": "ページから外す",
+    "removedFragment": "削除された断片",
+    "removedFragmentNote": "この断片は削除されています。",
+    "text": "文章",
+    "textPlaceholder": "ここに入れる文章（Markdown）",
+    "unpairBeside": "並べて配置を解除",
+    "up": "上へ"
+  },
+  "picker": {
+    "close": "閉じる",
+    "current": "現在の場所",
+    "findAria": "断片を検索",
+    "findPlaceholder": "断片の名前で検索",
+    "moveLabel": "移動先のフォルダを選択",
+    "moveTitle": "「{name}」を移動",
+    "noFolders": "フォルダがありません。左の [新しいフォルダ] で作成できます。",
+    "noFragments": "入れられる断片がありません。",
+    "noPages": "まだページがありません。左の [新しいページ] で作成してから入れてください。",
+    "pageLabel": "入れるページを選択",
+    "top": "ライブラリの一番上"
+  },
+  "tree": {
+    "collapse": "{name} を折りたたむ",
+    "expand": "{name} を展開する"
+  },
+  "unsaved": {
+    "confirm": "破棄",
+    "message": "編集した内容は失われます。",
+    "title": "保存していない変更を破棄しますか？"
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "color": {
+    "kind": {
+      "highlight": "Bút đánh dấu",
+      "underline": "Gạch chân",
+      "textColor": "Màu chữ"
+    },
+    "preset": {
+      "yellow": "Vàng",
+      "green": "Xanh lá",
+      "blue": "Xanh dương",
+      "purple": "Tím",
+      "red": "Đỏ",
+      "orange": "Cam"
+    },
+    "swatch": "{kind}: {color}",
+    "swatchRemove": "{kind}: {color}, bỏ khỏi yêu thích",
+    "palette": "Bảng màu {kind}",
+    "back": "Quay lại định dạng",
+    "title": "Màu: {kind}",
+    "none": "Không có",
+    "favorites": "Yêu thích",
+    "done": "Xong",
+    "edit": "Sửa",
+    "favoritesEmpty": "Nhấn nút ☆ bên dưới để lưu các màu bạn hay dùng.",
+    "recommended": "Màu gợi ý",
+    "custom": "Tùy chỉnh",
+    "pick": "Chọn màu",
+    "pickLabel": "Chọn màu cho {kind}",
+    "hex": "Mã màu HEX",
+    "unfavorite": "Bỏ khỏi yêu thích",
+    "favorite": "Thêm vào yêu thích",
+    "apply": "Áp dụng"
+  },
+  "editor": {
+    "placeholder": "Viết tự do bằng Markdown. Nội dung được lưu khi bạn gõ. Nhấn / hoặc nhấp chuột phải để chèn khối, trang con hoặc điền bằng AI.\n\n# Tiêu đề\n- Danh sách\n**In đậm**, `mã`\n\nChọn một đoạn văn để hỏi, hoặc thêm định dạng và ghi chú.",
+    "branchOpen": "Mở nhánh",
+    "noteOpen": "Xem ghi chú",
+    "bodyLabel": "Nội dung trang (Markdown)",
+    "filling": "AI đang điền",
+    "menuLabel": "Menu khối và AI",
+    "column": {
+      "title": "Cột này",
+      "left": "Chuyển sang trái",
+      "right": "Chuyển sang phải",
+      "out": "Đưa ra khỏi cột",
+      "delete": "Xóa cột"
+    },
+    "ask": {
+      "label": "Điền gì? (để trống thì theo ngữ cảnh trước và sau)",
+      "placeholder": "Ví dụ: ưu và nhược điểm dưới dạng bảng",
+      "submit": "Điền"
+    },
+    "block": {
+      "title": "Khối này",
+      "up": "Chuyển lên",
+      "down": "Chuyển xuống",
+      "unwrap": "Bỏ xếp cạnh nhau",
+      "delete": "Xóa khối"
+    },
+    "aiFill": "Điền nội dung bằng AI",
+    "blocks": {
+      "title": "Chèn khối"
+    },
+    "emoji": {
+      "hint": "Emoji · ↑↓ chọn · Enter",
+      "listLabel": "Emoji"
+    },
+    "slash": {
+      "hint": "Chèn khối · ↑↓ chọn · Enter",
+      "listLabel": "Chèn khối"
+    }
+  },
+  "keyboard": {
+    "indentOut": "Giảm thụt lề",
+    "indent": "Tăng thụt lề",
+    "paragraph": "Văn bản",
+    "bullet": "Danh sách gạch đầu dòng",
+    "ordered": "Danh sách đánh số",
+    "todo": "Việc cần làm",
+    "quote": "Trích dẫn",
+    "heading": "Tiêu đề",
+    "bold": "In đậm",
+    "undo": "Hoàn tác",
+    "redo": "Làm lại",
+    "closeKeyboard": "Ẩn bàn phím"
+  },
+  "panel": {
+    "label": "Trang",
+    "undo": "Hoàn tác",
+    "redo": "Làm lại",
+    "settings": "Cài đặt trang",
+    "stopOrganize": "Dừng sắp xếp",
+    "organizing": "Đang sắp xếp…",
+    "organizeTitle": "Dùng AI để sắp xếp nội dung ghi chú cho dễ đọc",
+    "organize": "Sắp xếp bằng AI",
+    "organizeCompact": "Sắp xếp AI",
+    "close": "Đóng"
+  },
+  "rowSheet": {
+    "kind": {
+      "paragraph": "Văn bản",
+      "h1": "Tiêu đề 1",
+      "h2": "Tiêu đề 2",
+      "h3": "Tiêu đề 3",
+      "bullet": "Gạch đầu dòng",
+      "ordered": "Đánh số",
+      "todo": "Việc cần làm",
+      "quote": "Trích dẫn"
+    },
+    "menu": "Menu hàng",
+    "picked": "Đã chọn hàng · nhấn lại để sửa",
+    "close": "Đóng",
+    "edit": "Sửa",
+    "addBelow": "Thêm bên dưới",
+    "up": "Lên",
+    "down": "Xuống",
+    "fill": "AI viết",
+    "unwrap": "Bỏ cột",
+    "delete": "Xóa",
+    "changeBlock": "Đổi khối"
+  },
+  "settings": {
+    "title": "Cài đặt trang",
+    "close": "Đóng",
+    "keyboardBar": "Thanh phím tắt",
+    "keyboardBarDesc": "Hiện thanh công cụ phía trên bàn phím khi trình soạn thảo đang được chọn",
+    "emoji": "Xem trước emoji",
+    "emojiDesc": "Gõ : để hiện danh sách gợi ý emoji"
+  },
+  "live": {
+    "dataUrl": "Dữ liệu đính kèm",
+    "imageDelete": "Xóa hình ảnh",
+    "taskDone": "Việc đã hoàn thành",
+    "task": "Việc cần làm",
+    "missingPage": "Trang đã bị xóa",
+    "openPage": "Mở trang con",
+    "column": "Cột {n}",
+    "columnAddRow": "Thêm hàng ở cuối cột {n}",
+    "columnHandle": "Di chuyển hoặc mở menu cho cột {n}",
+    "headingPlaceholder": "Tiêu đề {n}"
+  },
+  "rowHandles": {
+    "addBelow": "Thêm hàng bên dưới khối {n}",
+    "menu": "Di chuyển hoặc mở menu cho khối {n}"
+  }
+}

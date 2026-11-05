@@ -17,6 +17,7 @@
   "dependencies": {
     "@branch/core": "workspace:*",
     "jpeg-js": "^0.4.4",
+    "pdfjs-dist": "6.4.299",
     "pngjs": "^7.0.0",
     "qrcode-terminal": "^0.12.0",
     "ws": "^8.22.0"
@@ -27,6 +28,7 @@
     "@types/qrcode-terminal": "^0.12.2",
     "@types/ws": "^8.18.2",
     "esbuild": "^0.28.2",
+    "pdf-lib": "^1.17.1",
     "typescript": "~5.9.3",
     "vitest": "^5.0.3"
   },

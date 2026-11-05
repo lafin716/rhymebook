@@ -1,0 +1,11 @@
+{
+  "cliElsewhere": "在网页或移动端无法直接在此设备上运行 CLI。请通过桌面应用或远程 Bridge 连接。",
+  "noResponse": "电脑没有响应。",
+  "disconnected": "与电脑的连接已断开。",
+  "skillListTooLarge": "电脑的技能列表过大。",
+  "unsupported": "此电脑不支持同步。",
+  "hostRestarted": "电脑已重新启动。请重试。",
+  "stopped": "已停止同步。",
+  "reconnecting": "正在重新连接电脑。",
+  "notOnline": "未连接到电脑。"
+}

@@ -1,0 +1,65 @@
+{
+  "sheet": {
+    "close": "关闭面板",
+    "dialog": "分支面板",
+    "stackInfo": "已叠放 {count} 个面板 · 向下拖动可返回上一个分支",
+    "fullScreen": "全屏显示"
+  },
+  "popup": {
+    "dialog": "分支弹窗",
+    "dock": "停靠为分屏",
+    "openInMain": "在主视图中打开"
+  },
+  "split": {
+    "closePanel": "关闭面板",
+    "tabs": "分屏标签",
+    "closeTab": "关闭标签",
+    "move": {
+      "left": "与左侧交换",
+      "right": "与右侧交换",
+      "up": "与上方交换",
+      "down": "与下方交换",
+      "label": "调整位置"
+    },
+    "moveTitle": "调整位置（拖动即可移动）",
+    "closeOthers": "关闭其他面板",
+    "menu": "分屏菜单",
+    "swap": "交换位置",
+    "flip": "切换方向",
+    "vertical": "上下排列",
+    "horizontal": "左右排列"
+  },
+  "drop": {
+    "open": {
+      "left": "在左侧打开",
+      "right": "在右侧打开",
+      "top": "在上方打开",
+      "bottom": "在下方打开",
+      "center": "在此处打开"
+    },
+    "move": {
+      "left": "移到左侧",
+      "right": "移到右侧",
+      "top": "向上移动",
+      "bottom": "向下移动",
+      "center": "交换位置"
+    },
+    "maxSplit": "最多可分屏 {max} 个面板。放在中间可替换该面板。"
+  },
+  "mindmap": {
+    "collapseQuestions": "收起问题列表",
+    "expandQuestions": "展开问题列表",
+    "canvas": "画布",
+    "page": "页面",
+    "hasSummary": "有摘要",
+    "footnote": "脚注会话",
+    "root": "根会话",
+    "questionListOf": "{title} 的问题列表",
+    "emptyQuestion": "（空问题）",
+    "noQuestions": "还没有问题。",
+    "hintTouch": "点按：在面板中打开 · 双击：全屏 · ▾：问题列表",
+    "hintMouse": "单击：弹窗 · {mod}+单击：添加到分屏 · 双击：主视图 · ▾：问题列表",
+    "title": "思维导图",
+    "close": "关闭思维导图"
+  }
+}

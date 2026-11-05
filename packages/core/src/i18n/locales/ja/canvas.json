@@ -1,0 +1,279 @@
+{
+  "bg": {
+    "paper": "紙",
+    "white": "白",
+    "cream": "クリーム",
+    "lightGreen": "黄緑",
+    "sky": "空色",
+    "gray": "グレー",
+    "chalkboard": "黒板"
+  },
+  "image": {
+    "readFailed": "画像を読み込めませんでした。",
+    "processFailed": "画像を処理できませんでした。",
+    "notImage": "{name} は画像ではありません。",
+    "tooLarge": "{name} が大きすぎます（25MB以下）。"
+  },
+  "pageImage": {
+    "readFailed": "図を読み込めませんでした。",
+    "createFailed": "ページの画像を作成できませんでした。",
+    "tooLarge": "ページの画像が大きすぎて取り込めませんでした。",
+    "name": "{title} {page}ページ",
+    "untitled": "キャンバス"
+  },
+  "pdf": {
+    "passwordProtected": "パスワード付きのPDFは読み込めません。",
+    "readFailed": "{name} を読み込めませんでした。PDFファイルか確認してください。"
+  },
+  "present": {
+    "ended": "プレゼンテーションが終了しました",
+    "waiting": "発表の開始を待っています…",
+    "toolbar": "プレゼンテーションツール",
+    "laser": "レーザーポインター",
+    "pen": "ペン",
+    "eraser": "消しゴム",
+    "color": "色 {color}",
+    "clearInk": "書き込みをすべて消去",
+    "prev": "前のページ",
+    "next": "次のページ",
+    "openAudience": "聴衆用画面を開く",
+    "openAudienceTitle": "聴衆用画面を開く（聴衆向け、ツールバーなし）",
+    "fullscreen": "全画面表示",
+    "end": "プレゼンテーションを終了",
+    "endTitle": "プレゼンテーションを終了 (Esc)"
+  },
+  "import": {
+    "offline": "PCと接続されていません。接続された後にもう一度取り込んでください。",
+    "timeout": "PCから会話を受信しきれませんでした。しばらくしてからもう一度お試しください。",
+    "sources": {
+      "image": {
+        "label": "画像",
+        "hint": "PNG・JPG・GIF・WebP ファイル"
+      },
+      "pdf": {
+        "label": "PDF",
+        "hint": "1ページにつき1枚 · キャンバスがPDFモードに切り替わります"
+      },
+      "session": {
+        "label": "セッションの内容",
+        "hint": "1つの会話を文章カードにします"
+      },
+      "page": {
+        "label": "ページの内容",
+        "hint": "1枚のページを文章カードにします"
+      },
+      "vault": {
+        "label": "ライブラリ",
+        "hint": "保存した文章や画像を選びます"
+      }
+    },
+    "menu": {
+      "label": "取り込みの種類",
+      "title": "キャンバスに取り込む"
+    },
+    "sub": {
+      "image": "図",
+      "text": "文章"
+    },
+    "failed": "取り込めませんでした。",
+    "picker": {
+      "session": "セッションの内容を取り込む",
+      "page": "ページの内容を取り込む",
+      "vault": "ライブラリから取り込む"
+    },
+    "empty": {
+      "page": "まだページがありません。",
+      "session": "取り込める会話がありません。",
+      "vault": "保存された項目がありません。"
+    },
+    "search": "検索",
+    "searchPlaceholder": "名前で検索",
+    "noMatch": "該当する項目がありません。",
+    "busy": "取り込み中…"
+  },
+  "settings": {
+    "title": "キャンバス設定",
+    "pdfMode": "PDFモード",
+    "pdfHint": "{name} · 下で別のサイズを選ぶとPDFは外れます",
+    "sizeTitle": "キャンバスのサイズ",
+    "layout": {
+      "free": {
+        "label": "自由",
+        "hint": "終わりのないボードのどこにでも書けます"
+      },
+      "landscape": {
+        "label": "横型 16:9",
+        "hint": "ページごとに横長 · めくると新しいページ"
+      },
+      "portrait": {
+        "label": "縦型 9:16",
+        "hint": "ページごとに縦長 · めくると新しいページ"
+      },
+      "a4Landscape": {
+        "label": "A4 横",
+        "hint": "A4用紙を横に寝かせたページ · めくると新しいページ"
+      },
+      "a4Portrait": {
+        "label": "A4 縦",
+        "hint": "A4用紙を縦に立てたページ · めくると新しいページ"
+      }
+    },
+    "flowTitle": "ページめくりの方向",
+    "flow": {
+      "horizontal": {
+        "label": "横方向",
+        "hint": "左右にスワイプしてページをめくります"
+      },
+      "vertical": {
+        "label": "縦方向",
+        "hint": "上下にスワイプしてページをめくります"
+      }
+    },
+    "bg": "背景",
+    "bgPdf": "背景 · PDFページの外側と新しく作るボードに表示されます",
+    "bgColor": "背景色",
+    "colorCustom": "背景色を自分で選ぶ",
+    "bgPattern": "背景の模様",
+    "pattern": {
+      "none": "無地",
+      "gridFine": "細かいマス目",
+      "gridWide": "粗いマス目",
+      "lines": "罫線ノート"
+    },
+    "paletteTitle": "一度に表示する色の数",
+    "paletteSlider": "パレットの色の数",
+    "paletteMin": "最小 1 色",
+    "paletteAll": "すべて ({total})",
+    "gestureTitle": "2本指のジェスチャー",
+    "gestureHint": "素早くスワイプすると選んだ操作を実行し、ゆっくりドラッグすると画面を移動します。「オフ」にした方向は、これまでどおり画面を移動してページをめくります。前のページ・次のページは、ページ分割のボードでのみ使えます。",
+    "gestureSelect": "2本指 {name}",
+    "gesture": {
+      "doubleTap": "ダブルタップ",
+      "swipeUp": "上にスワイプ",
+      "swipeDown": "下にスワイプ",
+      "swipeLeft": "左にスワイプ",
+      "swipeRight": "右にスワイプ"
+    },
+    "action": {
+      "off": "オフ",
+      "selectPen": "選択 ↔ ペン",
+      "eraserPen": "消しゴム ↔ ペン",
+      "penMarker": "ペン ↔ 蛍光ペン",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "prevPage": "前のページ",
+      "nextPage": "次のページ"
+    }
+  },
+  "toolbar": {
+    "label": "キャンバスツール",
+    "dockHandle": "ツールバーの位置を変更",
+    "dockHandleTitle": "ドラッグしてツールバーを配置し直します",
+    "ink": {
+      "black": "黒",
+      "white": "白",
+      "red": "赤",
+      "blue": "青",
+      "green": "緑",
+      "yellow": "黄",
+      "purple": "紫"
+    },
+    "inkSwatch": "{name} の色",
+    "favoriteInk": "お気に入りの色 {hex}",
+    "favoriteGroup": "お気に入りの色",
+    "favoriteUse": "お気に入りの色 {hex} を使う",
+    "tool": {
+      "select": "選択・移動",
+      "pen": "ペン",
+      "marker": "蛍光ペン",
+      "eraser": "消しゴム"
+    },
+    "penTitle": "ペン ({nib}) · もう一度押すと種類・太さ",
+    "markerTitle": "蛍光ペン · もう一度押すと太さ",
+    "nib": {
+      "fountain": "万年筆",
+      "fountainHint": "筆圧によって太さが変わります",
+      "ballpoint": "ボールペン",
+      "ballpointHint": "均一な太さで、きれいに書けます",
+      "brush": "筆ペン",
+      "brushHint": "太さが大きく変わり、先が細くなります",
+      "pencil": "鉛筆",
+      "pencilHint": "細めで少しかすれた線になります"
+    },
+    "nibGroup": "ペンの種類",
+    "colors": "色",
+    "moreColors": "その他の色",
+    "customColor": "色を自分で選ぶ",
+    "customColorTitle": "色を自分で選ぶ · お気に入り",
+    "collapsePalette": "色パレットを折りたたむ",
+    "expandPalette": "色パレットを展開する",
+    "undo": "元に戻す",
+    "undoTitle": "元に戻す (⌘Z)",
+    "redo": "やり直す",
+    "redoTitle": "やり直す (⌘⇧Z)",
+    "deleteSelected": "選択項目を消去",
+    "deleteSelectedTitle": "選択項目を消去 (Delete)",
+    "present": "発表",
+    "fullEnd": "全画面表示を終了",
+    "full": "全画面表示",
+    "import": "取り込み",
+    "penSettings": "ペンの設定",
+    "markerSize": "蛍光ペンの太さ",
+    "penSize": "ペンの太さ",
+    "pickColor": "色を選ぶ",
+    "sizeNumber": "太さの数値",
+    "sizeRange": "太さ",
+    "svArea": "彩度・明度",
+    "svValue": "彩度 {saturation}%、明度 {brightness}%",
+    "hue": "色相",
+    "colorNew": "新しい色",
+    "colorOriginal": "元の色 {hex} に戻す",
+    "colorOriginalTitle": "元の色に戻す",
+    "eyedrop": "画面から色を取得",
+    "eyedropTitle": "スポイト · 画面から色を取得",
+    "colorCode": "色コード",
+    "channelValue": "{channel} の値",
+    "favorite": {
+      "preset": "初期の色です",
+      "remove": "お気に入りから削除",
+      "max": "お気に入りは {max} 件まで",
+      "add": "お気に入りに追加"
+    }
+  },
+  "panel": {
+    "label": "キャンバス",
+    "defaultTitle": "キャンバス",
+    "tooBig": "キャンバスが大きすぎて保存できませんでした。画像を小さくするか、分けて使ってください。",
+    "saveFail": "キャンバスを保存できませんでした。しばらくしてからもう一度お試しください。",
+    "pageSaveFail": "ページをライブラリに保存できませんでした。",
+    "pdfEndTitle": "PDFモードを終了しますか？",
+    "pdfEndMessage": "取り込んだPDFのページはキャンバスから外れますが、その上に書いた手書きやカードは残ります。",
+    "pdfReplaceTitle": "PDFを差し替えますか？",
+    "pdfReplaceMessage": "現在のPDF（{current}）を {next} に差し替えます。手書きやカードはそのまま残ります。",
+    "confirmChange": "差し替える",
+    "pdfLoading": "PDFを読み込み中…",
+    "pdfNoPages": "{name} にはページがありません。",
+    "pdfTruncated": "{total}ページのうち、最初の {shown} ページだけを取り込みました。",
+    "importFail": "{name} を取り込めませんでした。",
+    "fitPage": "ページに合わせる",
+    "fitAll": "全体を表示",
+    "eyedropHint": "ボードをタップして色を取得してください",
+    "eyedropStop": "スポイトを終了",
+    "imageFiles": "取り込む画像ファイル",
+    "pdfFile": "取り込むPDFファイル",
+    "pageTitle": "{title} {page}ページ"
+  },
+  "pageNav": {
+    "label": "ページめくり",
+    "prev": "前のページ",
+    "next": "次のページ",
+    "add": "新しいページ",
+    "save": "このページをライブラリに保存"
+  },
+  "board": {
+    "label": "キャンバスの描画ボード",
+    "gesturing": "拡大・移動中",
+    "resize": "サイズ変更",
+    "importedImage": "取り込んだ画像"
+  }
+}

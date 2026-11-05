@@ -1,0 +1,143 @@
+{
+  "attachments": {
+    "binaryNote": "（附件：{names} — 此连接下无法查看文件内容）"
+  },
+  "effort": {
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "xhigh": "很高",
+    "max": "最大",
+    "ultra": "超强"
+  },
+  "availability": {
+    "disabled": "已禁用"
+  },
+  "providers": {
+    "mock": "演示（Mock）",
+    "remoteBridge": "远程 Bridge"
+  },
+  "tts": {
+    "speechKorean": "请像使用标准韩语的韩国母语者那样，清晰、自然地朗读。",
+    "fallback": {
+      "auth": "因为 OpenAI API 密钥缺失或被拒绝，",
+      "rateLimit": "因为 OpenAI 使用额度（credits）已用完或请求过于频繁，",
+      "offline": "因为无法连接到 OpenAI，",
+      "network": "因为 OpenAI 服务器的响应出现问题，",
+      "default": "因为无法生成 OpenAI 语音，",
+      "template": "{reason} 改用设备语音朗读。"
+    }
+  },
+  "stt": {
+    "large": {
+      "label": "标准（准确）",
+      "note": "推荐用于 Apple Silicon 及近期的 GPU 电脑。韩语识别准确率最高。"
+    },
+    "small": {
+      "label": "轻量（快速）",
+      "note": "适用于较旧或低配置的电脑。速度快，但准确率稍低。"
+    }
+  },
+  "bridgePrompt": {
+    "learner": "学习者",
+    "tutor": "导师",
+    "answer": "请接续上面的对话，回答下面学习者的最后一条消息。不要照搬对话记录的格式。"
+  },
+  "session": {
+    "newTitle": "新的学习"
+  },
+  "store": {
+    "reorganize": "重新整理会话"
+  },
+  "page": {
+    "newTitle": "新页面",
+    "blocks": {
+      "h1": "标题 1",
+      "h2": "标题 2",
+      "h3": "标题 3",
+      "bullet": "项目符号列表",
+      "number": "编号列表",
+      "todo": "待办事项列表",
+      "quote": "引用",
+      "code": "代码块",
+      "divider": "分隔线",
+      "table": "表格",
+      "math": "公式",
+      "image": "图片",
+      "file": "文件",
+      "page": "子页面"
+    },
+    "tableHeader": {
+      "item": "项目",
+      "desc": "说明"
+    }
+  },
+  "canvas": {
+    "newTitle": "新画布",
+    "image": "图片",
+    "omitted": "…（省略）",
+    "pdf": "[PDF：{name}]",
+    "imageNamed": "[图片：{name}]",
+    "imageBare": "[图片]",
+    "handwriting": "[手写笔迹 {n} 笔]",
+    "pages": "[{pages} 页]"
+  },
+  "fallback": {
+    "image": "图片",
+    "file": "文件"
+  },
+  "vault": {
+    "text": "文本",
+    "voice": "语音",
+    "item": "项目"
+  },
+  "turns": {
+    "attachments": "[附件] {names}",
+    "splitQuestion": "分离的问题"
+  },
+  "notes": {
+    "header": "> octobooks 理解笔记 · {date} · 分支 {branches} 个 · 摘要 {summaries} 个",
+    "empty": "还没有分支。请在回答中选中不懂的部分来创建分支。",
+    "path": "路径：{path}",
+    "summary": "**我理解的内容** — {summary}",
+    "noSummary": "_没有摘要 — 在分支中使用 [将摘要附加到父级] 即可填入。_",
+    "defaultName": "理解笔记",
+    "fileTag": "理解笔记"
+  },
+  "backupMarkdown": {
+    "title": "# octobooks 备份",
+    "asOf": "截至 {at}。如需恢复，请在应用的 设置 › 备份 中使用 backup JSON。",
+    "original": "> 原文：\"{text}\"",
+    "summary": "> **分支摘要**：{text}",
+    "me": "**我**：{text}"
+  },
+  "backupErrors": {
+    "invalid": "这不是 octobooks 备份文件，或者文件已损坏。",
+    "newerVersion": "此备份由更新版本的应用创建。请先更新应用，然后再恢复。",
+    "passphraseRequired": "此备份已用密码加密。请输入密码。",
+    "wrongPassphrase": "密码不正确。"
+  },
+  "backupTargets": {
+    "file": "文件",
+    "gdrive": "Google 云端硬盘"
+  },
+  "targetHttp": {
+    "unauthorized": "{label} 的授权已过期或被拒绝。请重新连接。",
+    "forbidden": "{label} 权限不足。请检查写入权限。",
+    "notFound": "在 {label} 中未找到目标。请检查名称和访问权限。",
+    "network": "无法连接到 {label}。请检查网络。",
+    "failed": "{label} 请求失败（HTTP {status}）。"
+  },
+  "route": {
+    "direct": "直连",
+    "lan": "局域网直连",
+    "tailscale": "Tailscale 直连",
+    "relay": "经由 Relay"
+  },
+  "remote": {
+    "base": "{name} · {route} · 延迟 {latency}ms",
+    "loginNeeded": "{base} · 需要在 bridge 电脑上登录 CLI。{detail}",
+    "notInstalled": "{base} · bridge 电脑上未安装 Claude/Codex CLI。",
+    "via": "经由远程 Bridge（{name}）"
+  }
+}

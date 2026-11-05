@@ -1,0 +1,33 @@
+{
+  "bridge": {
+    "usage": "Cách dùng:\n  branch-bridge [serve] [--pair] [--port 7777] [--host 0.0.0.0] [--name TÊN] [--dir ĐƯỜNG_DẪN]\n                [--relay wss://relay.example.com] [--relay-only]\n    --relay       Đăng ký với relay qua kết nối đi ra ngoài để có thể truy cập từ sau NAT (vẫn giữ mã hóa E2E)\n    --relay-only  Chỉ nhận kết nối qua relay, không mở cổng trực tiếp\n  branch-bridge pair            (giống như serve --pair)\n  branch-bridge devices         Danh sách thiết bị đã ghép nối\n  branch-bridge unpair <id|all> Hủy ghép nối thiết bị",
+    "noDevices": "Chưa có thiết bị nào được ghép nối.",
+    "deviceLine": "{id}  {name}  ghép nối {paired}  lần cuối {seen}",
+    "unpairMissing": "Hãy chỉ định id thiết bị hoặc all để hủy ghép nối.",
+    "unpaired": "Đã hủy ghép nối {count} thiết bị.",
+    "noSuchDevice": "Không có thiết bị đó.",
+    "badPort": "Cổng không hợp lệ: {port}",
+    "relayOnlyNeedsRelay": "--relay-only cần có địa chỉ --relay.",
+    "relayScheme": "Địa chỉ relay phải bắt đầu bằng ws:// hoặc wss://.",
+    "insecureRelay": "Lưu ý: relay đang dùng ws://. Trên mạng công cộng, hãy dùng wss:// (dữ liệu được mã hóa E2E).",
+    "relayConnected": "✓ Đã kết nối relay",
+    "relayRetrying": "… Mất kết nối relay, đang thử lại",
+    "relayNotYet": "Chưa kết nối được với relay. Sẽ tiếp tục thử lại ở nền.",
+    "running": "Branch Bridge \"{name}\" đang chạy ({target})",
+    "relayOnly": "chỉ relay",
+    "port": "cổng {port}",
+    "fingerprint": "Dấu vân tay bridge: {fingerprint}",
+    "scanHint": "Trong ứng dụng, vào Cài đặt → Bridge từ xa → Bắt đầu ghép nối, rồi quét mã QR bên dưới hoặc dán liên kết.",
+    "link": "Liên kết ({label}): {uri}",
+    "codeLine": "Hoặc nhập địa chỉ + mã: mã {code}  (có hiệu lực 5 phút, dùng 1 lần)",
+    "checkFingerprint": "Hãy kiểm tra dấu vân tay bridge hiển thị trong ứng dụng có khớp với dấu vân tay ở trên không.",
+    "paired": "✓ Ghép nối hoàn tất: {name} ({id})",
+    "noDevicesPair": "Chưa có thiết bị nào được ghép nối. Hãy bắt đầu ghép nối bằng tùy chọn --pair."
+  },
+  "relay": {
+    "usage": "Cách dùng:\n  branch-relay [--port 8787] [--host 0.0.0.0] [-v]",
+    "badPort": "Cổng không hợp lệ: {port}",
+    "running": "Branch Relay đang chạy: ws://{host}:{port}  (trạng thái: http://{host}:{port}/health)",
+    "bridgeHint": "bridge: branch-bridge --relay <địa chỉ này>   · Khi triển khai công khai, hãy đặt phía sau proxy TLS (wss://)."
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "childCreate": {
+    "aria": "Tạo mục con",
+    "canvas": "Canvas",
+    "emptyPage": "Trang trống",
+    "session": "Phiên"
+  },
+  "delete": {
+    "confirm": "Xóa",
+    "messageOne": "{title} sẽ bị xóa hoàn toàn và không thể khôi phục.",
+    "messageWithKids": "{title} và tất cả nhánh con của nó sẽ bị xóa hoàn toàn và không thể khôi phục.",
+    "titleBranch": "Xóa nhánh này?",
+    "titleCanvas": "Xóa canvas này?",
+    "titlePage": "Xóa trang này?",
+    "titleSession": "Xóa việc học này?"
+  },
+  "menu": {
+    "aria": "Menu phiên",
+    "delete": "Xóa",
+    "newWindow": "Mở trong cửa sổ mới",
+    "rename": "Đổi tên",
+    "renameAria": "Tên phiên",
+    "splitDown": "Mở chia màn hình bên dưới",
+    "splitMax": "Có thể chia tối đa {max} khung.",
+    "splitRight": "Mở chia màn hình bên phải"
+  },
+  "sidebar": {
+    "changeProfile": "Đổi hồ sơ",
+    "closeList": "Đóng danh sách",
+    "collapseAll": "Thu gọn tất cả",
+    "connectToSee": "Danh sách học sẽ hiện khi kết nối với PC",
+    "header": "Biển học của tôi · {count} điểm bắt đầu",
+    "navAria": "Phiên học",
+    "new": "Tạo mới",
+    "newNeedsPc": "Bạn có thể tạo mới khi kết nối với PC",
+    "noSessions": "Chưa có phiên nào",
+    "prompts": "Quản lý prompt",
+    "resizeAria": "Điều chỉnh chiều rộng thanh bên",
+    "resizeTitle": "Kéo để đổi chiều rộng · nhấp đúp để về chiều rộng mặc định",
+    "skills": "Quản lý kỹ năng",
+    "toolbarAria": "Công cụ danh sách phiên",
+    "usable": "Có thể dùng {count}"
+  },
+  "tree": {
+    "canvasIcon": "Canvas",
+    "collapseBranch": "Thu gọn nhánh",
+    "collapseSub": "Thu gọn phiên con",
+    "deleteAria": "Xóa phiên",
+    "expandBranch": "Mở rộng nhánh",
+    "expandSub": "Mở rộng phiên con",
+    "pageIcon": "Trang",
+    "rowTitle": "{title} · {time}",
+    "rowTitleKids": "{title} · {time} · {count} nhánh",
+    "streaming": "Đang tạo câu trả lời",
+    "unread": "Câu trả lời chưa đọc"
+  }
+}

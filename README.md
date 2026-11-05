@@ -63,10 +63,10 @@ OctoBooks never reads OAuth tokens or CLI auth files, and API keys stay in your 
 - **Notes** — highlights, colors and memos on answers; export to Markdown, Anki cards, zip study packs or a book
 - **Vault** — save answers and images into pages, with a page editor and a canvas board with presentation mode
 - **Skills** — `/quiz`, `/speak` and your own SKILL.md skills; AI-assisted skill and prompt editing
-- **Knowledge base** — attach files, links or a GitHub repo to a study; the CLI reads them with read-only tools
+- **Knowledge base** — build local knowledge bases from PDF/Markdown/TXT files, folders, web pages or public GitHub repos. They're indexed on your machine (hybrid vector + keyword search, no server), linked to a study and inherited by its branches, and answers cite their sources
 - **More** — web search, attachments, KaTeX, SVG preview, text-to-speech, local whisper voice input, schedules and notifications
 - **Everywhere** — pair your phone or browser with your PC by QR code (end-to-end encrypted), or run `octobooks serve` on a server
-- **Yours** — backups to file, Google Drive or GitHub; Korean / English UI; five ocean themes with light and dark
+- **Yours** — backups to file, Google Drive or GitHub; Korean / English / Japanese / Chinese / Vietnamese UI; five ocean themes with light and dark
 
 ### Documentation
 
@@ -82,7 +82,7 @@ Issues and pull requests are welcome. Before opening a PR, run:
 pnpm typecheck && pnpm lint && pnpm test && pnpm e2e
 ```
 
-Domain logic lives in `packages/core` as pure functions with Vitest tests; UI text has Korean and English versions ([docs/i18n.md](docs/i18n.md)).
+Domain logic lives in `packages/core` as pure functions with Vitest tests; UI text is translated into Korean, English, Japanese, Chinese and Vietnamese ([docs/i18n.md](docs/i18n.md)).
 
 ### Name
 

@@ -1,0 +1,86 @@
+{
+  "confirm": {
+    "cancel": "取消",
+    "ok": "确定"
+  },
+  "error": {
+    "body": "您所做的内容已保存。请重试。",
+    "retry": "重试",
+    "title": "绘制界面时出现问题"
+  },
+  "host": {
+    "addPc": "添加电脑",
+    "ariaForget": "从列表中移除 {name}",
+    "ariaRow": "{name} {sub}",
+    "connect": "连接",
+    "deviceActive": "当前使用中 · 学习内容保存在这台设备上",
+    "deviceDesktop": "保存在这台电脑上，由这台电脑的 CLI·API 回答",
+    "deviceOther": "无需电脑即可使用 · 通过 API 密钥回答",
+    "forgetConfirm": "移除",
+    "forgetMessage": "电脑上的学习内容会保持不变。要再次使用，需要从电脑获取新的配对码。",
+    "forgetTitle": "要将 {name} 从列表中移除吗？",
+    "myPcs": "我的电脑",
+    "thisDevice": "这台设备",
+    "thisPc": "这台电脑",
+    "useHere": "在{device}上使用"
+  },
+  "panel": {
+    "exitFull": "退出全屏",
+    "fullScreen": "全屏"
+  },
+  "pcStatus": {
+    "ariaConnected": "已连接的电脑：{host} · {status}",
+    "bannerConnecting": "正在连接 {host}…",
+    "bannerOffline": "与 {host} 的连接已断开 — 请检查电脑应用是否在运行",
+    "bannerUnpaired": "与电脑配对后，即可查看您在电脑上正在学习的内容并提问",
+    "bannerUnsupported": "请将电脑应用更新到最新版本",
+    "connectSettings": "连接设置",
+    "connecting": "连接中",
+    "connectingTo": "正在连接 {host}",
+    "none": "无",
+    "offline": "连接已断开",
+    "online": "已连接",
+    "pair": "配对",
+    "reconnect": "重新连接",
+    "title": "已连接的电脑 · {status}",
+    "unpaired": "需要配对",
+    "unsupported": "需要更新电脑应用"
+  },
+  "profile": {
+    "close": "关闭",
+    "heading": "配置文件",
+    "intro": "选择学习内容保存在哪里，以及由谁来回答。在这台设备与电脑之间切换时，应用会重新启动。",
+    "title": "选择配置文件"
+  },
+  "toast": {
+    "busy": "该会话仍在回答中。完成后请重试。",
+    "conflict": "内容已先在其他设备上被更改。已同步为最新内容。",
+    "failed": "电脑无法处理该请求。",
+    "forbidden": "电脑设置中未允许远程删除。",
+    "invalid": "无法处理该请求。",
+    "notFound": "电脑上没有该会话。已重新获取列表。",
+    "notReady": "电脑应用尚未准备就绪。请稍后再试。",
+    "offline": "未连接到电脑，无法发送。",
+    "outdated": "电脑应用尚不支持此功能。请将电脑应用（或 octobooks serve）更新到最新版本。",
+    "rateLimit": "请求过于频繁。请稍后再试。",
+    "resumeFailed": "无法重新连接到 {host}。请确认电脑应用正在运行，然后点击 [重新连接]。",
+    "timeout": "电脑没有响应，已取消。请检查连接。"
+  },
+  "top": {
+    "closeMindmap": "关闭思维导图",
+    "listCollapse": "收起会话列表",
+    "listExpand": "展开会话列表",
+    "listToggleTitle": "{label}（{shortcut}）",
+    "mindmap": "思维导图",
+    "notes": "理解笔记",
+    "search": "搜索",
+    "sessionList": "会话列表",
+    "sessionSearch": "搜索会话",
+    "settings": "设置",
+    "theme": "主题：{mode}",
+    "themeDark": "深色",
+    "themeLight": "浅色",
+    "themeSystem": "跟随系统",
+    "vault": "资料库"
+  }
+}

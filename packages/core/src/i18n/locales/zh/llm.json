@@ -1,0 +1,192 @@
+{
+  "prompts": {
+    "base": "你是一名辅助学习的导师。请根据学习者的水平，准确且有条理地讲解；必要时使用 Markdown（列表、表格、代码块）。",
+    "branch": "这是学习者在此语境中卡住的部分。请结合上下文，简短清晰地解释，并举例说明或打比方。",
+    "subsession": "学习者正在看这段对话，并直接接着提出下面的子问题。请以父对话的上下文为基础，简短清晰地解释，并举例说明或打比方。",
+    "branchSuggest": "## 推荐分支\n回答结束后，请在最末尾只附加一个下面格式的 ```branches 代码块。它在屏幕上会被隐藏，并转换为按钮。\n```branches\n{\"chapters\":[{\"title\":\"与正文中写的章节标题完全一致\",\"question\":\"学习该章节的学习者提问，一句话\"}],\"next\":[{\"title\":\"20 个字以内的名称\",\"question\":\"接下来会提出的学习者提问，一句话\"}]}\n```\n- chapters：如果回答是课程、路线图或分步计划，请将每个章节（章、周、阶段）的标题按正文原样写出。若大章节下有小节，则只写大章节。否则为空数组。\n- next：基于当前回答，可以继续深入或接下来学习的问题，共 2 到 3 个。\n- 在代码块之外不要提及此代码块。若是简短问候或闲聊，可以省略该代码块。",
+    "summary": "以下是学习者询问某个概念并理解的对话。请用简体中文 1 到 2 句话总结学习者所理解的核心内容。不要写开场白，只输出摘要。",
+    "title": "请为以下对话的主题拟一个 5 到 20 个字的简体中文标题。不要加引号或句号，只输出标题。",
+    "pageBase": "你负责协助编辑 Markdown 学习笔记。\n- 只输出将直接放入页面的 Markdown 正文。不要添加问候、说明或开场白（如“以下是……”）。\n- 不要用 ``` 代码围栏包裹整个输出。\n- 遵循笔记的语言（为空时使用简体中文）。\n- 形如 `[标题](#page:…)` 的子页面链接请一字不改地保留。\n- 形如 `![…](embed:N)`、`[…](embed:N …)` 的附加图片和文件也请保持地址不变。",
+    "pageOrganizeTask": "任务：整理整篇笔记，使其易于阅读。\n- 内容（事实、示例、公式、代码、链接）不要遗漏。不要编造内容。\n- 合并重复内容，并按照逻辑流程使用标题（##、###）、列表和表格来组织结构。\n- 润色生硬的句子并修正拼写，但保持原有语气。",
+    "pageFillTask": "任务：只撰写将填入笔记中 [여기에 채우기] 位置的内容。\n- 写作要与前后文衔接，不要重复前后已有的内容。\n- 若紧邻的上一行是标题，则在该标题下撰写正文；若位于列表中间，则撰写相同格式的列表项。\n- 只写准确的内容。如果不确定，就简短地写。",
+    "skillAssist": "你是学习聊天应用中的“技能”编写助手。\n技能是一段可复用的指令：当学习者在聊天中用 /命令 选择它时，会作为系统指令添加到该次提问中。\n与 Claude、Codex 技能一样，技能文件夹中可以放置附属文件，使用技能时会与指令一同传递给模型。\n本应用的学习者通过拖动回答中的术语，以分支（子问题）的方式深入学习。\n\n请按要求新建技能，或修改给定的当前技能。只能以下面的格式输出，不要写其他内容：\n\n<name>命令名称</name>\n<title>标题</title>\n<description>说明</description>\n<prompt>\n指令\n</prompt>\n<file path=\"references/示例.md\">\n文件内容（仅在需要时，可多个）\n</file>\n<delete path=\"要删除的文件路径\"/>\n<note>用一两句话说明创建或修改了什么</note>\n\n规则：\n- name：2 到 24 个英文小写字母、数字、- 或 _，不含空格。简短易记。不要使用已存在的命令名称。\n- title：简体中文，20 个字以内。\n- description：用简体中文一句话说明该技能能做什么（80 个字以内）。\n- prompt：模型将遵循的指令。以“……”的祈使语气编写编号步骤列表，具体写明执行步骤、输出格式（标题、列表、表格）、篇幅，以及输入为空或含糊不清时的处理方式。适当加入让学习者能拖选并继续追问的关键术语需加粗的指令。4000 个字符以内。\n- 只有在有助于让指令保持简短时才创建附属文件。仅凭指令即可的话，不要创建。\n  长篇参考资料、术语表、评分标准放在 references/ 中，示例代码和练习脚本放在 scripts/ 中，回答格式模板放在 assets/ 中。\n  路径使用英文小写字母、数字、- 或 _，并带扩展名（.md、.py、.txt 等）。单个文件 8000 个字符以内，仅限文本。\n  创建了文件的话，请在 prompt 中按名称指出该路径，并说明何时参考。文件中的脚本不会被执行，只会传递其内容。\n- 修改时只改动被要求的部分，其余保持不变。name、title、description、prompt 即使未改动也都要输出。\n  附属文件只输出新建或修改的文件，并在 <file> 中给出完整内容。未输出的现有文件将保持不变。只有需要删除的文件才使用 <delete>。",
+    "promptAssist": "你是学习聊天应用中的“系统提示词”编辑助手。\n系统提示词是应用发送给 AI 的固定指令，每个功能（如对话、分支、摘要、标题、页面 AI、技能助手）各有一个。\n本应用的学习者通过拖动回答中的术语，以分支（子问题）的方式深入学习。\n\n请按要求修改给定的当前提示词。只能以下面的格式输出，不要写其他内容：\n\n<prompt>\n修改后的完整提示词\n</prompt>\n<note>用一两句话说明改动了什么</note>\n\n规则：\n- 只改动被要求的部分，其余句子、顺序和语气保持不变。未改动的部分也要完整输出。\n- 提示词中的输出格式（代码块名称、标签、JSON 键名、标识文字）是应用用来读取结果的，除非被要求，否则一个字符都不要改。\n- 如果请求要改动此类格式，可以改动，但需在 <note> 中警告应用可能无法读取结果。\n- 保持提示词本身的语言。不要超过 20000 个字符。\n- <prompt> 内只写提示词正文。不要用说明、问候或代码围栏包裹。"
+  },
+  "info": {
+    "groups": {
+      "chat": "对话",
+      "branch": "分支",
+      "auto": "自动生成",
+      "page": "页面 AI",
+      "assist": "AI 助手"
+    },
+    "base": {
+      "label": "基础系统提示词",
+      "description": "放在每次学习对话最开头的导师指令。新建会话时以此文本开始。"
+    },
+    "branchSuggest": {
+      "label": "推荐分支指令",
+      "description": "要求在回答末尾附加推荐分支（章节和后续问题）代码块的指令。修改格式后，按钮可能不会出现。"
+    },
+    "branch": {
+      "label": "分支（锚点）指令",
+      "description": "在从回答中选中的文字所创建的分支中，添加在父级上下文之后的指令。"
+    },
+    "subsession": {
+      "label": "子会话指令",
+      "description": "在学习者通过 [+] 手动创建的子会话中，添加在父对话之后的指令。"
+    },
+    "summary": {
+      "label": "分支摘要",
+      "description": "用于生成 1 到 2 句摘要、将分支对话返回给父级的指令。"
+    },
+    "title": {
+      "label": "会话标题",
+      "description": "根据首次对话为会话命名时使用的指令。"
+    },
+    "pageOrganize": {
+      "label": "笔记整理",
+      "description": "页面中“用 AI 整理”所使用的指令。"
+    },
+    "pageFill": {
+      "label": "填充空白",
+      "description": "在页面光标位置填入内容时使用的指令。处理 [여기에 채우기] 标记。"
+    },
+    "skillAssist": {
+      "label": "AI 技能创建",
+      "description": "技能管理中 AI 助手的指令。修改标签输出格式可能导致结果无法读取。"
+    },
+    "promptAssist": {
+      "label": "AI 提示词修改",
+      "description": "提示词管理中 AI 助手的指令。修改标签输出格式可能导致结果无法读取。"
+    }
+  },
+  "context": {
+    "user": "学习者",
+    "tutor": "导师",
+    "clipped": "…（已省略）",
+    "rootTopic": "根主题：{title}",
+    "pathHeading": "### 分支路径（根 → 当前）",
+    "learningContext": "## 学习上下文",
+    "createdSubsession": "{n}.（学习者手动创建的子会话）“{title}”",
+    "anchorContext": " — 上下文：“{before}[{text}]{after}”",
+    "parentCanvas": "### 父画布（学习者收集的资料和笔记）",
+    "parentDoc": "### 父文档（学习者撰写的页面）",
+    "parentChat": "### 父对话（{label}，最近 {count} 条）",
+    "untilAnchor": "截至锚点消息",
+    "untilCreated": "截至创建子会话时",
+    "instruction": "## 指令",
+    "targetQuestion": "当前提问对象：“{text}”",
+    "imageNote": "[已生成并展示 {count} 张图片]",
+    "attachmentFallback": "请看一下附件内容。",
+    "summaryTarget": "提问对象：“{target}”",
+    "branchWhat": "“{text}”是什么？",
+    "branchDetail": "请就“{text}”再详细解释一下。",
+    "reorganizeRequest": "请将本会话的全部对话重新整理为一个问题和一个回答。",
+    "sessionHeading": "## 会话对话",
+    "sessionTurn": "### {role} {n}",
+    "sessionUser": "问题",
+    "sessionAssistant": "回答",
+    "notesHeading": "## 脚注（重新整理后，按此编号引用）",
+    "noteFrom": "源自正文中的“{text}”",
+    "noteSummary": "摘要：{text}",
+    "requestHeading": "## 请求"
+  },
+  "page": {
+    "titleHeading": "## 页面标题",
+    "noteHeading": "## 笔记",
+    "extraRequest": "## 补充请求",
+    "requestHeading": "## 请求",
+    "fillDefault": "请填入与前后语境相符的内容。"
+  },
+  "skillAssist": {
+    "currentHeading": "## 当前技能（需修改此内容）",
+    "newHeading": "## 创建新技能",
+    "takenHeading": "## 已被使用的命令名称",
+    "requestHeading": "## 请求",
+    "defaultEdit": "请整体润色，使其更清晰、更易用。",
+    "defaultNew": "请创建一个有助于学习的技能。",
+    "truncated": "…（其后 {count} 个字符已省略——内容过长，无法修改，请勿输出）"
+  },
+  "promptAssist": {
+    "targetHeading": "## 要修改的提示词",
+    "currentHeading": "## 当前文本（需修改此内容）",
+    "requestHeading": "## 请求",
+    "defaultEdit": "保持原意，使其更清晰、更简洁。"
+  },
+  "branch": {
+    "question": "我们来学习“{title}”这一章。请先从核心概念讲起，结合示例循序渐进地解释。"
+  },
+  "book": {
+    "fallbackTitle": "书籍",
+    "chapter": "第 {n} 章"
+  },
+  "quiz": {
+    "fallbackTitle": "测验"
+  },
+  "skill": {
+    "heading": "## 技能：{title}（/{name}）",
+    "intro": "针对本次提问，请遵循以下指令。",
+    "filesHeading": "### 技能文件",
+    "filesNote": "这些是属于此技能文件夹的文件。请参考指令中按路径指出的文件。此处无法运行脚本，因此需要时请说明其内容、运行方法和预期结果。"
+  },
+  "reorganize": {
+    "requestHeading": "## 请求"
+  },
+  "study": {
+    "error": {
+      "invalid": "这不是 octobooks 学习文件，或文件已损坏。",
+      "newerVersion": "这是由更新版本的应用导出的学习内容。请先更新应用，然后再导入。",
+      "conflict": "其中部分项目与此设备上的其他学习内容重复，因此无法导入。"
+    },
+    "fallbackName": "学习",
+    "fileSuffix": "-学习-",
+    "md": {
+      "path": "> 路径：{path} › {title}",
+      "anchor": "**分支的原文**",
+      "summary": "## 我的理解",
+      "canvas": "## 画布",
+      "doc": "## 文档",
+      "chat": "## 对话",
+      "question": "### 🙋 问题",
+      "answer": "### 💬 回答",
+      "skill": "_技能：/{name}_",
+      "errorNote": "_（错误）_",
+      "stoppedNote": "_（已停止）_",
+      "attachment": "📎 {name}",
+      "children": "## 子分支",
+      "anchorInline": " — 原文“{text}”"
+    },
+    "readme": {
+      "meta": "> octobooks 学习包 · {date} · 分支 {branches} 个 · 摘要 {summaries} 个 · 消息 {messages} 条",
+      "toc": "## 目录",
+      "howTitle": "## 在其他设备上继续学习",
+      "howImport": "在 octobooks 应用中点击 理解笔记 › **导入学习**，然后选择此 zip 文件（或其中的 `study.json`）。",
+      "howMerge": "如果已存在相同的学习内容，每个分支会保留更近修改的一方，而仅存在于该设备上的分支则保持不变。"
+    },
+    "digest": {
+      "title": "# 学习原文：{title}",
+      "guide": "> octobooks 学习树。编号表示分支位置（“1.2”= 第 1 个分支的第 2 个子分支）。“分支的原文”是学习者因不了解而选中的文字；“我的理解”是学习者亲自整理的摘要。",
+      "anchor": "分支的原文：",
+      "summary": "我的理解：",
+      "root": "[根] ",
+      "branch": "[{n}] ",
+      "question": "**Q.** {body}",
+      "answer": "**A.** {body}",
+      "truncated": " …（已缩略）",
+      "cutNote": "\n> 原文较长，仅包含 {count} 个回答的前半部分。\n"
+    }
+  },
+  "schedule": {
+    "heading": "## 预约请求",
+    "intro": "只有在用户明确要求预约将来的任务时，才输出且只输出一个包含 title、prompt、runAt、repeat(以及可选的 skill)字段的 JSON 代码块。",
+    "limits": "title 为 1~{titleMax} 个字符，prompt 为 1~{promptMax} 个字符，是到时发送到此对话、可以独立理解的问题。",
+    "runAt": "runAt 必须是真实存在的未来 ISO 日期时间，并且必须包含 offset 或 Z。相对日期按当前本地时区计算。repeat 为 once、daily、weekdays、weekly、monthly 之一。",
+    "skillChosen": "skill:用户为此任务选择了一个技能 \"{name}\"({title})。填入 \"skill\":\"{name}\"。一个预约只运行一个技能，所以 prompt 只写该技能的任务，不要放入其他请求的任务。",
+    "skillOptional": "skill(可选):如果任务明显适合下列某个技能，就填入其命令名，执行时一起使用该技能(例如“每天 3 点给我出测验”→ \"skill\":\"quiz\")。没有合适的技能就省略。只使用一个技能。",
+    "skillNone": "不要填写 skill。",
+    "ask": "时间、时区、重复方式或任务不明确时，简短追问，不要猜测。如果是过去的日期，请询问将来的时间。",
+    "unsupported": "每两小时、指定的几个星期几等不支持的重复方式，请让用户选择受支持的周期，不要擅自转换。",
+    "noBlock": "对于解释、示例、取消、否定请求，或执行已有的预约任务时，不要输出 schedule 代码块。应用会验证并保存，所以不要声称已保存预约。只有在此设备上打开应用时任务才会执行。"
+  }
+}

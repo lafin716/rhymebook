@@ -1,8 +1,8 @@
 import { isCliId, isValidEffort, isValidModelName, resolveModelOptions, type ModelOptions } from './cli-options';
-import { t } from './i18n';
+import { getLocale, interpolate, LANGUAGES, rawMessage, t, type Locale } from './i18n';
 import type { ConnectionState, ID, Message, ProviderId, Session, Skill, SkillFile, SkillOptions, SkillRef } from './model';
 import { PROVIDER_LABELS } from './provider';
-import { scheduleSkillContent } from './schedules';
+import { SCHEDULE_PROTOCOL } from './schedules';
 
 /** 스킬 제한 (ADR-034) */
 export const SKILL_LIMITS = {
@@ -352,91 +352,58 @@ export const LEGACY_CURRICULUM_PROMPTS = [
   ].join('\n'),
 ];
 
+/** 기본 제공 스킬: id → 명령 이름 (문구는 locales/<언어>/skillsBuiltin.json의 같은 이름 항목) */
+const BUILTIN_SKILLS: readonly { id: string; name: string }[] = [
+  { id: CURRICULUM_SKILL_ID, name: 'curriculum' },
+  { id: BOOK_SKILL_ID, name: 'book' },
+  { id: QUIZ_SKILL_ID, name: 'quiz' },
+  { id: SPEAK_SKILL_ID, name: 'speak' },
+  { id: REORGANIZE_SKILL_ID, name: 'reorganize' },
+  { id: SCHEDULE_SKILL_ID, name: 'schedule' },
+  { id: KNOWLEDGE_SKILL_ID, name: 'knowledge' },
+];
+
+type BuiltinContent = Pick<Skill, 'title' | 'description' | 'prompt'>;
+
+/** 기본 제공 스킬의 제목·설명·지시 (그 언어. 없는 문구는 한국어) */
+export function builtinSkillContent(name: string, locale: Locale = getLocale()): BuiltinContent {
+  const text = (field: string) => interpolate(rawMessage(`skillsBuiltin.${name}.${field}`, locale) ?? '', { protocol: SCHEDULE_PROTOCOL });
+  return { title: text('title'), description: text('description'), prompt: text('prompt') };
+}
+
+const sameContent = (s: Skill, c: BuiltinContent) =>
+  s.title === c.title && (s.description ?? '') === (c.description ?? '') && s.prompt.trim() === c.prompt.trim();
+
 /**
- * 기본 제공 스킬을 새 버전으로 올린다. 사용자가 고치지 않은(예전 기본값과 같은) 것만 바꾼다.
+ * 기본 제공 스킬을 새 버전·지금 언어로 올린다. 사용자가 고치지 않은 것만 바꾼다:
+ * - 예전 기본 커리큘럼 지시 그대로인 것
+ * - 제목·설명·지시가 다른 언어의 기본 문구와 똑같은 것 (언어를 바꾸면 기본 스킬도 그 언어로)
  * 바뀐 스킬만 돌려준다.
  */
 export function upgradeBuiltinSkills(skills: readonly Skill[], now = Date.now()): Skill[] {
+  const locale = getLocale();
   const out: Skill[] = [];
   for (const s of skills) {
-    if (s.id === CURRICULUM_SKILL_ID && LEGACY_CURRICULUM_PROMPTS.includes(s.prompt.trim())) {
-      out.push({ ...s, description: curriculumDescription(), prompt: curriculumPrompt(), updatedAt: now });
-    }
+    const def = BUILTIN_SKILLS.find((b) => b.id === s.id);
+    if (!def || s.name !== def.name) continue;
+    const want = builtinSkillContent(def.name, locale);
+    if (sameContent(s, want)) continue;
+    const legacy = s.id === CURRICULUM_SKILL_ID && LEGACY_CURRICULUM_PROMPTS.includes(s.prompt.trim());
+    const otherLocale = LANGUAGES.some((l) => l.id !== locale && sameContent(s, builtinSkillContent(def.name, l.id)));
+    if (legacy || otherLocale) out.push({ ...s, ...want, updatedAt: now });
   }
   return out;
 }
 
 export function defaultSkills(now = Date.now()): Skill[] {
-  return [
-    {
-      id: CURRICULUM_SKILL_ID,
-      name: 'curriculum',
-      title: t('skillsBuiltin.curriculum.title'),
-      description: curriculumDescription(),
-      prompt: curriculumPrompt(),
-      builtin: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: BOOK_SKILL_ID,
-      name: 'book',
-      title: t('skillsBuiltin.book.title'),
-      description: t('skillsBuiltin.book.description'),
-      prompt: t('skillsBuiltin.book.prompt'),
-      builtin: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: QUIZ_SKILL_ID,
-      name: 'quiz',
-      title: t('skillsBuiltin.quiz.title'),
-      description: t('skillsBuiltin.quiz.description'),
-      prompt: t('skillsBuiltin.quiz.prompt'),
-      builtin: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: SPEAK_SKILL_ID,
-      name: 'speak',
-      title: t('skillsBuiltin.speak.title'),
-      description: t('skillsBuiltin.speak.description'),
-      prompt: t('skillsBuiltin.speak.prompt'),
-      builtin: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: REORGANIZE_SKILL_ID,
-      name: 'reorganize',
-      title: t('skillsBuiltin.reorganize.title'),
-      description: t('skillsBuiltin.reorganize.description'),
-      prompt: t('skillsBuiltin.reorganize.prompt'),
-      builtin: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: SCHEDULE_SKILL_ID,
-      name: 'schedule',
-      ...scheduleSkillContent(),
-      builtin: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: KNOWLEDGE_SKILL_ID,
-      name: 'knowledge',
-      title: t('skillsBuiltin.knowledge.title'),
-      description: t('skillsBuiltin.knowledge.description'),
-      prompt: t('skillsBuiltin.knowledge.prompt'),
-      builtin: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
+  return BUILTIN_SKILLS.map(({ id, name }) => ({
+    id,
+    name,
+    ...builtinSkillContent(name),
+    builtin: true,
+    createdAt: now,
+    updatedAt: now,
+  }));
 }
 
 /**

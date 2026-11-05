@@ -246,7 +246,7 @@ export function buildReorganizeRequest(
 export function parseReorganized(text: string, fallbackQuestion: string): { question: string; answer: string } | null {
   const body = text.replace(/^\uFEFF/, '').trim();
   if (!body) return null;
-  const m = /^\s*(?:\*\*)?(?:질문|Question)(?:\*\*)?\s*[:：]\s*(.+?)\s*(?:\*\*)?\s*\n+\s*-{3,}\s*\n([\s\S]*)$/.exec(body);
+  const m = /^\s*(?:\*\*)?(?:질문|Question|質問|问题|問題|Câu hỏi)(?:\*\*)?\s*[:：]\s*(.+?)\s*(?:\*\*)?\s*\n+\s*-{3,}\s*\n([\s\S]*)$/.exec(body);
   if (m && m[1]!.trim() && m[2]!.trim()) return { question: m[1]!.replace(/\*\*/g, '').trim(), answer: m[2]!.trim() };
   return { question: fallbackQuestion, answer: body };
 }

@@ -1,0 +1,192 @@
+{
+  "prompts": {
+    "base": "Bạn là gia sư hỗ trợ học tập. Hãy giải thích chính xác và có cấu trúc, phù hợp với trình độ của người học. Khi cần, hãy dùng Markdown (danh sách, bảng, khối mã).",
+    "branch": "Đây là phần mà người học đang bị mắc kẹt trong ngữ cảnh này. Hãy giải thích ngắn gọn, rõ ràng, dùng ví von và ví dụ phù hợp với ngữ cảnh.",
+    "subsession": "Người học đang xem cuộc trò chuyện này và trực tiếp hỏi tiếp một câu hỏi con. Dựa trên ngữ cảnh của cuộc trò chuyện gốc, hãy giải thích ngắn gọn, rõ ràng, dùng ví von và ví dụ.",
+    "branchSuggest": "## Nhánh gợi ý\nSau khi trả lời xong, hãy thêm đúng một khối mã ```branches ở cuối cùng theo định dạng dưới đây. Khối này sẽ được ẩn trên màn hình và chuyển thành các nút bấm.\n```branches\n{\"chapters\":[{\"title\":\"tiêu đề chương đúng y như đã viết trong nội dung\",\"question\":\"một câu hỏi của người học để học chương đó\"}],\"next\":[{\"title\":\"tên ngắn không quá 20 ký tự\",\"question\":\"một câu hỏi tiếp theo mà người học sẽ hỏi\"}]}\n```\n- chapters: nếu câu trả lời là chương trình học, lộ trình hoặc kế hoạch theo từng bước, hãy ghi từng chương (chương, tuần, giai đoạn) với tiêu đề đúng y như trong nội dung. Nếu một chương lớn có các chương nhỏ (mục) bên dưới, chỉ ghi chương lớn. Nếu không thì để mảng rỗng.\n- next: 2 đến 3 câu hỏi để đào sâu thêm hoặc để học tiếp, dựa trên câu trả lời này.\n- Không nhắc đến khối này bên ngoài khối. Với lời chào ngắn hoặc trò chuyện xã giao, có thể bỏ qua khối này.",
+    "summary": "Dưới đây là cuộc trò chuyện trong đó người học hỏi về một khái niệm và đã hiểu nó. Hãy tóm tắt phần cốt lõi mà người học đã hiểu trong 1 đến 2 câu bằng tiếng Việt. Chỉ xuất bản tóm tắt, không có lời mở đầu.",
+    "title": "Hãy tạo một tiêu đề ngắn bằng tiếng Việt (3 đến 8 từ) cho chủ đề của cuộc trò chuyện sau. Chỉ xuất tiêu đề, không có dấu ngoặc kép hay dấu chấm.",
+    "pageBase": "Bạn hỗ trợ chỉnh sửa ghi chú học tập dạng Markdown.\n- Chỉ viết phần nội dung Markdown sẽ được đưa thẳng vào trang. Không thêm lời chào, giải thích hay lời mở đầu (\"Dưới đây là…\").\n- Không bọc toàn bộ kết quả trong hàng rào mã ```.\n- Theo ngôn ngữ của ghi chú (nếu trống thì dùng tiếng Việt).\n- Giữ nguyên các liên kết trang con như `[Tiêu đề](#page:…)`, không thay đổi dù chỉ một ký tự.\n- Giữ nguyên các hình ảnh và tệp đính kèm dạng `![…](embed:N)` và `[…](embed:N …)`, không thay đổi địa chỉ.",
+    "pageOrganizeTask": "Nhiệm vụ: Sắp xếp lại toàn bộ ghi chú cho dễ đọc.\n- Không làm mất nội dung (sự kiện, ví dụ, công thức, mã, liên kết). Không bịa thêm.\n- Gộp các nội dung trùng lặp, và xây dựng cấu trúc bằng tiêu đề (##, ###), danh sách và bảng phù hợp với mạch nội dung.\n- Chỉnh các câu văn chưa tự nhiên và lỗi chính tả, nhưng giữ nguyên giọng văn gốc.",
+    "pageFillTask": "Nhiệm vụ: Chỉ viết nội dung sẽ đặt vào chỗ [여기에 채우기] trong ghi chú.\n- Viết sao cho liền mạch với đoạn văn trước và sau, không lặp lại nội dung đã có sẵn ở phía trước hoặc phía sau.\n- Nếu dòng ngay phía trước là tiêu đề, hãy viết nội dung dưới tiêu đề đó. Nếu đang ở giữa danh sách, hãy viết các mục danh sách cùng dạng.\n- Chỉ viết nội dung chính xác. Nếu không chắc chắn, hãy viết ngắn gọn.",
+    "skillAssist": "Bạn là trợ lý viết \"kỹ năng\" của ứng dụng trò chuyện học tập.\nKỹ năng là một chỉ dẫn có thể tái sử dụng, được thêm vào chỉ dẫn hệ thống cho đúng một câu hỏi khi người học chọn bằng lệnh /tên-lệnh trong trò chuyện.\nGiống như kỹ năng của Claude và Codex, một kỹ năng có thể có các tệp đi kèm trong thư mục của nó, và chúng sẽ được gửi cho mô hình cùng với chỉ dẫn khi kỹ năng được sử dụng.\nNgười học trong ứng dụng này đào sâu bằng cách kéo các thuật ngữ trong câu trả lời để tạo nhánh (câu hỏi phụ).\n\nHãy tạo mới một kỹ năng hoặc chỉnh sửa kỹ năng hiện tại được cung cấp, tùy theo yêu cầu. Chỉ xuất theo định dạng dưới đây và không viết thêm gì khác:\n\n<name>tên lệnh</name>\n<title>tiêu đề</title>\n<description>mô tả</description>\n<prompt>\nchỉ dẫn\n</prompt>\n<file path=\"references/vi-du.md\">\nnội dung tệp (chỉ khi cần, có thể có nhiều tệp)\n</file>\n<delete path=\"đường dẫn tệp cần xóa\"/>\n<note>một hoặc hai câu về nội dung đã tạo hoặc đã thay đổi</note>\n\nQuy tắc:\n- name: 2 đến 24 ký tự gồm chữ cái thường tiếng Anh, chữ số, - hoặc _, không có khoảng trắng. Ngắn gọn và dễ nhớ. Không dùng tên lệnh đã tồn tại.\n- title: tiếng Việt, tối đa 20 ký tự.\n- description: một câu tiếng Việt mô tả kỹ năng này làm được gì (tối đa 80 ký tự).\n- prompt: chỉ dẫn mà mô hình sẽ làm theo. Dùng danh sách đánh số các bước thực hiện, và cụ thể về định dạng đầu ra (tiêu đề, danh sách, bảng), độ dài, cũng như cách xử lý khi đầu vào trống hoặc mơ hồ. Khi phù hợp, hãy thêm chỉ dẫn in đậm các thuật ngữ then chốt để người học có thể kéo chọn và hỏi thêm. Tối đa 4000 ký tự.\n- Chỉ tạo tệp đi kèm khi nó giúp giữ chỉ dẫn ngắn gọn. Nếu chỉ dẫn đã đủ thì đừng tạo.\n  Đặt tài liệu tham khảo dài, bảng thuật ngữ và tiêu chí chấm điểm trong references/, mã ví dụ và script thực hành trong scripts/, và mẫu định dạng câu trả lời trong assets/.\n  Đường dẫn dùng chữ cái thường tiếng Anh, chữ số, - hoặc _, kèm phần mở rộng (.md, .py, .txt, v.v.). Mỗi tệp tối đa 8000 ký tự, chỉ gồm văn bản.\n  Nếu tạo tệp, hãy nêu tên đường dẫn của tệp trong prompt và ghi rõ khi nào cần tham khảo. Script trong tệp sẽ không được chạy, chỉ nội dung được chuyển đi.\n- Khi chỉnh sửa, chỉ thay đổi phần được yêu cầu và giữ nguyên phần còn lại. Hãy xuất đầy đủ name, title, description và prompt ngay cả khi không thay đổi.\n  Chỉ xuất các tệp đi kèm mới tạo hoặc đã sửa, với toàn bộ nội dung trong <file>. Các tệp hiện có mà bạn không xuất sẽ được giữ nguyên. Chỉ dùng <delete> cho tệp cần xóa.",
+    "promptAssist": "Bạn là trợ lý chỉnh sửa \"prompt hệ thống\" của ứng dụng trò chuyện học tập.\nPrompt hệ thống là chỉ dẫn cố định mà ứng dụng gửi cho AI. Mỗi tính năng như trò chuyện, tạo nhánh, tóm tắt, tiêu đề, AI trang và trợ lý kỹ năng đều có một prompt riêng.\nNgười học trong ứng dụng này đào sâu bằng cách kéo các thuật ngữ trong câu trả lời để tạo nhánh (câu hỏi phụ).\n\nHãy chỉnh sửa prompt hiện tại được cung cấp theo yêu cầu. Chỉ xuất theo định dạng dưới đây và không viết thêm gì khác:\n\n<prompt>\ntoàn bộ prompt sau khi chỉnh sửa\n</prompt>\n<note>một hoặc hai câu về nội dung đã thay đổi</note>\n\nQuy tắc:\n- Chỉ thay đổi phần được yêu cầu và giữ nguyên các câu, thứ tự và giọng văn khác. Xuất cả những phần không thay đổi, đầy đủ.\n- Định dạng đầu ra nằm trong prompt (tên khối mã, thẻ, khóa JSON, dòng chữ hiển thị) là thứ ứng dụng dùng để đọc kết quả, nên nếu không được yêu cầu thì không thay đổi dù chỉ một ký tự.\n- Nếu yêu cầu muốn thay đổi định dạng như vậy, hãy thay đổi, nhưng ghi cảnh báo trong <note> rằng ứng dụng có thể không đọc được kết quả.\n- Giữ ngôn ngữ của chính prompt. Không vượt quá 20000 ký tự.\n- Trong <prompt> chỉ viết nội dung của prompt. Không bọc trong lời giải thích, lời chào hay hàng rào mã."
+  },
+  "info": {
+    "groups": {
+      "chat": "Trò chuyện",
+      "branch": "Tạo nhánh",
+      "auto": "Tự động tạo",
+      "page": "AI trang",
+      "assist": "Trợ lý AI"
+    },
+    "base": {
+      "label": "Prompt hệ thống mặc định",
+      "description": "Chỉ dẫn gia sư được đặt ở đầu mọi cuộc trò chuyện học tập. Phiên mới bắt đầu với nội dung này."
+    },
+    "branchSuggest": {
+      "label": "Chỉ dẫn nhánh gợi ý",
+      "description": "Chỉ dẫn yêu cầu gắn khối nhánh gợi ý (chương và câu hỏi tiếp theo) vào cuối câu trả lời. Nếu đổi định dạng, các nút có thể không hiển thị."
+    },
+    "branch": {
+      "label": "Chỉ dẫn nhánh (neo)",
+      "description": "Được thêm sau ngữ cảnh của phiên gốc trong nhánh tạo từ đoạn văn đã chọn trong câu trả lời."
+    },
+    "subsession": {
+      "label": "Chỉ dẫn phiên con",
+      "description": "Được thêm sau cuộc trò chuyện gốc trong phiên con do người học tạo bằng [+]."
+    },
+    "summary": {
+      "label": "Tóm tắt nhánh",
+      "description": "Chỉ dẫn để tạo bản tóm tắt 1 đến 2 câu, dùng để đưa cuộc trò chuyện của nhánh trở lại phiên gốc."
+    },
+    "title": {
+      "label": "Tiêu đề phiên",
+      "description": "Chỉ dẫn dùng để đặt tiêu đề phiên từ cuộc trò chuyện đầu tiên."
+    },
+    "pageOrganize": {
+      "label": "Dọn dẹp ghi chú",
+      "description": "Dùng cho \"Sắp xếp bằng AI\" trên trang."
+    },
+    "pageFill": {
+      "label": "Điền chỗ trống",
+      "description": "Dùng để điền nội dung tại vị trí con trỏ trên trang. Xử lý dấu [여기에 채우기]."
+    },
+    "skillAssist": {
+      "label": "Tạo kỹ năng bằng AI",
+      "description": "Chỉ dẫn cho trợ lý AI trong quản lý kỹ năng. Nếu đổi định dạng thẻ đầu ra, kết quả có thể không đọc được."
+    },
+    "promptAssist": {
+      "label": "Chỉnh prompt bằng AI",
+      "description": "Chỉ dẫn cho trợ lý AI trong quản lý prompt. Nếu đổi định dạng thẻ đầu ra, kết quả có thể không đọc được."
+    }
+  },
+  "context": {
+    "user": "Người học",
+    "tutor": "Gia sư",
+    "clipped": "…(đã lược bớt)",
+    "rootTopic": "Chủ đề gốc: {title}",
+    "pathHeading": "### Đường dẫn nhánh (gốc → hiện tại)",
+    "learningContext": "## Ngữ cảnh học tập",
+    "createdSubsession": "{n}. (phiên con do người học tạo) \"{title}\"",
+    "anchorContext": " — ngữ cảnh: \"{before}[{text}]{after}\"",
+    "parentCanvas": "### Canvas của phiên gốc (tài liệu và ghi chú người học đã thu thập)",
+    "parentDoc": "### Tài liệu gốc (trang do người học viết)",
+    "parentChat": "### Cuộc trò chuyện gốc ({label}, {count} tin gần nhất)",
+    "untilAnchor": "đến tin nhắn neo",
+    "untilCreated": "đến khi phiên con được tạo",
+    "instruction": "## Chỉ dẫn",
+    "targetQuestion": "Đối tượng của câu hỏi hiện tại: \"{text}\"",
+    "imageNote": "[Đã tạo và hiển thị {count} hình ảnh]",
+    "attachmentFallback": "Hãy xem nội dung đính kèm.",
+    "summaryTarget": "Đối tượng câu hỏi: \"{target}\"",
+    "branchWhat": "\"{text}\" là gì?",
+    "branchDetail": "Hãy giải thích chi tiết hơn về \"{text}\".",
+    "reorganizeRequest": "Hãy sắp xếp lại toàn bộ cuộc trò chuyện trong phiên này thành một câu hỏi và một câu trả lời.",
+    "sessionHeading": "## Cuộc trò chuyện trong phiên",
+    "sessionTurn": "### {role} {n}",
+    "sessionUser": "Câu hỏi",
+    "sessionAssistant": "Trả lời",
+    "notesHeading": "## Chú thích (sau khi sắp xếp lại, hãy trỏ đến các số này)",
+    "noteFrom": "Lấy từ \"{text}\" trong nội dung",
+    "noteSummary": "Tóm tắt: {text}",
+    "requestHeading": "## Yêu cầu"
+  },
+  "page": {
+    "titleHeading": "## Tiêu đề trang",
+    "noteHeading": "## Ghi chú",
+    "extraRequest": "## Yêu cầu bổ sung",
+    "requestHeading": "## Yêu cầu",
+    "fillDefault": "Hãy điền nội dung phù hợp với ngữ cảnh xung quanh."
+  },
+  "skillAssist": {
+    "currentHeading": "## Kỹ năng hiện tại (hãy sửa phần này)",
+    "newHeading": "## Tạo kỹ năng mới",
+    "takenHeading": "## Tên lệnh đã được sử dụng",
+    "requestHeading": "## Yêu cầu",
+    "defaultEdit": "Hãy chỉnh sửa tổng thể để rõ ràng hơn và dễ dùng hơn.",
+    "defaultNew": "Hãy tạo một kỹ năng hữu ích cho việc học.",
+    "truncated": "…(bỏ qua {count} ký tự còn lại — quá dài nên không thể sửa, không xuất phần này)"
+  },
+  "promptAssist": {
+    "targetHeading": "## Prompt cần chỉnh sửa",
+    "currentHeading": "## Nội dung hiện tại (hãy sửa phần này)",
+    "requestHeading": "## Yêu cầu",
+    "defaultEdit": "Giữ nguyên ý nghĩa và làm cho rõ ràng, súc tích hơn."
+  },
+  "branch": {
+    "question": "Hãy cùng học chương \"{title}\". Trước hết, hãy giải thích từng bước các khái niệm cốt lõi, kèm ví dụ."
+  },
+  "book": {
+    "fallbackTitle": "Sách",
+    "chapter": "Chương {n}"
+  },
+  "quiz": {
+    "fallbackTitle": "Trắc nghiệm"
+  },
+  "skill": {
+    "heading": "## Kỹ năng: {title} (/{name})",
+    "intro": "Với câu hỏi này, hãy làm theo chỉ dẫn bên dưới.",
+    "filesHeading": "### Tệp của kỹ năng",
+    "filesNote": "Đây là các tệp thuộc thư mục của kỹ năng này. Hãy tham khảo các tệp mà chỉ dẫn trỏ tới bằng đường dẫn. Script không thể chạy ở đây, nên khi cần, hãy giải thích nội dung, cách chạy và kết quả mong đợi."
+  },
+  "reorganize": {
+    "requestHeading": "## Yêu cầu"
+  },
+  "study": {
+    "error": {
+      "invalid": "Đây không phải là tệp học của octobooks, hoặc tệp đã bị hỏng.",
+      "newerVersion": "Bài học này được xuất từ phiên bản mới hơn của ứng dụng. Hãy cập nhật ứng dụng rồi nhập lại.",
+      "conflict": "Một số mục trùng với các bài học khác trên thiết bị này nên không thể nhập."
+    },
+    "fallbackName": "học tập",
+    "fileSuffix": "-học-tập-",
+    "md": {
+      "path": "> Đường dẫn: {path} › {title}",
+      "anchor": "**Đoạn gốc đã tạo nhánh**",
+      "summary": "## Những gì tôi đã hiểu",
+      "canvas": "## Canvas",
+      "doc": "## Tài liệu",
+      "chat": "## Trò chuyện",
+      "question": "### 🙋 Câu hỏi",
+      "answer": "### 💬 Trả lời",
+      "skill": "_Kỹ năng: /{name}_",
+      "errorNote": "_(lỗi)_",
+      "stoppedNote": "_(đã dừng)_",
+      "attachment": "📎 {name}",
+      "children": "## Nhánh con",
+      "anchorInline": " — đoạn gốc “{text}”"
+    },
+    "readme": {
+      "meta": "> Gói học octobooks · {date} · {branches} nhánh · {summaries} tóm tắt · {messages} tin nhắn",
+      "toc": "## Mục lục",
+      "howTitle": "## Tiếp tục học trên thiết bị khác",
+      "howImport": "Trong ứng dụng octobooks, mở Ghi chú hiểu bài › **Nhập bài học** và chọn tệp zip này (hoặc tệp `study.json` bên trong).",
+      "howMerge": "Nếu bài học giống nhau đã tồn tại, mỗi nhánh sẽ giữ phiên bản được chỉnh sửa gần đây hơn, còn các nhánh chỉ có trên thiết bị này sẽ được giữ nguyên."
+    },
+    "digest": {
+      "title": "# Nguồn bài học: {title}",
+      "guide": "> Cây bài học octobooks. Số thể hiện vị trí nhánh (\"1.2\" = nhánh con thứ 2 của nhánh 1). \"Đoạn gốc đã tạo nhánh\" là đoạn văn bản mà người học đã chọn vì chưa hiểu; \"Những gì tôi đã hiểu\" là bản tóm tắt do chính người học viết.",
+      "anchor": "Đoạn gốc đã tạo nhánh:",
+      "summary": "Những gì tôi đã hiểu:",
+      "root": "[Gốc] ",
+      "branch": "[{n}] ",
+      "question": "**Q.** {body}",
+      "answer": "**A.** {body}",
+      "truncated": " …(đã rút gọn)",
+      "cutNote": "\n> Nguồn quá dài nên chỉ đưa vào phần đầu của {count} câu trả lời.\n"
+    }
+  },
+  "schedule": {
+    "heading": "## Yêu cầu hẹn lịch",
+    "intro": "Chỉ khi người dùng yêu cầu rõ ràng việc hẹn lịch cho tác vụ tương lai, hãy xuất đúng một khối mã JSON có các trường title, prompt, runAt, repeat (và skill tùy chọn).",
+    "limits": "title dài 1–{titleMax} ký tự; prompt dài 1–{promptMax} ký tự, là một câu hỏi tự đủ nghĩa sẽ được gửi vào cuộc trò chuyện này vào thời điểm đã hẹn.",
+    "runAt": "runAt phải là ngày giờ ISO có thật trong tương lai và bắt buộc có offset hoặc Z. Tính ngày tương đối theo múi giờ địa phương hiện tại. repeat là một trong once, daily, weekdays, weekly, monthly.",
+    "skillChosen": "skill: người dùng đã chọn một kỹ năng cho tác vụ này: \"{name}\" ({title}). Điền \"skill\":\"{name}\". Mỗi lịch hẹn chỉ chạy một kỹ năng, nên prompt chỉ chứa tác vụ của kỹ năng đó, không đưa các tác vụ được yêu cầu khác vào.",
+    "skillOptional": "skill (tùy chọn): nếu tác vụ rõ ràng phù hợp với một trong các kỹ năng dưới đây, hãy điền tên lệnh của nó để kỹ năng chạy cùng tác vụ (ví dụ \"mỗi ngày lúc 3 giờ hãy cho tôi làm trắc nghiệm\" → \"skill\":\"quiz\"). Nếu không có kỹ năng phù hợp thì bỏ đi. Chỉ dùng một kỹ năng.",
+    "skillNone": "Không điền skill.",
+    "ask": "Nếu thời gian, múi giờ, kiểu lặp hoặc tác vụ chưa rõ, hãy hỏi lại ngắn gọn, đừng đoán. Nếu là ngày trong quá khứ, hãy hỏi thời gian trong tương lai.",
+    "unsupported": "Với kiểu lặp không được hỗ trợ (ví dụ mỗi hai giờ hay một nhóm thứ cụ thể), hãy hỏi người dùng chọn chu kỳ được hỗ trợ; không tự ý chuyển đổi.",
+    "noBlock": "Không xuất khối schedule cho yêu cầu giải thích, ví dụ, hủy, phủ định hoặc khi đang chạy một tác vụ đã hẹn. Ứng dụng sẽ kiểm tra và lưu, nên đừng khẳng định rằng lịch đã được lưu. Tác vụ chỉ chạy khi ứng dụng đang mở trên thiết bị này."
+  }
+}

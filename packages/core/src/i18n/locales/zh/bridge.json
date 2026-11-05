@@ -1,0 +1,119 @@
+{
+  "errors": {
+    "authRequired": "{label} 未登录。请在终端中运行 `{loginHint}`。",
+    "rateLimit": "已达到 {label} 的使用上限。请稍后再试。{detail}",
+    "network": "{label} 无法连接网络。{detail}",
+    "chatgptOnly": " 此模型无法通过 ChatGPT 账户登录使用。",
+    "unsupportedModel": "{label} 无法使用 '{model}' 模型。{why} 请在设置（或技能的高级设置）中选择其他模型。",
+    "cliErrorDetail": "{label} 运行错误：{text}",
+    "cliErrorNone": "{label} 发生错误。"
+  },
+  "detect": {
+    "slow": "响应太慢，无法确认 · 仍可尝试聊天",
+    "claudeNotFound": "找不到 claude 命令",
+    "claudeFailed": "claude 运行失败",
+    "codexNotFound": "找不到 codex 命令",
+    "codexFailed": "codex 运行失败",
+    "needLogin": "{version} · 需要登录",
+    "ready": "{version} · 已登录",
+    "readyWithMethod": "{version} · 已登录（{method}）",
+    "methodApiKey": "API 密钥"
+  },
+  "codexImages": {
+    "name": "生成的图片 {n}.{ext}"
+  },
+  "common": {
+    "stopped": "已被用户停止。"
+  },
+  "claude": {
+    "notFound": "{label} 未安装，或在 PATH 中找不到。",
+    "timedOut": "{label} 响应超时。",
+    "exitCode": "退出代码 {code}"
+  },
+  "skills": {
+    "badFolder": "技能文件夹格式不正确",
+    "badName": "技能名称不正确",
+    "badSkillMd": "SKILL.md 内容不正确",
+    "badFileList": "附属文件列表不正确",
+    "badFileFormat": "附属文件格式不正确",
+    "badFilePath": "附属文件路径不正确",
+    "tooMany": "附属文件过多、过大或存在重叠",
+    "pathClash": "附属文件路径与文件夹名称重叠",
+    "badFolderPath": "技能文件夹路径不正确",
+    "fileInFolder": "技能文件夹中应为文件夹的位置存在文件或链接",
+    "folderInFile": "应为文件的位置存在文件夹",
+    "openFailed": "无法打开文件夹：{error}"
+  },
+  "server": {
+    "imageGenNote": "需要图片时，请使用图片生成工具制作。应用会自动把生成的图片附在回答下方，因此请不要提及文件路径或保存位置。不要用 SVG 或 ASCII 画代替。",
+    "sttUnsupported": "此 Bridge 不支持语音输入。",
+    "fallbackSystem": "你是一位帮助学习的友好导师。请用简体中文简短、清晰地回答。",
+    "pickModel": "请选择模型。",
+    "imagesSkipped": "（{count} 张图片超出大小或数量限制，无法附加。）",
+    "unsupportedCli": "不支持此 CLI。"
+  },
+  "stt": {
+    "disabled": "此电脑上已关闭语音输入。",
+    "engineMissing": "找不到语音引擎（whisper-cli）。",
+    "downloading": "正在下载语音模型。",
+    "modelNeeded": "需要下载语音模型。",
+    "modelServerError": "模型服务器响应错误（{status}）",
+    "modelSizeMismatch": "模型大小与预期不符。",
+    "modelCorrupt": "下载的模型已损坏。请重新下载。",
+    "queueFull": "语音转换请求排队过多。请稍后再试。",
+    "badFormat": "录音格式不正确。",
+    "unavailable": "无法使用语音输入。",
+    "engineNotFound": "找不到语音引擎。",
+    "timedOut": "语音转换超时。",
+    "engineRunFailed": "无法运行语音引擎（whisper-cli）。",
+    "failed": "语音转换失败。",
+    "unknownModel": "未知模型。",
+    "otherDownloading": "正在下载其他模型。",
+    "cannotDeleteDownloading": "正在下载的模型无法删除。"
+  },
+  "store": {
+    "readFailed": "无法读取 {file}：{reason}"
+  },
+  "remote": {
+    "local": "本地",
+    "unnamedDevice": "未命名设备"
+  },
+  "knowledge": {
+    "badId": "知识库 id 不正确",
+    "notFound": "找不到知识库",
+    "entryNotFound": "找不到项目",
+    "badName": "知识库名称不正确",
+    "badPath": "项目路径不正确",
+    "badUrl": "网页地址不正确（仅支持 http、https）",
+    "badRepo": "GitHub 仓库地址不正确",
+    "privateHost": "无法获取内部网络地址",
+    "fetchFailed": "无法获取网页",
+    "notHtml": "不是网页或文本，无法获取",
+    "htmlTooLarge": "网页过大，无法获取",
+    "tooLarge": "文件过大，无法添加",
+    "tooManyFiles": "超出知识库文件数量上限，无法添加",
+    "tooManyBytes": "超出知识库容量上限，无法添加",
+    "nameTaken": "无法创建同名项目：{name}",
+    "gitMissing": "找不到 git。请安装 git 后重试",
+    "cloneFailed": "无法获取仓库：{error}",
+    "cancelled": "已取消导入",
+    "cloneStalled": "仓库无响应，已中止。请检查网络后重试",
+    "cloneTimeout": "仓库太大，未能在时限内下载完成",
+    "openFailed": "无法打开文件夹：{error}",
+    "systemNote": "本次学习已关联知识库（参考资料）。回答前，请使用 Read、Glob、Grep 工具查找并确认相关文件，并根据文件内容作答。路径相对于工作文件夹。文件列表（共 {total} 个中显示 {shown} 个）：{paths}",
+    "codexIndex": "知识库文件列表（共 {total} 个中显示 {shown} 个；不提供文件内容）：{paths}",
+    "repoNotFound": "找不到仓库。请确认地址正确，且为公开仓库",
+    "index": {
+      "diskFull": "磁盘剩余空间不足，无法建立索引",
+      "embedFailed": "无法生成嵌入向量，已中止索引：{message}",
+      "fileTooLarge": "文件过大，已排除在索引之外",
+      "keyMissing": "没有 OpenAI API 密钥，无法生成嵌入向量。请设置密钥或选择本地嵌入",
+      "pdfUnavailable": "无法读取 PDF 文本，已排除该文件",
+      "tooManyChunks": "超出片段数量上限（{count}个），已中止索引",
+      "tooManyFiles": "超出文件数量上限（{count}个），无法建立索引"
+    },
+    "badSettings": "索引设置值无效",
+    "diskLow": "磁盘剩余空间不足，无法添加",
+    "sourceNoOrigin": "直接上传的文件无法从原始位置重新获取"
+  }
+}

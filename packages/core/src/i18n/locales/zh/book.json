@@ -1,0 +1,28 @@
+{
+  "pdf": {
+    "failed": "无法生成书籍 PDF。",
+    "save": "保存为书籍 PDF",
+    "waitTitle": "回答完成后即可保存",
+    "saveTitle": "将本书保存为带封面、目录和页码的 PDF",
+    "label": "书籍 PDF"
+  },
+  "html": {
+    "chapterLabel": "第 {number} 章",
+    "runningHead": "{label}  {title}",
+    "coverKicker": "由学习记录编成的书",
+    "compiledFrom": "由 octobooks 学习记录编成",
+    "toc": "目录",
+    "editedOn": "编成日期",
+    "editedAt": "编成地点",
+    "colophonNote": "本书是 AI 基于学习者的提问和理解撰写的内容。请对照原文核实事实。"
+  },
+  "export": {
+    "noContent": "还没有书籍内容。请在写完书之后再保存。",
+    "noChapters": "未找到书籍正文。需要有以 \"## 第1章. 标题\" 格式撰写的回答。",
+    "defaultTitle": "书籍",
+    "printWindow": "无法打开打印窗口。",
+    "savedPdf": "已将书籍保存为 PDF。",
+    "savedFile": "已保存可打印的书籍文件。请在浏览器中打开并选择 打印 › 存储为 PDF。",
+    "pickSaveInPrint": "请在打印窗口中选择“存储为 PDF”。"
+  }
+}

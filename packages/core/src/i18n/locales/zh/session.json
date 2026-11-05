@@ -1,0 +1,57 @@
+{
+  "childCreate": {
+    "aria": "创建子项",
+    "canvas": "画布",
+    "emptyPage": "空白页面",
+    "session": "会话"
+  },
+  "delete": {
+    "confirm": "删除",
+    "messageOne": "{title} 将被全部删除，且无法恢复。",
+    "messageWithKids": "{title} 及其所有子分支将被全部删除，且无法恢复。",
+    "titleBranch": "要删除该分支吗？",
+    "titleCanvas": "要删除该画布吗？",
+    "titlePage": "要删除该页面吗？",
+    "titleSession": "要删除该学习内容吗？"
+  },
+  "menu": {
+    "aria": "会话菜单",
+    "delete": "删除",
+    "newWindow": "在新窗口中打开",
+    "rename": "重命名",
+    "renameAria": "会话名称",
+    "splitDown": "在下方分屏打开",
+    "splitMax": "最多可分屏 {max} 个窗格。",
+    "splitRight": "在右侧分屏打开"
+  },
+  "sidebar": {
+    "changeProfile": "更换配置文件",
+    "closeList": "关闭列表",
+    "collapseAll": "全部收起",
+    "connectToSee": "连接电脑后即可看到学习列表",
+    "header": "我的学习之海 · {count} 个起点",
+    "navAria": "学习会话",
+    "new": "新建",
+    "newNeedsPc": "连接电脑后即可新建",
+    "noSessions": "还没有会话",
+    "prompts": "管理提示词",
+    "resizeAria": "调整侧边栏宽度",
+    "resizeTitle": "拖动调整宽度 · 双击恢复默认宽度",
+    "skills": "管理技能",
+    "toolbarAria": "会话列表工具",
+    "usable": "可用 {count} 个"
+  },
+  "tree": {
+    "canvasIcon": "画布",
+    "collapseBranch": "收起分支",
+    "collapseSub": "收起子会话",
+    "deleteAria": "删除会话",
+    "expandBranch": "展开分支",
+    "expandSub": "展开子会话",
+    "pageIcon": "页面",
+    "rowTitle": "{title} · {time}",
+    "rowTitleKids": "{title} · {time} · 分支 {count}",
+    "streaming": "正在生成回答",
+    "unread": "未读回答"
+  }
+}

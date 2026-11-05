@@ -1,0 +1,152 @@
+{
+  "assist": {
+    "createWithAi": "Tạo bằng AI",
+    "createdNote": "Đã điền kỹ năng mới.",
+    "defaultTitle": "Dùng kết nối mặc định trong Cài đặt",
+    "editWithAi": "Sửa bằng AI",
+    "editedNote": "Đã sửa theo yêu cầu.",
+    "failed": "Viết bằng AI thất bại.",
+    "idea": {
+      "beginner": {
+        "label": "Mức người mới bắt đầu",
+        "text": "Sửa lại để giải thích ở mức phù hợp với người mới bắt đầu học."
+      },
+      "concise": {
+        "label": "Ngắn gọn hơn",
+        "text": "Rút gọn chỉ dẫn cho ngắn và súc tích hơn. Giữ nguyên các quy tắc cốt lõi."
+      },
+      "example": {
+        "label": "Thêm ví dụ",
+        "text": "Thêm một ví dụ đầu ra để mô hình có thể làm theo."
+      },
+      "format": {
+        "label": "Làm rõ định dạng đầu ra",
+        "text": "Xác định rõ hơn định dạng đầu ra (tiêu đề, danh sách, bảng, độ dài)."
+      },
+      "quiz": {
+        "label": "Quiz khái niệm",
+        "text": "Kỹ năng nhận một chủ đề rồi đố 5 khái niệm cốt lõi, đáp án được gập lại để người học tự kiểm tra."
+      },
+      "simple": {
+        "label": "Giải thích đơn giản",
+        "text": "Kỹ năng giải thích các khái niệm khó sao cho học sinh cấp hai cũng hiểu, dùng phép ẩn dụ và ví dụ trực quan."
+      },
+      "socratic": {
+        "label": "Đối thoại kiểu Socrates",
+        "text": "Kỹ năng không trả lời ngay mà đặt câu hỏi để người học tự tìm ra đáp án."
+      },
+      "vocab": {
+        "label": "Ghi nhớ từ vựng",
+        "text": "Kỹ năng giúp ghi nhớ từ tiếng Anh cùng nghĩa, câu ví dụ, từ nguyên và các từ dễ nhầm lẫn."
+      }
+    },
+    "noAi": "Không có kết nối AI nào để dùng. Hãy kiểm tra kết nối trong Cài đặt.",
+    "notConnectedPc": "Chưa kết nối với PC. Hãy kết nối với PC trước.",
+    "parseFailed": "Không đọc được kỹ năng từ phản hồi của AI. Hãy thử diễn đạt lại yêu cầu một chút.",
+    "pcRemote": "{host} · cài đặt từ xa",
+    "placeholderEdit": "Hãy mô tả cách sửa. Ví dụ: tăng câu hỏi kiểm tra lên 3 và trình bày gọn trong bảng",
+    "placeholderNew": "Hãy mô tả kỹ năng bạn cần. Ví dụ: một kỹ năng giải thích từng dòng khi bạn đưa vào đoạn code",
+    "requestLabel": "Yêu cầu gửi cho AI",
+    "running": "AI đang viết… nội dung sẽ được điền ngay vào ô bên dưới.",
+    "stop": "Dừng",
+    "undo": "Hoàn tác thay đổi của AI",
+    "viaPcTitle": "Viết theo cài đặt từ xa của PC (tác nhân, mô hình, mức nỗ lực)"
+  },
+  "extras": {
+    "add": "Thêm",
+    "advanced": "Tùy chọn nâng cao",
+    "agent": "Tác nhân",
+    "cancel": "Hủy",
+    "chars": "{n} ký tự",
+    "connDefault": "Mô hình mặc định của kết nối",
+    "connDefaultWithModel": "Mô hình mặc định của kết nối ({model})",
+    "deleteFile": "Xóa {path}",
+    "duplicatePath": "Đã có tệp cùng đường dẫn.",
+    "effort": "Mức nỗ lực",
+    "effortDefault": "Mức nỗ lực mặc định",
+    "effortLabel": "Mức nỗ lực của kỹ năng",
+    "fileContent": "Nội dung {path}",
+    "files": "Tệp",
+    "filesHint": "Để giữ chỉ dẫn ngắn gọn, hãy đặt tài liệu tham khảo dài vào {references}, mã ví dụ vào {scripts} và mẫu câu trả lời vào {assets}. Các tệp này được gửi cho mô hình cùng với chỉ dẫn khi dùng kỹ năng này.",
+    "filesMeta": "({n} tệp · {size})",
+    "filesSection": "Tệp kỹ năng",
+    "followSession": "Theo cài đặt phiên",
+    "importFile": "Nhập tệp",
+    "model": "Mô hình",
+    "modelLabel": "Mô hình của kỹ năng",
+    "newFile": "Tệp mới",
+    "newPathLabel": "Đường dẫn tệp mới",
+    "notApplicable": "Không áp dụng",
+    "openFolder": "Mở thư mục",
+    "pcDefaultModel": "Mô hình mặc định của PC",
+    "provider": "Nhà cung cấp",
+    "providerLabel": "Nhà cung cấp của kỹ năng",
+    "setHint": "Các câu hỏi khi chọn kỹ năng này sẽ được trả lời theo cài đặt ở trên. Các câu hỏi sau đó lại theo cài đặt phiên. Để trống mô hình và mức nỗ lực thì dùng giá trị mặc định của kết nối đó.",
+    "textOnly": "{name}: chỉ có thể thêm tệp văn bản.",
+    "thousandChars": "{n} nghìn ký tự",
+    "tooLarge": "{name}: tệp quá lớn.",
+    "unsetHint": "Để trống thì dùng nhà cung cấp, mô hình và mức nỗ lực đã chọn trong phiên trò chuyện. Hãy chọn nếu chỉ muốn kỹ năng này trả lời bằng mô hình khác."
+  },
+  "files": {
+    "count": "Có thể thêm tối đa {n} tệp.",
+    "duplicate": "Có hai tệp cùng đường dẫn.",
+    "path": "Đường dẫn tệp chỉ có thể là đường dẫn tương đối gồm chữ cái tiếng Anh, chữ số, chữ Hangul, ., _ và - (ví dụ: references/guide.md; không dùng SKILL.md).",
+    "size": "Mỗi tệp tối đa {file} ký tự, tổng cộng tối đa {total} ký tự."
+  },
+  "page": {
+    "addedCount": "Đã thêm {n}",
+    "back": "Quay lại",
+    "builtin": "Kỹ năng có sẵn",
+    "delete": "Xóa",
+    "deleteMessage": "Kỹ năng “{title}” (/{name}) sẽ bị xóa. Các câu hỏi đã gửi không bị ảnh hưởng.",
+    "deleteTitle": "Xóa kỹ năng này?",
+    "description": "Mô tả",
+    "descriptionHint": "(hiển thị trong danh sách và menu)",
+    "discard": "Bỏ",
+    "discardMessage": "Bỏ các thay đổi?",
+    "editor": "Sửa kỹ năng",
+    "empty": "Chưa có kỹ năng nào.",
+    "existingHint": "Gõ {command} trong ô chat hoặc chọn từ {menu}, khi đó các chỉ dẫn bên dưới sẽ được thêm vào câu hỏi đó.",
+    "folderChangedMessage": "Kỹ năng này đã thay đổi trong thư mục kỹ năng khi bạn đang sửa. Ghi đè bằng nội dung bạn vừa sửa? (Các tệp mới thêm vào thư mục sẽ được giữ nguyên.)",
+    "folderChangedTitle": "Thư mục có thay đổi",
+    "folderHintNew": "Khi lưu, thư mục kỹ năng sẽ được tạo",
+    "folderHintSaved": "{root}/{name} — thay đổi thực hiện trong thư mục sẽ được áp dụng khi bạn quay lại ứng dụng",
+    "folderOpenFailed": "Không mở được thư mục",
+    "list": "Danh sách kỹ năng",
+    "menuPath": "+ › Kỹ năng",
+    "name": "Tên lệnh",
+    "new": "Kỹ năng mới",
+    "newHint": "Tạo kỹ năng mới. Hãy nói với AI điều bạn muốn hoặc tự điền các ô bên dưới. Bạn có thể gọi kỹ năng trong chat bằng tên lệnh.",
+    "ok": "OK",
+    "open": "Mở",
+    "openFolder": "Mở thư mục kỹ năng",
+    "openUnsavedMessage": "Thư mục chỉ có nội dung đã lưu. Vẫn mở chứ?",
+    "overwrite": "Ghi đè",
+    "prompt": "Chỉ dẫn",
+    "promptPlaceholder": "Viết chỉ dẫn mà mô hình sẽ làm theo cho các câu hỏi khi chọn kỹ năng này.",
+    "restoreExamples": "Khôi phục kỹ năng mẫu",
+    "revert": "Hoàn tác",
+    "save": "Lưu",
+    "saveFirstMessage": "Thư mục sẽ được tạo khi bạn lưu kỹ năng, sau đó mới có thể mở.",
+    "saveFirstTitle": "Hãy lưu trước",
+    "skippedNotice": "Kỹ năng giới hạn {max} cái nên {n} cái không nhập được.",
+    "sync": "Đồng bộ",
+    "syncFailed": "Không đồng bộ được kỹ năng. {reason}",
+    "syncOffline": "Có thể đồng bộ khi đã kết nối với PC",
+    "syncReady": "Lấy các kỹ năng đã tạo trên PC về",
+    "syncSame": "Kỹ năng trên PC đã giống với thiết bị này.",
+    "syncedNotice": "Đã đồng bộ kỹ năng từ PC ({parts})",
+    "title": "Quản lý kỹ năng",
+    "titleField": "Tiêu đề",
+    "titlePlaceholder": "Tạo giáo trình",
+    "unsavedTitle": "Có thay đổi chưa lưu",
+    "updatedCount": "{n} cái đã cập nhật"
+  },
+  "problem": {
+    "name": "Tên lệnh chỉ dùng chữ thường tiếng Anh, chữ số, chữ Hangul, - và _, tối đa {max} ký tự, không có khoảng trắng.",
+    "nameTaken": "Đã có kỹ năng cùng tên lệnh.",
+    "prompt": "Hãy nhập nội dung chỉ dẫn.",
+    "title": "Hãy nhập tiêu đề.",
+    "tooLong": "Tiêu đề tối đa {title} ký tự, mô tả {description} ký tự, chỉ dẫn {prompt} ký tự."
+  }
+}

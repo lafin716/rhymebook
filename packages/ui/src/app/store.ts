@@ -16,6 +16,8 @@ import { hydrate } from '../persist/hydrate';
 import { caps, remoteMode, sanitizeSettings } from './capabilities';
 import { baseUrls, isDemo, platformProviders, secrets } from './runtime';
 import { notifyResponseComplete } from '../notifications/service';
+import { knowledgeRetriever } from '../knowledge/retriever';
+import { knowledgeApi } from '../knowledge/api';
 
 /** IndexedDB 저장소. 데모 모드와 불러오기 실패 시에는 쓰지 않는다 */
 export const db = new BranchDB();
@@ -47,6 +49,8 @@ export const appStore = createAppStore({
     void import('../schedules/store').then(({ handleScheduleResponse }) => handleScheduleResponse(event)).catch(() => {});
   },
   scheduleSkills: () => scheduleSkillSource(),
+  // 검색 API가 있을 때만 넣는다 (웹·모바일은 근거 검색 없이 바로 답한다)
+  retriever: knowledgeApi()?.retrieve ? knowledgeRetriever : undefined,
   registry,
   repo: gatedRepository(persistence, () => persistEnabled && !isDemo()),
   // 웹·모바일은 이 기기에 저장하지 않는다. 데이터는 PC에 있고 SyncClient가 미러링한다 (ADR-026)

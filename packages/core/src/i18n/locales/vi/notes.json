@@ -1,0 +1,53 @@
+{
+  "importFail": {
+    "offline": "Chưa kết nối với PC. Hãy nhập lại sau khi đã kết nối.",
+    "timeout": "PC không phản hồi. Hãy thử lại sau ít phút.",
+    "conflict": "Chưa nhập vì trên PC đã có một việc học khác dùng cùng id.",
+    "forbidden": "Để ghi đè việc học đã có, hãy cho phép xóa từ xa trong cài đặt PC.",
+    "invalid": "Tệp này quá lớn hoặc sai định dạng để gửi từ xa. Hãy nhập trong ứng dụng PC.",
+    "rateLimit": "Yêu cầu quá dày. Hãy thử lại sau ít phút.",
+    "fallback": "Không thể nhập trên PC."
+  },
+  "study": {
+    "loadTimeout": "Chưa nhận đủ hội thoại từ PC. Hãy thử lại sau ít phút.",
+    "notFound": "Không tìm thấy việc học.",
+    "exported": "Đã lưu gói học (zip). Hãy tải lại bằng Ghi chú hiểu bài › [Nhập việc học] trên thiết bị khác.",
+    "tooBig": "Tệp quá lớn.",
+    "name": "“{title}”",
+    "importedToPc": "Đã nhập việc học {name} vào PC.",
+    "partAdded": "Thêm {count}",
+    "partUpdated": "Cập nhật {count}",
+    "partKept": "Giữ {count}",
+    "partSkipped": "Bỏ qua vì đang tạo {count}",
+    "imported": "Đã nhập việc học {name} — nhánh {parts}.",
+    "importFailPc": "Không thể nhập trên PC.",
+    "bookSessionTitle": "📖 {title}",
+    "digestFileName": "{title} nguồn học.md",
+    "makeBookPrompt": "Hãy biên soạn ghi chép học tập này thành một cuốn sách.",
+    "newSessionFail": "Không thể tạo phiên mới.",
+    "sendFail": "Không thể gửi câu hỏi."
+  },
+  "modal": {
+    "label": "Ghi chú hiểu bài",
+    "close": "Đóng ghi chú hiểu bài",
+    "titleWith": "Ghi chú hiểu bài · {title}",
+    "emptyImport": "Chưa mở việc học nào. Bạn có thể nhập tệp zip đã lưu bằng [Xuất việc học] trên thiết bị khác để học tiếp.",
+    "summaryLine": "{cards} nhánh · {summarized} tóm tắt. Tập hợp những gì đã hiểu từ các nhánh để ôn tập hoặc xuất ra tệp.",
+    "noBranches": "Chưa có nhánh nào. Hãy chọn phần chưa hiểu trong câu trả lời để tạo nhánh.",
+    "noSummary": "Chưa có tóm tắt — dùng [Đính kèm tóm tắt vào nhánh cha] trên một nhánh để điền vào.",
+    "makeBookHint": "Sắp xếp toàn bộ việc học thành một cuốn sách có cấu trúc, bắt đầu từ mục lục (kỹ năng /book)",
+    "makeBook": "Tạo sách",
+    "exportStudyHint": "Lưu toàn bộ hội thoại dưới dạng zip để học tiếp trên thiết bị khác",
+    "exportStudy": "Xuất việc học",
+    "importStudy": "Nhập việc học",
+    "importFileLabel": "Chọn tệp gói học",
+    "open": "Mở",
+    "saveMarkdown": "Lưu Markdown",
+    "markdownSaved": "Đã lưu ghi chú Markdown.",
+    "noCardsHint": "Chỉ những nhánh có tóm tắt mới thành thẻ",
+    "ankiCards": "Thẻ Anki",
+    "ankiSaved": "Đã lưu {count} thẻ Anki. Hãy nhập bằng Anki › Tệp › Nhập.",
+    "copy": "Sao chép",
+    "markdownCopied": "Đã sao chép Markdown vào bộ nhớ tạm."
+  }
+}

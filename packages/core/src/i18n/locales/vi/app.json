@@ -1,0 +1,157 @@
+{
+  "ai": {
+    "noProvider": "Không có kết nối AI nào để dùng. Hãy kiểm tra kết nối trong Cài đặt.",
+    "noResponse": "Không nhận được phản hồi từ AI."
+  },
+  "connection": {
+    "status": {
+      "checking": "Đang kiểm tra…",
+      "noKey": "Chưa có khóa",
+      "notInstalled": "Chưa cài đặt",
+      "notLoggedIn": "Cần đăng nhập",
+      "offline": "Ngoại tuyến",
+      "ready": "Đã kết nối",
+      "unpaired": "Chưa ghép nối"
+    }
+  },
+  "palette": {
+    "abyss": {
+      "description": "Sắc tím trầm lặng của biển sâu",
+      "name": "Abyss"
+    },
+    "coral": {
+      "description": "Sắc hồng ấm của rạn san hô",
+      "name": "Coral"
+    },
+    "lagoon": {
+      "description": "Sóng xanh bạc hà ánh nắng",
+      "name": "Lagoon"
+    },
+    "ocean": {
+      "description": "Biển sâu xanh lam rực rỡ",
+      "name": "Ocean"
+    },
+    "pearl": {
+      "description": "Sắc cát dịu nhẹ như vỏ sò",
+      "name": "Pearl"
+    },
+    "vscode": {
+      "description": "Nền xám dịu như trình soạn thảo mã",
+      "name": "VS Code"
+    }
+  },
+  "runtime": {
+    "localOffline": "Không thể kết nối với bridge tích hợp. Hãy khởi động lại ứng dụng.",
+    "remoteOffline": "Đã mất kết nối với Bridge từ xa."
+  },
+  "scenarios": {
+    "branch-select": {
+      "hint": "Đang chọn “tổng có trọng số” trong câu trả lời. Tạo nhánh từ nút nổi",
+      "label": "Chọn→nhánh"
+    },
+    "deep": {
+      "hint": "Gốc › Q/K/V › tích vô hướng › độ tương đồng cosin (breadcrumb + trích dẫn neo)",
+      "label": "Nhánh 3 cấp"
+    },
+    "empty": {
+      "hint": "Màn hình trống của phiên học mới và các câu hỏi gợi ý",
+      "label": "Trạng thái trống"
+    },
+    "error": {
+      "hint": "Luồng bị ngắt giữa chừng khi đang trả lời → thử lại",
+      "label": "Lỗi"
+    },
+    "home": {
+      "hint": "Phiên mẫu “Attention của Transformer”",
+      "label": "Trang chủ"
+    },
+    "mindmap": {
+      "hint": "Cây phiên. Nhấp = mở, Shift+nhấp = chia",
+      "label": "Sơ đồ tư duy"
+    },
+    "offline": {
+      "hint": "Claude CLI ngoại tuyến → gợi ý nhà cung cấp thay thế",
+      "label": "Nhà cung cấp ngoại tuyến"
+    },
+    "popup": {
+      "hint": "Nhánh dưới dạng cửa sổ nổi (trên di động là bottom sheet)",
+      "label": "Cửa sổ/sheet"
+    },
+    "search": {
+      "hint": "⌘K tìm kiếm phiên",
+      "label": "Tìm kiếm"
+    },
+    "settings": {
+      "hint": "Thẻ kết nối, trạng thái CLI, khóa API, mã QR ghép nối",
+      "label": "Cài đặt"
+    },
+    "split": {
+      "hint": "Gốc | Q/K/V | tích vô hướng, 3 bảng (trên di động là tab)",
+      "label": "Chia màn hình"
+    },
+    "streaming": {
+      "hint": "Câu trả lời đang được tạo chậm (nút dừng)",
+      "label": "Đang phát"
+    },
+    "summary": {
+      "hint": "Tạo bản nháp tóm tắt ở nhánh “co giãn” → đính kèm vào nhánh cha",
+      "label": "Hoàn tác tóm tắt"
+    }
+  },
+  "search": {
+    "close": "Đóng",
+    "count": "{count} kết quả",
+    "inputAria": "Từ khóa tìm kiếm",
+    "label": "Tìm kiếm phiên",
+    "noMatch": "Không có phiên nào khớp với “{q}”.",
+    "placeholder": "Tìm theo tiêu đề phiên hoặc nội dung trò chuyện",
+    "recent": "Phiên gần đây",
+    "resultsAria": "Kết quả tìm kiếm"
+  },
+  "sync": {
+    "added": "Đã thêm {n} mục",
+    "op": {
+      "annotDelete": "Đã xóa ghi chú",
+      "annotSet": "Đã thêm ghi chú",
+      "branch": "Đã tạo nhánh",
+      "delete": "Đã xóa phiên",
+      "newRoot": "Đã bắt đầu một việc học mới",
+      "pageEdit": "Đã chỉnh sửa trang hoặc canvas",
+      "pageNew": "Đã tạo trang hoặc canvas mới",
+      "rename": "Đã đổi tên phiên",
+      "retry": "Đã yêu cầu trả lời lại",
+      "send": "Đã gửi câu hỏi",
+      "sessionAgent": "Đã đổi tác nhân hoặc mô hình trả lời",
+      "sessionChild": "Đã tạo phiên con",
+      "sessionReorganize": "Đã yêu cầu sắp xếp lại phiên",
+      "stop": "Đã dừng câu trả lời",
+      "studyImport": "Đã nhập dữ liệu học",
+      "subsession": "Đã tạo phiên con",
+      "summaryAttach": "Đã đính kèm tóm tắt",
+      "summaryDiscard": "Đã bỏ bản nháp tóm tắt",
+      "summaryRemove": "Đã gỡ tóm tắt",
+      "summaryRequest": "Đã yêu cầu tóm tắt",
+      "turnDelete": "Đã xóa câu hỏi",
+      "turnMove": "Đã chuyển câu hỏi sang phiên khác",
+      "turnSplit": "Đã tách câu hỏi thành phiên con",
+      "turnSplitOut": "Đã tách câu hỏi thành phiên riêng",
+      "vaultDelete": "Đã xóa khỏi thư viện",
+      "vaultPut": "Đã sắp xếp thư viện"
+    },
+    "remoteDevice": "Thiết bị từ xa",
+    "skillsSynced": "Đã đồng bộ kỹ năng từ {host} ({parts})",
+    "updated": "Đã cập nhật {n} mục"
+  },
+  "time": {
+    "justNow": "vừa xong"
+  },
+  "window": {
+    "loadingBody": "Đang lấy phiên từ cửa sổ chính.",
+    "loadingTitle": "Đang tải",
+    "notFoundBody": "Phiên này đã bị xóa hoặc không còn trong cửa sổ chính. Hãy đóng cửa sổ này.",
+    "notFoundTitle": "Không tìm thấy phiên",
+    "offlineBody": "Hãy kiểm tra xem cửa sổ chính của octobooks có đang mở không.",
+    "offlineTitle": "Đã mất kết nối với cửa sổ chính",
+    "reconnect": "Kết nối lại"
+  }
+}

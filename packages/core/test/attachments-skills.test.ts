@@ -9,6 +9,7 @@ import {
   isLongPaste,
   withTextAttachments,
 } from '../src/attachments';
+import { setLocale } from '../src/i18n';
 import { buildChatRequest, toTurns } from '../src/context';
 import type { Attachment, Message } from '../src/model';
 import { anthropicContent } from '../src/providers/anthropic';
@@ -235,5 +236,25 @@ describe('upgradeBuiltinSkills', () => {
     expect(up).toMatchObject({ id: CURRICULUM_SKILL_ID, prompt: cur.prompt, description: cur.description, updatedAt: 5 });
     // 사용자가 고친 것·이미 새 버전·다른 스킬은 그대로
     expect(upgradeBuiltinSkills([{ ...legacy, prompt: `${legacy.prompt} 내 규칙` }, cur, ...defaultSkills(1).slice(1)])).toEqual([]);
+  });
+
+  it('고치지 않은 기본 스킬은 지금 언어로 바꾸고, 고친 것은 그대로 둔다', () => {
+    const ko = defaultSkills(1);
+    setLocale('ja');
+    try {
+      const edited = { ...ko[1]!, prompt: `${ko[1]!.prompt}\n내 규칙` };
+      const up = upgradeBuiltinSkills([ko[0]!, edited, ...ko.slice(2)], 9);
+      expect(up.map((s) => s.id)).toEqual(ko.filter((_, i) => i !== 1).map((s) => s.id));
+      const ja = defaultSkills(1);
+      for (const s of up) {
+        const want = ja.find((d) => d.id === s.id)!;
+        expect(s).toMatchObject({ title: want.title, description: want.description, prompt: want.prompt, updatedAt: 9 });
+      }
+      expect(ja.find((s) => s.id === SCHEDULE_SKILL_ID)!.prompt).toContain('```schedule');
+      // 이미 지금 언어면 바꿀 것이 없다
+      expect(upgradeBuiltinSkills(ja)).toEqual([]);
+    } finally {
+      setLocale('ko');
+    }
   });
 });

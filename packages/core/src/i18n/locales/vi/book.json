@@ -1,0 +1,28 @@
+{
+  "pdf": {
+    "failed": "Không thể tạo PDF của sách.",
+    "save": "Lưu sách dưới dạng PDF",
+    "waitTitle": "Bạn có thể lưu sau khi câu trả lời kết thúc",
+    "saveTitle": "Lưu cuốn sách này thành PDF có bìa, mục lục và số trang",
+    "label": "PDF sách"
+  },
+  "html": {
+    "chapterLabel": "Chương {number}",
+    "runningHead": "{label}  {title}",
+    "coverKicker": "Cuốn sách được biên soạn từ ghi chép học tập",
+    "compiledFrom": "Biên soạn từ ghi chép học tập trên octobooks",
+    "toc": "Mục lục",
+    "editedOn": "Ngày biên soạn",
+    "editedAt": "Nơi biên soạn",
+    "colophonNote": "Cuốn sách này là văn bản do AI viết dựa trên câu hỏi và sự hiểu biết của người học. Hãy đối chiếu các sự kiện với nguyên bản."
+  },
+  "export": {
+    "noContent": "Chưa có nội dung sách. Hãy lưu sau khi bạn viết xong sách.",
+    "noChapters": "Không tìm thấy phần nội dung sách. Cần có câu trả lời được viết với tiêu đề chương dạng \"## Chương 1. Tiêu đề\".",
+    "defaultTitle": "Sách",
+    "printWindow": "Không thể mở cửa sổ in.",
+    "savedPdf": "Đã lưu sách thành PDF.",
+    "savedFile": "Đã lưu tệp sách sẵn sàng để in. Hãy mở bằng trình duyệt rồi in › Lưu dưới dạng PDF.",
+    "pickSaveInPrint": "Hãy chọn 'Lưu dưới dạng PDF' trong cửa sổ in."
+  }
+}

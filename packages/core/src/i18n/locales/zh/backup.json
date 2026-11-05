@@ -1,0 +1,23 @@
+{
+  "google": {
+    "loadFailed": "无法加载 Google 登录模块。",
+    "loadFailedNetwork": "无法加载 Google 登录模块，请检查网络。",
+    "cancelled": "已取消连接 Google 账户。"
+  },
+  "drive": {
+    "mockLabel": "Google 云端硬盘（模拟）",
+    "mockAccount": "模拟云端硬盘（无客户端 ID）",
+    "defaultAccount": "Google 账户"
+  },
+  "err": {
+    "passphrase": "已开启加密。请输入备份密码。"
+  },
+  "notice": {
+    "autoDone": "已自动备份。",
+    "done": "已备份。",
+    "merged": "已合并备份。恢复前的状态已备份到这台设备上。",
+    "replaced": "已用备份替换。恢复前的状态已备份到这台设备上。",
+    "exported": "已导出备份文件。",
+    "imported": "已将导入的备份添加到列表中。请选择恢复方式。"
+  }
+}

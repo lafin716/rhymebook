@@ -2,8 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell, Menu, Tray, Notification, s
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync } from 'node:fs';
-import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, type BridgeConnection, type KnowledgeTaskControl } from '@branch/bridge';
-import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type KnowledgeProgress, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
+import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, startIndexerWorker, parseRetrievalRequest, type BridgeConnection, type KnowledgeTaskControl } from '@branch/bridge';
+import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, secretName, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type KnowledgeIndexSettings, type KnowledgeProgress, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { htmlToPdf } from './pdf';
@@ -53,6 +53,15 @@ void resolveCliEnv().then(({ env }) => Object.assign(knowledgeEnv, env)).catch((
 const knowledge = createKnowledgeStore({ root: path.join(userData, 'knowledge'), env: knowledgeEnv });
 
 const bridge = createBridgeServer({ log: bridgeLog, stt, knowledge });
+
+/** asar 안의 경로를 asarUnpack된 실제 경로로 바꾼다 (worker 스크립트·pdfjs 자산은 디스크에서 읽어야 한다) */
+const unpackedPath = (p: string) => p.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
+
+/**
+ * 지식베이스 색인 (ADR-113). 색인·검색은 worker_threads에서 돈다. main은 IPC 검증과 RPC 전달만 한다.
+ * whenReady에서 vault를 만든 뒤 시작한다.
+ */
+let indexer: ReturnType<typeof startIndexerWorker> | null = null;
 
 /** 원격 페어링 호스트 (whenReady에서 만든다) */
 let host: HostService | null = null;
@@ -292,6 +301,20 @@ void app.whenReady().then(() => {
     process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null,
   );
   const vault = createSecretVault(app.getPath('userData'));
+  // 색인 worker: 동시 1개. 임베딩 키는 openai 설정일 때만 읽는다
+  indexer = startIndexerWorker({
+    workerPath: unpackedPath(path.join(__dirname, 'ragWorker.cjs')),
+    root: path.join(userData, 'knowledge'),
+    pdfjsPath: unpackedPath(path.join(__dirname, 'pdfjs', 'pdf.mjs')),
+    getOpenAIKey: () => vault.get(secretName.apiKey('openai-api')) ?? undefined,
+    log: bridgeLog,
+  });
+  indexer.onState((st) => {
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) w.webContents.send(CH.knowledgeIndexState, st);
+    }
+  });
+  indexer.resume();
 
   // 앱 언어 (ADR-105): 트레이·알림·bridge 오류 문구가 렌더러와 같은 언어를 쓴다
   ipcMain.on(CH.setLocale, (_e, locale: unknown) => {
@@ -392,7 +415,34 @@ void app.whenReady().then(() => {
   kbHandle(CH.knowledgeList, () => knowledge.list());
   kbHandle(CH.knowledgeCreate, (_e, name) => knowledge.create(kbName(name)));
   kbHandle(CH.knowledgeRename, (_e, id, name) => knowledge.rename(kbId(id), kbName(name)));
-  kbHandle(CH.knowledgeRemove, (_e, id) => knowledge.remove(kbId(id)));
+  // 색인 큐에 넣는다 (가져오기·삭제 뒤). 같은 KB는 worker가 하나로 합친다
+  const queueIndex = (kid: string, full = false) => {
+    indexer?.enqueue(kid, full ? 'full' : 'incremental');
+  };
+  const kbDesc = (v: unknown): string => {
+    if (typeof v !== 'string' || v.length > 500) throw new Error(t('knowledge.error.badDescription'));
+    return v.trim();
+  };
+  const kbSettings = (v: unknown): KnowledgeIndexSettings => {
+    const emb = (v as { embedding?: { provider?: unknown; model?: unknown } } | null)?.embedding;
+    const provider = emb?.provider;
+    if (provider !== 'local-hash' && provider !== 'openai') throw new Error(t('knowledge.error.badSettings'));
+    if (emb?.model !== undefined && (typeof emb.model !== 'string' || emb.model.length > 100)) {
+      throw new Error(t('knowledge.error.badSettings'));
+    }
+    return { embedding: { provider, ...(typeof emb?.model === 'string' ? { model: emb.model } : {}) } };
+  };
+  const kbQuery = (v: unknown): string | undefined => {
+    if (v === undefined || v === '') return undefined;
+    if (typeof v !== 'string' || v.length > 200) throw new Error(t('knowledge.error.badQuery'));
+    return v;
+  };
+  kbHandle(CH.knowledgeRemove, async (_e, id) => {
+    const kid = kbId(id);
+    // 진행 중인 색인을 멈춘 뒤에 지운다 (worker가 지워지는 폴더에 쓰지 않도록)
+    await indexer?.drop(kid).catch(() => undefined);
+    return knowledge.remove(kid);
+  });
   kbHandle(CH.knowledgeTree, (_e, id) => knowledge.tree(kbId(id)));
   // 가져오기 진행률·취소 (창마다 하나). 같은 창에서 새 가져오기를 시작하면 이전 것은 취소한다
   const kbTasks = new Map<number, AbortController>();
@@ -449,13 +499,13 @@ void app.whenReady().then(() => {
     const kid = kbId(id);
     const list = kbPaths(paths);
     const d = kbDest(dest);
-    return kbTask(e, (ctl) => knowledge.addPaths(kid, list, d, ctl));
+    return kbTask(e, (ctl) => knowledge.addPaths(kid, list, d, ctl)).then((r) => (queueIndex(kid), r));
   });
   kbHandle(CH.knowledgeAddFiles, (e, id, files, dest) => {
     if (!Array.isArray(files) || files.length > 500) throw new Error(t('bridge.knowledge.badPath'));
     const kid = kbId(id);
     const d = kbDest(dest);
-    return kbTask(e, (ctl) => knowledge.addFiles(kid, files as { name: string; data: Uint8Array }[], d, ctl));
+    return kbTask(e, (ctl) => knowledge.addFiles(kid, files as { name: string; data: Uint8Array }[], d, ctl)).then((r) => (queueIndex(kid), r));
   });
   // OS 파일 선택 창 (취소하면 빈 결과)
   kbHandle(CH.knowledgePickFiles, async (e, id, dest) => {
@@ -465,19 +515,76 @@ void app.whenReady().then(() => {
     const options: Electron.OpenDialogOptions = { properties: ['openFile', 'multiSelections'] };
     const r = win && !win.isDestroyed() ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     if (r.canceled || r.filePaths.length === 0) return { added: [], skipped: 0 };
-    return kbTask(e, (ctl) => knowledge.addPaths(kid, r.filePaths, d, ctl));
+    return kbTask(e, (ctl) => knowledge.addPaths(kid, r.filePaths, d, ctl)).then((res) => (queueIndex(kid), res));
   });
   kbHandle(CH.knowledgeAddLink, (e, id, url) => {
     if (!isKnowledgeLinkUrl(url)) throw new Error(t('bridge.knowledge.badUrl'));
     const kid = kbId(id);
-    return kbTask(e, (ctl) => knowledge.addLink(kid, url, ctl));
+    return kbTask(e, (ctl) => knowledge.addLink(kid, url, ctl)).then((r) => (queueIndex(kid), r));
   });
   kbHandle(CH.knowledgeCloneGit, (e, id, url) => {
     if (typeof url !== 'string' || url.length > 2048) throw new Error(t('bridge.knowledge.badRepo'));
     const kid = kbId(id);
-    return kbTask(e, (ctl) => knowledge.cloneGit(kid, url, ctl));
+    return kbTask(e, (ctl) => knowledge.cloneGit(kid, url, ctl)).then((r) => (queueIndex(kid), r));
   });
-  kbHandle(CH.knowledgeRemoveEntry, (_e, id, p) => knowledge.removeEntry(kbId(id), kbPath(p)));
+  kbHandle(CH.knowledgeRemoveEntry, async (_e, id, p) => {
+    const kid = kbId(id);
+    await knowledge.removeEntry(kid, kbPath(p));
+    queueIndex(kid);
+  });
+
+  // ── 색인·검색 (ADR-113). 검증 후 worker RPC로 넘긴다 ──
+  const needIndexer = () => {
+    if (!indexer) throw new Error(t('knowledge.error.unavailable'));
+    return indexer;
+  };
+  kbHandle(CH.knowledgeSetDescription, (_e, id, d) => knowledge.setDescription(kbId(id), kbDesc(d)));
+  kbHandle(CH.knowledgeIndexStates, (_e, ids) => {
+    const ix = needIndexer();
+    if (ids === undefined) return ix.states();
+    if (!Array.isArray(ids) || ids.length > 200) throw new Error(t('knowledge.error.badId'));
+    return ix.states(ids.map((x) => kbId(x)));
+  });
+  kbHandle(CH.knowledgeReindex, (_e, id, opts) => {
+    const kid = kbId(id);
+    const full = (opts as { full?: unknown } | undefined)?.full === true;
+    queueIndex(kid, full);
+  });
+  kbHandle(CH.knowledgeCancelIndex, (_e, id) => needIndexer().cancel(kbId(id)));
+  // 문서 목록: 경로·제목 부분 일치 (대소문자 무시)
+  kbHandle(CH.knowledgeDocs, async (_e, id, q) => {
+    const kid = kbId(id);
+    const query = kbQuery(q)?.toLowerCase();
+    const docs = await needIndexer().docs(kid);
+    return query ? docs.filter((d) => d.path.toLowerCase().includes(query) || d.title.toLowerCase().includes(query)) : docs;
+  });
+  kbHandle(CH.knowledgeGetIndexSettings, (_e, id) => knowledge.getSettings(kbId(id)));
+  // 설정을 저장한 뒤 임베딩 모델이 바뀌었는지 확인해 stale 표시를 한다. 돌려주는 값은 그 KB의 색인 상태
+  kbHandle(CH.knowledgeSetIndexSettings, async (_e, id, s) => {
+    const kid = kbId(id);
+    await knowledge.setSettings(kid, kbSettings(s));
+    const ix = needIndexer();
+    await ix.settingsChanged(kid);
+    const [st] = await ix.states([kid]);
+    return st;
+  });
+  kbHandle(CH.knowledgeSources, (_e, id) => knowledge.sources(kbId(id)));
+  kbHandle(CH.knowledgeUpdateSource, (e, id, sourceId) => {
+    const kid = kbId(id);
+    if (typeof sourceId !== 'string' || !/^[a-z0-9]{6,40}$/.test(sourceId)) throw new Error(t('knowledge.error.badId'));
+    const sid = sourceId;
+    return kbTask(e, (ctl) => knowledge.updateSource(kid, sid, ctl)).then((r) => (queueIndex(kid), r));
+  });
+  kbHandle(CH.knowledgeRetrieve, (_e, req) => {
+    // 모양·길이·숫자 범위를 검증하고 정규화한다 (worker도 같은 검증을 한 번 더 한다)
+    return needIndexer().retrieve(parseRetrievalRequest(req));
+  });
+  kbHandle(CH.knowledgeSource, (_e, kbid, chunkId) => {
+    if (typeof chunkId !== 'string' || chunkId.length === 0 || chunkId.length > 200 || /[\\/]/.test(chunkId)) {
+      throw new Error(t('knowledge.error.badId'));
+    }
+    return needIndexer().source(kbId(kbid), chunkId);
+  });
   kbHandle(CH.knowledgePreview, (_e, id, p) => knowledge.preview(kbId(id), kbPath(p)));
   // 폴더는 OS로 연다. 항목은 탐색기에서 선택만 한다 (파일을 실행하지 않는다)
   kbHandle(CH.knowledgeOpen, async (_e, id, p) => {
@@ -762,6 +869,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   quitting = true;
+  void indexer?.close();
   bridge.shutdown();
   void host?.shutdown();
 });

@@ -1,0 +1,188 @@
+{
+  "button": {
+    "label": "ナレッジベース",
+    "title": "この学習のナレッジベース",
+    "remoteTitle": "ナレッジベース（PCアプリで管理）"
+  },
+  "dialog": {
+    "title": "ナレッジベース",
+    "close": "ナレッジベースを閉じる",
+    "back": "一覧に戻る",
+    "full": "全画面表示",
+    "exitFull": "全画面表示を終了"
+  },
+  "remote": {
+    "notice": "ナレッジベースはPCアプリで管理します。この端末での回答も、PCにあるナレッジベースを一緒に使います。"
+  },
+  "unavailable": {
+    "notice": "この端末ではナレッジベースを使用できません。デスクトップアプリで開いてください。"
+  },
+  "list": {
+    "heading": "ナレッジベース",
+    "empty": "まだナレッジベースがありません。",
+    "emptyHint": "資料をまとめておくと、回答がその中を検索し、パスを引用します。",
+    "create": "新しいナレッジベース",
+    "linkedBadge": "この学習に接続中",
+    "link": "この学習に接続",
+    "unlink": "接続を解除",
+    "count": "ファイル {count}件"
+  },
+  "create": {
+    "title": "新しいナレッジベース",
+    "namePlaceholder": "名前（例：細胞生物学の教科書）",
+    "submit": "作成",
+    "cancel": "キャンセル"
+  },
+  "rename": {
+    "action": "名前を変更",
+    "submit": "保存",
+    "cancel": "キャンセル"
+  },
+  "delete": {
+    "action": "ナレッジベースを削除",
+    "title": "「{name}」を削除しますか？",
+    "message": "中のファイル {count}件も一緒に削除されます。元に戻せません。",
+    "confirm": "削除"
+  },
+  "tree": {
+    "heading": "ファイル",
+    "empty": "まだファイルがありません。",
+    "remove": "削除",
+    "removeTitle": "「{name}」を削除しますか？",
+    "removeMessage": "削除したあとは元に戻せません。",
+    "open": "フォルダを開く",
+    "previewEmpty": "ファイルを選ぶと内容を表示します。",
+    "binary": "テキストとしてプレビューできないファイルです。",
+    "truncated": "先頭部分のみ表示しています。",
+    "expandAll": "すべて展開",
+    "collapseAll": "すべて折りたたむ"
+  },
+  "add": {
+    "drop": "ここにファイルやフォルダをドラッグ＆ドロップしてください",
+    "pick": "ファイルを選択",
+    "linkLabel": "Web ページのアドレス",
+    "linkPlaceholder": "https://...",
+    "linkSubmit": "取り込む",
+    "gitLabel": "GitHub リポジトリ",
+    "gitPlaceholder": "owner/repo または https://github.com/owner/repo",
+    "gitSubmit": "クローン",
+    "invalidUrl": "http(s) のアドレスのみ使用できます。",
+    "invalidGit": "GitHub リポジトリのアドレスのみ使用できます。",
+    "done": "{count}件を追加しました。",
+    "skipped": "{count}件は、サイズや形式のためスキップしました。",
+    "failed": "追加できませんでした。もう一度お試しください。",
+    "busyDrop": "まだ取り込み中です。終わってから、もう一度ドロップしてください。",
+    "dropEmpty": "ドロップされた項目からファイルが見つかりませんでした。",
+    "nothing": "追加されたファイルはありません。サイズや形式を確認してください。",
+    "gitHint": "既定のブランチ（main・master など）の最新ファイルのみ取得します"
+  },
+  "error": {
+    "generic": "問題が発生しました。もう一度お試しください。",
+    "badDescription": "説明を確認してください。",
+    "badSettings": "設定値を確認してください。",
+    "badQuery": "検索語を確認してください。",
+    "badId": "ナレッジベースが見つかりません。",
+    "unavailable": "この端末ではナレッジベースを使えません。"
+  },
+  "progress": {
+    "label": "取り込みの進捗",
+    "copy": "ファイルをコピー中…",
+    "copied": "ファイル {count}件をコピーしました（{size}）",
+    "download": "Web ページを取得中…",
+    "clone": "GitHub から取得中…",
+    "save": "保存中…",
+    "elapsed": "{seconds}秒",
+    "cancel": "キャンセル",
+    "cancelled": "取り込みを取り消しました。"
+  },
+  "citations": {
+    "label": "出典",
+    "open": "出典 {n}: {title} を開く"
+  },
+  "source": {
+    "title": "出典を見る",
+    "close": "閉じる",
+    "loading": "原文を読み込んでいます…",
+    "failed": "原文を開けませんでした。{message}",
+    "chunk": "該当箇所",
+    "section": "前後の文脈",
+    "page": "{page}ページ",
+    "line": "{line}行目",
+    "lines": "{start}–{end}行目"
+  },
+  "index": {
+    "empty": "まだ索引がありません",
+    "queued": "索引待ち",
+    "indexing": "索引中 {done}/{total}",
+    "ready": "索引済み · チャンク {count}件",
+    "stale": "ファイルが変わったため再索引が必要です",
+    "error": "索引に失敗しました",
+    "reindex": "再索引",
+    "cancel": "索引をキャンセル"
+  },
+  "description": {
+    "cancel": "キャンセル",
+    "edit": "編集",
+    "empty": "説明がありません。この知識ベースの内容を書くと検索の精度が上がります。",
+    "label": "説明",
+    "placeholder": "例：チームのデプロイ手順書",
+    "save": "保存"
+  },
+  "docs": {
+    "chunks": "チャンク {count}件",
+    "empty": "索引済みの文書がありません。",
+    "failed": "失敗",
+    "heading": "文書",
+    "noMatch": "一致する文書がありません。",
+    "search": "パスまたはタイトルで検索",
+    "skipped": "スキップ"
+  },
+  "embedding": {
+    "heading": "埋め込みモデル",
+    "local": "ローカル（オフライン・既定）",
+    "model": "モデル",
+    "modelDefault": "既定のモデル",
+    "openai": "OpenAI（text-embedding-3-small）",
+    "openaiNotice": "OpenAIを選ぶと、この知識ベースの文書本文がOpenAIのサーバーに送信されます。既存のOpenAI APIキーを使います。機密資料にはローカルを使用してください。",
+    "provider": "方式",
+    "reindexNeeded": "モデルが変更されました。検索に反映するには再索引してください。",
+    "save": "保存",
+    "saved": "埋め込み設定を保存しました。"
+  },
+  "rag": {
+    "enabled": "知識ベース検索を使う",
+    "expandParent": "前後の段落も含める",
+    "heading": "検索設定",
+    "maxContextChars": "根拠の最大文字数",
+    "minScore": "最小関連度",
+    "rerank": "検索結果を並べ替える",
+    "reset": "既定値",
+    "save": "保存",
+    "topK": "根拠の件数"
+  },
+  "sources": {
+    "empty": "登録された出典がありません。",
+    "heading": "出典",
+    "type": {
+      "files": "ファイル",
+      "folder": "フォルダ",
+      "github": "GitHub",
+      "web": "Web"
+    },
+    "update": "更新",
+    "updated": "{name} の出典を更新しました。",
+    "updating": "更新中…"
+  },
+  "storage": {
+    "chunks": "チャンク",
+    "docs": "文書",
+    "heading": "保存容量",
+    "index": "索引",
+    "source": "原本"
+  },
+  "link": {
+    "inherited": "親の枝の知識ベースを使用しています。",
+    "overridden": "この枝は独自の知識ベースを使用しています。",
+    "reset": "親に従う"
+  }
+}

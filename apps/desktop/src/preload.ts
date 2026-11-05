@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview, KnowledgeProgress, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeDoc, KnowledgeEntry, KnowledgeIndexSettings, KnowledgeIndexState, KnowledgePreview, KnowledgeProgress, KnowledgeSource, RetrievalRequest, RetrievalResult, SourceView, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
 import { CH } from './ipc';
 
 /** DesktopApi.sync with onPeerGone extension (ADR-026) */
@@ -158,6 +158,34 @@ const api: DesktopApiExt = {
       };
     },
     cancel: () => ipcRenderer.invoke(CH.knowledgeCancel) as Promise<void>,
+    // ── 색인·검색 (ADR-113). main은 id·설정을 검증하고 worker에 전달만 한다 ──
+    setDescription: (id: string, description: string) =>
+      ipcRenderer.invoke(CH.knowledgeSetDescription, id, description) as Promise<KnowledgeBase>,
+    indexStates: (ids?: string[]) =>
+      ipcRenderer.invoke(CH.knowledgeIndexStates, ids) as Promise<KnowledgeIndexState[]>,
+    reindex: (id: string, opts?: { full?: boolean }) =>
+      ipcRenderer.invoke(CH.knowledgeReindex, id, opts) as Promise<void>,
+    cancelIndex: (id: string) => ipcRenderer.invoke(CH.knowledgeCancelIndex, id) as Promise<void>,
+    docs: (id: string, query?: string) =>
+      ipcRenderer.invoke(CH.knowledgeDocs, id, query) as Promise<KnowledgeDoc[]>,
+    getIndexSettings: (id: string) =>
+      ipcRenderer.invoke(CH.knowledgeGetIndexSettings, id) as Promise<KnowledgeIndexSettings>,
+    setIndexSettings: (id: string, s: KnowledgeIndexSettings) =>
+      ipcRenderer.invoke(CH.knowledgeSetIndexSettings, id, s) as Promise<KnowledgeIndexState>,
+    sources: (id: string) => ipcRenderer.invoke(CH.knowledgeSources, id) as Promise<KnowledgeSource[]>,
+    updateSource: (id: string, sourceId: string) =>
+      ipcRenderer.invoke(CH.knowledgeUpdateSource, id, sourceId) as Promise<KnowledgeAddResult>,
+    retrieve: (req: RetrievalRequest) =>
+      ipcRenderer.invoke(CH.knowledgeRetrieve, req) as Promise<RetrievalResult>,
+    source: (kbId: string, chunkId: string) =>
+      ipcRenderer.invoke(CH.knowledgeSource, kbId, chunkId) as Promise<SourceView>,
+    onIndexState(listener: (s: KnowledgeIndexState) => void) {
+      const h = (_e: unknown, s: KnowledgeIndexState) => listener(s);
+      ipcRenderer.on(CH.knowledgeIndexState, h);
+      return () => {
+        ipcRenderer.removeListener(CH.knowledgeIndexState, h);
+      };
+    },
   },
   // 음성 입력 관리 (ADR-045). 전사 자체는 bridge 메시지로 한다
   stt: {

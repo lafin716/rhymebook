@@ -102,6 +102,18 @@
     "openFailed": "Could not open the folder: {error}",
     "systemNote": "This study has a knowledge base (reference files) attached. Before answering, use the Read, Glob, and Grep tools to find and check the relevant files, and base your answer on their contents. Paths are relative to the working folder. File list ({shown} of {total}): {paths}",
     "codexIndex": "Knowledge base file list ({shown} of {total}; file contents are not provided): {paths}",
-    "repoNotFound": "Repository not found. Check the address and make sure it is public"
+    "repoNotFound": "Repository not found. Check the address and make sure it is public",
+    "index": {
+      "diskFull": "Not enough free disk space to build the index",
+      "embedFailed": "Stopped indexing because embeddings could not be created: {message}",
+      "fileTooLarge": "File is too large and was left out of the index",
+      "keyMissing": "No OpenAI API key, so embeddings cannot be created. Set a key or choose local embeddings",
+      "pdfUnavailable": "Could not read PDF text, so the file was left out",
+      "tooManyChunks": "Stopped indexing because the chunk limit ({count}) was exceeded",
+      "tooManyFiles": "Cannot index because the file limit ({count}) was exceeded"
+    },
+    "badSettings": "Invalid index settings",
+    "diskLow": "Not enough free disk space to add items",
+    "sourceNoOrigin": "Files uploaded directly cannot be fetched again from a source"
   }
 }

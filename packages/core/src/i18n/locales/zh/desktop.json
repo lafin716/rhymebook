@@ -1,0 +1,25 @@
+{
+  "tray": {
+    "tooltip": "octobooks — 远程连接运行中",
+    "open": "打开 octobooks",
+    "remote": "远程连接：{state}{devices}",
+    "devices": " · {count} 台设备",
+    "on": "开启",
+    "off": "关闭",
+    "quit": "完全退出"
+  },
+  "notify": {
+    "hiddenTitle": "octobooks 仍在后台运行",
+    "hiddenBody": "回答生成、完成通知和定时任务将继续运行。要完全关闭，请在托盘图标中点击 [{quit}]。"
+  },
+  "errors": {
+    "unknownModel": "未知的模型。"
+  },
+  "present": {
+    "title": "octobooks 演示"
+  },
+  "host": {
+    "portFailed": "无法打开端口：{reason}",
+    "relayScheme": "relay 地址必须以 ws:// 或 wss:// 开头。"
+  }
+}

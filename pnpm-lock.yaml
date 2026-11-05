@@ -129,6 +129,9 @@ importers:
       jpeg-js:
         specifier: ^0.4.4
         version: 0.4.4
+      pdfjs-dist:
+        specifier: 6.4.299
+        version: 6.4.299
       pngjs:
         specifier: ^7.0.0
         version: 7.0.0
@@ -154,6 +157,9 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
       typescript:
         specifier: ~5.9.3
         version: 5.9.3

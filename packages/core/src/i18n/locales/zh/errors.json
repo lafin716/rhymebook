@@ -1,0 +1,65 @@
+{
+  "aborted": "已被用户停止。",
+  "streamCut": "回答的数据流在完成前中断了。",
+  "connectionDisabled": "{label} 连接已被禁用。",
+  "openai": {
+    "noKey": "未设置 OpenAI API 密钥。",
+    "noKeyShort": "没有 OpenAI API 密钥。",
+    "error": "OpenAI 错误：{message}"
+  },
+  "anthropic": {
+    "noKey": "未设置 Anthropic API 密钥。",
+    "error": "Anthropic 错误：{message}"
+  },
+  "http": {
+    "auth": "API 密钥被拒绝。请在设置中检查密钥。",
+    "rate-limit": "已超出请求限制。请稍后再试。",
+    "network": "服务器响应出现问题。请稍后再试。",
+    "offline": "无法连接到网络。",
+    "cli": "运行 CLI 时出错。",
+    "unknown": "无法处理该请求。"
+  },
+  "summaryFailed": "生成摘要失败。",
+  "backup": {
+    "noTarget": "未连接备份位置。",
+    "preBackupFailed": "恢复前的自动备份失败，已停止恢复：{message}"
+  },
+  "bridge": {
+    "offline": "无法连接到 Bridge。",
+    "statusTimeout": "检查 CLI 状态超时。",
+    "sttStatusFailed": "无法检查语音输入状态。",
+    "sttStateFailed": "无法加载语音设置。",
+    "sttManageFailed": "无法更改语音设置。",
+    "transcribeTimeout": "语音转文字超时。"
+  },
+  "secure": {
+    "badBase64": "无效的 base64url 字符串",
+    "notEncrypted": "未加密的数据帧",
+    "frameOrder": "数据帧顺序错误",
+    "badVersion": "不支持的 bridge 版本。",
+    "keyMismatch": "bridge 密钥与配对时的值不同。可能是其他设备，或存在中间人攻击。",
+    "badSignature": "bridge 签名无效。",
+    "unparseable": "无法解析 bridge 的响应。"
+  },
+  "remote": {
+    "badToken": "配对码错误或已被使用。请重新核对 bridge 屏幕上的配对码。",
+    "expired": "配对码已过期。请在 bridge 上重新运行 --pair 生成新的配对码。",
+    "unknownDevice": "此设备在 bridge 上的配对已被解除。请重新配对。",
+    "badSignature": "设备认证失败。请重新配对。",
+    "protocol": "与 bridge 的通信格式不匹配。请将应用和 bridge 更新到最新版本。",
+    "unreachableUrl": "无法打开该地址：{url}",
+    "timeout": "{url} 无响应。请检查 bridge 是否在运行以及网络（同一 Wi‑Fi 或 Tailscale）。",
+    "unreachable": "无法连接到 {url}。请检查 bridge 是否在运行以及网络。",
+    "relayNoBridge": "relay 上没有连接的 bridge。请检查 bridge 电脑是否以 --relay 选项运行。",
+    "closed": "bridge 已关闭连接。",
+    "unpaired": "远程 Bridge 未配对。",
+    "reset": "连接已被重置。",
+    "noCli": "bridge 电脑上没有可用的 CLI。请检查安装和登录状态。"
+  },
+  "store": {
+    "unknownProvider": "未注册的 provider：{id}",
+    "providerMissing": "找不到 provider。",
+    "sessionMissing": "找不到会话：{id}",
+    "annotationIdConflict": "批注 id 冲突：{id}"
+  }
+}

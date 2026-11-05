@@ -1,0 +1,86 @@
+{
+  "confirm": {
+    "cancel": "Hủy",
+    "ok": "OK"
+  },
+  "error": {
+    "body": "Nội dung bạn đã viết vẫn được lưu. Hãy thử lại.",
+    "retry": "Thử lại",
+    "title": "Đã xảy ra lỗi khi vẽ màn hình"
+  },
+  "host": {
+    "addPc": "Thêm PC",
+    "ariaForget": "Xóa {name} khỏi danh sách",
+    "ariaRow": "{name} {sub}",
+    "connect": "Kết nối",
+    "deviceActive": "Đang dùng · việc học được lưu trên thiết bị này",
+    "deviceDesktop": "Lưu trên PC này và được trả lời bằng CLI/API của PC này",
+    "deviceOther": "Dùng không cần PC · trả lời bằng khóa API",
+    "forgetConfirm": "Xóa",
+    "forgetMessage": "Dữ liệu học trên PC sẽ được giữ nguyên. Để dùng lại, hãy lấy mã ghép nối mới từ PC.",
+    "forgetTitle": "Xóa {name} khỏi danh sách?",
+    "myPcs": "PC của tôi",
+    "thisDevice": "thiết bị này",
+    "thisPc": "PC này",
+    "useHere": "Dùng trên {device}"
+  },
+  "panel": {
+    "exitFull": "Thoát toàn màn hình",
+    "fullScreen": "Toàn màn hình"
+  },
+  "pcStatus": {
+    "ariaConnected": "PC đã kết nối: {host} · {status}",
+    "bannerConnecting": "Đang kết nối với {host}…",
+    "bannerOffline": "Đã mất kết nối với {host} — hãy kiểm tra ứng dụng PC có đang chạy không",
+    "bannerUnpaired": "Ghép nối với PC để xem nội dung đang học trên PC và đặt câu hỏi",
+    "bannerUnsupported": "Hãy cập nhật ứng dụng PC lên phiên bản mới nhất",
+    "connectSettings": "Cài đặt kết nối",
+    "connecting": "Đang kết nối",
+    "connectingTo": "Đang kết nối với {host}",
+    "none": "Không có",
+    "offline": "Mất kết nối",
+    "online": "Đã kết nối",
+    "pair": "Ghép nối",
+    "reconnect": "Kết nối lại",
+    "title": "PC đã kết nối · {status}",
+    "unpaired": "Cần ghép nối",
+    "unsupported": "Cần cập nhật ứng dụng PC"
+  },
+  "profile": {
+    "close": "Đóng",
+    "heading": "Hồ sơ",
+    "intro": "Chọn nơi lưu việc học và ai sẽ trả lời. Khi chuyển giữa thiết bị này và PC, ứng dụng sẽ khởi động lại.",
+    "title": "Chọn hồ sơ"
+  },
+  "toast": {
+    "busy": "Phiên này vẫn đang trả lời. Hãy thử lại khi trả lời xong.",
+    "conflict": "Nội dung đã được thay đổi trên thiết bị khác trước. Đã cập nhật về phiên bản mới nhất.",
+    "failed": "PC không thể xử lý yêu cầu.",
+    "forbidden": "Cài đặt PC không cho phép xóa từ xa.",
+    "invalid": "Không thể xử lý yêu cầu.",
+    "notFound": "Không có phiên này trên PC. Đã tải lại danh sách.",
+    "notReady": "Ứng dụng PC chưa sẵn sàng. Hãy thử lại sau ít phút.",
+    "offline": "Không thể gửi vì chưa kết nối với PC.",
+    "outdated": "Ứng dụng PC chưa hỗ trợ tính năng này. Hãy cập nhật ứng dụng PC (hoặc octobooks serve) lên phiên bản mới nhất.",
+    "rateLimit": "Yêu cầu quá dày. Hãy thử lại sau ít phút.",
+    "resumeFailed": "Không thể kết nối lại với {host}. Hãy kiểm tra ứng dụng PC có đang chạy không, rồi nhấn [Kết nối lại].",
+    "timeout": "PC không phản hồi nên đã hủy yêu cầu. Hãy kiểm tra kết nối."
+  },
+  "top": {
+    "closeMindmap": "Đóng sơ đồ tư duy",
+    "listCollapse": "Thu gọn danh sách phiên",
+    "listExpand": "Mở rộng danh sách phiên",
+    "listToggleTitle": "{label} ({shortcut})",
+    "mindmap": "Sơ đồ tư duy",
+    "notes": "Ghi chú học tập",
+    "search": "Tìm kiếm",
+    "sessionList": "Danh sách phiên",
+    "sessionSearch": "Tìm kiếm phiên",
+    "settings": "Cài đặt",
+    "theme": "Giao diện: {mode}",
+    "themeDark": "Tối",
+    "themeLight": "Sáng",
+    "themeSystem": "Theo hệ thống",
+    "vault": "Thư viện"
+  }
+}

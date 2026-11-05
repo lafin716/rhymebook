@@ -8,6 +8,7 @@ import { modKeyLabel } from '../lib/platform';
 import { IconButton } from './Button';
 import { Kbd } from './Kbd';
 import { PcStatusChip } from './PcStatus';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 
 const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
@@ -88,6 +89,7 @@ export function TopBar() {
       <IconButton label={t('components.top.theme', { mode: THEME_LABEL[theme] })} title={t('components.top.theme', { mode: THEME_LABEL[theme] })} onClick={() => actions().setTheme(THEME_NEXT[theme])}>
         <ThemeIcon size={18} />
       </IconButton>
+      <NotificationBell />
       <IconButton label={t('components.top.settings')} onClick={() => actions().setOverlay('settings')}>
         <Settings2 size={18} />
       </IconButton>

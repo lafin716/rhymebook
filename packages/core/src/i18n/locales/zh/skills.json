@@ -1,0 +1,152 @@
+{
+  "assist": {
+    "createWithAi": "用 AI 创建",
+    "createdNote": "已用 AI 填好新技能。",
+    "defaultTitle": "使用设置中的默认连接",
+    "editWithAi": "用 AI 修改",
+    "editedNote": "已按要求修改。",
+    "failed": "AI 编写失败。",
+    "idea": {
+      "beginner": {
+        "label": "初学者视角",
+        "text": "请调整说明的深度，使其适合刚开始学习的人。"
+      },
+      "concise": {
+        "label": "更简洁",
+        "text": "请把指令修改得更简短、精炼。保留核心规则。"
+      },
+      "example": {
+        "label": "添加示例",
+        "text": "请再添加一个模型可以参照的输出示例。"
+      },
+      "format": {
+        "label": "明确输出格式",
+        "text": "请更清楚地规定输出格式（标题、列表、表格、篇幅）。"
+      },
+      "quiz": {
+        "label": "概念测验",
+        "text": "给出一个主题后，围绕 5 个核心概念出题，答案折叠隐藏，供自行检查的技能。"
+      },
+      "simple": {
+        "label": "通俗讲解",
+        "text": "借助类比和形象的例子，把难懂的概念讲到初中生也能听懂的技能。"
+      },
+      "socratic": {
+        "label": "苏格拉底式问答",
+        "text": "不直接给出答案，而是通过提问引导学习者自己得出答案的技能。"
+      },
+      "vocab": {
+        "label": "单词记忆",
+        "text": "给出英语单词后，结合词义、例句、词源和易混词帮助记忆的技能。"
+      }
+    },
+    "noAi": "没有可用的 AI 连接。请在设置中检查连接。",
+    "notConnectedPc": "尚未连接电脑。请先连接电脑。",
+    "parseFailed": "无法从 AI 回复中读取技能。请稍微修改请求后重试。",
+    "pcRemote": "{host} · 远程设置",
+    "placeholderEdit": "请描述如何修改。例如：把复习问题增加到 3 个，并用表格整理。",
+    "placeholderNew": "请描述您需要的技能。例如：给出代码后逐行解释的技能。",
+    "requestLabel": "向 AI 提出请求",
+    "running": "AI 正在编写……下方输入框会即时填入。",
+    "stop": "停止",
+    "undo": "撤销 AI 修改",
+    "viaPcTitle": "使用电脑端的远程设置（代理、模型、努力值）编写。"
+  },
+  "extras": {
+    "add": "添加",
+    "advanced": "高级选项",
+    "agent": "代理",
+    "cancel": "取消",
+    "chars": "{n} 个字符",
+    "connDefault": "连接的默认模型",
+    "connDefaultWithModel": "连接的默认模型（{model}）",
+    "deleteFile": "删除 {path}",
+    "duplicatePath": "已存在相同路径的文件。",
+    "effort": "努力值",
+    "effortDefault": "默认努力值",
+    "effortLabel": "技能努力值",
+    "fileContent": "{path} 的内容",
+    "files": "文件",
+    "filesHint": "为了让指令保持简短，较长的参考资料可放在 {references}，示例代码放在 {scripts}，回答模板放在 {assets}。使用此技能时，这些文件会与指令一起传给模型。",
+    "filesMeta": "（{n} 个 · {size}）",
+    "filesSection": "技能文件",
+    "followSession": "跟随会话设置",
+    "importFile": "导入文件",
+    "model": "模型",
+    "modelLabel": "技能模型",
+    "newFile": "新建文件",
+    "newPathLabel": "新文件路径",
+    "notApplicable": "不适用",
+    "openFolder": "打开文件夹",
+    "pcDefaultModel": "电脑默认模型",
+    "provider": "提供方",
+    "providerLabel": "技能提供方",
+    "setHint": "选择此技能的问题会使用上面的设置回答。之后的问题会再次跟随会话设置。模型和努力值留空时，使用该连接的默认值。",
+    "textOnly": "{name}：只能添加文本文件。",
+    "thousandChars": "{n} 千字符",
+    "tooLarge": "{name}：文件过大。",
+    "unsetHint": "留空时，将沿用聊天（会话）中选择的提供方、模型和努力值。若只想让此技能使用其他模型回答，请在此选择。"
+  },
+  "files": {
+    "count": "最多可添加 {n} 个文件。",
+    "duplicate": "有两个文件的路径相同。",
+    "path": "文件路径只能是由英文字母、数字、韩文字符、. _ - 组成的相对路径（例如：references/guide.md；不允许 SKILL.md）。",
+    "size": "每个文件最多 {file} 字符，全部文件合计最多 {total} 字符。"
+  },
+  "page": {
+    "addedCount": "已添加 {n} 个",
+    "back": "返回",
+    "builtin": "内置技能",
+    "delete": "删除",
+    "deleteMessage": "将删除技能“{title}”（/{name}）。已发送的问题不受影响。",
+    "deleteTitle": "删除此技能？",
+    "description": "说明",
+    "descriptionHint": "（在列表和菜单中显示）",
+    "discard": "放弃",
+    "discardMessage": "要放弃更改吗？",
+    "editor": "编辑技能",
+    "empty": "还没有技能。",
+    "existingHint": "在聊天输入框中输入 {command}，或从 {menu} 中选择，下方的指令就会加到该问题上。",
+    "folderChangedMessage": "编辑期间，此技能在技能文件夹中已被修改。要用当前编辑内容覆盖吗？（您在文件夹中新增的文件会保留）",
+    "folderChangedTitle": "文件夹中有更改",
+    "folderHintNew": "保存后会创建技能文件夹",
+    "folderHintSaved": "{root}/{name} — 在文件夹中做的修改，返回应用后会生效",
+    "folderOpenFailed": "无法打开文件夹",
+    "list": "技能列表",
+    "menuPath": "+ › 技能",
+    "name": "命令名称",
+    "new": "新建技能",
+    "newHint": "创建新技能。可以告诉 AI 您想要什么，也可以直接填写下方的输入框。使用命令名称即可在聊天中直接调用。",
+    "ok": "确定",
+    "open": "打开",
+    "openFolder": "打开技能文件夹",
+    "openUnsavedMessage": "文件夹中只有已保存的内容。仍要打开吗？",
+    "overwrite": "覆盖",
+    "prompt": "指令",
+    "promptPlaceholder": "写下选择此技能的问题中模型需要遵循的指令。",
+    "restoreExamples": "重新添加示例技能",
+    "revert": "还原",
+    "save": "保存",
+    "saveFirstMessage": "保存技能后会创建文件夹，之后即可打开。",
+    "saveFirstTitle": "请先保存",
+    "skippedNotice": "技能最多 {max} 个，因此有 {n} 个未能导入。",
+    "sync": "同步",
+    "syncFailed": "无法同步技能。{reason}",
+    "syncOffline": "连接电脑后即可同步",
+    "syncReady": "获取在电脑上创建的技能",
+    "syncSame": "与电脑上的技能已一致。",
+    "syncedNotice": "已同步电脑上的技能（{parts}）",
+    "title": "技能管理",
+    "titleField": "标题",
+    "titlePlaceholder": "创建课程大纲",
+    "unsavedTitle": "有未保存的更改",
+    "updatedCount": "已更新 {n} 个"
+  },
+  "problem": {
+    "name": "命令名称只能使用小写英文字母、数字、韩文字符、-、_，最多 {max} 个字符（不能包含空格）。",
+    "nameTaken": "已存在相同命令名称的技能。",
+    "prompt": "请输入指令内容。",
+    "title": "请输入标题。",
+    "tooLong": "标题最多 {title} 个字符，说明最多 {description} 个字符，指令最多 {prompt} 个字符。"
+  }
+}

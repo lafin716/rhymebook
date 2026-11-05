@@ -186,6 +186,23 @@ describe('schedule builtin integration', () => {
     expect(defaultSkills().find((skill) => skill.id === SCHEDULE_SKILL_ID)!.title).toBe('작업 예약');
   });
 
+  it.each([
+    ['ja', '予約リクエスト', 'タスクの予約'],
+    ['zh', '预约请求', '预约任务'],
+    ['vi', 'Yêu cầu hẹn lịch', 'Hẹn lịch tác vụ'],
+  ] as const)('%s schedule hint and skill use that language', (locale, heading, title) => {
+    setLocale(locale);
+    const hint = scheduleSystemHint(NOW, [], { name: 'quiz', title: 'Q' });
+    expect(hint).toContain(heading);
+    expect(hint).toContain('"skill":"quiz"');
+    expect(hint).toContain(String(SCHEDULE_LIMITS.prompt));
+    expect(hint).not.toMatch(/\{\w+\}/);
+    const skill = defaultSkills().find((s) => s.id === SCHEDULE_SKILL_ID)!;
+    expect(skill.title).toBe(title);
+    expect(skill.prompt).toContain('"runAt"');
+    setLocale('ko');
+  });
+
   it('attaches an optional skill to a schedule (ADR-110)', () => {
     expect(validateScheduleInput({ ...INPUT, skill: '/Quiz ' }, NOW)).toMatchObject({ skill: 'quiz' });
     expect(validateScheduleInput({ ...INPUT, skill: null }, NOW)).not.toHaveProperty('skill');

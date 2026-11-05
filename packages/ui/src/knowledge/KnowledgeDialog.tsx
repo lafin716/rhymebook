@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import {
   cleanKnowledgeName,
+  DEFAULT_RAG_SETTINGS,
   isKnowledgeLinkUrl,
   parseGitHubRepo,
   type KnowledgeAddResult,
@@ -19,6 +20,9 @@ import { confirm } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
 import { ipcErrorMessage, knowledgeApi } from './api';
+import { IndexStatus } from './IndexStatus';
+import { KnowledgeInsights, RagSettingsPanel } from './KnowledgeInsights';
+import { resetSessionKnowledge, toggleSessionKnowledge, useSessionKnowledge } from './sessionKnowledge';
 
 export interface KnowledgeDialogProps {
   open: boolean;
@@ -63,13 +67,11 @@ function ancestors(p: string): string[] {
 
 export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogProps) {
   const api = knowledgeApi();
-  const linkedId = useApp((s) => {
-    const rootId = s.sessions[sessionId]?.rootId;
-    return rootId ? s.sessions[rootId]?.knowledgeId : undefined;
-  });
+  const { ids: linkedIds, inherited, overridden } = useSessionKnowledge(sessionId);
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const ragSettings = useApp((s) => s.settings.rag);
   const [tree, setTree] = useState<KnowledgeEntry[]>([]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [notice, setNoticeState] = useState<NoticeState | null>(null);
@@ -230,9 +232,11 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     await reload();
   };
 
+  const isLinked = !!current && linkedIds.includes(current.id);
+
   const toggleLink = () => {
     if (!current) return;
-    actions().setSessionKnowledge(sessionId, linkedId === current.id ? null : current.id);
+    toggleSessionKnowledge(sessionId, linkedIds, current.id);
   };
 
   const removeBase = async () => {
@@ -244,7 +248,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
       tone: 'danger',
     });
     if (!ok) return;
-    if (linkedId === current.id) actions().setSessionKnowledge(sessionId, null);
+    if (linkedIds.includes(current.id)) toggleSessionKnowledge(sessionId, linkedIds, current.id);
     if (!(await runVoid(() => api.remove(current.id)))) return;
     select(null);
     await reload();
@@ -417,7 +421,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                   >
                     <span className="flex w-full min-w-0 items-center gap-2">
                       <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{b.name}</span>
-                      {b.id === linkedId && (
+                      {linkedIds.includes(b.id) && (
                         <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[11px] font-medium text-accent-fg">
                           {t('knowledge.list.linkedBadge')}
                         </span>
@@ -428,6 +432,12 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                 </li>
               ))}
             </ul>
+            <div className="mt-4 px-2">
+              <RagSettingsPanel
+                value={{ ...DEFAULT_RAG_SETTINGS, ...ragSettings }}
+                onSave={(next) => actions().updateSettings({ rag: next })}
+              />
+            </div>
           </div>
         </aside>
 
@@ -473,8 +483,8 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                 )}
                 {!renaming && (
                   <div className="flex items-center gap-1">
-                    <Button size="sm" variant={current.id === linkedId ? 'secondary' : 'soft'} disabled={busy} onClick={toggleLink}>
-                      {current.id === linkedId ? t('knowledge.list.unlink') : t('knowledge.list.link')}
+                    <Button size="sm" variant={isLinked ? 'secondary' : 'soft'} disabled={busy} onClick={toggleLink}>
+                      {isLinked ? t('knowledge.list.unlink') : t('knowledge.list.link')}
                     </Button>
                     <IconButton size="sm" label={t('knowledge.rename.action')} disabled={busy} onClick={startRename}>
                       <Pencil size={15} />
@@ -488,6 +498,26 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                   </div>
                 )}
               </div>
+
+              {(inherited || overridden) && (
+                <div className="flex flex-wrap items-center gap-2 text-[12px] text-fg-2" data-link-scope={inherited ? 'inherited' : 'overridden'}>
+                  <span>{inherited ? t('knowledge.link.inherited') : t('knowledge.link.overridden')}</span>
+                  {overridden && (
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => resetSessionKnowledge(sessionId)}>
+                      {t('knowledge.link.reset')}
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              <IndexStatus kbId={current.id} />
+
+              <KnowledgeInsights
+                kbId={current.id}
+                description={(current as { description?: string }).description}
+                revision={tree}
+                onChanged={() => void refresh(current.id)}
+              />
 
               <div
                 data-knowledge-drop=""

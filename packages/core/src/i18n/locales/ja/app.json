@@ -1,0 +1,157 @@
+{
+  "ai": {
+    "noProvider": "利用できるAI接続がありません。設定で接続を確認してください。",
+    "noResponse": "AIから応答を受け取れませんでした。"
+  },
+  "connection": {
+    "status": {
+      "checking": "確認中…",
+      "noKey": "キーなし",
+      "notInstalled": "未インストール",
+      "notLoggedIn": "ログインが必要",
+      "offline": "オフライン",
+      "ready": "接続済み",
+      "unpaired": "ペアリングされていません"
+    }
+  },
+  "palette": {
+    "abyss": {
+      "description": "静かな深海の紫色",
+      "name": "アビス"
+    },
+    "coral": {
+      "description": "温かなサンゴ礁のピンク色",
+      "name": "コーラル"
+    },
+    "lagoon": {
+      "description": "陽光が差し込むミント色の波",
+      "name": "ラグーン"
+    },
+    "ocean": {
+      "description": "鮮やかな青色の深い海",
+      "name": "オーシャン"
+    },
+    "pearl": {
+      "description": "貝殻のように落ち着いた砂色",
+      "name": "パール"
+    },
+    "vscode": {
+      "description": "コードエディタのような落ち着いたグレーの画面",
+      "name": "VS Code"
+    }
+  },
+  "runtime": {
+    "localOffline": "内蔵のbridgeに接続できません。アプリを再起動してください。",
+    "remoteOffline": "リモートBridgeとの接続が切れました。"
+  },
+  "scenarios": {
+    "branch-select": {
+      "hint": "回答の「加重和」が選択された状態。フローティングアクションから枝を作成する",
+      "label": "選択→枝"
+    },
+    "deep": {
+      "hint": "ルート › Q/K/V › 内積 › コサイン類似度（パンくず + アンカー引用）",
+      "label": "3段階の枝"
+    },
+    "empty": {
+      "hint": "新しい学習セッションの空の画面と推奨質問",
+      "label": "空の状態"
+    },
+    "error": {
+      "hint": "応答の途中でストリームが切れる → 再試行",
+      "label": "エラー"
+    },
+    "home": {
+      "hint": "シードセッション「Transformerのアテンション」",
+      "label": "ホーム"
+    },
+    "mindmap": {
+      "hint": "セッションツリー。クリック=開く、Shift+クリック=分割",
+      "label": "マインドマップ"
+    },
+    "offline": {
+      "hint": "Claude CLIがオフライン → 代替providerを提案",
+      "label": "Providerオフライン"
+    },
+    "popup": {
+      "hint": "枝をフローティングポップアップで表示（モバイルはボトムシート）",
+      "label": "ポップアップ/シート"
+    },
+    "search": {
+      "hint": "⌘K セッション検索",
+      "label": "検索"
+    },
+    "settings": {
+      "hint": "接続カード、CLIの状態、APIキー、ペアリングQR",
+      "label": "設定"
+    },
+    "split": {
+      "hint": "ルート | Q/K/V | 内積の3パネル（モバイルはタブ）",
+      "label": "分割"
+    },
+    "streaming": {
+      "hint": "ゆっくりと応答を生成中（停止ボタン）",
+      "label": "ストリーミング"
+    },
+    "summary": {
+      "hint": "「スケーリング」の枝で要約の下書きを生成 → 親に添付",
+      "label": "要約を元に戻す"
+    }
+  },
+  "search": {
+    "close": "閉じる",
+    "count": "結果 {count}件",
+    "inputAria": "検索語",
+    "label": "セッション検索",
+    "noMatch": "「{q}」に一致するセッションはありません",
+    "placeholder": "セッションのタイトルや会話内容で検索",
+    "recent": "最近のセッション",
+    "resultsAria": "検索結果"
+  },
+  "sync": {
+    "added": "{n}件追加",
+    "op": {
+      "annotDelete": "メモを削除しました",
+      "annotSet": "メモを追加しました",
+      "branch": "枝を作成しました",
+      "delete": "セッションを削除しました",
+      "newRoot": "新しい学習を開始しました",
+      "pageEdit": "ページ・キャンバスを編集しました",
+      "pageNew": "新しいページ・キャンバスを作成しました",
+      "rename": "セッション名を変更しました",
+      "retry": "回答を再度リクエストしました",
+      "send": "質問を送信しました",
+      "sessionAgent": "回答するエージェント・モデルを変更しました",
+      "sessionChild": "子セッションを作成しました",
+      "sessionReorganize": "セッションの再整理をリクエストしました",
+      "stop": "応答を停止しました",
+      "studyImport": "学習データをインポートしました",
+      "subsession": "子セッションを作成しました",
+      "summaryAttach": "要約を添付しました",
+      "summaryDiscard": "要約の下書きを破棄しました",
+      "summaryRemove": "要約を取り外しました",
+      "summaryRequest": "要約をリクエストしました",
+      "turnDelete": "質問を削除しました",
+      "turnMove": "質問を別のセッションに移動しました",
+      "turnSplit": "質問を子セッションに分離しました",
+      "turnSplitOut": "質問を別のセッションに分離しました",
+      "vaultDelete": "ライブラリから削除しました",
+      "vaultPut": "ライブラリを整理しました"
+    },
+    "remoteDevice": "リモート端末",
+    "skillsSynced": "{host} のスキルを同期しました（{parts}）",
+    "updated": "{n}件更新"
+  },
+  "time": {
+    "justNow": "たった今"
+  },
+  "window": {
+    "loadingBody": "メインウィンドウからセッションを取得しています。",
+    "loadingTitle": "読み込み中",
+    "notFoundBody": "削除されたか、メインウィンドウから見当たらなくなったセッションです。このウィンドウを閉じてください。",
+    "notFoundTitle": "セッションが見つかりません",
+    "offlineBody": "octobooksのメインウィンドウが開いているか確認してください。",
+    "offlineTitle": "メインウィンドウとの接続が切れました",
+    "reconnect": "再接続"
+  }
+}

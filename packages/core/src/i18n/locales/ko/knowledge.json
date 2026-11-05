@@ -77,7 +77,12 @@
     "gitHint": "기본 브랜치(main·master 등)의 최신 파일만 받아요"
   },
   "error": {
-    "generic": "문제가 생겼어요. 다시 시도해 주세요."
+    "generic": "문제가 생겼어요. 다시 시도해 주세요.",
+    "badDescription": "설명을 확인해 주세요.",
+    "badSettings": "설정 값을 확인해 주세요.",
+    "badQuery": "검색어를 확인해 주세요.",
+    "badId": "지식베이스를 찾지 못했어요.",
+    "unavailable": "이 기기에서는 지식베이스를 쓸 수 없어요."
   },
   "progress": {
     "label": "가져오기 진행률",
@@ -89,5 +94,95 @@
     "elapsed": "{seconds}초",
     "cancel": "취소",
     "cancelled": "가져오기를 취소했어요."
+  },
+  "citations": {
+    "label": "출처",
+    "open": "출처 {n}: {title} 열기"
+  },
+  "source": {
+    "title": "출처 보기",
+    "close": "닫기",
+    "loading": "원문을 불러오는 중…",
+    "failed": "원문을 열지 못했어요. {message}",
+    "chunk": "찾은 부분",
+    "section": "주변 문맥",
+    "page": "{page}쪽",
+    "line": "{line}번 줄",
+    "lines": "{start}–{end}번 줄"
+  },
+  "index": {
+    "empty": "아직 색인 전",
+    "queued": "색인 대기 중",
+    "indexing": "색인 중 {done}/{total}",
+    "ready": "색인 완료 · 청크 {count}개",
+    "stale": "파일이 바뀌어 다시 색인이 필요해요",
+    "error": "색인에 실패했어요",
+    "reindex": "다시 색인",
+    "cancel": "색인 취소"
+  },
+  "description": {
+    "cancel": "취소",
+    "edit": "수정",
+    "empty": "설명이 없어요. 질문할 때 이 지식베이스가 무엇인지 알려 주면 검색이 더 정확해져요.",
+    "label": "설명",
+    "placeholder": "예: 우리 팀 배포 절차 문서 모음",
+    "save": "저장"
+  },
+  "docs": {
+    "chunks": "청크 {count}개",
+    "empty": "색인된 문서가 없어요.",
+    "failed": "실패",
+    "heading": "문서",
+    "noMatch": "검색 결과가 없어요.",
+    "search": "경로나 제목으로 검색",
+    "skipped": "건너뜀"
+  },
+  "embedding": {
+    "heading": "임베딩 모델",
+    "local": "로컬 (오프라인, 기본)",
+    "model": "모델",
+    "modelDefault": "기본 모델",
+    "openai": "OpenAI (text-embedding-3-small)",
+    "openaiNotice": "OpenAI를 선택하면 이 지식베이스의 문서 본문이 OpenAI 서버로 전송돼요. 기존 OpenAI API 키를 사용하고, 민감한 자료에는 로컬을 쓰세요.",
+    "provider": "방식",
+    "reindexNeeded": "모델이 바뀌었어요. 다시 색인해야 검색에 반영돼요.",
+    "save": "저장",
+    "saved": "임베딩 설정을 저장했어요."
+  },
+  "rag": {
+    "enabled": "지식베이스 검색 사용",
+    "expandParent": "앞뒤 문단 함께 넣기",
+    "heading": "검색 설정",
+    "maxContextChars": "근거 최대 글자 수",
+    "minScore": "최소 관련도",
+    "rerank": "검색 결과 재정렬",
+    "reset": "기본값",
+    "save": "저장",
+    "topK": "근거 개수"
+  },
+  "sources": {
+    "empty": "등록된 출처가 없어요.",
+    "heading": "출처",
+    "type": {
+      "files": "파일",
+      "folder": "폴더",
+      "github": "GitHub",
+      "web": "웹"
+    },
+    "update": "갱신",
+    "updated": "{name} 출처를 갱신했어요.",
+    "updating": "갱신 중…"
+  },
+  "storage": {
+    "chunks": "청크",
+    "docs": "문서",
+    "heading": "저장 용량",
+    "index": "색인",
+    "source": "원본"
+  },
+  "link": {
+    "inherited": "부모 가지의 지식베이스를 따르고 있어요.",
+    "overridden": "이 가지만 다른 지식베이스를 쓰고 있어요.",
+    "reset": "부모 따르기"
   }
 }

@@ -176,5 +176,17 @@
       "truncated": " …(줄임)",
       "cutNote": "\n> 원문이 길어 답변 {count}개를 앞부분만 담았다.\n"
     }
+  },
+  "schedule": {
+    "heading": "## 예약 요청",
+    "intro": "미래 작업 예약을 명확히 요청했을 때만 title, prompt, runAt, repeat(그리고 선택 항목 skill) 필드의 JSON 코드 블록을 정확히 하나 출력한다.",
+    "limits": "title은 1~{titleMax}자, prompt는 1~{promptMax}자이며 실행 시 이 대화에 보낼 독립적인 질문이다.",
+    "runAt": "runAt은 실제로 존재하는 미래 ISO 날짜/시간이며 offset 또는 Z를 반드시 포함한다. 상대 날짜는 현재 로컬 시간대를 기준으로 계산한다. repeat는 once, daily, weekdays, weekly, monthly 중 하나다.",
+    "skillChosen": "skill: 사용자가 이 작업에 쓸 스킬로 \"{name}\"({title}) 하나를 골랐다. \"skill\":\"{name}\"을 넣는다. 예약 하나는 스킬 하나만 실행하므로 prompt는 그 스킬의 작업만 담고 다른 요청 작업은 넣지 않는다.",
+    "skillOptional": "skill(선택): 작업이 아래 스킬 중 하나에 분명히 맞으면 그 명령 이름을 넣어 실행 때 스킬을 함께 쓴다(예: \"매일 3시에 퀴즈 내 줘\" → \"skill\":\"quiz\"). 맞는 스킬이 없으면 뺀다. 스킬은 하나만 쓴다.",
+    "skillNone": "skill은 넣지 않는다.",
+    "ask": "시간·시간대·반복·작업이 모호하면 짧게 되묻고 추측하지 않는다. 과거 날짜면 미래 시간을 묻는다.",
+    "unsupported": "두 시간마다·특정 요일 묶음 등 지원하지 않는 반복은 지원 주기를 선택하도록 묻고 임의로 변환하지 않는다.",
+    "noBlock": "설명·예제·취소·부정 요청이나 기존 예약 작업의 실행에는 schedule 블록을 출력하지 않는다. 앱이 검증하고 저장하므로 예약을 저장했다고 주장하지 않는다. 이 기기에서 앱이 열려 있을 때만 작업이 실행된다."
   }
 }

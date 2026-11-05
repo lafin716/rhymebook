@@ -1,0 +1,32 @@
+{
+  "remote": {
+    "label": "PCと接続",
+    "title": "自分のPCと接続",
+    "intro": "PCと接続すると、PCで学習中の内容をそのまま確認でき、質問するとPCのCLIが回答します。PCがなくても、この端末でAPIキーを使うこともできます。",
+    "step1": "PCでoctobooksアプリを開き、設定 → 接続 で [リモートペアリングを開く] をオンにしてください。",
+    "step2": "[スマホ・Webと接続] を押すと、QRコードと6桁のコードが表示されます。",
+    "step3": "下のQRを読み取るか、リンクまたはアドレスとコードを入力してください。",
+    "storeNote": "学習の記録はPCに保存されます",
+    "later": "後で",
+    "useThisDevice": "この端末で使う"
+  },
+  "local": {
+    "label": "はじめる",
+    "back": "戻る",
+    "titleChoose": "octobooksをはじめる",
+    "titleCli": "このPCのCLIを接続",
+    "titleApi": "APIキーを登録",
+    "titleDevice": "この端末ではじめる",
+    "choosePitch": "好奇心が広がるほど、学びも深まります。回答の中の気になる一文から、新しい枝を広げてみてください。まずは一緒に学ぶAIを接続しましょう。",
+    "cliChoice": "このPCのCLI（サブスクリプションアカウント）",
+    "cliDesc": "インストール・ログイン済みの Claude Code や Codex CLI をそのまま実行します。モデルや思考の深さも選べます。",
+    "recommended": "おすすめ",
+    "apiChoice": "APIキー",
+    "apiDesc": "Anthropic や OpenAI のAPIキーで直接呼び出します。",
+    "remoteTip": "スマホやWebからこのPCのCLIを使うには、接続後に 設定 → 接続 → [リモートペアリングを開く] をオンにしてください。",
+    "apiNote": "学習内容はこの端末に保存され、回答は登録したAPIキーを通じて受け取ります。",
+    "start": "はじめる",
+    "waiting": "接続を待っています",
+    "later": "後で"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "close": "Đóng",
+  "cancel": "Hủy",
+  "confirm": "OK",
+  "save": "Lưu",
+  "delete": "Xóa",
+  "edit": "Chỉnh sửa",
+  "copy": "Sao chép",
+  "copied": "Đã sao chép",
+  "retry": "Thử lại",
+  "back": "Quay lại",
+  "next": "Tiếp",
+  "done": "Xong",
+  "add": "Thêm",
+  "remove": "Gỡ bỏ",
+  "rename": "Đổi tên",
+  "search": "Tìm kiếm",
+  "loading": "Đang tải…",
+  "on": "Bật",
+  "off": "Tắt",
+  "yes": "Có",
+  "no": "Không",
+  "more": "Xem thêm",
+  "untitled": "Không có tiêu đề",
+  "language": {
+    "label": "Ngôn ngữ",
+    "hint": "Ngôn ngữ dùng trong ứng dụng. Khi thay đổi, ứng dụng sẽ khởi động lại.",
+    "promptTitle": "Chọn ngôn ngữ",
+    "promptBody": "Chọn ngôn ngữ cho ứng dụng. Bạn có thể đổi sau trong Cài đặt → Chung.",
+    "promptStart": "Bắt đầu",
+    "contribute": "Bạn muốn góp bản dịch sang ngôn ngữ khác? Xem docs/i18n.md."
+  }
+}

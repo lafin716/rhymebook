@@ -1,5 +1,8 @@
 import ko from './locales/ko';
 import en from './locales/en';
+import ja from './locales/ja';
+import zh from './locales/zh';
+import vi from './locales/vi';
 
 /**
  * 다국어 (ADR-105). 문구는 언어별 JSON 파일(locales/<언어>/<이름공간>.json)에 두고 코드는 키만 쓴다.
@@ -33,13 +36,16 @@ export interface LanguageInfo {
 export const LANGUAGES = [
   { id: 'ko', name: '한국어', bcp47: 'ko-KR' },
   { id: 'en', name: 'English', bcp47: 'en-US' },
+  { id: 'ja', name: '日本語', bcp47: 'ja-JP' },
+  { id: 'zh', name: '简体中文', bcp47: 'zh-CN' },
+  { id: 'vi', name: 'Tiếng Việt', bcp47: 'vi-VN' },
 ] as const satisfies readonly LanguageInfo[];
 
 export type Locale = (typeof LANGUAGES)[number]['id'];
 
 export const DEFAULT_LOCALE: Locale = 'ko';
 
-const DICTS: Record<Locale, unknown> = { ko, en };
+const DICTS: Record<Locale, unknown> = { ko, en, ja, zh, vi };
 
 export function isLocale(value: unknown): value is Locale {
   return LANGUAGES.some((l) => l.id === value);

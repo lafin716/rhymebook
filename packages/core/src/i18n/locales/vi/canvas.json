@@ -1,0 +1,279 @@
+{
+  "bg": {
+    "paper": "Giấy",
+    "white": "Trắng",
+    "cream": "Kem",
+    "lightGreen": "Xanh lá nhạt",
+    "sky": "Xanh da trời",
+    "gray": "Xám",
+    "chalkboard": "Bảng đen"
+  },
+  "image": {
+    "readFailed": "Không đọc được hình ảnh.",
+    "processFailed": "Không xử lý được hình ảnh.",
+    "notImage": "{name} không phải là hình ảnh.",
+    "tooLarge": "{name} quá lớn (tối đa 25MB)."
+  },
+  "pageImage": {
+    "readFailed": "Không đọc được bản vẽ.",
+    "createFailed": "Không tạo được hình ảnh của trang.",
+    "tooLarge": "Hình ảnh của trang quá lớn nên không thể thêm.",
+    "name": "{title} trang {page}",
+    "untitled": "Canvas"
+  },
+  "pdf": {
+    "passwordProtected": "Không thể nhập PDF có mật khẩu.",
+    "readFailed": "Không đọc được {name}. Hãy kiểm tra xem đây có phải tệp PDF không."
+  },
+  "present": {
+    "ended": "Buổi trình bày đã kết thúc",
+    "waiting": "Đang chờ người trình bày…",
+    "toolbar": "Công cụ trình bày",
+    "laser": "Con trỏ laser",
+    "pen": "Bút",
+    "eraser": "Tẩy",
+    "color": "Màu {color}",
+    "clearInk": "Xóa toàn bộ nét vẽ",
+    "prev": "Trang trước",
+    "next": "Trang sau",
+    "openAudience": "Mở màn hình khán giả",
+    "openAudienceTitle": "Mở màn hình khán giả (cho người xem, không có thanh công cụ)",
+    "fullscreen": "Toàn màn hình",
+    "end": "Kết thúc trình bày",
+    "endTitle": "Kết thúc trình bày (Esc)"
+  },
+  "import": {
+    "offline": "Chưa kết nối với PC. Hãy nhập lại sau khi đã kết nối.",
+    "timeout": "Chưa nhận xong hội thoại từ PC. Hãy thử lại sau ít phút.",
+    "sources": {
+      "image": {
+        "label": "Hình ảnh",
+        "hint": "Tệp PNG, JPG, GIF hoặc WebP"
+      },
+      "pdf": {
+        "label": "PDF",
+        "hint": "Mỗi trang một hình · canvas sẽ chuyển sang chế độ PDF"
+      },
+      "session": {
+        "label": "Nội dung phiên",
+        "hint": "Đưa một cuộc hội thoại thành thẻ văn bản"
+      },
+      "page": {
+        "label": "Nội dung trang",
+        "hint": "Đưa một trang thành thẻ văn bản"
+      },
+      "vault": {
+        "label": "Thư viện",
+        "hint": "Chọn một văn bản hoặc hình ảnh đã lưu"
+      }
+    },
+    "menu": {
+      "label": "Loại nhập",
+      "title": "Nhập vào canvas"
+    },
+    "sub": {
+      "image": "Hình",
+      "text": "Chữ"
+    },
+    "failed": "Không nhập được.",
+    "picker": {
+      "session": "Nhập nội dung phiên",
+      "page": "Nhập nội dung trang",
+      "vault": "Nhập từ thư viện"
+    },
+    "empty": {
+      "page": "Chưa có trang nào.",
+      "session": "Không có cuộc hội thoại nào để nhập.",
+      "vault": "Chưa có mục nào được lưu trong thư viện."
+    },
+    "search": "Tìm",
+    "searchPlaceholder": "Tìm theo tên",
+    "noMatch": "Không có mục nào khớp.",
+    "busy": "Đang nhập…"
+  },
+  "settings": {
+    "title": "Cài đặt canvas",
+    "pdfMode": "Chế độ PDF",
+    "pdfHint": "{name} · chọn kích thước khác bên dưới sẽ gỡ PDF",
+    "sizeTitle": "Kích thước canvas",
+    "layout": {
+      "free": {
+        "label": "Tự do",
+        "hint": "Viết ở bất cứ đâu trên bảng không giới hạn"
+      },
+      "landscape": {
+        "label": "Ngang 16:9",
+        "hint": "Trang rộng theo chiều ngang · vuốt để sang trang mới"
+      },
+      "portrait": {
+        "label": "Dọc 9:16",
+        "hint": "Trang cao theo chiều dọc · vuốt để sang trang mới"
+      },
+      "a4Landscape": {
+        "label": "A4 ngang",
+        "hint": "Trang như tờ A4 đặt ngang · vuốt để sang trang mới"
+      },
+      "a4Portrait": {
+        "label": "A4 dọc",
+        "hint": "Trang như tờ A4 đặt dọc · vuốt để sang trang mới"
+      }
+    },
+    "flowTitle": "Hướng lật trang",
+    "flow": {
+      "horizontal": {
+        "label": "Ngang",
+        "hint": "Vuốt trái hoặc phải để lật trang"
+      },
+      "vertical": {
+        "label": "Dọc",
+        "hint": "Vuốt lên hoặc xuống để lật trang"
+      }
+    },
+    "bg": "Nền",
+    "bgPdf": "Nền · hiển thị bên ngoài các trang PDF và trên bảng mới",
+    "bgColor": "Màu nền",
+    "colorCustom": "Chọn màu nền tùy chỉnh",
+    "bgPattern": "Họa tiết nền",
+    "pattern": {
+      "none": "Trơn",
+      "gridFine": "Lưới dày",
+      "gridWide": "Lưới thưa",
+      "lines": "Vở kẻ ngang"
+    },
+    "paletteTitle": "Số màu hiển thị cùng lúc",
+    "paletteSlider": "Số lượng màu trong bảng màu",
+    "paletteMin": "Tối thiểu 1",
+    "paletteAll": "Tất cả ({total})",
+    "gestureTitle": "Cử chỉ hai ngón tay",
+    "gestureHint": "Vuốt nhanh sẽ thực hiện thao tác đã chọn, còn kéo chậm sẽ di chuyển màn hình. Hướng đặt là 'Tắt' vẫn di chuyển màn hình và lật trang như trước. Trang trước và trang sau chỉ hoạt động trên bảng chia trang.",
+    "gestureSelect": "Hai ngón tay {name}",
+    "gesture": {
+      "doubleTap": "Chạm đúp",
+      "swipeUp": "Vuốt lên",
+      "swipeDown": "Vuốt xuống",
+      "swipeLeft": "Vuốt trái",
+      "swipeRight": "Vuốt phải"
+    },
+    "action": {
+      "off": "Tắt",
+      "selectPen": "Chọn ↔ bút",
+      "eraserPen": "Tẩy ↔ bút",
+      "penMarker": "Bút ↔ bút đánh dấu",
+      "undo": "Hoàn tác",
+      "redo": "Làm lại",
+      "prevPage": "Trang trước",
+      "nextPage": "Trang sau"
+    }
+  },
+  "toolbar": {
+    "label": "Công cụ canvas",
+    "dockHandle": "Đổi vị trí thanh công cụ",
+    "dockHandleTitle": "Kéo để sắp xếp lại thanh công cụ",
+    "ink": {
+      "black": "Đen",
+      "white": "Trắng",
+      "red": "Đỏ",
+      "blue": "Xanh dương",
+      "green": "Xanh lá",
+      "yellow": "Vàng",
+      "purple": "Tím"
+    },
+    "inkSwatch": "Màu {name}",
+    "favoriteInk": "Màu yêu thích {hex}",
+    "favoriteGroup": "Màu yêu thích",
+    "favoriteUse": "Dùng màu yêu thích {hex}",
+    "tool": {
+      "select": "Chọn/di chuyển",
+      "pen": "Bút",
+      "marker": "Bút đánh dấu",
+      "eraser": "Tẩy"
+    },
+    "penTitle": "Bút ({nib}) · nhấn lại để chọn loại và độ dày",
+    "markerTitle": "Bút đánh dấu · nhấn lại để chọn độ dày",
+    "nib": {
+      "fountain": "Bút máy",
+      "fountainHint": "Độ dày thay đổi theo lực ấn",
+      "ballpoint": "Bút bi",
+      "ballpointHint": "Nét đều, gọn gàng",
+      "brush": "Bút cọ",
+      "brushHint": "Độ dày thay đổi nhiều và thu nhọn ở đầu",
+      "pencil": "Bút chì",
+      "pencilHint": "Nét mảnh và hơi nhạt"
+    },
+    "nibGroup": "Loại bút",
+    "colors": "Màu",
+    "moreColors": "Thêm màu",
+    "customColor": "Chọn màu tùy chỉnh",
+    "customColorTitle": "Chọn màu tùy chỉnh · yêu thích",
+    "collapsePalette": "Thu gọn bảng màu",
+    "expandPalette": "Mở rộng bảng màu",
+    "undo": "Hoàn tác",
+    "undoTitle": "Hoàn tác (⌘Z)",
+    "redo": "Làm lại",
+    "redoTitle": "Làm lại (⌘⇧Z)",
+    "deleteSelected": "Xóa mục đã chọn",
+    "deleteSelectedTitle": "Xóa mục đã chọn (Delete)",
+    "present": "Trình bày",
+    "fullEnd": "Thoát toàn màn hình",
+    "full": "Toàn màn hình",
+    "import": "Nhập",
+    "penSettings": "Cài đặt bút",
+    "markerSize": "Độ dày bút đánh dấu",
+    "penSize": "Độ dày bút",
+    "pickColor": "Chọn màu",
+    "sizeNumber": "Giá trị độ dày",
+    "sizeRange": "Độ dày",
+    "svArea": "Độ bão hòa và độ sáng",
+    "svValue": "Độ bão hòa {saturation}%, độ sáng {brightness}%",
+    "hue": "Sắc độ",
+    "colorNew": "Màu mới",
+    "colorOriginal": "Quay về màu gốc {hex}",
+    "colorOriginalTitle": "Quay về màu gốc",
+    "eyedrop": "Lấy màu từ màn hình",
+    "eyedropTitle": "Ống hút màu · lấy màu từ màn hình",
+    "colorCode": "Mã màu",
+    "channelValue": "Giá trị {channel}",
+    "favorite": {
+      "preset": "Đây là màu mặc định",
+      "remove": "Bỏ khỏi yêu thích",
+      "max": "Yêu thích tối đa {max} màu",
+      "add": "Thêm vào yêu thích"
+    }
+  },
+  "panel": {
+    "label": "Canvas",
+    "defaultTitle": "Canvas",
+    "tooBig": "Canvas quá lớn nên không lưu được. Hãy thu nhỏ hoặc chia nhỏ hình ảnh.",
+    "saveFail": "Không lưu được canvas. Hãy thử lại sau ít phút.",
+    "pageSaveFail": "Không thể lưu trang vào thư viện.",
+    "pdfEndTitle": "Kết thúc chế độ PDF?",
+    "pdfEndMessage": "Các trang PDF đã nhập sẽ bị gỡ khỏi canvas. Nét vẽ và thẻ bạn viết phía trên vẫn được giữ lại.",
+    "pdfReplaceTitle": "Thay PDF?",
+    "pdfReplaceMessage": "Thay PDF hiện tại ({current}) bằng {next}. Nét vẽ và thẻ vẫn được giữ lại.",
+    "confirmChange": "Thay đổi",
+    "pdfLoading": "Đang tải PDF…",
+    "pdfNoPages": "{name} không có trang nào.",
+    "pdfTruncated": "Chỉ nhập {shown} trang đầu trong tổng số {total} trang.",
+    "importFail": "Không nhập được {name}.",
+    "fitPage": "Vừa trang",
+    "fitAll": "Xem tất cả",
+    "eyedropHint": "Nhấn vào bảng để lấy màu",
+    "eyedropStop": "Dừng ống hút màu",
+    "imageFiles": "Tệp hình ảnh cần nhập",
+    "pdfFile": "Tệp PDF cần nhập",
+    "pageTitle": "{title}, trang {page}"
+  },
+  "pageNav": {
+    "label": "Chuyển trang",
+    "prev": "Trang trước",
+    "next": "Trang sau",
+    "add": "Trang mới",
+    "save": "Lưu trang này vào thư viện"
+  },
+  "board": {
+    "label": "Bảng vẽ canvas",
+    "gesturing": "Đang phóng to và di chuyển",
+    "resize": "Đổi kích thước",
+    "importedImage": "Hình ảnh đã nhập"
+  }
+}

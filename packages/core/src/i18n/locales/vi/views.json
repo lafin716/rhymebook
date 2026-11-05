@@ -1,0 +1,65 @@
+{
+  "sheet": {
+    "close": "Đóng sheet",
+    "dialog": "Sheet nhánh",
+    "stackInfo": "{count} sheet xếp chồng · kéo xuống để quay lại nhánh trước",
+    "fullScreen": "Toàn màn hình"
+  },
+  "popup": {
+    "dialog": "Cửa sổ nổi nhánh",
+    "dock": "Ghim vào khung chia",
+    "openInMain": "Mở trong màn hình chính"
+  },
+  "split": {
+    "closePanel": "Đóng bảng",
+    "tabs": "Tab chia màn hình",
+    "closeTab": "Đóng tab",
+    "move": {
+      "left": "Đổi chỗ với bên trái",
+      "right": "Đổi chỗ với bên phải",
+      "up": "Đổi chỗ với phía trên",
+      "down": "Đổi chỗ với phía dưới",
+      "label": "Di chuyển"
+    },
+    "moveTitle": "Di chuyển (kéo để đổi vị trí)",
+    "closeOthers": "Đóng các bảng khác",
+    "menu": "Menu chia màn hình",
+    "swap": "Đổi vị trí",
+    "flip": "Đổi hướng",
+    "vertical": "Xếp dọc",
+    "horizontal": "Xếp ngang"
+  },
+  "drop": {
+    "open": {
+      "left": "Mở bên trái",
+      "right": "Mở bên phải",
+      "top": "Mở phía trên",
+      "bottom": "Mở phía dưới",
+      "center": "Mở tại vị trí này"
+    },
+    "move": {
+      "left": "Chuyển sang trái",
+      "right": "Chuyển sang phải",
+      "top": "Chuyển lên trên",
+      "bottom": "Chuyển xuống dưới",
+      "center": "Đổi vị trí"
+    },
+    "maxSplit": "Có thể chia tối đa {max} bảng. Thả vào giữa để thay thế bảng đó."
+  },
+  "mindmap": {
+    "collapseQuestions": "Thu gọn danh sách câu hỏi",
+    "expandQuestions": "Mở rộng danh sách câu hỏi",
+    "canvas": "Canvas",
+    "page": "Trang",
+    "hasSummary": "Có tóm tắt",
+    "footnote": "Phiên chú thích",
+    "root": "Phiên gốc",
+    "questionListOf": "Câu hỏi trong {title}",
+    "emptyQuestion": "(câu hỏi trống)",
+    "noQuestions": "Chưa có câu hỏi nào.",
+    "hintTouch": "Chạm: mở trong sheet · Chạm đúp: toàn màn hình · ▾: danh sách câu hỏi",
+    "hintMouse": "Nhấp: cửa sổ nổi · {mod}+nhấp: thêm vào khung chia · Nhấp đúp: màn hình chính · ▾: danh sách câu hỏi",
+    "title": "Sơ đồ tư duy",
+    "close": "Đóng sơ đồ tư duy"
+  }
+}

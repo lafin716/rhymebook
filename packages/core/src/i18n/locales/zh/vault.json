@@ -1,0 +1,104 @@
+{
+  "audio": {
+    "listen": "收听",
+    "stop": "停止"
+  },
+  "defaults": {
+    "folder": "文件夹",
+    "fragment": "片段",
+    "newFolder": "新建文件夹",
+    "newPage": "新建页面"
+  },
+  "delete": {
+    "confirm": "删除",
+    "irreversible": "删除后无法恢复。",
+    "title": "要删除“{name}”吗？",
+    "withContents": "其中的 {count} 项也会一并删除。"
+  },
+  "folder": {
+    "empty": "这是一个空文件夹。可以从左侧列表拖动项目到这里，或使用项目上的 [移动]。"
+  },
+  "item": {
+    "addToPage": "添加到页面",
+    "cancel": "取消",
+    "contentAria": "内容",
+    "copy": "复制",
+    "edit": "编辑",
+    "move": "移动",
+    "nameAria": "名称",
+    "openChat": "打开原始对话",
+    "save": "保存",
+    "saveImage": "保存图片",
+    "saveMarkdown": "保存为 Markdown",
+    "savedOn": "保存于 {date}",
+    "toolbarAria": "项目工具"
+  },
+  "lang": {
+    "en": "英语",
+    "ko": "韩语",
+    "vi": "越南语"
+  },
+  "move": {
+    "toFolder": "已移动到“{name}”。",
+    "toTop": "已移动到资料库顶部。"
+  },
+  "notice": {
+    "addedToPage": "已添加到“{name}”。",
+    "copied": "已复制。",
+    "copyFailed": "无法复制。",
+    "emptyContent": "内容为空。",
+    "pageFull": "该页面无法再容纳更多内容。",
+    "saved": "已保存。",
+    "savedToLibrary": "已保存到资料库。"
+  },
+  "overlay": {
+    "backToList": "返回资料库列表",
+    "close": "关闭资料库",
+    "dropHint": "放在行与行之间即可插入该位置，放在文件夹中间即可移入文件夹，放在空白处则移到顶部。",
+    "empty": "还没有保存任何片段。在回答下方点击 [保存]，或选中文字后点击 [保存]。",
+    "folderAria": "资料库文件夹",
+    "fullScreen": "全屏查看",
+    "label": "资料库",
+    "pickHint": "请在左侧选择文件夹、片段或页面。将项目拖到文件夹上即可移动；使用 [新建页面] 可将片段组合成一个页面。",
+    "windowed": "窗口查看"
+  },
+  "page": {
+    "addFragment": "添加片段",
+    "addText": "添加文字",
+    "besideHint": "将手柄拖到其他块的左侧或右侧边缘，即可并排放置。",
+    "blank": "添加片段或文字，丰富这个页面。",
+    "down": "向下",
+    "dragAria": "拖动以移动",
+    "empty": "这是一个空页面。请使用上方的 [编辑] 添加片段和文字。",
+    "pairBeside": "与前一个块并排",
+    "remove": "从页面中移除",
+    "removedFragment": "已删除的片段",
+    "removedFragmentNote": "该片段已被删除。",
+    "text": "文字",
+    "textPlaceholder": "要添加到此处的文字（Markdown）",
+    "unpairBeside": "取消并排",
+    "up": "向上"
+  },
+  "picker": {
+    "close": "关闭",
+    "current": "当前位置",
+    "findAria": "查找片段",
+    "findPlaceholder": "按名称查找片段",
+    "moveLabel": "选择要移动到的文件夹",
+    "moveTitle": "移动“{name}”",
+    "noFolders": "还没有文件夹。可以点击左侧的 [新建文件夹] 来创建。",
+    "noFragments": "没有可添加的片段。",
+    "noPages": "还没有页面。请先点击左侧的 [新建页面] 创建，然后再添加。",
+    "pageLabel": "选择要添加到的页面",
+    "top": "资料库顶部"
+  },
+  "tree": {
+    "collapse": "收起 {name}",
+    "expand": "展开 {name}"
+  },
+  "unsaved": {
+    "confirm": "放弃",
+    "message": "您所做的修改将会丢失。",
+    "title": "要放弃未保存的更改吗？"
+  }
+}

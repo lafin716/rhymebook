@@ -1,0 +1,157 @@
+{
+  "ai": {
+    "noProvider": "没有可用的 AI 连接。请在设置中检查连接。",
+    "noResponse": "没有收到 AI 的回应。"
+  },
+  "connection": {
+    "status": {
+      "checking": "检查中…",
+      "noKey": "没有密钥",
+      "notInstalled": "未安装",
+      "notLoggedIn": "需要登录",
+      "offline": "离线",
+      "ready": "已连接",
+      "unpaired": "未配对"
+    }
+  },
+  "palette": {
+    "abyss": {
+      "description": "深海中沉静的紫光",
+      "name": "深渊"
+    },
+    "coral": {
+      "description": "温暖珊瑚礁的粉色光泽",
+      "name": "珊瑚"
+    },
+    "lagoon": {
+      "description": "沐浴阳光的薄荷绿波光",
+      "name": "泻湖"
+    },
+    "ocean": {
+      "description": "明亮湛蓝的深海",
+      "name": "海洋"
+    },
+    "pearl": {
+      "description": "如贝壳般沉静的沙色",
+      "name": "珍珠"
+    },
+    "vscode": {
+      "description": "如代码编辑器般沉稳的灰色界面",
+      "name": "VS Code"
+    }
+  },
+  "runtime": {
+    "localOffline": "无法连接内置的 bridge。请重启应用。",
+    "remoteOffline": "与远程 Bridge 的连接已断开。"
+  },
+  "scenarios": {
+    "branch-select": {
+      "hint": "选中回答中的“加权和”。通过浮动操作创建分支",
+      "label": "选择→分支"
+    },
+    "deep": {
+      "hint": "根 › Q/K/V › 点积 › 余弦相似度（面包屑 + 锚点引用）",
+      "label": "三级分支"
+    },
+    "empty": {
+      "hint": "新学习会话的空白界面与推荐问题",
+      "label": "空状态"
+    },
+    "error": {
+      "hint": "回答途中数据流中断 → 重试",
+      "label": "错误"
+    },
+    "home": {
+      "hint": "种子会话“Transformer 注意力”",
+      "label": "首页"
+    },
+    "mindmap": {
+      "hint": "会话树。单击=打开，Shift+单击=分屏",
+      "label": "思维导图"
+    },
+    "offline": {
+      "hint": "Claude CLI 离线 → 建议替代的 provider",
+      "label": "Provider 离线"
+    },
+    "popup": {
+      "hint": "将分支显示为浮动弹窗（移动端为底部面板）",
+      "label": "弹窗/面板"
+    },
+    "search": {
+      "hint": "⌘K 搜索会话",
+      "label": "搜索"
+    },
+    "settings": {
+      "hint": "连接卡片、CLI 状态、API 密钥、配对二维码",
+      "label": "设置"
+    },
+    "split": {
+      "hint": "根 | Q/K/V | 点积 三面板（移动端为标签页）",
+      "label": "分屏"
+    },
+    "streaming": {
+      "hint": "回答缓慢生成中（停止按钮）",
+      "label": "流式输出"
+    },
+    "summary": {
+      "hint": "在“缩放”分支生成摘要草稿 → 附加到父级",
+      "label": "撤销摘要"
+    }
+  },
+  "search": {
+    "close": "关闭",
+    "count": "{count} 个结果",
+    "inputAria": "搜索词",
+    "label": "搜索会话",
+    "noMatch": "没有与“{q}”匹配的会话。",
+    "placeholder": "按会话标题或对话内容搜索",
+    "recent": "最近的会话",
+    "resultsAria": "搜索结果"
+  },
+  "sync": {
+    "added": "新增 {n} 个",
+    "op": {
+      "annotDelete": "已删除笔记",
+      "annotSet": "已添加笔记",
+      "branch": "已创建分支",
+      "delete": "已删除会话",
+      "newRoot": "已开始新的学习",
+      "pageEdit": "已编辑页面·画布",
+      "pageNew": "已创建新页面·画布",
+      "rename": "已重命名会话",
+      "retry": "已重新请求回答",
+      "send": "已发送问题",
+      "sessionAgent": "已更改回答的智能体·模型",
+      "sessionChild": "已创建子会话",
+      "sessionReorganize": "已请求重新整理会话",
+      "stop": "已停止回答",
+      "studyImport": "已导入学习内容",
+      "subsession": "已创建子会话",
+      "summaryAttach": "已附加摘要",
+      "summaryDiscard": "已放弃摘要草稿",
+      "summaryRemove": "已移除摘要",
+      "summaryRequest": "已请求生成摘要",
+      "turnDelete": "已删除问题",
+      "turnMove": "已将问题移到其他会话",
+      "turnSplit": "已将问题分离为子会话",
+      "turnSplitOut": "已将问题分离为独立会话",
+      "vaultDelete": "已从资料库删除",
+      "vaultPut": "已整理资料库"
+    },
+    "remoteDevice": "远程设备",
+    "skillsSynced": "已同步 {host} 的技能（{parts}）",
+    "updated": "更新 {n} 个"
+  },
+  "time": {
+    "justNow": "刚刚"
+  },
+  "window": {
+    "loadingBody": "正在从主窗口获取会话。",
+    "loadingTitle": "加载中",
+    "notFoundBody": "该会话已被删除，或已不在主窗口中。请关闭此窗口。",
+    "notFoundTitle": "找不到会话",
+    "offlineBody": "请确认 octobooks 主窗口已打开。",
+    "offlineTitle": "与主窗口的连接已断开",
+    "reconnect": "重新连接"
+  }
+}

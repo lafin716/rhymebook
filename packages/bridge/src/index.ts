@@ -13,3 +13,9 @@ export * from './skillsDir';
 export * from './codexImages';
 export * from './stt/engine';
 export * from './knowledgeStore';
+export * from './rag/indexer';
+export * from './rag/worker';
+export { retrieveFrom, sourceFrom, type KbSearchTarget } from './rag/searchEngine';
+export { IndexFatalError, type IngestProgress } from './rag/ingestion';
+
+export { parseRetrievalRequest, parseRagSettings, parseQueryPlan, MAX_RETRIEVAL_KBS } from './rag/validate';

@@ -40,6 +40,10 @@
       "package.json"
     ],
     "npmRebuild": false,
+    "asarUnpack": [
+      "dist/pdfjs/**",
+      "dist/ragWorker.cjs"
+    ],
     "mac": {
       "target": [
         "dmg",

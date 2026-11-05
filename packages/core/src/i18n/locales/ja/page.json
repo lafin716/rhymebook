@@ -1,0 +1,147 @@
+{
+  "color": {
+    "kind": {
+      "highlight": "蛍光ペン",
+      "underline": "下線",
+      "textColor": "文字色"
+    },
+    "preset": {
+      "yellow": "黄",
+      "green": "緑",
+      "blue": "青",
+      "purple": "紫",
+      "red": "赤",
+      "orange": "オレンジ"
+    },
+    "swatch": "{kind} {color}",
+    "swatchRemove": "{kind} {color} をお気に入りから削除",
+    "palette": "{kind} のカラーパレット",
+    "back": "書式に戻る",
+    "title": "{kind} の色",
+    "none": "なし",
+    "favorites": "お気に入り",
+    "done": "完了",
+    "edit": "編集",
+    "favoritesEmpty": "下の ☆ ボタンで、よく使う色を保存できます。",
+    "recommended": "おすすめの色",
+    "custom": "カスタム",
+    "pick": "色を選ぶ",
+    "pickLabel": "{kind} の色を選ぶ",
+    "hex": "HEX カラーコード",
+    "unfavorite": "お気に入りから削除",
+    "favorite": "お気に入りに追加",
+    "apply": "適用"
+  },
+  "editor": {
+    "placeholder": "マークダウンで自由に書いてみてください。入力内容は自動で保存されます。/ を押すか右クリックすると、ブロック・サブページ・AIによる補完を挿入できます。\n\n# 見出し\n- リスト\n**太字**、`コード`\n\n文章を選択すると、質問したり書式やメモを追加したりできます。",
+    "branchOpen": "枝を開く",
+    "noteOpen": "メモを表示",
+    "bodyLabel": "ページ本文（マークダウン）",
+    "filling": "AIが入力中",
+    "menuLabel": "ブロック・AIメニュー",
+    "column": {
+      "title": "このカラム",
+      "left": "左に移動",
+      "right": "右に移動",
+      "out": "カラムの外に出す",
+      "delete": "カラムを削除"
+    },
+    "ask": {
+      "label": "何を埋めますか？（空欄の場合は前後の文脈に沿って埋めます）",
+      "placeholder": "例: メリット・デメリットを表で",
+      "submit": "埋める"
+    },
+    "block": {
+      "title": "このブロック",
+      "up": "上に移動",
+      "down": "下に移動",
+      "unwrap": "並べて配置を解除",
+      "delete": "ブロックを削除"
+    },
+    "aiFill": "AIで内容を埋める",
+    "blocks": {
+      "title": "ブロックを挿入"
+    },
+    "emoji": {
+      "hint": "絵文字 · ↑↓ で選択 · Enter",
+      "listLabel": "絵文字"
+    },
+    "slash": {
+      "hint": "ブロックを挿入 · ↑↓ で選択 · Enter",
+      "listLabel": "ブロックを挿入"
+    }
+  },
+  "keyboard": {
+    "indentOut": "インデントを減らす",
+    "indent": "インデントを増やす",
+    "paragraph": "本文",
+    "bullet": "箇条書きリスト",
+    "ordered": "番号付きリスト",
+    "todo": "ToDo",
+    "quote": "引用",
+    "heading": "見出し",
+    "bold": "太字",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "closeKeyboard": "キーボードを閉じる"
+  },
+  "panel": {
+    "label": "ページ",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "settings": "ページ設定",
+    "stopOrganize": "整理を停止",
+    "organizing": "整理中…",
+    "organizeTitle": "AIでノートの内容を読みやすく整理します",
+    "organize": "AIで整理",
+    "organizeCompact": "AI整理",
+    "close": "閉じる"
+  },
+  "rowSheet": {
+    "kind": {
+      "paragraph": "本文",
+      "h1": "見出し 1",
+      "h2": "見出し 2",
+      "h3": "見出し 3",
+      "bullet": "箇条書き",
+      "ordered": "番号",
+      "todo": "ToDo",
+      "quote": "引用"
+    },
+    "menu": "行メニュー",
+    "picked": "行を選択しました · もう一度タップすると編集",
+    "close": "閉じる",
+    "edit": "編集",
+    "addBelow": "下に追加",
+    "up": "上へ",
+    "down": "下へ",
+    "fill": "AIで書く",
+    "unwrap": "カラムを解除",
+    "delete": "削除",
+    "changeBlock": "ブロックを変更"
+  },
+  "settings": {
+    "title": "ページ設定",
+    "close": "閉じる",
+    "keyboardBar": "キーボードショートカットバー",
+    "keyboardBarDesc": "エディタにフォーカスがあるとき、キーボードの上にツールバーを表示します",
+    "emoji": "絵文字のプレビュー",
+    "emojiDesc": ": と入力すると絵文字の候補一覧を表示します"
+  },
+  "live": {
+    "dataUrl": "添付データ",
+    "imageDelete": "画像を削除",
+    "taskDone": "完了したToDo",
+    "task": "ToDo",
+    "missingPage": "削除されたページ",
+    "openPage": "サブページを開く",
+    "column": "カラム {n}",
+    "columnAddRow": "カラム {n} の末尾に行を追加",
+    "columnHandle": "カラム {n} の移動・メニュー",
+    "headingPlaceholder": "見出し {n}"
+  },
+  "rowHandles": {
+    "addBelow": "ブロック {n} の下に行を追加",
+    "menu": "ブロック {n} の移動・メニュー"
+  }
+}

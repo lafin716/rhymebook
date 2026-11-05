@@ -1,0 +1,23 @@
+{
+  "google": {
+    "loadFailed": "Không thể tải mô-đun đăng nhập Google.",
+    "loadFailedNetwork": "Không thể tải mô-đun đăng nhập Google. Hãy kiểm tra mạng.",
+    "cancelled": "Đã hủy kết nối tài khoản Google."
+  },
+  "drive": {
+    "mockLabel": "Google Drive (thử nghiệm)",
+    "mockAccount": "Drive thử nghiệm (không có client ID)",
+    "defaultAccount": "Tài khoản Google"
+  },
+  "err": {
+    "passphrase": "Mã hóa đang bật. Hãy nhập mật khẩu sao lưu."
+  },
+  "notice": {
+    "autoDone": "Đã sao lưu tự động.",
+    "done": "Đã sao lưu.",
+    "merged": "Đã gộp bản sao lưu. Trạng thái trước khi khôi phục đã được sao lưu trên thiết bị này.",
+    "replaced": "Đã thay bằng bản sao lưu. Trạng thái trước khi khôi phục đã được sao lưu trên thiết bị này.",
+    "exported": "Đã xuất tệp sao lưu.",
+    "imported": "Đã thêm bản sao lưu đã nhập vào danh sách. Hãy chọn cách khôi phục."
+  }
+}

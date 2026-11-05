@@ -1,0 +1,60 @@
+{
+  "assist": {
+    "title": "Chỉnh sửa bằng AI",
+    "editedNote": "Đã chỉnh sửa theo yêu cầu. Hãy lưu để áp dụng.",
+    "failed": "Chỉnh sửa bằng AI thất bại.",
+    "noAi": "Không có kết nối AI nào để dùng. Hãy kiểm tra kết nối trong Cài đặt.",
+    "notConnectedPc": "Chưa kết nối với PC. Hãy kết nối với PC trước.",
+    "parseFailed": "Không thể đọc prompt từ phản hồi của AI. Hãy thử diễn đạt lại yêu cầu.",
+    "pcRemote": "{host} · cài đặt từ xa",
+    "defaultTitle": "Dùng kết nối mặc định trong Cài đặt",
+    "viaPcTitle": "Chỉnh sửa theo cài đặt từ xa của PC (tác nhân, mô hình, mức nỗ lực)",
+    "placeholder": "Mô tả cách sửa. Để trống để trau chuốt tổng thể. Ví dụ: thêm ba dòng tóm tắt chính vào cuối câu trả lời",
+    "requestLabel": "Yêu cầu chỉnh sửa gửi cho AI",
+    "running": "AI đang chỉnh sửa… nội dung sẽ được điền ngay vào ô bên dưới.",
+    "stop": "Dừng",
+    "undo": "Hoàn tác thay đổi của AI",
+    "idea": {
+      "concise": {
+        "label": "Ngắn gọn hơn",
+        "text": "Giữ nguyên ý nghĩa và quy tắc, nhưng làm cho câu ngắn hơn và súc tích hơn."
+      },
+      "plain": {
+        "label": "Lời lẽ dễ hiểu",
+        "text": "Thay các cách diễn đạt khó bằng từ ngữ dễ hiểu. Giữ nguyên quy tắc và định dạng."
+      },
+      "example": {
+        "label": "Thêm ví dụ",
+        "text": "Thêm một ví dụ về câu trả lời tốt để mô hình có thể làm theo."
+      },
+      "format": {
+        "label": "Sắp xếp định dạng",
+        "text": "Sắp xếp các chỉ dẫn thành danh sách đánh số cho dễ đọc. Không thay đổi các quy tắc về định dạng đầu ra."
+      }
+    }
+  },
+  "back": "Quay lại",
+  "cancel": "Hủy",
+  "default": "Mặc định",
+  "editAria": "Chỉnh sửa prompt",
+  "edited": "Đã sửa",
+  "labelAria": "Prompt {label}",
+  "list": "Danh sách prompt",
+  "liveNote": "Prompt đã đổi sẽ áp dụng từ câu hỏi tiếp theo bạn gửi. Các câu trả lời đã nhận vẫn giữ nguyên.",
+  "pcNote": "Cuộc trò chuyện chạy trên PC và theo prompt của ứng dụng PC. Bạn có thể đổi prompt trong ứng dụng PC.",
+  "placeholder": "Để trống rồi lưu sẽ dùng nội dung mặc định.",
+  "reset": {
+    "button": "Khôi phục mặc định",
+    "confirm": "Khôi phục",
+    "message": "Khôi phục “{label}” về nội dung mặc định của ứng dụng. Phần chỉnh sửa sẽ bị xóa.",
+    "title": "Khôi phục về mặc định?"
+  },
+  "save": "Lưu",
+  "system": "Prompt hệ thống",
+  "title": "Quản lý prompt",
+  "unsaved": {
+    "confirm": "Bỏ",
+    "message": "Bỏ các thay đổi?",
+    "title": "Có thay đổi chưa lưu"
+  }
+}

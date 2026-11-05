@@ -1,0 +1,101 @@
+{
+  "label": "演示（模拟）",
+  "availability": {
+    "ready": "已连接",
+    "offline": "无法连接服务商（离线）。",
+    "notInstalled": "未安装 CLI。",
+    "notLoggedIn": "CLI 未登录。",
+    "noKey": "未设置 API 密钥。",
+    "unpaired": "未与远程 Bridge 配对。"
+  },
+  "error": {
+    "streamCut": "响应流中途中断（演示错误）。",
+    "aborted": "用户已停止。"
+  },
+  "fallbackTopic": "这个概念",
+  "title": {
+    "attention": "Transformer 注意力",
+    "fallback": "新学习"
+  },
+  "canned": {
+    "roadmap": {
+      "match": "课程|大纲|路线图|学习计划|学习规划|curriculum|roadmap|study ?plan",
+      "flags": "i",
+      "answer": "**Transformer 四周学习路线图**。每周学习一章，前一章为后一章打下基础。\n\n## 第 1 周：向量与点积\n_目标：把词看作向量，并衡量它们的相似程度 · 约 4 小时_\n\n1. **1.1 什么是向量** — 理解为什么要用数字列表表示词\n2. **1.2 点积** — 用数字衡量两个向量的相似程度\n3. **1.3 余弦相似度** — 忽略长度，只比较方向\n\n## 第 2 周：Softmax 与概率\n_目标：把分数转换为和为 1 的权重 · 约 3 小时_\n\n1. **2.1 指数函数** — 理解为什么它会把较大的分数放得更大\n2. **2.2 归一化** — 除以总和，使总和变为 1\n\n## 第 3 周：注意力\n_目标：用 Query、Key、Value 计算加权和 · 约 5 小时_\n\n1. **3.1 Query、Key、Value** — 区分三个向量各自的作用\n2. **3.2 缩放点积** — 理解为什么要除以 √d\n3. **3.3 加权和** — 用权重对 Value 进行混合\n\n## 第 4 周：多头与 Transformer 模块\n_目标：把注意力堆叠成模块 · 约 5 小时_\n\n1. **4.1 多头** — 同时从多个角度观察\n2. **4.2 残差连接与归一化** — 即使堆叠很深，也能保证学习稳定\n\n> 每章都一定要留出时间，亲手计算一遍。\n\n```branches\n{\"chapters\":[{\"title\":\"第 1 周：向量与点积\",\"question\":\"第 1 周：请结合示例，循序渐进地讲解向量与点积\"},{\"title\":\"第 2 周：Softmax 与概率\",\"question\":\"第 2 周：请讲解 Softmax 如何把分数转换为概率\"},{\"title\":\"第 3 周：注意力\",\"question\":\"第 3 周：请逐行拆解注意力公式\"},{\"title\":\"第 4 周：多头与 Transformer 模块\",\"question\":\"第 4 周：请讲解多头注意力以及 Transformer 模块的结构\"}],\"next\":[{\"title\":\"开始前需要了解的数学\",\"question\":\"开始这份路线图之前，应该先了解哪些数学知识？\"},{\"title\":\"每天的学习顺序\",\"question\":\"每天学习一章，应该按照什么顺序进行？\"}]}\n```"
+    },
+    "cosine": {
+      "match": "余弦|cosine",
+      "flags": "i",
+      "answer": "**余弦相似度**是只看两个向量**指向同一方向的程度**的度量。\n\n- 公式：`cos θ = (a · b) / (|a| |b|)`\n- 取值范围：**-1**（方向完全相反）到 **1**（方向相同）\n\n> 比喻：只比较两个人伸手指向的*方向*，忽略手臂的长短。\n\n可以把注意力中的点积理解为未除以长度的“原始余弦相似度”。"
+    },
+    "dot": {
+      "match": "点积|内积|dot ?product|inner product",
+      "flags": "i",
+      "answer": "**点积（dot product）** 是把两个向量对应位置的值相乘，再全部相加。\n\n```python\nq = [1, 2, 0]\nk = [2, 1, 3]\nscore = sum(a * b for a, b in zip(q, k))  # 1*2 + 2*1 + 0*3 = 4\n```\n\n两个向量的**方向越相似**，结果越大。因此在注意力中，它被用作衡量 Query 与 Key 匹配程度的分数。\n如果再对长度进行归一化，就得到了**余弦相似度**。"
+    },
+    "softmax": {
+      "match": "softmax|Softmax|SOFTMAX",
+      "flags": "i",
+      "answer": "**Softmax** 是把一组分数转换为**和为 1 的概率分布**的函数。\n\n| 分数 | e^分数 | 比例 |\n|---|---|---|\n| 2.0 | 7.39 | 0.66 |\n| 1.0 | 2.72 | 0.24 |\n| 0.1 | 1.11 | 0.10 |\n\n> 比喻：把得票数换算成得票率，同时对第一名稍作加成。\n\n在注意力中，它用于决定每个词**应该被关注多少（权重）**。"
+    },
+    "scale": {
+      "match": "√|根号|缩放|scale|sqrt",
+      "flags": "i",
+      "answer": "**除以 √d_k 的原因**是：维度越大，点积的值就越大。\n\n1. 维度 d_k 较大时，点积的方差也会随 d_k 成比例增大\n2. 较大的值进入 Softmax 后，会让某一项接近 1，其余接近 0 → **梯度消失**\n3. 除以 √d_k 可使方差回到 1 附近\n\n> 比喻：如果考试满分是 1000 分，名次之间的差距会显得过于极端，于是换算成 100 分制。"
+    },
+    "qkv": {
+      "match": "Query|Key|Value|Q\\/K\\/V|QKV",
+      "flags": "i",
+      "answer": "**Query / Key / Value** 可以用图书馆检索来类比。\n\n- **Query（查询）**：我想找的东西 —— “关于猫的书”\n- **Key（索引）**：每本书的标签 —— 与检索词进行比较的对象\n- **Value（内容）**：实际取回的书的内容\n\n注意力通过 Query 与所有 Key 的**点积**来为“相关程度”打分，再用这些分数对 Value 进行混合，得到结果。\n这三个向量都是由同一个词嵌入分别乘以不同的权重矩阵 `W_Q`、`W_K`、`W_V` 得到的。"
+    },
+    "multihead": {
+      "match": "多头|multi.?head",
+      "flags": "i",
+      "answer": "**多头注意力**是并行运行多个注意力（多个头）的方法。\n\n- 每个头拥有各自的 `W_Q, W_K, W_V`，因此会从**不同的角度**学习关系\n- 例如：一个头关注语法关系，另一个头关注指代对象（它 → 猫）\n- 将结果拼接（concat）后，再通过线性变换合并\n\n> 比喻：语法老师、语文老师和历史老师同时阅读同一句话，然后把各自的笔记合并起来。"
+    },
+    "attention": {
+      "match": "注意力|attention",
+      "flags": "i",
+      "answer": "**注意力（Attention）** 是句子中的每个词自行决定“应该参考其他哪些词、参考多少”的机制。\n\n核心公式如下。\n\n```text\nAttention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V\n```\n\n1. 将每个词转换为 Query、Key、Value 三个向量。\n2. 通过 Query 与所有 Key 的点积，求出相关度分数。\n3. 将分数除以 √d_k，再用 Softmax 转换为权重。\n4. 用权重对 Value 进行加权求和，得到新的表示。\n\n例如，在“猫坐在垫子上，**它**是温暖的”中，*它*会对 *垫子* 赋予较高的权重。"
+    }
+  },
+  "quiz": "我们用一个测验来检验目前学过的注意力内容。\n\n```quiz\n{\n  \"title\": \"注意力检验测验\",\n  \"questions\": [\n    { \"type\": \"ox\", \"question\": \"注意力分数是由 Query 与 Key 的点积求得的。\", \"answer\": true, \"explanation\": \"Query 与每个 Key 的**点积**即为相关度分数，再经 Softmax 转换为权重。\" },\n    { \"type\": \"choice\", \"question\": \"将分数除以 $\\\\sqrt{d_k}$ 的原因最恰当的是？\", \"choices\": [\"为了让计算更快\", \"防止点积值过大，使 Softmax 集中于某一项\", \"为了与 Value 向量的大小保持一致\", \"为了对 Key 进行归一化\"], \"answer\": 2, \"explanation\": \"维度较大时，点积的方差会增大，Softmax 的梯度几乎为 0。除以 √d_k 可以调整数值的规模。\" },\n    { \"type\": \"short\", \"question\": \"用注意力权重进行加权求和的向量名称是？\", \"answer\": \"Value\", \"accept\": [\"V\", \"值\", \"价值\"], \"explanation\": \"权重会与 **Value** 向量相乘，从而形成新的表示。\" }\n  ]\n}\n```",
+  "speak": "点击卡片上的按钮，可以逐行或连续收听。\n\n```speak\n{\n  \"title\": \"越南语问候\",\n  \"items\": [\n    { \"text\": \"Xin chào\", \"lang\": \"vi\", \"note\": \"你好\" },\n    { \"text\": \"Cảm ơn bạn\", \"lang\": \"vi\", \"note\": \"谢谢你\" },\n    { \"text\": \"Nice to meet you.\", \"lang\": \"en\", \"note\": \"初次见面时的问候语\" }\n  ]\n}\n```",
+  "search": {
+    "source1": "示例新闻",
+    "source2": "示例文档"
+  },
+  "skill": {
+    "fallbackTitle": "概念测验",
+    "fallbackDescription": "用测验检验主题的核心概念。",
+    "appendRequest": "{cur}\n- 已采纳追加请求：{ask}",
+    "newBody": "根据学习者给出的主题出一份测验。\n\n1. 挑选 **3 个**核心概念，每个概念逐一提出一道题。\n2. 请求：{ask}",
+    "rubricHeading": "# 评分标准",
+    "rubricItem": "- 正确回答：是否指出了 **粗体** 的核心术语",
+    "noteAppended": "已将您的请求添加到指令中。",
+    "noteCreated": "已创建测验技能。"
+  },
+  "page": {
+    "fillItems": "- 用一行概括核心概念\n- 举一个例子",
+    "organizeHeading": "## 整理"
+  },
+  "summary": {
+    "gistFallback": "{target}的核心含义与用法",
+    "line": "{gist} 也就是说，在前面讲解的语境中，应这样理解“{target}”。"
+  },
+  "generic": "问得好。我结合前面的语境，简要解释一下 **{target}**。\n\n- **要点**：{target} 是当前所讲概念的一个组成部分。\n- **比喻**：就像乐高说明书中的一个步骤，只有理解了它，才能接上下一步。\n- **示例**：亲手跟着做一次实际计算，就能获得直观感受。\n\n> （这是演示回复。连接真实的服务商后，将生成符合语境的讲解。）",
+  "reorganize": "问题：从头整理 Transformer 中的注意力\n---\n## 注意力一览\n\n注意力是通过 **Query·Key·Value** 计算相关度，并对值进行加权求和的方法。\n\n> （这是演示的重新整理回复。）",
+  "next": {
+    "example": {
+      "title": "用示例进一步了解",
+      "question": "请用一个实际示例，从头到尾完整地讲解{topic}"
+    },
+    "confusion": {
+      "title": "容易混淆的地方",
+      "question": "初学者在{topic}上最容易混淆的地方是什么？"
+    }
+  },
+  "prompt": {
+    "note": "已将请求作为规则追加（演示）。"
+  }
+}

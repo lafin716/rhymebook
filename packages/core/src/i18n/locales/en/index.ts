@@ -28,6 +28,7 @@ import mobile from './mobile.json';
 import core from './core.json';
 import bridge from './bridge.json';
 import knowledge from './knowledge.json';
+import rag from './rag.json';
 
 export default {
   common,
@@ -59,4 +60,5 @@ export default {
   core,
   bridge,
   knowledge,
+  rag,
 };

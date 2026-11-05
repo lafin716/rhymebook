@@ -19,10 +19,14 @@ interface SchedulesState {
   error: string | null;
   /** Schedules running now (id → title and session). Drives the indicator. */
   running: Record<string, { title: string; sessionId: string }>;
-  /** Finished runs not yet opened from the indicator, oldest finish first. */
+  /** Finished runs not yet opened from the notification panel, oldest finish first. */
   finished: ScheduleFinished[];
-  /** Opens the earliest finished run's conversation (else a running one) and drops it from the queue. */
-  openNextFinished(): void;
+  /** Opens a finished run's conversation and drops it from the notifications. */
+  openFinished(id: string): void;
+  /** Opens a running schedule's conversation. */
+  openRunning(id: string): void;
+  /** Drops one finished notification, or all of them without an id. */
+  dismissFinished(id?: string): void;
   refresh(): Promise<void>;
   /** skill: undefined keeps the current skill, null removes it. */
   save(input: ScheduleInput, sessionId: string, id?: string, skill?: SkillRef | null): Promise<void>;
@@ -35,17 +39,17 @@ const requireAvailable = () => {
 };
 export const useSchedules = create<SchedulesState>((set, get) => ({
   items: [], loaded: false, error: null, running: {}, finished: [],
-  openNextFinished() {
-    const { finished, running } = get();
-    const sessions = appStore.getState().sessions;
-    const queue = finished.filter((f) => sessions[f.sessionId]);
-    const next = queue[0];
-    if (next) set({ finished: queue.slice(1) });
-    else if (queue.length !== finished.length) set({ finished: queue });
-    const target = next?.sessionId ?? Object.values(running).find((r) => sessions[r.sessionId])?.sessionId;
-    if (!target) return;
-    actions().openSession(target);
-    actions().setOverlay('none');
+  openFinished(id) {
+    const item = get().finished.find((f) => f.id === id);
+    set((st) => ({ finished: st.finished.filter((f) => f.id !== id) }));
+    if (item) openScheduleSession(item.sessionId);
+  },
+  openRunning(id) {
+    const item = get().running[id];
+    if (item) openScheduleSession(item.sessionId);
+  },
+  dismissFinished(id) {
+    set((st) => ({ finished: id ? st.finished.filter((f) => f.id !== id) : [] }));
   },
   async refresh() {
     if (!scheduleAvailable || isDemo()) { set({ items: [], loaded: true }); return; }
@@ -63,6 +67,12 @@ export const useSchedules = create<SchedulesState>((set, get) => ({
   async remove(id) { requireAvailable(); await repo.remove(id); await get().refresh(); },
   async toggle(id) { requireAvailable(); await repo.toggle(id); await get().refresh(); },
 }));
+
+function openScheduleSession(sessionId: string) {
+  if (!appStore.getState().sessions[sessionId]) return;
+  actions().openSession(sessionId);
+  actions().setOverlay('none');
+}
 
 export function handleScheduleResponse(event: ResponseComplete): void {
   if (!scheduleAvailable || isDemo() || event.scheduleRun) return;

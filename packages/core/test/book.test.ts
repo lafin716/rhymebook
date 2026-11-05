@@ -82,6 +82,19 @@ describe('책 파싱', () => {
     expect(b.chapters[0]).toMatchObject({ number: 1, title: '시작' });
   });
 
+  it.each([
+    ['ja', '## 構造の分析\nx\n## 目次\n- a\n# 本\n## はじめに\n序\n## 第1章. 基礎\n本文\n— 第1章まで書きました。「続けて」と送ると、次の章から続けて書きます。\n## 第2章. 実践\n本文\n## 用語集\n- a', ['はじめに'], ['用語集']],
+    ['zh', '## 第 1 步：结构分析\nx\n## 目录\n- a\n# 本\n## 前言\n序\n## 第1章。基础\n本文\n— 已写到第 1 章。发送“继续”，我将从下一章接着写。\n## 第 2 章 实践\n本文\n## 术语表\n- a', ['前言'], ['术语表']],
+    ['vi', '## Bước 1: Phân tích cấu trúc\nx\n## Mục lục\n- a\n# Sách\n## Lời nói đầu\nsở\n## Chương 1. Cơ bản\nbody\n— Đã viết đến chương 1. Hãy gửi \'tiếp tục\' để tôi viết tiếp từ chương sau.\n## Chương 2. Thực hành\nbody\n## Bảng thuật ngữ\n- a', ['Lời nói đầu'], ['Bảng thuật ngữ']],
+  ])('%s 장 제목·이어쓰기 줄·앞뒤 부분', (_lang, text, front, back) => {
+    const b = parseBook([text], 'x');
+    expect(b.chapters.map((c) => c.number)).toEqual([1, 2]);
+    expect(b.chapters[0]!.title).not.toMatch(/^[.。:]/);
+    expect(b.chapters[0]!.markdown).not.toMatch(/続けて|继续|tiếp tục/);
+    expect(b.front.map((p) => p.title)).toEqual(front);
+    expect(b.back.map((p) => p.title)).toEqual(back);
+  });
+
   it('장 사이 알 수 없는 ## 섹션은 직전 장에 붙인다', () => {
     const b = parseBook(['# 책\n## 1장. 하나\n본문\n## 쉬어 가기\n쉼'], 'x');
     expect(b.chapters[0]!.markdown).toContain('## 쉬어 가기\n\n쉼');

@@ -1,12 +1,12 @@
-import { getLocale } from '../i18n';
+import { getLocale, intlLocale } from '../i18n';
 
-/** Scheduling copy stays separate while the shared locale dictionaries are being migrated. */
+/** Scheduling copy stays separate while the shared locale dictionaries are being migrated. Non-Korean locales use English. */
 export function scheduleText(ko: string, en: string): string {
-  return getLocale() === 'en' ? en : ko;
+  return getLocale() === 'ko' ? ko : en;
 }
 
 export function scheduleDate(at: number): string {
-  return new Intl.DateTimeFormat(getLocale() === 'en' ? 'en-US' : 'ko-KR', {
+  return new Intl.DateTimeFormat(intlLocale(), {
     dateStyle: 'medium', timeStyle: 'short',
   }).format(at);
 }

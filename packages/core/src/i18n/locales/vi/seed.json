@@ -1,0 +1,50 @@
+{
+  "session": {
+    "backprop": "Kiến thức nền về lan truyền ngược",
+    "root": "Attention trong Transformer",
+    "qkv": "Query, Key, Value",
+    "dot": "Tích vô hướng",
+    "cos": "Độ tương đồng cosine",
+    "softmax": "Softmax",
+    "scale": "Chia tỷ lệ (√d_k)"
+  },
+  "question": {
+    "backprop": "Hãy giải thích ngắn gọn lan truyền ngược hoạt động thế nào.",
+    "root": "Hãy giải thích attention trong Transformer là gì.",
+    "root2": "Vậy multi-head attention khác gì?",
+    "root3": "Attention có được dùng khác nhau ở encoder và decoder không?",
+    "root4": "Attention tốn bao nhiêu phép tính? Với câu dài thì có ổn không?",
+    "qkv": "\"Query, Key, Value\" là gì?",
+    "dot": "\"Tích vô hướng\" là gì?",
+    "cos": "Hãy giải thích chi tiết hơn về \"độ tương đồng cosine\".",
+    "softmax": "\"Softmax\" là gì?",
+    "scale": "Hãy giải thích chi tiết hơn về \"chia tỷ lệ (√d_k)\"."
+  },
+  "answer": {
+    "backprop": "**Lan truyền ngược (backpropagation)** là cách truyền sai số của đầu ra ngược trở lại, rồi tính xem mỗi trọng số đã góp phần bao nhiêu vào sai số đó (gradient).\n\n1. Tính dự đoán và hàm mất mát bằng lan truyền thuận\n2. Dùng quy tắc chuỗi (chain rule) để tính gradient từ lớp đầu ra về phía lớp đầu vào\n3. Cập nhật trọng số bằng gradient descent",
+    "root": "**Attention** là cơ chế mà mỗi từ trong câu tự quyết định sẽ tham chiếu đến những từ khác với mức độ nào.\n\nCông thức cốt lõi như sau.\n\n```text\nAttention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V\n```\n\n1. Biến mỗi từ thành ba vector **Query, Key, Value**.\n2. So sánh Query với tất cả Key để tính điểm liên quan.\n3. **Chia tỷ lệ (√d_k)** các điểm rồi dùng **softmax** để biến chúng thành trọng số.\n4. Lấy tổng có trọng số của các Value để có biểu diễn mới.\n\nVí dụ, trong câu \"Con mèo ngồi trên thảm, **nó** rất ấm\", *nó* gán trọng số cao cho *thảm*.",
+    "root2": "**Multi-head attention** chạy nhiều attention ở trên song song, mỗi lần chạy gọi là một đầu (head).\n\n- Mỗi head có `W_Q, W_K, W_V` riêng nên học được quan hệ từ **góc nhìn khác nhau**.\n- Ví dụ: một head tập trung vào ngữ pháp, head khác tập trung vào đại từ chỉ ai (nó → thảm).\n- Kết quả được ghép nối (concat) rồi kết hợp bằng một phép biến đổi tuyến tính.\n\n> Ví von: một giáo viên ngữ pháp, một giáo viên văn học và một giáo viên lịch sử cùng đọc một câu rồi gộp ghi chú lại.",
+    "root3": "Transformer dùng attention ở **ba** chỗ.\n\n1. **Encoder self-attention**: các từ trong câu đầu vào tham chiếu lẫn nhau\n2. **Decoder masked self-attention**: chỉ nhìn các từ đã sinh ra đến lúc này (từ tương lai bị che)\n3. **Attention encoder–decoder (cross)**: Query của decoder tham chiếu Key/Value đầu ra của encoder\n\n> Ví von: người dịch lướt qua bản gốc (1), đọc lại phần đã dịch (2), rồi khi chọn từ tiếp theo thì tra lại phần tương ứng trong bản gốc (3).",
+    "root4": "Nếu độ dài câu là **n** thì attention tốn **O(n²)** phép tính.\n\n- Vì phải tính điểm cho mọi cặp từ (n × n)\n- Nên với tài liệu dài, bộ nhớ và thời gian tăng rất nhanh\n\nĐể giảm chi phí này, người ta dùng các kỹ thuật như **sparse attention**, **sliding window** và **FlashAttention**.",
+    "qkv": "**Query / Key / Value** dễ hình dung nếu ví với tìm kiếm trong thư viện.\n\n- **Query (truy vấn)**: thứ mình muốn tìm, ví dụ \"sách về những thứ ấm áp\"\n- **Key (chỉ mục)**: nhãn của từng cuốn sách, thứ được đối chiếu với từ khóa tìm kiếm\n- **Value (nội dung)**: nội dung thực của cuốn sách được lấy ra\n\nAttention chấm điểm mức liên quan giữa Query và từng Key bằng **tích vô hướng**, rồi dùng các điểm đó để trộn các Value thành kết quả.\nCả ba vector đều lấy từ cùng một embedding của từ, nhân với các ma trận trọng số khác nhau `W_Q`, `W_K`, `W_V`.",
+    "dot": "**Tích vô hướng (dot product)** là nhân các giá trị ở cùng vị trí của hai vector rồi cộng tất cả lại.\n\n```python\nq = [1, 2, 0]\nk = [2, 1, 3]\nscore = sum(a * b for a, b in zip(q, k))  # 1*2 + 2*1 + 0*3 = 4\n```\n\nHai vector hướng về **cùng một phía** càng nhiều thì giá trị càng lớn. Vì vậy attention dùng nó làm điểm đo mức độ khớp giữa Query và Key.\nNếu chuẩn hóa thêm theo độ dài, bạn sẽ được độ tương đồng cosine.",
+    "cos": "**Độ tương đồng cosine** là thước đo chỉ xem hai vector **hướng về cùng một phía đến mức nào**.\n\n- Công thức: `cos θ = (a · b) / (|a| |b|)`\n- Khoảng giá trị: **-1** (ngược hướng) đến **1** (cùng hướng)\n\n> Ví von: chỉ so sánh *hướng* mà hai người chỉ tay, còn bỏ qua độ dài cánh tay.\n\nBạn có thể coi tích vô hướng trong attention là \"độ tương đồng cosine thô\", tức là chưa chia cho độ dài.",
+    "softmax": "**Softmax** là hàm biến một danh sách điểm số thành **phân phối xác suất có tổng bằng 1**.\n\n| Điểm | e^điểm | Tỷ lệ |\n|---|---|---|\n| 2.0 | 7.39 | 0.66 |\n| 1.0 | 2.72 | 0.24 |\n| 0.1 | 1.11 | 0.10 |\n\n> Ví von: đổi số phiếu bầu thành tỷ lệ phiếu, nhưng người đứng đầu được đẩy lên nhiều hơn một chút.\n\nTrong attention, softmax được dùng để quyết định **mức độ chú ý (trọng số) dành cho từng từ**.",
+    "scale": "**Lý do chia cho √d_k** là vì giá trị tích vô hướng sẽ quá lớn khi số chiều tăng.\n\n1. Khi số chiều d_k lớn, phương sai của tích vô hướng cũng tăng tỷ lệ với d_k\n2. Khi các giá trị lớn đi vào softmax, một phần tử gần 1 còn lại gần 0 → **triệt tiêu gradient**\n3. Chia cho √d_k đưa phương sai về gần 1\n\n> Ví von: nếu bài thi tính trên thang 1000 điểm thì khoảng cách thứ hạng trông quá cực đoan, nên quy đổi về thang 100 điểm."
+  },
+  "anchor": {
+    "qkv": "Query, Key, Value",
+    "dot": "tích vô hướng",
+    "cos": "độ tương đồng cosine",
+    "softmax": "softmax",
+    "scale": "chia tỷ lệ (√d_k)"
+  },
+  "summary": {
+    "dot": "Tích vô hướng là phép nhân các vị trí tương ứng rồi cộng lại, giá trị càng lớn khi hai vector hướng về cùng một phía, nên được dùng làm điểm liên quan Query–Key.",
+    "softmax": "Softmax biến danh sách điểm số thành xác suất có tổng bằng 1, tạo ra các trọng số quyết định mỗi từ nhận bao nhiêu sự chú ý."
+  },
+  "connection": {
+    "mock": "Phản hồi demo",
+    "claudeCli": "claude 2.1.4 · đã đăng nhập"
+  }
+}

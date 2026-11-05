@@ -1,4 +1,13 @@
 import type { KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview, KnowledgeProgress } from '../knowledge';
+import type {
+  KnowledgeDoc,
+  KnowledgeIndexSettings,
+  KnowledgeIndexState,
+  KnowledgeSource,
+  RetrievalRequest,
+  RetrievalResult,
+  SourceView,
+} from '../rag/types';
 import type { HostPolicy } from '../platform';
 import type { SkillFolder } from '../skillFolder';
 import type { SttModelId, SttState } from '../stt';
@@ -75,6 +84,30 @@ export interface DesktopKnowledgeApi {
   onProgress?(listener: (p: KnowledgeProgress) => void): () => void;
   /** 진행 중인 가져오기를 취소한다 (해당 호출은 취소 문구로 reject) */
   cancel?(): Promise<void>;
+  // ── 색인·검색 (ADR-113). 모두 optional: 없으면 기존 동작 ──
+  /** 설명을 저장한다 (빈 문자열이면 지운다) */
+  setDescription?(id: string, description: string): Promise<KnowledgeBase>;
+  /** 지식베이스별 색인 상태 (ids 생략 시 전부) */
+  indexStates?(ids?: string[]): Promise<KnowledgeIndexState[]>;
+  /** 색인을 큐에 넣고 즉시 돌아온다. full이면 전체 재색인 */
+  reindex?(id: string, opts?: { full?: boolean }): Promise<void>;
+  /** 진행 중·대기 중인 색인을 취소한다 */
+  cancelIndex?(id: string): Promise<void>;
+  /** 색인된 문서 목록 (query가 있으면 경로·제목 부분 일치) */
+  docs?(id: string, query?: string): Promise<KnowledgeDoc[]>;
+  getIndexSettings?(id: string): Promise<KnowledgeIndexSettings>;
+  /** 임베딩 모델이 바뀌면 stale로 표시하고 전체 재색인을 큐에 넣는다 */
+  setIndexSettings?(id: string, s: KnowledgeIndexSettings): Promise<KnowledgeIndexState>;
+  /** 출처 목록 (가져온 로컬 경로·URL·저장소) */
+  sources?(id: string): Promise<KnowledgeSource[]>;
+  /** 출처를 다시 받는다 (링크 재수집·저장소 재클론) */
+  updateSource?(id: string, sourceId: string): Promise<KnowledgeAddResult>;
+  /** 질문에 대한 근거 검색 (renderer는 질의 계획만 보낸다) */
+  retrieve?(req: RetrievalRequest): Promise<RetrievalResult>;
+  /** 인용 한 건의 원문 주변 */
+  source?(kbId: string, chunkId: string): Promise<SourceView>;
+  /** 색인 상태 변화 구독. 해제 함수를 돌려준다 */
+  onIndexState?(listener: (s: KnowledgeIndexState) => void): () => void;
 }
 
 /** PC의 로컬 whisper.cpp 설정·모델 관리. 원격 기기는 이 설정을 따르기만 한다 */

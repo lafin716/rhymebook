@@ -1,0 +1,35 @@
+{
+  "lang": {
+    "vi": "Tiếng Việt",
+    "en": "Tiếng Anh",
+    "ko": "Tiếng Hàn"
+  },
+  "speak": {
+    "noSupport": "Thiết bị này không thể đọc văn bản thành giọng nói.",
+    "noVoice": "Thiết bị này không có giọng {lang}. Thêm giọng trong cài đặt thiết bị sẽ giúp phát âm chính xác hơn.",
+    "noVoiceFail": "Không thể đọc vì thiết bị này không có giọng {lang}. Hãy thêm {lang} trong phần chuyển văn bản thành giọng nói (TTS) của thiết bị.",
+    "failed": "Không thể đọc bằng giọng của thiết bị."
+  },
+  "recorder": {
+    "permission": "Chưa được cấp quyền micro. Hãy cho phép micro trong cài đặt hệ thống hoặc trình duyệt.",
+    "noDevice": "Không có micro khả dụng.",
+    "busy": "Ứng dụng khác đang dùng micro.",
+    "openFailed": "Không thể mở micro.",
+    "insecure": "Không thể dùng micro ở địa chỉ này (HTTP). Hãy mở qua HTTPS hoặc trong ứng dụng.",
+    "unsupported": "Thiết bị này không hỗ trợ ghi âm bằng micro."
+  },
+  "mic": {
+    "tooShort": "Bản ghi quá ngắn.",
+    "silent": "Không thu được âm thanh nào. Hãy kiểm tra micro và thử nói lại.",
+    "noText": "Không nhận diện được lời nói nào. Hãy nói lại.",
+    "failed": "Chuyển giọng nói thành văn bản thất bại.",
+    "stop": "Dừng ghi âm và chuyển thành chữ",
+    "transcribing": "Đang chuyển thành chữ",
+    "start": "Nhập bằng giọng nói",
+    "recordingTitle": "Đang ghi {secs} giây · nhấn để kết thúc",
+    "seconds": "{secs} giây"
+  },
+  "stt": {
+    "stateError": "Không thể tải cài đặt giọng nói."
+  }
+}

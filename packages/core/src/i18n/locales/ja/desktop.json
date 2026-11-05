@@ -1,0 +1,25 @@
+{
+  "tray": {
+    "tooltip": "octobooks — リモート接続を実行中",
+    "open": "octobooks を開く",
+    "remote": "リモート接続: {state}{devices}",
+    "devices": " · 端末 {count}台",
+    "on": "オン",
+    "off": "オフ",
+    "quit": "完全に終了"
+  },
+  "notify": {
+    "hiddenTitle": "octobooks はバックグラウンドで動作を続けています",
+    "hiddenBody": "応答の生成、完了通知、予約は引き続き動作します。完全に停止するには、トレイアイコンから [{quit}] を選んでください。"
+  },
+  "errors": {
+    "unknownModel": "不明なモデルです。"
+  },
+  "present": {
+    "title": "octobooks 発表"
+  },
+  "host": {
+    "portFailed": "ポートを開けませんでした: {reason}",
+    "relayScheme": "relay のアドレスは ws:// または wss:// で始まる必要があります。"
+  }
+}

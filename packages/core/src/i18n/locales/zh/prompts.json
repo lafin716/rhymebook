@@ -1,0 +1,60 @@
+{
+  "assist": {
+    "title": "用 AI 修改",
+    "editedNote": "已按要求修改。保存后即可生效。",
+    "failed": "AI 修改失败。",
+    "noAi": "没有可用的 AI 连接。请在设置中检查连接。",
+    "notConnectedPc": "尚未连接电脑。请先连接电脑。",
+    "parseFailed": "无法从 AI 回复中读取提示词。请稍微修改请求后重试。",
+    "pcRemote": "{host} · 远程设置",
+    "defaultTitle": "使用设置中的默认连接",
+    "viaPcTitle": "使用电脑端的远程设置（代理、模型、努力值）进行修改",
+    "placeholder": "请描述如何修改。留空则整体润色。例如：请在回答末尾加上三行核心总结",
+    "requestLabel": "向 AI 提出修改请求",
+    "running": "AI 正在修改……下方输入框会即时填入。",
+    "stop": "停止",
+    "undo": "撤销 AI 修改",
+    "idea": {
+      "concise": {
+        "label": "更简洁",
+        "text": "保持含义和规则不变，把句子修改得更简短精炼。"
+      },
+      "plain": {
+        "label": "通俗用语",
+        "text": "把难懂的表达改为通俗的话。保持规则和格式不变。"
+      },
+      "example": {
+        "label": "添加示例",
+        "text": "再添加一个好的回答示例，供模型参照。"
+      },
+      "format": {
+        "label": "整理格式",
+        "text": "把指令整理成编号列表，便于阅读。不要改变输出格式规则。"
+      }
+    }
+  },
+  "back": "返回",
+  "cancel": "取消",
+  "default": "默认值",
+  "editAria": "编辑提示词",
+  "edited": "已修改",
+  "labelAria": "{label} 提示词",
+  "list": "提示词列表",
+  "liveNote": "修改后的提示词从下一次发送的问题开始生效。已收到的回答保持不变。",
+  "pcNote": "对话在电脑上运行，并遵循电脑端应用的提示词。提示词可在电脑端应用中修改。",
+  "placeholder": "留空并保存将使用默认文本。",
+  "reset": {
+    "button": "恢复为默认值",
+    "confirm": "恢复",
+    "message": "将“{label}”恢复为应用默认文本。已做的修改将被删除。",
+    "title": "恢复为默认值？"
+  },
+  "save": "保存",
+  "system": "系统提示词",
+  "title": "提示词管理",
+  "unsaved": {
+    "confirm": "放弃",
+    "message": "要放弃更改吗？",
+    "title": "有未保存的更改"
+  }
+}

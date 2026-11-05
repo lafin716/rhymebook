@@ -1,0 +1,279 @@
+{
+  "bg": {
+    "paper": "纸张",
+    "white": "白色",
+    "cream": "奶油色",
+    "lightGreen": "浅绿",
+    "sky": "天蓝",
+    "gray": "灰色",
+    "chalkboard": "黑板"
+  },
+  "image": {
+    "readFailed": "无法读取图片。",
+    "processFailed": "无法处理图片。",
+    "notImage": "{name} 不是图片。",
+    "tooLarge": "{name} 太大（需在 25MB 以内）。"
+  },
+  "pageImage": {
+    "readFailed": "无法读取图画。",
+    "createFailed": "无法生成页面图画。",
+    "tooLarge": "页面图画太大，无法放入。",
+    "name": "{title} 第{page}页",
+    "untitled": "画布"
+  },
+  "pdf": {
+    "passwordProtected": "无法导入设有密码的 PDF。",
+    "readFailed": "无法读取 {name}。请确认它是否为 PDF 文件。"
+  },
+  "present": {
+    "ended": "演示已结束",
+    "waiting": "等待演示中…",
+    "toolbar": "演示工具",
+    "laser": "激光笔",
+    "pen": "笔",
+    "eraser": "橡皮擦",
+    "color": "颜色 {color}",
+    "clearInk": "清除所有笔迹",
+    "prev": "上一页",
+    "next": "下一页",
+    "openAudience": "打开观众屏幕",
+    "openAudienceTitle": "打开观众屏幕（供观众查看，无工具栏）",
+    "fullscreen": "全屏",
+    "end": "结束演示",
+    "endTitle": "结束演示 (Esc)"
+  },
+  "import": {
+    "offline": "尚未连接电脑。连接后请重新导入。",
+    "timeout": "电脑未能完整接收对话。请稍后再试。",
+    "sources": {
+      "image": {
+        "label": "图片",
+        "hint": "PNG·JPG·GIF·WebP 文件"
+      },
+      "pdf": {
+        "label": "PDF",
+        "hint": "每页一张 · 画布将切换为 PDF 模式"
+      },
+      "session": {
+        "label": "会话内容",
+        "hint": "将一段对话转为文字卡片"
+      },
+      "page": {
+        "label": "页面内容",
+        "hint": "将一页转为文字卡片"
+      },
+      "vault": {
+        "label": "资料库",
+        "hint": "选择已保存的文字或图画"
+      }
+    },
+    "menu": {
+      "label": "导入类型",
+      "title": "导入到画布"
+    },
+    "sub": {
+      "image": "图画",
+      "text": "文字"
+    },
+    "failed": "导入失败。",
+    "picker": {
+      "session": "导入会话内容",
+      "page": "导入页面内容",
+      "vault": "从资料库导入"
+    },
+    "empty": {
+      "page": "还没有页面。",
+      "session": "没有可导入的对话。",
+      "vault": "没有已保存的项目。"
+    },
+    "search": "搜索",
+    "searchPlaceholder": "按名称搜索",
+    "noMatch": "没有找到要找的项目。",
+    "busy": "正在导入…"
+  },
+  "settings": {
+    "title": "画布设置",
+    "pdfMode": "PDF 模式",
+    "pdfHint": "{name} · 在下方选择其他尺寸，PDF 将被移除",
+    "sizeTitle": "画布尺寸",
+    "layout": {
+      "free": {
+        "label": "自由",
+        "hint": "无限画布，可在任意位置书写"
+      },
+      "landscape": {
+        "label": "横向 16:9",
+        "hint": "每页横向宽阔 · 翻页即新建一页"
+      },
+      "portrait": {
+        "label": "纵向 9:16",
+        "hint": "每页纵向狭长 · 翻页即新建一页"
+      },
+      "a4Landscape": {
+        "label": "A4 横向",
+        "hint": "A4 纸横放的页面 · 翻页即新建一页"
+      },
+      "a4Portrait": {
+        "label": "A4 纵向",
+        "hint": "A4 纸竖放的页面 · 翻页即新建一页"
+      }
+    },
+    "flowTitle": "翻页方向",
+    "flow": {
+      "horizontal": {
+        "label": "左右",
+        "hint": "左右滑动翻页"
+      },
+      "vertical": {
+        "label": "上下",
+        "hint": "上下滑动翻页"
+      }
+    },
+    "bg": "背景",
+    "bgPdf": "背景 · 在 PDF 页面之外及新建画板上显示",
+    "bgColor": "背景色",
+    "colorCustom": "自选背景色",
+    "bgPattern": "背景图案",
+    "pattern": {
+      "none": "纯色",
+      "gridFine": "细方格",
+      "gridWide": "宽方格",
+      "lines": "横线笔记本"
+    },
+    "paletteTitle": "一次显示的颜色数",
+    "paletteSlider": "调色板颜色数",
+    "paletteMin": "至少 1 个",
+    "paletteAll": "全部 ({total})",
+    "gestureTitle": "双指手势",
+    "gestureHint": "快速滑动会执行所选操作，慢速拖动则移动画面。选择“关闭”的方向仍会像以前一样移动画面并翻页。上一页/下一页仅在分页画板中可用。",
+    "gestureSelect": "双指{name}",
+    "gesture": {
+      "doubleTap": "双击",
+      "swipeUp": "上滑",
+      "swipeDown": "下滑",
+      "swipeLeft": "左滑",
+      "swipeRight": "右滑"
+    },
+    "action": {
+      "off": "关闭",
+      "selectPen": "选择 ↔ 笔",
+      "eraserPen": "橡皮擦 ↔ 笔",
+      "penMarker": "笔 ↔ 荧光笔",
+      "undo": "撤销",
+      "redo": "重做",
+      "prevPage": "上一页",
+      "nextPage": "下一页"
+    }
+  },
+  "toolbar": {
+    "label": "画布工具",
+    "dockHandle": "更改工具栏位置",
+    "dockHandleTitle": "拖动以重新放置工具栏",
+    "ink": {
+      "black": "黑",
+      "white": "白",
+      "red": "红",
+      "blue": "蓝",
+      "green": "绿",
+      "yellow": "黄",
+      "purple": "紫"
+    },
+    "inkSwatch": "{name}色",
+    "favoriteInk": "收藏色 {hex}",
+    "favoriteGroup": "收藏的颜色",
+    "favoriteUse": "使用收藏色 {hex}",
+    "tool": {
+      "select": "选择/移动",
+      "pen": "笔",
+      "marker": "荧光笔",
+      "eraser": "橡皮擦"
+    },
+    "penTitle": "笔 ({nib}) · 再次点击可更改类型和粗细",
+    "markerTitle": "荧光笔 · 再次点击可更改粗细",
+    "nib": {
+      "fountain": "钢笔",
+      "fountainHint": "粗细随按压力度变化",
+      "ballpoint": "圆珠笔",
+      "ballpointHint": "粗细均匀，书写工整",
+      "brush": "毛笔",
+      "brushHint": "粗细变化明显，笔尖较细",
+      "pencil": "铅笔",
+      "pencilHint": "细且略淡"
+    },
+    "nibGroup": "笔的类型",
+    "colors": "颜色",
+    "moreColors": "更多颜色",
+    "customColor": "自选颜色",
+    "customColorTitle": "自选颜色 · 收藏",
+    "collapsePalette": "收起调色板",
+    "expandPalette": "展开调色板",
+    "undo": "撤销",
+    "undoTitle": "撤销 (⌘Z)",
+    "redo": "重做",
+    "redoTitle": "重做 (⌘⇧Z)",
+    "deleteSelected": "清除所选项",
+    "deleteSelectedTitle": "清除所选项 (Delete)",
+    "present": "演示",
+    "fullEnd": "退出全屏",
+    "full": "全屏",
+    "import": "导入",
+    "penSettings": "笔设置",
+    "markerSize": "荧光笔粗细",
+    "penSize": "笔的粗细",
+    "pickColor": "选择颜色",
+    "sizeNumber": "粗细数值",
+    "sizeRange": "粗细",
+    "svArea": "饱和度·明度",
+    "svValue": "饱和度 {saturation}%，明度 {brightness}%",
+    "hue": "色相",
+    "colorNew": "新颜色",
+    "colorOriginal": "恢复为原色 {hex}",
+    "colorOriginalTitle": "恢复为原色",
+    "eyedrop": "从屏幕取色",
+    "eyedropTitle": "吸管 · 从屏幕取色",
+    "colorCode": "颜色代码",
+    "channelValue": "{channel} 值",
+    "favorite": {
+      "preset": "这是默认颜色",
+      "remove": "从收藏中移除",
+      "max": "收藏最多 {max} 个",
+      "add": "添加到收藏"
+    }
+  },
+  "panel": {
+    "label": "画布",
+    "defaultTitle": "画布",
+    "tooBig": "画布太大，无法保存。请缩小图片或分开使用。",
+    "saveFail": "无法保存画布。请稍后再试。",
+    "pageSaveFail": "无法将页面存入资料库。",
+    "pdfEndTitle": "结束 PDF 模式？",
+    "pdfEndMessage": "导入的 PDF 页面将从画布移除，但您在其上写的笔迹和卡片会保留。",
+    "pdfReplaceTitle": "更换 PDF？",
+    "pdfReplaceMessage": "将用 {next} 替换当前 PDF（{current}）。笔迹和卡片会保留。",
+    "confirmChange": "更换",
+    "pdfLoading": "正在加载 PDF…",
+    "pdfNoPages": "{name} 中没有页面。",
+    "pdfTruncated": "共 {total} 页，仅导入了前 {shown} 页。",
+    "importFail": "无法导入 {name}。",
+    "fitPage": "适合页面",
+    "fitAll": "查看全部",
+    "eyedropHint": "点击画板以取色",
+    "eyedropStop": "停止吸管",
+    "imageFiles": "要导入的图片文件",
+    "pdfFile": "要导入的 PDF 文件",
+    "pageTitle": "{title} 第{page}页"
+  },
+  "pageNav": {
+    "label": "翻页",
+    "prev": "上一页",
+    "next": "下一页",
+    "add": "新建页",
+    "save": "将此页存入资料库"
+  },
+  "board": {
+    "label": "画布画板",
+    "gesturing": "缩放·移动中",
+    "resize": "调整大小",
+    "importedImage": "导入的图片"
+  }
+}

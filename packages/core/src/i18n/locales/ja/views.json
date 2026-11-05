@@ -1,0 +1,65 @@
+{
+  "sheet": {
+    "close": "シートを閉じる",
+    "dialog": "枝のシート",
+    "stackInfo": "シート {count}枚が重なっています · 下にドラッグすると前の枝に戻ります",
+    "fullScreen": "全画面表示にする"
+  },
+  "popup": {
+    "dialog": "枝のポップアップ",
+    "dock": "分割にドッキング",
+    "openInMain": "メインで開く"
+  },
+  "split": {
+    "closePanel": "パネルを閉じる",
+    "tabs": "分割のタブ",
+    "closeTab": "タブを閉じる",
+    "move": {
+      "left": "左と入れ替え",
+      "right": "右と入れ替え",
+      "up": "上と入れ替え",
+      "down": "下と入れ替え",
+      "label": "位置の移動"
+    },
+    "moveTitle": "位置の移動（ドラッグして移動）",
+    "closeOthers": "他のウィンドウを閉じる",
+    "menu": "分割メニュー",
+    "swap": "位置を入れ替える",
+    "flip": "向きを変える",
+    "vertical": "上下に",
+    "horizontal": "左右に"
+  },
+  "drop": {
+    "open": {
+      "left": "左に開く",
+      "right": "右に開く",
+      "top": "上に開く",
+      "bottom": "下に開く",
+      "center": "この位置で開く"
+    },
+    "move": {
+      "left": "左に移動",
+      "right": "右に移動",
+      "top": "上に移動",
+      "bottom": "下に移動",
+      "center": "位置を入れ替える"
+    },
+    "maxSplit": "分割は最大 {max} 個までです。中央にドロップすると、そのパネルを置き換えます。"
+  },
+  "mindmap": {
+    "collapseQuestions": "質問リストを折りたたむ",
+    "expandQuestions": "質問リストを展開する",
+    "canvas": "キャンバス",
+    "page": "ページ",
+    "hasSummary": "要約あり",
+    "footnote": "脚注セッション",
+    "root": "ルートセッション",
+    "questionListOf": "{title} の質問リスト",
+    "emptyQuestion": "（空の質問）",
+    "noQuestions": "まだ質問がありません。",
+    "hintTouch": "タップ: シートで開く · ダブルタップ: 全画面 · ▾: 質問リスト",
+    "hintMouse": "クリック: ポップアップ · {mod}+クリック: 分割に追加 · ダブルクリック: メイン · ▾: 質問リスト",
+    "title": "マインドマップ",
+    "close": "マインドマップを閉じる"
+  }
+}

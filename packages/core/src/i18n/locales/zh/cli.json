@@ -1,0 +1,33 @@
+{
+  "bridge": {
+    "usage": "用法：\n  branch-bridge [serve] [--pair] [--port 7777] [--host 0.0.0.0] [--name 名称] [--dir 路径]\n                [--relay wss://relay.example.com] [--relay-only]\n    --relay       通过出站连接注册到 relay，即使在 NAT 之后也能被访问（保持端到端加密）\n    --relay-only  不开放直连端口，仅通过 relay 接受连接\n  branch-bridge pair            （等同于 serve --pair）\n  branch-bridge devices         列出已配对的设备\n  branch-bridge unpair <id|all> 解除设备配对",
+    "noDevices": "没有已配对的设备。",
+    "deviceLine": "{id}  {name}  配对于 {paired}  最近 {seen}",
+    "unpairMissing": "请指定要解除配对的设备 id，或使用 all。",
+    "unpaired": "已解除 {count} 台设备的配对。",
+    "noSuchDevice": "没有该设备。",
+    "badPort": "无效的端口：{port}",
+    "relayOnlyNeedsRelay": "--relay-only 需要提供 --relay 地址。",
+    "relayScheme": "relay 地址必须以 ws:// 或 wss:// 开头。",
+    "insecureRelay": "注意：relay 使用的是 ws://。在公共网络中请使用 wss://（负载已做端到端加密）。",
+    "relayConnected": "✓ 已连接到 relay",
+    "relayRetrying": "… relay 连接已断开，正在重试",
+    "relayNotYet": "尚未能连接到 relay。将在后台继续重试。",
+    "running": "Branch Bridge \"{name}\" 正在运行（{target}）",
+    "relayOnly": "仅 relay",
+    "port": "端口 {port}",
+    "fingerprint": "bridge 指纹：{fingerprint}",
+    "scanHint": "在应用中进入 设置 → 远程 Bridge → 开始配对，然后扫描下方二维码或粘贴链接。",
+    "link": "链接（{label}）：{uri}",
+    "codeLine": "或输入地址 + 配对码：配对码 {code}（5 分钟内有效，仅可使用一次）",
+    "checkFingerprint": "请确认应用中显示的 bridge 指纹与上面的指纹一致。",
+    "paired": "✓ 配对完成：{name}（{id}）",
+    "noDevicesPair": "没有已配对的设备。请使用 --pair 选项开始配对。"
+  },
+  "relay": {
+    "usage": "用法：\n  branch-relay [--port 8787] [--host 0.0.0.0] [-v]",
+    "badPort": "无效的端口：{port}",
+    "running": "Branch Relay 正在运行：ws://{host}:{port}（状态：http://{host}:{port}/health）",
+    "bridgeHint": "bridge：branch-bridge --relay <此地址>   · 公开部署时，请将其置于 TLS（wss://）代理之后。"
+  }
+}

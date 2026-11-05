@@ -1,0 +1,32 @@
+{
+  "remote": {
+    "label": "Kết nối với PC",
+    "title": "Kết nối với PC của tôi",
+    "intro": "Khi kết nối với PC, bạn sẽ thấy nội dung đang học trên PC và CLI của PC sẽ trả lời câu hỏi của bạn. Bạn cũng có thể dùng trên thiết bị này bằng khóa API mà không cần PC.",
+    "step1": "Mở ứng dụng octobooks trên PC và bật [Mở ghép nối từ xa] trong Cài đặt → Kết nối.",
+    "step2": "Nhấn [Kết nối điện thoại hoặc web] để hiện mã QR và mã 6 chữ số.",
+    "step3": "Bên dưới, quét mã QR hoặc nhập liên kết, hoặc địa chỉ và mã.",
+    "storeNote": "Dữ liệu học được lưu trên PC",
+    "later": "Để sau",
+    "useThisDevice": "Dùng trên thiết bị này"
+  },
+  "local": {
+    "label": "Bắt đầu",
+    "back": "Quay lại",
+    "titleChoose": "Bắt đầu với octobooks",
+    "titleCli": "Kết nối CLI của PC này",
+    "titleApi": "Đăng ký khóa API",
+    "titleDevice": "Bắt đầu trên thiết bị này",
+    "choosePitch": "Sự tò mò của bạn càng vươn xa, việc học càng sâu. Hãy mở một nhánh mới từ câu hỏi trong câu trả lời. Trước tiên, hãy kết nối AI mà bạn sẽ học cùng.",
+    "cliChoice": "CLI của PC này (tài khoản đăng ký)",
+    "cliDesc": "Chạy trực tiếp Claude Code hoặc Codex CLI đã cài đặt và đăng nhập. Bạn cũng có thể chọn mô hình và mức nỗ lực.",
+    "recommended": "Khuyến nghị",
+    "apiChoice": "Khóa API",
+    "apiDesc": "Gọi trực tiếp bằng khóa API của Anthropic hoặc OpenAI.",
+    "remoteTip": "Để dùng CLI của PC này từ điện thoại hoặc web, hãy kết nối rồi bật Cài đặt → Kết nối → [Mở ghép nối từ xa].",
+    "apiNote": "Việc học được lưu trên thiết bị này, còn câu trả lời được nhận qua khóa API bạn đã đăng ký.",
+    "start": "Bắt đầu",
+    "waiting": "Đang chờ kết nối",
+    "later": "Để sau"
+  }
+}

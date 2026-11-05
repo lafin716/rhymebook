@@ -1,0 +1,143 @@
+{
+  "attachments": {
+    "binaryNote": "(Tệp đính kèm: {names} — không thể xem nội dung tệp trong kết nối này)"
+  },
+  "effort": {
+    "low": "Thấp",
+    "medium": "Trung bình",
+    "high": "Cao",
+    "xhigh": "Rất cao",
+    "max": "Tối đa",
+    "ultra": "Ultra"
+  },
+  "availability": {
+    "disabled": "Đã tắt"
+  },
+  "providers": {
+    "mock": "Demo (Mock)",
+    "remoteBridge": "Bridge từ xa"
+  },
+  "tts": {
+    "speechKorean": "Hãy đọc rõ ràng, tự nhiên như người bản ngữ Hàn Quốc dùng tiếng Hàn chuẩn.",
+    "fallback": {
+      "auth": "vì khóa API OpenAI chưa có hoặc đã bị từ chối,",
+      "rateLimit": "vì hạn mức sử dụng OpenAI (tín dụng) đã hết hoặc yêu cầu quá nhiều,",
+      "offline": "vì không thể kết nối với OpenAI,",
+      "network": "vì máy chủ OpenAI phản hồi có lỗi,",
+      "default": "vì không thể tạo giọng nói OpenAI,",
+      "template": "{reason} Sẽ đọc bằng giọng của thiết bị."
+    }
+  },
+  "stt": {
+    "large": {
+      "label": "Tiêu chuẩn (chính xác)",
+      "note": "Khuyến nghị cho Apple Silicon và PC có GPU mới. Độ chính xác tiếng Hàn tốt nhất."
+    },
+    "small": {
+      "label": "Nhẹ (nhanh)",
+      "note": "Dành cho PC cũ hoặc cấu hình thấp. Nhanh nhưng độ chính xác thấp hơn một chút."
+    }
+  },
+  "bridgePrompt": {
+    "learner": "Người học",
+    "tutor": "Gia sư",
+    "answer": "Tiếp nối cuộc trò chuyện ở trên, hãy trả lời tin nhắn cuối cùng của người học bên dưới. Đừng sao chép định dạng của lịch sử trò chuyện."
+  },
+  "session": {
+    "newTitle": "Học mới"
+  },
+  "store": {
+    "reorganize": "Sắp xếp lại phiên"
+  },
+  "page": {
+    "newTitle": "Trang mới",
+    "blocks": {
+      "h1": "Tiêu đề 1",
+      "h2": "Tiêu đề 2",
+      "h3": "Tiêu đề 3",
+      "bullet": "Danh sách gạch đầu dòng",
+      "number": "Danh sách đánh số",
+      "todo": "Danh sách việc cần làm",
+      "quote": "Trích dẫn",
+      "code": "Khối mã",
+      "divider": "Đường kẻ ngang",
+      "table": "Bảng",
+      "math": "Công thức",
+      "image": "Hình ảnh",
+      "file": "Tệp",
+      "page": "Trang con"
+    },
+    "tableHeader": {
+      "item": "Mục",
+      "desc": "Mô tả"
+    }
+  },
+  "canvas": {
+    "newTitle": "Canvas mới",
+    "image": "Hình ảnh",
+    "omitted": "…(lược bớt)",
+    "pdf": "[PDF: {name}]",
+    "imageNamed": "[Hình ảnh: {name}]",
+    "imageBare": "[Hình ảnh]",
+    "handwriting": "[Chữ viết tay {n} nét]",
+    "pages": "[{pages} trang]"
+  },
+  "fallback": {
+    "image": "Hình ảnh",
+    "file": "Tệp"
+  },
+  "vault": {
+    "text": "Văn bản",
+    "voice": "Giọng nói",
+    "item": "Mục"
+  },
+  "turns": {
+    "attachments": "[Đính kèm] {names}",
+    "splitQuestion": "Câu hỏi đã tách"
+  },
+  "notes": {
+    "header": "> Ghi chú hiểu bài của octobooks · {date} · {branches} nhánh · {summaries} tóm tắt",
+    "empty": "Chưa có nhánh nào. Hãy chọn phần chưa hiểu trong câu trả lời để tạo nhánh.",
+    "path": "Đường dẫn: {path}",
+    "summary": "**Phần đã hiểu** — {summary}",
+    "noSummary": "_Chưa có tóm tắt — tóm tắt sẽ được điền khi bạn dùng [Đính kèm tóm tắt vào nhánh cha] trên một nhánh._",
+    "defaultName": "Ghi chú hiểu bài",
+    "fileTag": "ghi-chu-hieu-bai"
+  },
+  "backupMarkdown": {
+    "title": "# Sao lưu octobooks",
+    "asOf": "Tính đến {at}. Để khôi phục, hãy dùng tệp backup JSON trong Cài đặt › Sao lưu của ứng dụng.",
+    "original": "> Nguyên văn: \"{text}\"",
+    "summary": "> **Tóm tắt nhánh**: {text}",
+    "me": "**Tôi**: {text}"
+  },
+  "backupErrors": {
+    "invalid": "Đây không phải tệp sao lưu của octobooks, hoặc tệp đã bị hỏng.",
+    "newerVersion": "Bản sao lưu này được tạo bởi phiên bản ứng dụng mới hơn. Hãy cập nhật ứng dụng rồi khôi phục.",
+    "passphraseRequired": "Bản sao lưu này được khóa bằng mật khẩu. Hãy nhập mật khẩu.",
+    "wrongPassphrase": "Mật khẩu không đúng."
+  },
+  "backupTargets": {
+    "file": "Tệp",
+    "gdrive": "Google Drive"
+  },
+  "targetHttp": {
+    "unauthorized": "Xác thực {label} đã hết hạn hoặc bị từ chối. Hãy kết nối lại.",
+    "forbidden": "Quyền của {label} không đủ. Hãy kiểm tra quyền ghi.",
+    "notFound": "Không tìm thấy mục tiêu trong {label}. Hãy kiểm tra tên và quyền truy cập.",
+    "network": "Không thể kết nối với {label}. Hãy kiểm tra mạng.",
+    "failed": "Yêu cầu {label} thất bại (HTTP {status})."
+  },
+  "route": {
+    "direct": "Kết nối trực tiếp",
+    "lan": "Kết nối trực tiếp qua LAN",
+    "tailscale": "Kết nối trực tiếp qua Tailscale",
+    "relay": "Qua relay"
+  },
+  "remote": {
+    "base": "{name} · {route} · độ trễ {latency}ms",
+    "loginNeeded": "{base} · Cần đăng nhập CLI trên PC bridge. {detail}",
+    "notInstalled": "{base} · PC bridge chưa cài Claude/Codex CLI.",
+    "via": "Qua Bridge từ xa ({name})"
+  }
+}

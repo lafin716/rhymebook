@@ -1,0 +1,53 @@
+{
+  "importFail": {
+    "offline": "未连接到电脑。连接后请重新导入。",
+    "timeout": "电脑没有响应。请稍后再试。",
+    "conflict": "电脑上已有使用相同 id 的其他学习内容，因此没有导入。",
+    "forbidden": "要覆盖已有的学习内容，需要在电脑设置中允许远程删除。",
+    "invalid": "此文件太大或格式不正确，无法远程发送。请在电脑应用中导入。",
+    "rateLimit": "请求过于频繁。请稍后再试。",
+    "fallback": "无法在电脑上导入。"
+  },
+  "study": {
+    "loadTimeout": "未能从电脑完整接收对话。请稍后再试。",
+    "notFound": "找不到该学习内容。",
+    "exported": "已保存学习压缩包（zip）。可在其他设备的理解笔记 › [导入学习] 中加载。",
+    "tooBig": "文件太大。",
+    "name": "“{title}”",
+    "importedToPc": "已将 {name} 学习内容导入到电脑。",
+    "partAdded": "新增 {count}",
+    "partUpdated": "更新 {count}",
+    "partKept": "保留 {count}",
+    "partSkipped": "生成中，已跳过 {count}",
+    "imported": "已导入 {name} 学习内容 — 分支 {parts}。",
+    "importFailPc": "无法在电脑上导入。",
+    "bookSessionTitle": "📖 {title}",
+    "digestFileName": "{title} 学习原文.md",
+    "makeBookPrompt": "请把这份学习记录做成一本书。",
+    "newSessionFail": "无法创建新会话。",
+    "sendFail": "无法发送问题。"
+  },
+  "modal": {
+    "label": "理解笔记",
+    "close": "关闭理解笔记",
+    "titleWith": "理解笔记 · {title}",
+    "emptyImport": "没有打开的学习内容。您可以导入在其他设备上通过 [导出学习] 保存的 zip 文件，然后接着学习。",
+    "summaryLine": "分支 {cards} 个 · 摘要 {summarized} 个。汇总在分支中理解的内容，用于复习或导出为文件。",
+    "noBranches": "还没有分支。选中回答中不懂的部分即可创建分支。",
+    "noSummary": "没有摘要 — 在分支中使用 [将摘要附加到父级]，即可填入摘要。",
+    "makeBookHint": "从目录开始，将整个学习内容梳理成结构化的书（/book 技能）",
+    "makeBook": "做成书",
+    "exportStudyHint": "将整个对话保存为 zip，以便在其他设备上接着学习",
+    "exportStudy": "导出学习",
+    "importStudy": "导入学习",
+    "importFileLabel": "选择学习压缩包文件",
+    "open": "打开",
+    "saveMarkdown": "保存 Markdown",
+    "markdownSaved": "已保存 Markdown 笔记。",
+    "noCardsHint": "只有带摘要的分支才会成为卡片",
+    "ankiCards": "Anki 卡片",
+    "ankiSaved": "已保存 {count} 张 Anki 卡片。请在 Anki › 文件 › 导入 中加载。",
+    "copy": "复制",
+    "markdownCopied": "已将 Markdown 复制到剪贴板。"
+  }
+}

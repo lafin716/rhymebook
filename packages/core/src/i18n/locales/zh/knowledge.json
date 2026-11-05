@@ -1,0 +1,188 @@
+{
+  "button": {
+    "label": "知识库",
+    "title": "本次学习的知识库",
+    "remoteTitle": "知识库（在电脑应用中管理）"
+  },
+  "dialog": {
+    "title": "知识库",
+    "close": "关闭知识库",
+    "back": "返回列表",
+    "full": "全屏",
+    "exitFull": "退出全屏"
+  },
+  "remote": {
+    "notice": "知识库在电脑应用中管理。此设备上的回答也会使用电脑上的知识库。"
+  },
+  "unavailable": {
+    "notice": "此设备无法使用知识库。请在桌面应用中打开。"
+  },
+  "list": {
+    "heading": "知识库",
+    "empty": "还没有知识库。",
+    "emptyHint": "收集资料后，回答会在其中查找内容并引用其路径。",
+    "create": "新建知识库",
+    "linkedBadge": "已关联到本次学习",
+    "link": "关联到本次学习",
+    "unlink": "取消关联",
+    "count": "{count} 个文件"
+  },
+  "create": {
+    "title": "新建知识库",
+    "namePlaceholder": "名称（例如：细胞生物学教材）",
+    "submit": "创建",
+    "cancel": "取消"
+  },
+  "rename": {
+    "action": "重命名",
+    "submit": "保存",
+    "cancel": "取消"
+  },
+  "delete": {
+    "action": "删除知识库",
+    "title": "要删除“{name}”吗？",
+    "message": "其中的 {count} 个文件也会一并删除。删除后无法恢复。",
+    "confirm": "删除"
+  },
+  "tree": {
+    "heading": "文件",
+    "empty": "还没有文件。",
+    "remove": "删除",
+    "removeTitle": "要删除“{name}”吗？",
+    "removeMessage": "删除后无法恢复。",
+    "open": "打开文件夹",
+    "previewEmpty": "选择一个文件即可预览其内容。",
+    "binary": "无法以文本形式预览此文件。",
+    "truncated": "仅显示开头部分。",
+    "expandAll": "全部展开",
+    "collapseAll": "全部收起"
+  },
+  "add": {
+    "drop": "将文件或文件夹拖放到此处",
+    "pick": "选择文件",
+    "linkLabel": "网页地址",
+    "linkPlaceholder": "https://...",
+    "linkSubmit": "获取",
+    "gitLabel": "GitHub 仓库",
+    "gitPlaceholder": "owner/repo 或 https://github.com/owner/repo",
+    "gitSubmit": "克隆",
+    "invalidUrl": "只能使用 http(s) 地址。",
+    "invalidGit": "只能使用 GitHub 仓库地址。",
+    "done": "已添加 {count} 项。",
+    "skipped": "有 {count} 项因大小或格式原因被跳过。",
+    "failed": "无法添加。请重试。",
+    "busyDrop": "仍在导入中。完成后请再拖放。",
+    "dropEmpty": "在拖放的项目中没有找到文件。",
+    "nothing": "没有添加任何文件。请检查文件大小或类型。",
+    "gitHint": "仅获取默认分支（main、master 等）的最新文件"
+  },
+  "error": {
+    "generic": "出现问题。请重试。",
+    "badDescription": "请检查描述。",
+    "badSettings": "请检查设置值。",
+    "badQuery": "请检查搜索词。",
+    "badId": "未找到知识库。",
+    "unavailable": "此设备无法使用知识库。"
+  },
+  "progress": {
+    "label": "导入进度",
+    "copy": "正在复制文件…",
+    "copied": "已复制 {count} 个文件（{size}）",
+    "download": "正在下载网页…",
+    "clone": "正在从 GitHub 下载…",
+    "save": "正在保存…",
+    "elapsed": "{seconds} 秒",
+    "cancel": "取消",
+    "cancelled": "已取消导入。"
+  },
+  "citations": {
+    "label": "来源",
+    "open": "打开来源 {n}：{title}"
+  },
+  "source": {
+    "title": "查看来源",
+    "close": "关闭",
+    "loading": "正在加载原文…",
+    "failed": "无法打开原文。{message}",
+    "chunk": "匹配的段落",
+    "section": "上下文",
+    "page": "第 {page} 页",
+    "line": "第 {line} 行",
+    "lines": "第 {start}–{end} 行"
+  },
+  "index": {
+    "empty": "尚未建立索引",
+    "queued": "等待建立索引",
+    "indexing": "正在建立索引 {done}/{total}",
+    "ready": "已建立索引 · {count} 个片段",
+    "stale": "文件已更改，需要重新索引",
+    "error": "建立索引失败",
+    "reindex": "重新索引",
+    "cancel": "取消索引"
+  },
+  "description": {
+    "cancel": "取消",
+    "edit": "编辑",
+    "empty": "暂无描述。告诉模型这个知识库的内容，检索会更准确。",
+    "label": "描述",
+    "placeholder": "例如：团队部署流程文档",
+    "save": "保存"
+  },
+  "docs": {
+    "chunks": "{count} 个分块",
+    "empty": "没有已索引的文档。",
+    "failed": "失败",
+    "heading": "文档",
+    "noMatch": "没有匹配的文档。",
+    "search": "按路径或标题搜索",
+    "skipped": "已跳过"
+  },
+  "embedding": {
+    "heading": "嵌入模型",
+    "local": "本地（离线，默认）",
+    "model": "模型",
+    "modelDefault": "默认模型",
+    "openai": "OpenAI（text-embedding-3-small）",
+    "openaiNotice": "选择 OpenAI 后，此知识库的文档正文会发送到 OpenAI 服务器。将使用您现有的 OpenAI API 密钥。涉及敏感资料请使用本地方式。",
+    "provider": "方式",
+    "reindexNeeded": "模型已更改。需要重新索引才能用于检索。",
+    "save": "保存",
+    "saved": "嵌入设置已保存。"
+  },
+  "rag": {
+    "enabled": "启用知识库检索",
+    "expandParent": "包含前后段落",
+    "heading": "检索设置",
+    "maxContextChars": "证据最大字符数",
+    "minScore": "最低相关度",
+    "rerank": "重新排序结果",
+    "reset": "默认值",
+    "save": "保存",
+    "topK": "证据数量"
+  },
+  "sources": {
+    "empty": "没有已添加的来源。",
+    "heading": "来源",
+    "type": {
+      "files": "文件",
+      "folder": "文件夹",
+      "github": "GitHub",
+      "web": "网页"
+    },
+    "update": "更新",
+    "updated": "已更新来源 {name}。",
+    "updating": "更新中…"
+  },
+  "storage": {
+    "chunks": "分块",
+    "docs": "文档",
+    "heading": "存储空间",
+    "index": "索引",
+    "source": "原文"
+  },
+  "link": {
+    "inherited": "正在沿用父分支的知识库。",
+    "overridden": "此分支使用自己的知识库。",
+    "reset": "跟随父分支"
+  }
+}

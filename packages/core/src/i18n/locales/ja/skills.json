@@ -1,0 +1,152 @@
+{
+  "assist": {
+    "createWithAi": "AIで作成",
+    "createdNote": "新しいスキルを入力しました。",
+    "defaultTitle": "設定の既定の接続を使います",
+    "editWithAi": "AIで修正",
+    "editedNote": "ご依頼のとおりに修正しました。",
+    "failed": "AIによる作成に失敗しました。",
+    "idea": {
+      "beginner": {
+        "label": "初心者向けの目線",
+        "text": "まだ学び始めたばかりの人の目線に合わせて、説明のレベルを下げるように修正してください。"
+      },
+      "concise": {
+        "label": "より簡潔に",
+        "text": "指示をより短く簡潔に整えてください。核となるルールは残してください。"
+      },
+      "example": {
+        "label": "例を追加",
+        "text": "モデルが真似できるように、出力例を1つ追加してください。"
+      },
+      "format": {
+        "label": "出力形式を明確に",
+        "text": "出力形式（見出し・リスト・表・分量）をより明確に決めてください。"
+      },
+      "quiz": {
+        "label": "概念クイズ",
+        "text": "テーマを渡すと、重要な概念5つでクイズを出し、答えを折りたたんで自分で確認できるようにするスキル"
+      },
+      "simple": {
+        "label": "やさしく解説",
+        "text": "難しい概念を、中学生にも分かるように比喩や図のような例で説明するスキル"
+      },
+      "socratic": {
+        "label": "ソクラテス式問答",
+        "text": "すぐに答えず、質問を投げかけて学習者が自分で答えにたどり着けるように導くスキル"
+      },
+      "vocab": {
+        "label": "単語暗記",
+        "text": "英単語を渡すと、意味・例文・語源・混同しやすい単語とあわせて覚えられるように手助けするスキル"
+      }
+    },
+    "noAi": "使用できるAIの接続がありません。設定で接続を確認してください。",
+    "notConnectedPc": "PCに接続されていません。先にPCに接続してください。",
+    "parseFailed": "AIの応答からスキルを読み取れませんでした。依頼を少し変えて、もう一度お試しください。",
+    "pcRemote": "{host} · リモート設定",
+    "placeholderEdit": "どのように修正するかを書いてください。例：確認の質問を3つに増やして、表にまとめてください",
+    "placeholderNew": "必要なスキルを書いてください。例：コードを渡すと、1行ずつ解説するスキル",
+    "requestLabel": "AIへの依頼",
+    "running": "AIが作成しています… 下の入力欄に順に入力されます。",
+    "stop": "停止",
+    "undo": "AIの変更を取り消す",
+    "viaPcTitle": "PCのリモート設定（エージェント・モデル・思考の強さ）で作成します"
+  },
+  "extras": {
+    "add": "追加",
+    "advanced": "詳細オプション",
+    "agent": "エージェント",
+    "cancel": "キャンセル",
+    "chars": "{n}文字",
+    "connDefault": "接続の既定モデル",
+    "connDefaultWithModel": "接続の既定モデル（{model}）",
+    "deleteFile": "{path} を削除",
+    "duplicatePath": "同じパスのファイルがすでにあります。",
+    "effort": "思考の強さ",
+    "effortDefault": "既定の思考の強さ",
+    "effortLabel": "スキルの思考の強さ",
+    "fileContent": "{path} の内容",
+    "files": "ファイル",
+    "filesHint": "長い参考資料は {references}、サンプルコードは {scripts}、回答テンプレートは {assets} に置くと、指示を短く保てます。ファイルは、このスキルを使うときに指示とあわせてモデルに渡されます。",
+    "filesMeta": "（{n}件 · {size}）",
+    "filesSection": "スキルのファイル",
+    "followSession": "セッションの設定に従う",
+    "importFile": "ファイルを読み込む",
+    "model": "モデル",
+    "modelLabel": "スキルのモデル",
+    "newFile": "新しいファイル",
+    "newPathLabel": "新しいファイルのパス",
+    "notApplicable": "該当なし",
+    "openFolder": "フォルダを開く",
+    "pcDefaultModel": "PCの既定モデル",
+    "provider": "プロバイダー",
+    "providerLabel": "スキルのプロバイダー",
+    "setHint": "このスキルを選んだ質問には、上の設定で回答します。その後の質問は、再びセッションの設定に従います。モデルと思考の強さを空にすると、その接続の既定値になります。",
+    "textOnly": "{name}: テキストファイルだけを追加できます。",
+    "thousandChars": "{n}千文字",
+    "tooLarge": "{name}: ファイルが大きすぎます。",
+    "unsetHint": "空のままにすると、チャット（セッション）で選んだプロバイダー・モデル・思考の強さをそのまま使います。このスキルだけ別のモデルで回答させたいときに選んでください。"
+  },
+  "files": {
+    "count": "ファイルは {n} 件まで追加できます。",
+    "duplicate": "同じパスのファイルが2つあります。",
+    "path": "ファイルパスは、英数字・ひらがな/カタカナ/漢字・._- からなる相対パスのみ使えます（例：references/guide.md。SKILL.md は除く）。",
+    "size": "ファイル1つは {file} 文字まで、合計は {total} 文字までです。"
+  },
+  "page": {
+    "addedCount": "{n}件追加",
+    "back": "戻る",
+    "builtin": "標準スキル",
+    "delete": "削除",
+    "deleteMessage": "「{title}」（/{name}）のスキルを削除します。すでに送信した質問には影響しません。",
+    "deleteTitle": "スキルを削除しますか？",
+    "description": "説明",
+    "descriptionHint": "（一覧とメニューに表示されます）",
+    "discard": "破棄",
+    "discardMessage": "変更内容を破棄しますか？",
+    "editor": "スキルの編集",
+    "empty": "スキルはまだありません。",
+    "existingHint": "チャットの入力欄で {command} と入力するか {menu} から選ぶと、その質問に下の指示が加えられます。",
+    "folderChangedMessage": "編集中に、スキルフォルダでこのスキルが変更されました。編集内容で上書きしますか？（フォルダに新しく入れたファイルはそのまま残します）",
+    "folderChangedTitle": "フォルダに変更があります",
+    "folderHintNew": "保存するとスキルフォルダが作成されます",
+    "folderHintSaved": "{root}/{name} — フォルダで変更した内容は、アプリに戻ると反映されます",
+    "folderOpenFailed": "フォルダを開けませんでした",
+    "list": "スキル一覧",
+    "menuPath": "+ › スキル",
+    "name": "コマンド名",
+    "new": "新しいスキル",
+    "newHint": "新しいスキルを作成します。やりたいことをAIに伝えるか、下の欄に直接入力してください。コマンド名を使えば、チャットからすぐに呼び出せます。",
+    "ok": "OK",
+    "open": "開く",
+    "openFolder": "スキルフォルダを開く",
+    "openUnsavedMessage": "フォルダには保存済みの内容だけがあります。このまま開きますか？",
+    "overwrite": "上書き",
+    "prompt": "指示",
+    "promptPlaceholder": "このスキルを選んだ質問に対して、モデルが従う指示を書いてください。",
+    "restoreExamples": "サンプルのスキルを戻す",
+    "revert": "元に戻す",
+    "save": "保存",
+    "saveFirstMessage": "スキルを保存するとフォルダが作成され、その後で開けるようになります。",
+    "saveFirstTitle": "先に保存してください",
+    "skippedNotice": "スキルは {max} 件までのため、{n} 件は読み込めませんでした。",
+    "sync": "同期",
+    "syncFailed": "スキルを同期できませんでした。{reason}",
+    "syncOffline": "PCに接続すると同期できます",
+    "syncReady": "PCで作成したスキルを取り込みます",
+    "syncSame": "PCのスキルはすでに同じです。",
+    "syncedNotice": "PCのスキルを同期しました（{parts}）",
+    "title": "スキル管理",
+    "titleField": "タイトル",
+    "titlePlaceholder": "カリキュラム作成",
+    "unsavedTitle": "保存していない変更があります",
+    "updatedCount": "{n}件更新"
+  },
+  "problem": {
+    "name": "コマンド名は、英小文字・数字・ひらがな/カタカナ/漢字・-・_ を使い、空白なしで {max} 文字までです。",
+    "nameTaken": "同じコマンド名のスキルがすでにあります。",
+    "prompt": "指示内容を入力してください。",
+    "title": "タイトルを入力してください。",
+    "tooLong": "タイトルは {title} 文字、説明は {description} 文字、指示は {prompt} 文字までです。"
+  }
+}

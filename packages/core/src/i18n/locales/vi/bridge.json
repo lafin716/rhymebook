@@ -1,0 +1,119 @@
+{
+  "errors": {
+    "authRequired": "{label} chưa đăng nhập. Hãy chạy `{loginHint}` trong terminal.",
+    "rateLimit": "{label} đã đạt giới hạn sử dụng. Hãy thử lại sau.{detail}",
+    "network": "{label} không kết nối được với mạng.{detail}",
+    "chatgptOnly": " Mô hình này không dùng được khi đăng nhập bằng tài khoản ChatGPT.",
+    "unsupportedModel": "Không dùng được mô hình '{model}' trong {label}.{why} Hãy chọn mô hình khác trong Cài đặt (hoặc phần cài đặt nâng cao của kỹ năng).",
+    "cliErrorDetail": "Lỗi chạy {label}: {text}",
+    "cliErrorNone": "{label} đã gặp lỗi khi chạy."
+  },
+  "detect": {
+    "slow": "Phản hồi chậm nên chưa xác nhận được · Vẫn có thể thử trò chuyện",
+    "claudeNotFound": "Không tìm thấy lệnh claude",
+    "claudeFailed": "Chạy claude thất bại",
+    "codexNotFound": "Không tìm thấy lệnh codex",
+    "codexFailed": "Chạy codex thất bại",
+    "needLogin": "{version} · Cần đăng nhập",
+    "ready": "{version} · Đã đăng nhập",
+    "readyWithMethod": "{version} · Đã đăng nhập ({method})",
+    "methodApiKey": "khóa API"
+  },
+  "codexImages": {
+    "name": "Hình ảnh đã tạo {n}.{ext}"
+  },
+  "common": {
+    "stopped": "Người dùng đã dừng."
+  },
+  "claude": {
+    "notFound": "{label} chưa được cài đặt hoặc không tìm thấy trong PATH.",
+    "timedOut": "{label} đã hết thời gian chờ.",
+    "exitCode": "Mã thoát {code}"
+  },
+  "skills": {
+    "badFolder": "Định dạng thư mục kỹ năng không hợp lệ",
+    "badName": "Tên kỹ năng không hợp lệ",
+    "badSkillMd": "Nội dung SKILL.md không hợp lệ",
+    "badFileList": "Danh sách tệp đi kèm không hợp lệ",
+    "badFileFormat": "Định dạng tệp đi kèm không hợp lệ",
+    "badFilePath": "Đường dẫn tệp đi kèm không hợp lệ",
+    "tooMany": "Quá nhiều tệp đi kèm, hoặc tệp quá lớn, hoặc bị chồng lấn",
+    "pathClash": "Đường dẫn tệp đi kèm trùng với tên thư mục",
+    "badFolderPath": "Đường dẫn thư mục kỹ năng không hợp lệ",
+    "fileInFolder": "Trong thư mục kỹ năng có tệp hoặc liên kết ở chỗ phải là thư mục",
+    "folderInFile": "Có thư mục ở chỗ phải là tệp",
+    "openFailed": "Không mở được thư mục: {error}"
+  },
+  "server": {
+    "imageGenNote": "Nếu cần hình ảnh, hãy tạo bằng công cụ sinh ảnh. Ứng dụng sẽ tự động đính kèm hình đã tạo bên dưới câu trả lời, nên đừng nói đến đường dẫn tệp hay nơi lưu. Không thay bằng hình SVG hoặc ASCII art.",
+    "sttUnsupported": "Bridge này không hỗ trợ nhập bằng giọng nói.",
+    "fallbackSystem": "Bạn là gia sư thân thiện, giúp việc học. Hãy trả lời ngắn gọn, rõ ràng bằng tiếng Việt.",
+    "pickModel": "Hãy chọn một mô hình.",
+    "imagesSkipped": "({count} hình không đính kèm được vì vượt giới hạn kích thước hoặc số lượng.)",
+    "unsupportedCli": "CLI này không được hỗ trợ."
+  },
+  "stt": {
+    "disabled": "Nhập bằng giọng nói đang tắt trên PC.",
+    "engineMissing": "Không tìm thấy công cụ giọng nói (whisper-cli).",
+    "downloading": "Đang tải mô hình giọng nói.",
+    "modelNeeded": "Cần tải mô hình giọng nói.",
+    "modelServerError": "Lỗi phản hồi từ máy chủ mô hình ({status})",
+    "modelSizeMismatch": "Kích thước mô hình không như mong đợi.",
+    "modelCorrupt": "Mô hình đã tải bị hỏng. Hãy tải lại.",
+    "queueFull": "Yêu cầu chuyển giọng nói đang chờ quá nhiều. Hãy thử lại sau ít phút.",
+    "badFormat": "Định dạng bản ghi âm không hợp lệ.",
+    "unavailable": "Không dùng được nhập bằng giọng nói.",
+    "engineNotFound": "Không tìm thấy công cụ giọng nói.",
+    "timedOut": "Hết thời gian chuyển giọng nói thành văn bản.",
+    "engineRunFailed": "Không chạy được công cụ giọng nói (whisper-cli).",
+    "failed": "Chuyển giọng nói thành văn bản thất bại.",
+    "unknownModel": "Mô hình không xác định.",
+    "otherDownloading": "Đang tải một mô hình khác.",
+    "cannotDeleteDownloading": "Không thể xóa mô hình đang tải."
+  },
+  "store": {
+    "readFailed": "Không đọc được {file}: {reason}"
+  },
+  "remote": {
+    "local": "Cục bộ",
+    "unnamedDevice": "Thiết bị chưa đặt tên"
+  },
+  "knowledge": {
+    "badId": "id cơ sở tri thức không hợp lệ",
+    "notFound": "Không tìm thấy cơ sở tri thức",
+    "entryNotFound": "Không tìm thấy mục",
+    "badName": "Tên cơ sở tri thức không hợp lệ",
+    "badPath": "Đường dẫn mục không hợp lệ",
+    "badUrl": "Địa chỉ web không hợp lệ (chỉ được dùng http hoặc https)",
+    "badRepo": "Địa chỉ kho GitHub không hợp lệ",
+    "privateHost": "Không thể lấy dữ liệu từ địa chỉ mạng nội bộ",
+    "fetchFailed": "Không tải được trang web",
+    "notHtml": "Không phải trang web hay văn bản nên không thể tải",
+    "htmlTooLarge": "Trang web quá lớn nên không thể tải",
+    "tooLarge": "Tệp quá lớn nên không thể thêm",
+    "tooManyFiles": "Vượt giới hạn số tệp của cơ sở tri thức nên không thể thêm",
+    "tooManyBytes": "Vượt giới hạn dung lượng của cơ sở tri thức nên không thể thêm",
+    "nameTaken": "Không thể tạo mục với tên này: {name}",
+    "gitMissing": "Không tìm thấy git. Hãy cài git rồi thử lại",
+    "cloneFailed": "Không tải được kho: {error}",
+    "cancelled": "Đã hủy nhập",
+    "cloneStalled": "Kho không phản hồi nên đã dừng. Hãy kiểm tra mạng và thử lại",
+    "cloneTimeout": "Kho quá lớn nên không tải kịp trong thời gian cho phép",
+    "openFailed": "Không mở được thư mục: {error}",
+    "systemNote": "Việc học này đang gắn một cơ sở tri thức (tài liệu tham khảo). Trước khi trả lời, hãy dùng công cụ Read, Glob và Grep để tìm và kiểm tra các tệp liên quan, rồi trả lời dựa trên nội dung tệp. Đường dẫn tính từ thư mục làm việc. Danh sách tệp ({shown} trong tổng {total}): {paths}",
+    "codexIndex": "Danh sách tệp của cơ sở tri thức ({shown} trong tổng {total}; không cung cấp nội dung tệp): {paths}",
+    "repoNotFound": "Không tìm thấy kho. Hãy kiểm tra địa chỉ và đảm bảo kho là công khai",
+    "index": {
+      "diskFull": "Không đủ dung lượng trống trên ổ đĩa để tạo chỉ mục",
+      "embedFailed": "Đã dừng lập chỉ mục vì không tạo được embedding: {message}",
+      "fileTooLarge": "Tệp quá lớn nên đã bị loại khỏi chỉ mục",
+      "keyMissing": "Chưa có khóa API OpenAI nên không thể tạo embedding. Hãy đặt khóa hoặc chọn embedding cục bộ",
+      "pdfUnavailable": "Không đọc được văn bản PDF nên đã loại tệp này",
+      "tooManyChunks": "Đã dừng lập chỉ mục vì vượt giới hạn số đoạn ({count})",
+      "tooManyFiles": "Không thể lập chỉ mục vì vượt giới hạn số tệp ({count})"
+    },
+    "badSettings": "Cài đặt chỉ mục không hợp lệ",
+    "diskLow": "Không đủ dung lượng trống trên ổ đĩa để thêm mục",
+    "sourceNoOrigin": "Tệp tải lên trực tiếp không thể lấy lại từ nguồn"
+  }
+}

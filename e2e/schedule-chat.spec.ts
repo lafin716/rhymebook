@@ -74,10 +74,14 @@ test('예약 요청 → 자동 저장 → 만료 실행 → 완료 알림, 재�
   });
   await expect(page.getByText('오늘의 예약 퀴즈 응답입니다.', { exact: true })).toBeVisible();
   await expect(page.locator('[data-schedule-run-badge]')).toBeVisible();
-  // The finished run stays on the indicator until opened; clicks open finished conversations oldest first.
-  const indicator = page.locator('[data-schedule-finished]');
-  await expect(indicator).toContainText('예약 응답 완료');
+  // Finished runs stay in the top bar notifications until opened; each opens its own conversation.
+  const bell = page.locator('[data-notification-bell]');
+  await expect(page.locator('[data-notification-count]')).toHaveText('1');
+  await bell.click();
+  await expect(page.locator('[data-schedule-finished]')).toContainText('예약 응답 완료');
+  await page.waitForTimeout(300); // let the panel's pop-in finish for the screenshot
   await page.screenshot({ path: info.outputPath(`schedule-result-${info.project.name}.png`) });
+  await page.keyboard.press('Escape');
   await page.evaluate(async () => {
     const entries = performance.getEntriesByType('resource').map((entry) => entry.name);
     const storePath = entries.find((name) => new URL(name).pathname === '/src/app/store.ts')!;
@@ -89,19 +93,19 @@ test('예약 요청 → 자동 저장 → 만료 실행 → 완료 알림, 재�
     const first = useSchedules.getState().finished[0];
     useSchedules.setState({ finished: [first, { id: 'later', title: '나중 예약', sessionId: 'schedule-later', at: first.at + 1 }] });
   });
-  await expect(indicator).toContainText('+1');
-  await indicator.click();
-  await expect.poll(() => page.evaluate(async () => {
+  await expect(page.locator('[data-notification-count]')).toHaveText('2');
+  const activeSession = () => page.evaluate(async () => {
     const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
     const { actions } = await import(path); return actions().view.activeSessionId;
-  })).toBe('schedule-chat-ai');
-  await expect(indicator).toContainText('나중 예약');
-  await indicator.click();
-  await expect.poll(() => page.evaluate(async () => {
-    const path = performance.getEntriesByType('resource').map((entry) => entry.name).find((name) => new URL(name).pathname === '/src/app/store.ts')!;
-    const { actions } = await import(path); return actions().view.activeSessionId;
-  })).toBe('schedule-later');
-  await expect(page.locator('[data-schedule-finished]')).toHaveCount(0);
+  });
+  await bell.click();
+  await page.locator('[data-schedule-finished="later"]').click();
+  await expect.poll(activeSession).toBe('schedule-later');
+  await expect(page.locator('[data-notification-count]')).toHaveText('1');
+  await bell.click();
+  await page.locator('[data-schedule-finished]').click();
+  await expect.poll(activeSession).toBe('schedule-chat-ai');
+  await expect(page.locator('[data-notification-count]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

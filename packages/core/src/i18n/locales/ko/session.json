@@ -51,7 +51,6 @@
     "pageIcon": "페이지",
     "rowTitle": "{title} · {time}",
     "rowTitleKids": "{title} · {time} · 가지 {count}",
-    "summarized": "요약됨",
     "streaming": "응답 생성 중",
     "unread": "안 읽은 응답"
   }

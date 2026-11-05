@@ -1,0 +1,104 @@
+{
+  "audio": {
+    "listen": "Nghe",
+    "stop": "Dừng"
+  },
+  "defaults": {
+    "folder": "Thư mục",
+    "fragment": "Mảnh",
+    "newFolder": "Thư mục mới",
+    "newPage": "Trang mới"
+  },
+  "delete": {
+    "confirm": "Xóa",
+    "irreversible": "Sau khi xóa sẽ không thể khôi phục.",
+    "title": "Xóa '{name}'?",
+    "withContents": "{count} mục bên trong cũng sẽ bị xóa."
+  },
+  "folder": {
+    "empty": "Thư mục này trống. Bạn có thể kéo thả mục từ danh sách bên trái, hoặc dùng [Di chuyển] trên từng mục."
+  },
+  "item": {
+    "addToPage": "Thêm vào trang",
+    "cancel": "Hủy",
+    "contentAria": "Nội dung",
+    "copy": "Sao chép",
+    "edit": "Sửa",
+    "move": "Di chuyển",
+    "nameAria": "Tên",
+    "openChat": "Mở cuộc trò chuyện gốc",
+    "save": "Lưu",
+    "saveImage": "Lưu hình ảnh",
+    "saveMarkdown": "Lưu Markdown",
+    "savedOn": "Đã lưu ngày {date}",
+    "toolbarAria": "Công cụ mục"
+  },
+  "lang": {
+    "en": "Tiếng Anh",
+    "ko": "Tiếng Hàn",
+    "vi": "Tiếng Việt"
+  },
+  "move": {
+    "toFolder": "Đã chuyển vào thư mục '{name}'.",
+    "toTop": "Đã chuyển lên đầu thư viện."
+  },
+  "notice": {
+    "addedToPage": "Đã thêm vào '{name}'.",
+    "copied": "Đã sao chép.",
+    "copyFailed": "Không thể sao chép.",
+    "emptyContent": "Nội dung đang trống.",
+    "pageFull": "Trang này không thể thêm nữa.",
+    "saved": "Đã lưu.",
+    "savedToLibrary": "Đã lưu vào thư viện."
+  },
+  "overlay": {
+    "backToList": "Về danh sách thư viện",
+    "close": "Đóng thư viện",
+    "dropHint": "Thả vào giữa các dòng để đặt tại vị trí đó, thả lên thư mục để chuyển vào trong, hoặc thả vào khoảng trống để chuyển lên đầu.",
+    "empty": "Chưa có mảnh nào được lưu. Dưới câu trả lời, hãy nhấn [Lưu], hoặc chọn một đoạn văn rồi nhấn [Lưu].",
+    "folderAria": "Thư mục thư viện",
+    "fullScreen": "Xem toàn màn hình",
+    "label": "Thư viện",
+    "pickHint": "Chọn thư mục, mảnh hoặc trang ở bên trái. Kéo mục vào thư mục để di chuyển, hoặc dùng [Trang mới] để ghép các mảnh thành một trang.",
+    "windowed": "Xem trong cửa sổ"
+  },
+  "page": {
+    "addFragment": "Thêm mảnh",
+    "addText": "Thêm văn bản",
+    "besideHint": "Kéo tay cầm tới mép trái hoặc phải của khối khác để đặt cạnh nhau.",
+    "blank": "Thêm mảnh hoặc văn bản để hoàn thiện trang này.",
+    "down": "Xuống",
+    "dragAria": "Kéo để di chuyển",
+    "empty": "Trang này trống. Dùng [Sửa] ở phía trên để thêm mảnh và văn bản.",
+    "pairBeside": "Đặt cạnh khối trước",
+    "remove": "Gỡ khỏi trang",
+    "removedFragment": "Mảnh đã xóa",
+    "removedFragmentNote": "Mảnh này đã bị xóa.",
+    "text": "Văn bản",
+    "textPlaceholder": "Văn bản thêm vào đây (Markdown)",
+    "unpairBeside": "Bỏ ghép cạnh",
+    "up": "Lên"
+  },
+  "picker": {
+    "close": "Đóng",
+    "current": "Vị trí hiện tại",
+    "findAria": "Tìm mảnh",
+    "findPlaceholder": "Tìm mảnh theo tên",
+    "moveLabel": "Chọn thư mục để chuyển tới",
+    "moveTitle": "Chuyển '{name}'",
+    "noFolders": "Chưa có thư mục nào. Hãy tạo bằng [Thư mục mới] ở bên trái.",
+    "noFragments": "Không có mảnh nào để thêm.",
+    "noPages": "Chưa có trang nào. Hãy tạo bằng [Trang mới] ở bên trái rồi thêm vào.",
+    "pageLabel": "Chọn trang để thêm vào",
+    "top": "Đầu thư viện"
+  },
+  "tree": {
+    "collapse": "Thu gọn {name}",
+    "expand": "Mở rộng {name}"
+  },
+  "unsaved": {
+    "confirm": "Bỏ",
+    "message": "Nội dung đã sửa sẽ bị mất.",
+    "title": "Bỏ các thay đổi chưa lưu?"
+  }
+}

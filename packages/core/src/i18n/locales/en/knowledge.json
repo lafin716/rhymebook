@@ -77,7 +77,12 @@
     "gitHint": "Only the latest files of the default branch (main, master, …) are downloaded"
   },
   "error": {
-    "generic": "Something went wrong. Please try again."
+    "generic": "Something went wrong. Please try again.",
+    "badDescription": "Check the description.",
+    "badSettings": "Check the settings.",
+    "badQuery": "Check the search query.",
+    "badId": "Knowledge base not found.",
+    "unavailable": "Knowledge bases are not available on this device."
   },
   "progress": {
     "label": "Import progress",
@@ -89,5 +94,95 @@
     "elapsed": "{seconds}s",
     "cancel": "Cancel",
     "cancelled": "Import cancelled."
+  },
+  "citations": {
+    "label": "Sources",
+    "open": "Open source {n}: {title}"
+  },
+  "source": {
+    "title": "Source",
+    "close": "Close",
+    "loading": "Loading the original…",
+    "failed": "Could not open the original. {message}",
+    "chunk": "Matched passage",
+    "section": "Surrounding context",
+    "page": "Page {page}",
+    "line": "Line {line}",
+    "lines": "Lines {start}–{end}"
+  },
+  "index": {
+    "empty": "Not indexed yet",
+    "queued": "Waiting to index",
+    "indexing": "Indexing {done}/{total}",
+    "ready": "Indexed · {count} chunks",
+    "stale": "Files changed; re-index needed",
+    "error": "Indexing failed",
+    "reindex": "Re-index",
+    "cancel": "Cancel indexing"
+  },
+  "description": {
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "empty": "No description. Tell the model what this knowledge base covers so retrieval is more accurate.",
+    "label": "Description",
+    "placeholder": "e.g. Our team deployment runbooks",
+    "save": "Save"
+  },
+  "docs": {
+    "chunks": "{count} chunks",
+    "empty": "No indexed documents.",
+    "failed": "Failed",
+    "heading": "Documents",
+    "noMatch": "No matching documents.",
+    "search": "Search by path or title",
+    "skipped": "Skipped"
+  },
+  "embedding": {
+    "heading": "Embedding model",
+    "local": "Local (offline, default)",
+    "model": "Model",
+    "modelDefault": "Default model",
+    "openai": "OpenAI (text-embedding-3-small)",
+    "openaiNotice": "With OpenAI, document text from this knowledge base is sent to OpenAI servers. It uses your existing OpenAI API key. Use local embedding for sensitive material.",
+    "provider": "Method",
+    "reindexNeeded": "The model changed. Reindex to apply it to search.",
+    "save": "Save",
+    "saved": "Embedding settings saved."
+  },
+  "rag": {
+    "enabled": "Use knowledge search",
+    "expandParent": "Include neighboring paragraphs",
+    "heading": "Search settings",
+    "maxContextChars": "Max evidence characters",
+    "minScore": "Minimum relevance",
+    "rerank": "Rerank results",
+    "reset": "Defaults",
+    "save": "Save",
+    "topK": "Evidence count"
+  },
+  "sources": {
+    "empty": "No sources added.",
+    "heading": "Sources",
+    "type": {
+      "files": "Files",
+      "folder": "Folder",
+      "github": "GitHub",
+      "web": "Web"
+    },
+    "update": "Update",
+    "updated": "Updated source {name}.",
+    "updating": "Updating…"
+  },
+  "storage": {
+    "chunks": "Chunks",
+    "docs": "Documents",
+    "heading": "Storage",
+    "index": "Index",
+    "source": "Source"
+  },
+  "link": {
+    "inherited": "Following the parent branch's knowledge bases.",
+    "overridden": "This branch uses its own knowledge bases.",
+    "reset": "Follow parent"
   }
 }

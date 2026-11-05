@@ -1,0 +1,32 @@
+{
+  "remote": {
+    "label": "连接电脑",
+    "title": "连接我的电脑",
+    "intro": "连接电脑后，可以直接查看您在电脑上正在学习的内容，提问时由电脑的 CLI 来回答。不连接电脑的话，也可以在这台设备上使用 API 密钥。",
+    "step1": "在电脑上打开 octobooks 应用，然后在 设置 → 连接 中开启 [打开远程配对]。",
+    "step2": "点击 [连接手机·网页]，会显示二维码和 6 位验证码。",
+    "step3": "在下方扫描二维码，或输入链接或地址和验证码。",
+    "storeNote": "学习记录保存在电脑上",
+    "later": "稍后再说",
+    "useThisDevice": "在这台设备上使用"
+  },
+  "local": {
+    "label": "开始使用",
+    "back": "返回",
+    "titleChoose": "开始使用 octobooks",
+    "titleCli": "连接这台电脑的 CLI",
+    "titleApi": "注册 API 密钥",
+    "titleDevice": "在这台设备上开始",
+    "choosePitch": "好奇心延伸得越远，学习就越深入。在回答中那些让您好奇的句子上展开新的分支。首先，连接一个与您一起学习的 AI 吧。",
+    "cliChoice": "这台电脑的 CLI（订阅账户）",
+    "cliDesc": "直接运行已安装并登录的 Claude Code 或 Codex CLI。还可以选择模型和推理强度。",
+    "recommended": "推荐",
+    "apiChoice": "API 密钥",
+    "apiDesc": "直接使用 Anthropic 或 OpenAI 的 API 密钥调用。",
+    "remoteTip": "如果想在手机或网页上使用这台电脑的 CLI，请先连接，然后在 设置 → 连接 中开启 [打开远程配对]。",
+    "apiNote": "学习内容保存在这台设备上，回答则通过您注册的 API 密钥获取。",
+    "start": "开始",
+    "waiting": "等待连接中",
+    "later": "稍后再说"
+  }
+}

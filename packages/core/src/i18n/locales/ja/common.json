@@ -1,0 +1,33 @@
+{
+  "close": "閉じる",
+  "cancel": "キャンセル",
+  "confirm": "OK",
+  "save": "保存",
+  "delete": "削除",
+  "edit": "編集",
+  "copy": "コピー",
+  "copied": "コピーしました",
+  "retry": "再試行",
+  "back": "戻る",
+  "next": "次へ",
+  "done": "完了",
+  "add": "追加",
+  "remove": "取り除く",
+  "rename": "名前を変更",
+  "search": "検索",
+  "loading": "読み込み中…",
+  "on": "オン",
+  "off": "オフ",
+  "yes": "はい",
+  "no": "いいえ",
+  "more": "もっと見る",
+  "untitled": "無題",
+  "language": {
+    "label": "言語",
+    "hint": "アプリの画面で使う言語です。変更するとアプリが再起動します。",
+    "promptTitle": "言語を選択",
+    "promptBody": "アプリで使う言語を選んでください。後から 設定 → 一般 で変更できます。",
+    "promptStart": "はじめる",
+    "contribute": "他の言語への翻訳に参加したい場合は docs/i18n.md をご覧ください。"
+  }
+}

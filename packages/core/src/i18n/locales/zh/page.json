@@ -1,0 +1,147 @@
+{
+  "color": {
+    "kind": {
+      "highlight": "荧光笔",
+      "underline": "下划线",
+      "textColor": "文字颜色"
+    },
+    "preset": {
+      "yellow": "黄色",
+      "green": "绿色",
+      "blue": "蓝色",
+      "purple": "紫色",
+      "red": "红色",
+      "orange": "橙色"
+    },
+    "swatch": "{kind} {color}",
+    "swatchRemove": "从收藏中移除 {kind} {color}",
+    "palette": "{kind} 色板",
+    "back": "返回格式设置",
+    "title": "{kind} 颜色",
+    "none": "无",
+    "favorites": "收藏",
+    "done": "完成",
+    "edit": "编辑",
+    "favoritesEmpty": "点击下方的 ☆ 按钮，可以保存常用的颜色。",
+    "recommended": "推荐颜色",
+    "custom": "自定义",
+    "pick": "选择颜色",
+    "pickLabel": "选择{kind}颜色",
+    "hex": "HEX 颜色代码",
+    "unfavorite": "从收藏中移除",
+    "favorite": "添加到收藏",
+    "apply": "应用"
+  },
+  "editor": {
+    "placeholder": "自由地用 Markdown 写下来吧。输入的内容会自动保存。按 / 或右键可以插入块、子页面或 AI 填充。\n\n# 标题\n- 列表\n**加粗**、`代码`\n\n选中文字后，可以提问或添加格式和笔记。",
+    "branchOpen": "打开分支",
+    "noteOpen": "查看笔记",
+    "bodyLabel": "页面正文（Markdown）",
+    "filling": "AI 正在填充",
+    "menuLabel": "块和 AI 菜单",
+    "column": {
+      "title": "此列",
+      "left": "向左移动",
+      "right": "向右移动",
+      "out": "移出列",
+      "delete": "删除列"
+    },
+    "ask": {
+      "label": "要填充什么？（留空则按前后上下文填充）",
+      "placeholder": "例如：用表格列出优缺点",
+      "submit": "填充"
+    },
+    "block": {
+      "title": "此块",
+      "up": "向上移动",
+      "down": "向下移动",
+      "unwrap": "取消并排布局",
+      "delete": "删除块"
+    },
+    "aiFill": "用 AI 填充内容",
+    "blocks": {
+      "title": "插入块"
+    },
+    "emoji": {
+      "hint": "表情 · ↑↓ 选择 · Enter",
+      "listLabel": "表情"
+    },
+    "slash": {
+      "hint": "插入块 · ↑↓ 选择 · Enter",
+      "listLabel": "插入块"
+    }
+  },
+  "keyboard": {
+    "indentOut": "减少缩进",
+    "indent": "增加缩进",
+    "paragraph": "正文",
+    "bullet": "项目符号列表",
+    "ordered": "编号列表",
+    "todo": "待办事项",
+    "quote": "引用",
+    "heading": "标题",
+    "bold": "加粗",
+    "undo": "撤销",
+    "redo": "重做",
+    "closeKeyboard": "收起键盘"
+  },
+  "panel": {
+    "label": "页面",
+    "undo": "撤销",
+    "redo": "重做",
+    "settings": "页面设置",
+    "stopOrganize": "停止整理",
+    "organizing": "整理中…",
+    "organizeTitle": "用 AI 将笔记内容整理得更易读",
+    "organize": "用 AI 整理",
+    "organizeCompact": "AI 整理",
+    "close": "关闭"
+  },
+  "rowSheet": {
+    "kind": {
+      "paragraph": "正文",
+      "h1": "标题 1",
+      "h2": "标题 2",
+      "h3": "标题 3",
+      "bullet": "项目符号",
+      "ordered": "编号",
+      "todo": "待办事项",
+      "quote": "引用"
+    },
+    "menu": "行菜单",
+    "picked": "已选中行 · 再次点击即可编辑",
+    "close": "关闭",
+    "edit": "编辑",
+    "addBelow": "在下方添加",
+    "up": "向上",
+    "down": "向下",
+    "fill": "AI 撰写",
+    "unwrap": "取消分栏",
+    "delete": "删除",
+    "changeBlock": "更改块类型"
+  },
+  "settings": {
+    "title": "页面设置",
+    "close": "关闭",
+    "keyboardBar": "键盘快捷键栏",
+    "keyboardBarDesc": "编辑器获得焦点时，在键盘上方显示工具栏",
+    "emoji": "表情预览",
+    "emojiDesc": "输入 : 时显示表情候选列表"
+  },
+  "live": {
+    "dataUrl": "附加数据",
+    "imageDelete": "删除图片",
+    "taskDone": "已完成的待办事项",
+    "task": "待办事项",
+    "missingPage": "已删除的页面",
+    "openPage": "打开子页面",
+    "column": "第 {n} 列",
+    "columnAddRow": "在第 {n} 列末尾添加行",
+    "columnHandle": "第 {n} 列的移动和菜单",
+    "headingPlaceholder": "标题 {n}"
+  },
+  "rowHandles": {
+    "addBelow": "在块 {n} 下方添加行",
+    "menu": "块 {n} 的移动和菜单"
+  }
+}

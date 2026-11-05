@@ -1,0 +1,35 @@
+{
+  "lang": {
+    "vi": "越南语",
+    "en": "英语",
+    "ko": "韩语"
+  },
+  "speak": {
+    "noSupport": "这台设备无法朗读文字。",
+    "noVoice": "这台设备没有{lang}语音。在设备设置中添加语音后，发音会更准确。",
+    "noVoiceFail": "这台设备没有{lang}语音，无法朗读。请在设备设置的语音（文字转语音）中添加{lang}。",
+    "failed": "无法使用设备语音朗读。"
+  },
+  "recorder": {
+    "permission": "没有麦克风权限。请在系统或浏览器设置中允许使用麦克风。",
+    "noDevice": "没有可用的麦克风。",
+    "busy": "其他应用正在使用麦克风。",
+    "openFailed": "无法打开麦克风。",
+    "insecure": "无法在此地址（HTTP）使用麦克风。请通过 HTTPS 或在应用中打开。",
+    "unsupported": "这台设备不支持麦克风录音。"
+  },
+  "mic": {
+    "tooShort": "录音时间太短。",
+    "silent": "没有收到声音。请检查麦克风后再说一次。",
+    "noText": "没有识别到语音。请再说一次。",
+    "failed": "语音转文字失败。",
+    "stop": "结束录音并转为文字",
+    "transcribing": "正在转为文字",
+    "start": "语音输入",
+    "recordingTitle": "录音中 {secs} 秒 · 点击结束",
+    "seconds": "{secs} 秒"
+  },
+  "stt": {
+    "stateError": "无法加载语音设置。"
+  }
+}

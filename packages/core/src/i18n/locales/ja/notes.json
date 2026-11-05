@@ -1,0 +1,53 @@
+{
+  "importFail": {
+    "offline": "PCと接続されていません。接続された後にもう一度取り込んでください。",
+    "timeout": "PCが応答していません。しばらくしてからもう一度お試しください。",
+    "conflict": "PCに同じidを持つ別の学習があるため、取り込みませんでした。",
+    "forbidden": "既存の学習を上書きするには、PCの設定でリモート削除を許可する必要があります。",
+    "invalid": "このファイルはリモートで送るには大きすぎるか、形式が合っていません。PCアプリで取り込んでください。",
+    "rateLimit": "リクエストが多すぎます。しばらくしてからもう一度お試しください。",
+    "fallback": "PCで取り込めませんでした。"
+  },
+  "study": {
+    "loadTimeout": "PCから会話を受信しきれませんでした。しばらくしてからもう一度お試しください。",
+    "notFound": "学習が見つかりませんでした。",
+    "exported": "学習パッケージ（zip）を保存しました。別の端末の理解ノート › [学習をインポート] から読み込んでください。",
+    "tooBig": "ファイルが大きすぎます。",
+    "name": "「{title}」",
+    "importedToPc": "{name} の学習をPCに取り込みました。",
+    "partAdded": "追加 {count}",
+    "partUpdated": "更新 {count}",
+    "partKept": "維持 {count}",
+    "partSkipped": "生成中のためスキップ {count}",
+    "imported": "{name} の学習を取り込みました — 枝 {parts}。",
+    "importFailPc": "PCで取り込めませんでした。",
+    "bookSessionTitle": "📖 {title}",
+    "digestFileName": "{title} 学習原文.md",
+    "makeBookPrompt": "この学習記録を本にまとめてください。",
+    "newSessionFail": "新しいセッションを作成できませんでした。",
+    "sendFail": "質問を送信できませんでした。"
+  },
+  "modal": {
+    "label": "理解ノート",
+    "close": "理解ノートを閉じる",
+    "titleWith": "理解ノート · {title}",
+    "emptyImport": "開いている学習がありません。別の端末で [学習をエクスポート] して保存した zip を取り込むと、続きから学習できます。",
+    "summaryLine": "枝 {cards} 個 · 要約 {summarized} 個。枝で理解した内容を集めて復習したり、ファイルに書き出したりできます。",
+    "noBranches": "まだ枝がありません。回答の中で分からない部分を選んで、枝を作成してみてください。",
+    "noSummary": "要約なし — 枝で [親に要約を添付] を行うと、ここに表示されます。",
+    "makeBookHint": "学習全体を目次から構造的に整理して、本にまとめます（/book スキル）",
+    "makeBook": "本にまとめる",
+    "exportStudyHint": "会話全体を zip で保存して、別の端末でも続きから学習できるようにします",
+    "exportStudy": "学習をエクスポート",
+    "importStudy": "学習をインポート",
+    "importFileLabel": "学習パッケージのファイルを選択",
+    "open": "開く",
+    "saveMarkdown": "Markdownで保存",
+    "markdownSaved": "Markdownのノートを保存しました。",
+    "noCardsHint": "要約がある枝だけがカードになります",
+    "ankiCards": "Ankiカード",
+    "ankiSaved": "Ankiカードを {count} 枚保存しました。Anki › ファイル › インポート から読み込んでください。",
+    "copy": "コピー",
+    "markdownCopied": "Markdownをクリップボードにコピーしました。"
+  }
+}
