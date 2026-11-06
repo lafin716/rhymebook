@@ -89,6 +89,8 @@ export interface OpenAIEmbedderOptions {
   getKey: () => string | null | undefined | Promise<string | null | undefined>;
   /** 기본 text-embedding-3-small */
   model?: string;
+  /** 출력 차원 (text-embedding-3 계열만). 없으면 모델 기본 */
+  dimensions?: number;
   baseUrl?: string;
   fetch?: FetchLike;
 }
@@ -106,10 +108,26 @@ function retryableStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
 }
 
+/** Retry-After 헤더(초 또는 HTTP 날짜)를 ms로. 없거나 해석할 수 없으면 undefined */
+export function parseRetryAfterMs(value: string | null, now = Date.now()): number | undefined {
+  if (!value) return undefined;
+  const secs = Number(value);
+  if (Number.isFinite(secs)) return secs >= 0 ? Math.round(secs * 1000) : undefined;
+  const at = Date.parse(value);
+  if (Number.isNaN(at)) return undefined;
+  return Math.max(0, at - now);
+}
+
+/** text-embedding-3 계열만 dimensions 파라미터를 받는다 */
+function supportsDimensions(model: string): boolean {
+  return model.startsWith('text-embedding-3');
+}
+
 /** OpenAI Embeddings API (POST {base}/v1/embeddings). 문서 본문이 OpenAI로 전송된다 */
 export function createOpenAIEmbedder(opts: OpenAIEmbedderOptions): EmbeddingProvider {
   const model = opts.model ?? 'text-embedding-3-small';
-  const dim = OPENAI_DIMS[model] ?? 1536;
+  const dimensions = supportsDimensions(model) && opts.dimensions && opts.dimensions > 0 ? Math.floor(opts.dimensions) : undefined;
+  const dim = dimensions ?? OPENAI_DIMS[model] ?? 1536;
   const base = trimBase(opts.baseUrl ?? OPENAI_BASE_URL);
   const doFetch = opts.fetch ?? defaultFetch();
   const info: EmbeddingModelInfo = { provider: 'openai', model, dim };
@@ -131,6 +149,7 @@ export function createOpenAIEmbedder(opts: OpenAIEmbedderOptions): EmbeddingProv
             model,
             input: texts.map((t) => t.slice(0, OPENAI_INPUT_CHARS)),
             encoding_format: 'float',
+            ...(dimensions ? { dimensions } : {}),
           }),
           signal,
         });
@@ -142,7 +161,8 @@ export function createOpenAIEmbedder(opts: OpenAIEmbedderOptions): EmbeddingProv
 
       if (!res.ok) {
         const pe = await httpError(res);
-        throw new EmbeddingError(pe.message, retryableStatus(res.status));
+        const retryAfterMs = retryableStatus(res.status) ? parseRetryAfterMs(res.headers.get('retry-after')) : undefined;
+        throw new EmbeddingError(pe.message, retryableStatus(res.status), retryAfterMs);
       }
 
       let body: { data?: { index: number; embedding: number[] }[] };
@@ -161,11 +181,26 @@ export function createOpenAIEmbedder(opts: OpenAIEmbedderOptions): EmbeddingProv
   };
 }
 
+/**
+ * 벡터 없음('none'): 임베딩을 하지 않는다. 색인은 키워드·경로·심볼만으로 동작한다.
+ * embed를 부르면 재시도하지 않는 오류를 던진다 (호출하면 안 되는 경로를 드러내기 위함).
+ */
+export function createNoneEmbedder(): EmbeddingProvider {
+  return {
+    info: { provider: 'none', model: 'none', dim: 0 },
+    batchSize: 1,
+    async embed() {
+      throw new EmbeddingError('벡터 없이 색인된 지식베이스는 임베딩을 호출하지 않습니다', false);
+    },
+  };
+}
+
 /** 색인 설정(meta.json의 embedding)으로 제공자를 만든다 */
 export function createEmbedder(
   settings: { provider: EmbeddingProviderId; model?: string },
   deps: { getOpenAIKey: OpenAIEmbedderOptions['getKey']; fetch?: FetchLike; baseUrl?: string },
 ): EmbeddingProvider {
+  if (settings.provider === 'none') return createNoneEmbedder();
   if (settings.provider === 'openai') {
     return createOpenAIEmbedder({
       getKey: deps.getOpenAIKey,
@@ -183,7 +218,10 @@ export interface EmbedAllOptions {
   retries?: number;
   /** 첫 재시도 대기 ms (기본 500, 이후 두 배씩) */
   baseDelayMs?: number;
-  sleep?: (ms: number) => Promise<void>;
+  /** 대기 함수. signal이 취소되면 일찍 끝나야 한다 */
+  sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  /** 지터 난수 (0 이상 1 미만). 기본 Math.random. 대기 시간에 최대 20%를 더한다 */
+  random?: () => number;
   /** 배치 하나 끝날 때마다 (완료 개수, 전체 개수) */
   onBatch?: (done: number, total: number) => void;
 }
@@ -192,7 +230,21 @@ function abortError(): Error {
   return Object.assign(new Error('aborted'), { name: 'AbortError' });
 }
 
-const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** 재시도 대기 상한. 서버가 아주 긴 Retry-After를 보내도 색인이 멈춘 것처럼 보이지 않게 한다 */
+export const MAX_RETRY_WAIT_MS = 60_000;
+
+/** 취소되면 바로 끝나는 대기 */
+const defaultSleep = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    if (signal?.aborted) return resolve();
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal?.addEventListener('abort', done, { once: true });
+  });
 
 /**
  * 텍스트 전체를 배치로 임베딩한다. 재시도 가능한 EmbeddingError만 지수 백오프로 다시 부르고,
@@ -206,6 +258,7 @@ export async function embedAll(
   const retries = opts.retries ?? 3;
   const baseDelayMs = opts.baseDelayMs ?? 500;
   const sleep = opts.sleep ?? defaultSleep;
+  const random = opts.random ?? Math.random;
   const out: Float32Array[] = [];
 
   for (let i = 0; i < texts.length; i += p.batchSize) {
@@ -221,7 +274,11 @@ export async function embedAll(
       } catch (e) {
         const retryable = e instanceof EmbeddingError && e.retryable;
         if (!retryable || attempt >= retries || opts.signal?.aborted) throw e;
-        await sleep(baseDelayMs * 2 ** attempt);
+        const backoff = baseDelayMs * 2 ** attempt;
+        const wait = Math.min(MAX_RETRY_WAIT_MS, Math.max(backoff, e instanceof EmbeddingError ? (e.retryAfterMs ?? 0) : 0));
+        // 여러 배치가 같은 순간에 다시 나가지 않도록 지터를 더한다
+        await sleep(Math.round(wait * (1 + 0.2 * random())), opts.signal);
+        if (opts.signal?.aborted) throw abortError();
         attempt++;
       }
     }

@@ -1,4 +1,5 @@
 import { t } from './i18n';
+import type { RagMode } from './rag/types';
 import type { Attachment, ConnectionStatus, ProviderErrorCode, ProviderId, Role, ToolActivity } from './model';
 
 export interface ChatTurn {
@@ -21,6 +22,10 @@ export interface StreamRequest {
   webSearch?: boolean;
   /** 학습의 지식베이스 id. CLI bridge가 그 폴더를 읽기 전용으로 탐색하게 한다 (일반 대화에서만, ADR-107) */
   knowledgeId?: string;
+  /** 선택된 지식베이스 전체 (ADR-124). 있으면 bridge는 knowledgeId 대신 이 목록을 쓴다. knowledgeId는 예전 bridge 호환용(첫 KB) */
+  knowledgeIds?: string[];
+  /** 검색 모드 (ADR-122). CLI 추가 탐색 도구 허용 여부를 정한다: fast=도구 없음 */
+  knowledgeMode?: RagMode;
 }
 
 /** 웹 검색 도구를 쓸 수 있는 provider. OpenAI API(Chat Completions)는 지원하지 않는다 (ADR-070) */
@@ -46,8 +51,15 @@ export function wantsWebTools(req: Pick<StreamRequest, 'webSearch' | 'purpose'>)
 }
 
 /** 지식베이스를 붙일 요청인가: 지식베이스가 있는 일반 대화 */
-export function wantsKnowledge(req: Pick<StreamRequest, 'knowledgeId' | 'purpose'>): boolean {
-  return typeof req.knowledgeId === 'string' && !!req.knowledgeId && (!req.purpose || req.purpose === 'chat');
+export function wantsKnowledge(req: Pick<StreamRequest, 'knowledgeId' | 'knowledgeIds' | 'purpose'>): boolean {
+  return knowledgeIdsOf(req).length > 0 && (!req.purpose || req.purpose === 'chat');
+}
+
+/** 요청의 지식베이스 목록: knowledgeIds 우선, 없으면 knowledgeId 하나 (ADR-124) */
+export function knowledgeIdsOf(req: Pick<StreamRequest, 'knowledgeId' | 'knowledgeIds'>): string[] {
+  const list = Array.isArray(req.knowledgeIds) ? req.knowledgeIds.filter((x) => typeof x === 'string' && !!x) : [];
+  if (list.length) return [...new Set(list)];
+  return typeof req.knowledgeId === 'string' && req.knowledgeId ? [req.knowledgeId] : [];
 }
 
 export interface ProviderError {

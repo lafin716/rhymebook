@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_INDEX_SETTINGS, t } from '@branch/core';
+import { DEFAULT_INDEX_SETTINGS, NEW_KB_INDEX_SETTINGS, t } from '@branch/core';
 import { createKnowledgeStore, type KnowledgeStore } from '../src';
 
 function htmlResponse(body: string): Response {
@@ -34,9 +34,25 @@ describe('knowledge store: RAG 확장', () => {
     expect(updated.description?.startsWith('가')).toBe(true);
   });
 
-  it('설정이 없으면 기본 임베딩 설정을 돌려준다', async () => {
+  it('새 KB는 임베딩 없음(none)으로 만든다 (ADR-121)', async () => {
     const kb = await store.create('설정 기본');
-    expect(await store.getSettings(kb.id)).toEqual(DEFAULT_INDEX_SETTINGS);
+    expect(await store.getSettings(kb.id)).toEqual(NEW_KB_INDEX_SETTINGS);
+  });
+
+  it('설정이 없는 기존 KB는 예전 기본값(local-hash)으로 읽는다 (호환)', async () => {
+    const kb = await store.create('설정 없음');
+    const metaFile = path.join(root, kb.id, 'meta.json');
+    const raw = JSON.parse(await readFile(metaFile, 'utf8')) as Record<string, unknown>;
+    delete raw.settings;
+    await writeFile(metaFile, JSON.stringify(raw));
+    const fresh = createKnowledgeStore({ root, fetch: fetchMock as unknown as typeof fetch, env: { PATH: process.env.PATH } });
+    expect(await fresh.getSettings(kb.id)).toEqual(DEFAULT_INDEX_SETTINGS);
+  });
+
+  it('OpenAI 출력 차원 수를 보존한다', async () => {
+    const kb = await store.create('차원');
+    await store.setSettings(kb.id, { embedding: { provider: 'openai', model: 'text-embedding-3-large', dimensions: 1024 } });
+    expect(await store.getSettings(kb.id)).toEqual({ embedding: { provider: 'openai', model: 'text-embedding-3-large', dimensions: 1024 } });
   });
 
   it('설정을 저장하고 다시 읽는다', async () => {

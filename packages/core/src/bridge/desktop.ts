@@ -127,7 +127,9 @@ export interface DesktopKnowledgeApi {
   /** 출처를 다시 받는다 (링크 재수집·저장소 재클론) */
   updateSource?(id: string, sourceId: string): Promise<KnowledgeAddResult>;
   /** 질문에 대한 근거 검색 (renderer는 질의 계획만 보낸다) */
-  retrieve?(req: RetrievalRequest): Promise<RetrievalResult>;
+  retrieve?(req: RetrievalRequest, requestId?: string): Promise<RetrievalResult>;
+  /** 진행 중인 검색 취소 (requestId는 retrieve에 넘긴 값). 없는 id는 무시 */
+  cancelRetrieve?(requestId: string): Promise<void>;
   /** 인용 한 건의 원문 주변 */
   source?(kbId: string, chunkId: string): Promise<SourceView>;
   /** 색인 상태 변화 구독. 해제 함수를 돌려준다 */

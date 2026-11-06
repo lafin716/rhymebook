@@ -149,6 +149,31 @@ core(`anchor.ts`)는 세그먼트 맵 기반 변환/매칭만 담당하고, hast
 플랫폼 차이는 ui의 `platform/` 어댑터(`SecretStore`, `BridgeTransport`, `openExternal`)로 주입한다.
 ui 번들은 모든 플랫폼에서 동일하다.
 
+## 지식베이스 검색 (RAG v2 · ADR-121~125)
+
+서버 없이 로컬에서 동작한다. API 키는 선택이다.
+
+```text
+질문 ─▶ Retrieval Orchestrator (bridge rag worker, 요청별 requestId·취소)
+          ├─ 결정적 질의 재작성 (CJK 토큰·조사 제거·영문 약어)
+          ├─ Fast: FTS5(BM25) + 심볼 + 파일명/경로 + 폴더 메타 힌트   ← LLM 호출 없음
+          ├─ Semantic(선택): OpenAI 임베딩 벡터 (KB가 openai 색인일 때만)
+          ├─ RRF 결합 → 근거 선택(동적 Top-K·다양성·중복 제거·토큰 예산)
+          ├─ 충분성 판단(assessEvidence) → 부족 + CJK면 LLM 질의 확장 후 재검색 (auto/deep)
+          └─ 인용(citation) + 검색 과정(RagTrace) ─▶ Codex/Claude
+                                                    └─ 필요 시 읽기 전용 MCP 도구 4종 (ADR-124)
+```
+
+- **저장**: KB마다 `<kbDir>/files/`(원본, 읽기 전용) · `index.sqlite`(스키마 v4, FTS5·심볼·청크·선택적 Float32 벡터) · `meta/`(폴더 메타, ADR-123).
+- **모드** (`Settings.rag.mode`, 기본 `auto`): `fast`(확장·도구 없음) · `auto`(근거 부족 시에만 확장, 도구 허용) · `deep`(Top-K ×1.5, 도구 사용 권장) · `semantic`(의미 색인 사용, 없으면 `semantic_unavailable` 안내 후 로컬 검색).
+- **임베딩**: 새 KB 기본 `none`(ADR-121). 기존 `local-hash` KB는 설정·색인을 그대로 유지하고 사용자가 바꿀 때만 재색인한다. OpenAI는 `text-embedding-3-small`(추천)/`-large`, 모델·차원이 바뀌면 새 색인을 만든 뒤 원자 교체(ADR-125).
+- **폴더 메타**: `meta/folders.json`(진실 원천) + `meta/INDEX.md`·`meta/tree/**/INFO.md`(거울). 폴더 해시로 증분 갱신. 없거나 손상되면 원문 검색만 쓴다.
+- **에이전트 도구**: `searchKnowledge`·`listKnowledgeDirectory`·`readKnowledgeFile`·`getKnowledgeOutline`. 계약·한도는 `core/src/rag/tools.ts`, 실행은 `bridge/src/kbTools/`(stdio MCP). 허용 KB·`files/` 하위 경로만, realpath로 심볼릭 링크 탈출 차단, 응답당 호출 24회·40만 자 상한. 문서 속 지시는 데이터로만 취급한다.
+- **취소**: renderer `AbortSignal` → `cancelRetrieve(requestId)` → main → worker. 단계 사이 안전 경계에서 중단하고, 늦은 결과는 버린다.
+- **장애 대체**: 색인 없음·손상·구 스키마 → 해당 KB 건너뜀(`kb_skipped`) 또는 도구는 파일 스캔. 임베딩 실패 → `embed_failed` 후 로컬 검색. 시간 초과 → `timeout` 안내.
+- **평가**: `pnpm --filter @branch/bridge eval:rag` (합성 68문항 + 실제 저장소 43문항, R@5/10·MRR·nDCG·P50/P95·색인 시간). 결과는 `docs/eval/`.
+- **향후**: 서버 기반 지식팩은 같은 도구 계약(`tools.ts`)을 원격 MCP로 노출하는 방식으로 확장할 수 있다(현재 범위 밖).
+
 ## 개발/테스트 도구
 - TypeScript strict, ESLint(flat config), Vitest(core 단위 테스트), Playwright(Phase 7 E2E)
 - `pnpm dev` = ui 개발 서버(`--host` 노출, 포트 5173)

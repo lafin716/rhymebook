@@ -2,10 +2,22 @@
  * 검색 결과 융합·재정렬·근거 선택. 색인 조회(FTS·벡터)는 bridge 몫이고, 여기서는 순수 계산만 한다.
  */
 import { tokenize } from './tokenize';
-import type { Chunk, DocKind, Evidence, QueryPlan, Reranker, RagSettings, SearchHit } from './types';
+import type { Chunk, DocKind, Evidence, QueryPlan, Reranker, RagSettings, SearchChannel, SearchHit } from './types';
 
 /** 같은 문서에서 근거로 넣을 최대 청크 수 (한 문서가 근거를 독점하지 않도록) */
 export const MAX_EVIDENCE_PER_DOC = 3;
+/** 동적 상한의 하한: 강한 후보가 적어도 이만큼은 근거로 본다 */
+export const MIN_DYNAMIC_TOP_K = 2;
+/** 검색 채널 목록 (근거의 matched·디버그용). 순위가 있는 채널만 담는다 */
+export function channelsOf(h: SearchHit): SearchChannel[] {
+  const out: SearchChannel[] = [];
+  if (h.keywordRank !== undefined) out.push('keyword');
+  if (h.vectorRank !== undefined) out.push('vector');
+  if (h.symbolRank !== undefined) out.push('symbol');
+  if (h.pathRank !== undefined) out.push('path');
+  if (h.folderMatch) out.push('folder');
+  return out;
+}
 
 /** 최종 근거 하나 이하로 남기는 최소 남은 글자 수: 이보다 적으면 더 넣지 않는다 */
 const MIN_BUDGET_CHARS = 200;
@@ -144,9 +156,22 @@ export function selectEvidence(
     .map((c) => {
       const rel = c.hit.score / maxRaw;
       const cov = scorer ? (coverage.get(hitKey(c.hit)) ?? 0) : rel;
-      return { c, score: 0.5 * rel + 0.5 * cov };
+      return { c, score: 0.5 * rel + 0.5 * cov, cov };
+    })
+    // 본문 근거(키워드·심볼)가 없는 후보는 리랭커 커버리지가 있을 때만 남긴다.
+    // 경로·폴더 가산 신호만 있는 후보는 RRF 점수가 1까지 오를 수 있지만 청크 본문은 질의와 무관할 수 있다 (ADR-121)
+    .filter((r) => {
+      const ch = channelsOf(r.c.hit);
+      if (ch.includes('keyword') || ch.includes('symbol')) return true;
+      if (scorer) return r.cov > 0;
+      return ch.length === 0 || ch.includes('vector');
     })
     .sort((a, b) => b.score - a.score);
+
+  // 동적 상한: 최고점의 60% 이상인 강한 후보 수만큼(최소 MIN_DYNAMIC_TOP_K, 최대 topK)만 근거로 쓴다 (ADR-121)
+  const top = ranked[0]?.score ?? 0;
+  const strong = ranked.filter((r) => r.score >= top * 0.6 && r.score >= settings.minScore).length;
+  const limit = Math.min(settings.topK, Math.max(MIN_DYNAMIC_TOP_K, strong));
 
   const out: Evidence[] = [];
   // docId·parentId·hash는 KB마다 따로 본다: 같은 경로(d_ + sha256(path))·같은 내용이 두 KB에 있을 수 있다
@@ -156,7 +181,7 @@ export function selectEvidence(
   let budget = settings.maxContextChars;
 
   for (const { c, score } of ranked) {
-    if (out.length >= settings.topK) break;
+    if (out.length >= limit) break;
     if (score < settings.minScore) break;
     const kbScope = c.hit.kbId + '\u0000';
     const docKey = kbScope + c.chunk.docId;
@@ -199,6 +224,7 @@ export function selectEvidence(
       symbol: c.chunk.symbol,
       text,
       score: Math.round(score * 1000) / 1000,
+      matched: channelsOf(c.hit),
     });
   }
   return out;

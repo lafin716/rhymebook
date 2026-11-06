@@ -88,8 +88,12 @@ export interface DocumentParser {
 
 // ── 임베딩 ────────────────────────────────────────────
 
-/** 'local-hash': 내장 오프라인 해시 임베딩(외부 전송 없음, 기본). 'openai': OpenAI Embeddings API(문서 본문이 OpenAI로 전송됨) */
-export type EmbeddingProviderId = 'local-hash' | 'openai';
+/**
+ * 'none': 벡터 없음 — 키워드(FTS5)·심볼·폴더 메타데이터만 (신규 KB 기본, ADR-121).
+ * 'local-hash': 내장 오프라인 해시 임베딩(외부 전송 없음, 예전 기본 — 기존 KB 호환용).
+ * 'openai': OpenAI Embeddings API(문서 본문이 OpenAI로 전송됨).
+ */
+export type EmbeddingProviderId = 'none' | 'local-hash' | 'openai';
 
 export interface EmbeddingModelInfo {
   provider: EmbeddingProviderId;
@@ -101,6 +105,16 @@ export interface EmbeddingModelInfo {
 export function embeddingKey(m: EmbeddingModelInfo): string {
   return `${m.provider}:${m.model}:${m.dim}`;
 }
+
+/** 벡터 없는 색인의 모델 정보 ('none'). dim 0 — 벡터를 저장·검색하지 않는다 */
+export const NONE_EMBEDDING: EmbeddingModelInfo = { provider: 'none', model: 'none', dim: 0 };
+
+/** OpenAI 임베딩 모델과 기본 차원 (ADR-125). dimensions 파라미터로 줄일 수 있다 */
+export const OPENAI_EMBEDDING_MODELS: Record<string, { dim: number; usdPer1MTokens: number }> = {
+  'text-embedding-3-small': { dim: 1536, usdPer1MTokens: 0.02 },
+  'text-embedding-3-large': { dim: 3072, usdPer1MTokens: 0.13 },
+};
+export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 
 export interface EmbeddingProvider {
   readonly info: EmbeddingModelInfo;
@@ -115,6 +129,8 @@ export class EmbeddingError extends Error {
     message: string,
     /** true면 재시도할 만하다 (429, 5xx, 네트워크) */
     readonly retryable: boolean,
+    /** 서버가 알려준 대기 시간(Retry-After, ms). 있으면 백오프보다 우선한다 */
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = 'EmbeddingError';
@@ -123,12 +139,19 @@ export class EmbeddingError extends Error {
 
 /** 지식베이스별 색인 설정 (meta.json에 저장, 사용자가 바꾼다) */
 export interface KnowledgeIndexSettings {
-  embedding: { provider: EmbeddingProviderId; model?: string };
+  /** dimensions: OpenAI 출력 차원 (없으면 모델 기본). 바꾸면 새 색인을 만든다 */
+  embedding: { provider: EmbeddingProviderId; model?: string; dimensions?: number };
   /** 파일을 넣을 때 바로 색인할지 (없으면 켜짐) */
   autoIndex?: boolean;
 }
 
+/**
+ * meta.json에 설정이 없는 KB(예전 KB)의 기본: local-hash — 기존 색인을 그대로 쓰도록 바꾸지 않는다.
+ */
 export const DEFAULT_INDEX_SETTINGS: KnowledgeIndexSettings = { embedding: { provider: 'local-hash' } };
+
+/** 새로 만드는 KB의 기본: 벡터 없음 (평가 결과 local-hash 기여가 작음, ADR-121) */
+export const NEW_KB_INDEX_SETTINGS: KnowledgeIndexSettings = { embedding: { provider: 'none' } };
 
 // ── 색인 상태·작업 ────────────────────────────────────
 
@@ -147,7 +170,7 @@ export type IndexStatus =
 
 export interface IndexJobProgress {
   kbId: string;
-  phase: 'scan' | 'parse' | 'embed' | 'write' | 'swap';
+  phase: 'scan' | 'parse' | 'embed' | 'write' | 'meta' | 'swap';
   done: number;
   total: number;
   /** 지금 처리 중인 파일 (files/ 기준) */
@@ -172,6 +195,10 @@ export interface KnowledgeIndexState {
   error?: string;
   /** 파싱 실패한 파일 수 (상세는 docs의 error) */
   failedDocs: number;
+  /** 폴더 메타데이터 수 (INDEX/INFO, ADR-123) */
+  folderCount?: number;
+  /** 마지막 색인의 임베딩 사용량 (OpenAI만): 토큰 수 */
+  embedTokens?: number;
 }
 
 /** 지식베이스 문서 목록 한 줄 */
@@ -203,6 +230,16 @@ export interface KnowledgeSource {
 
 // ── 검색 ──────────────────────────────────────────────
 
+/**
+ * 검색 모드 (ADR-122).
+ * - auto: 기본. 로컬 빠른 검색(FTS5·심볼·폴더) + KB에 유효한 OpenAI 색인이 있으면 의미 검색, 근거가 부족할 때만 질의 확장, CLI는 필요할 때만 추가 탐색.
+ * - fast: 로컬 빠른 검색만. CLI 추가 탐색 도구 없음.
+ * - deep: 빠른 검색 + CLI 추가 탐색 적극 사용.
+ * - semantic: 의미 검색 우선 (OpenAI 색인 없으면 빠른 검색으로 대체하고 알린다) + 추가 탐색 허용.
+ */
+export type RagMode = 'auto' | 'fast' | 'deep' | 'semantic';
+export const RAG_MODES: readonly RagMode[] = ['auto', 'fast', 'deep', 'semantic'];
+
 /** 검색 설정 (Settings.rag에 저장) */
 export interface RagSettings {
   /** 지식베이스 검색 사용 (기본 true) */
@@ -224,8 +261,12 @@ export interface RagSettings {
   expandParent: boolean;
   /** 최소 관련도(0~1). 이보다 낮은 근거는 넣지 않는다 (기본 0.15) */
   minScore: number;
-  /** 한국어 등 질문을 세션 모델로 영어 코드 식별자·키워드까지 넓혀 검색 (기본 true, ADR-119) */
+  /** 한국어 등 질문을 세션 모델로 영어 코드 식별자·키워드까지 넓혀 검색 (기본 true, ADR-119). ADR-122부터 근거가 부족할 때만 */
   expandQuery: boolean;
+  /** 검색 모드 (기본 auto, ADR-122). 없으면 auto */
+  mode?: RagMode;
+  /** 디버그: 검색 단계별 시간·후보를 결과에 담아 화면에 보인다 (기본 false) */
+  debug?: boolean;
 }
 
 export const DEFAULT_RAG_SETTINGS: RagSettings = {
@@ -240,6 +281,8 @@ export const DEFAULT_RAG_SETTINGS: RagSettings = {
   expandParent: true,
   minScore: 0.15,
   expandQuery: true,
+  mode: 'auto',
+  debug: false,
 };
 
 /** 문맥 기반 질의 계획 (core rewriteQuery 결과) */
@@ -280,6 +323,10 @@ export interface SearchHit {
   keywordRank?: number;
   /** 코드 심볼 이름 일치 순위 (ADR-115) */
   symbolRank?: number;
+  /** 파일명·경로·제목 일치 순위 (ADR-122) */
+  pathRank?: number;
+  /** 폴더 메타데이터(INFO) 후보 폴더 안의 청크인가 (ADR-123) */
+  folderMatch?: boolean;
 }
 
 /** 최종 근거 한 건 = 답변 출처 */
@@ -303,6 +350,66 @@ export interface Evidence {
   text: string;
   /** 0~1 관련도 */
   score: number;
+  /** 어느 검색 채널이 이 청크를 찾았나 (충분성 판단·디버그, ADR-122) */
+  matched?: SearchChannel[];
+}
+
+export type SearchChannel = 'keyword' | 'vector' | 'symbol' | 'path' | 'folder';
+
+/** 검색 단계별 시간(ms). 측정은 항상 하되 로그는 남기지 않는다 (디버그 화면·평가용) */
+export interface RetrievalTimings {
+  /** 질의 임베딩 (OpenAI) */
+  embedMs?: number;
+  keywordMs?: number;
+  vectorMs?: number;
+  symbolMs?: number;
+  pathMs?: number;
+  folderMs?: number;
+  /** 후보 청크·문서 조회 */
+  fetchMs?: number;
+  /** 근거 선택(리랭크·중복 제거·예산) */
+  selectMs?: number;
+  /** 질의 확장 (store) */
+  expandMs?: number;
+  totalMs?: number;
+}
+
+/** 사용자에게 알릴 검색 동작 (fallback·확장 등). 문구는 화면이 i18n으로 만든다 */
+export type RetrievalNoticeCode =
+  /** semantic 모드인데 OpenAI 색인이 없거나 키가 없어 빠른 검색으로 대체 */
+  | 'semantic_unavailable'
+  /** 질의 임베딩 실패 → 키워드 검색만 */
+  | 'embed_failed'
+  /** 근거가 부족해 질의를 넓혀 다시 찾음 */
+  | 'expanded'
+  /** 근거 부족 (관련 문서를 찾지 못함) */
+  | 'insufficient'
+  /** 일부 KB를 건너뜀 (skipped 참조) */
+  | 'kb_skipped'
+  /** 검색 시간 초과 → 근거 없이 답함 */
+  | 'timeout';
+
+export interface RetrievalNotice {
+  code: RetrievalNoticeCode;
+  kbId?: string;
+}
+
+/** 근거 충분성 판단 결과 (core assessEvidence, ADR-122) */
+export interface EvidenceAssessment {
+  sufficient: boolean;
+  /** 판단 근거 (디버그·평가용 코드) */
+  reasons: string[];
+  /** 0~1 신뢰도 (참고용) */
+  confidence: number;
+}
+
+/** 폴더 후보 (INFO 메타데이터 검색 결과, ADR-123) */
+export interface FolderHint {
+  kbId: string;
+  /** files/ 기준 폴더 경로 ('' = 루트) */
+  path: string;
+  title: string;
+  score: number;
 }
 
 export interface RetrievalResult {
@@ -311,6 +418,36 @@ export interface RetrievalResult {
   /** 색인이 없거나 실패해 건너뛴 KB와 이유 */
   skipped: { kbId: string; reason: string }[];
   tookMs: number;
+  /** 단계별 시간 (ADR-122) */
+  timings?: RetrievalTimings;
+  /** 실제로 의미(벡터) 검색을 한 KB */
+  semanticKbIds?: string[];
+  /** 관련 폴더 후보 (추가 탐색 안내용) */
+  folders?: FolderHint[];
+  /** 근거 충분성 */
+  assessment?: EvidenceAssessment;
+  notices?: RetrievalNotice[];
+  /** 디버그 모드에서만: 융합 전 후보 수 등 */
+  debug?: { candidates: number; perList: Record<string, number> };
+}
+
+/**
+ * 메시지에 남기는 검색 과정 요약 (ADR-122). 화면의 "검색 과정" 표시에 쓴다.
+ * 문서 본문은 넣지 않는다 (출처는 citations).
+ */
+export interface RagTrace {
+  mode: RagMode;
+  kbIds: string[];
+  /** 질의 확장을 했는가 */
+  expanded: boolean;
+  semanticKbIds?: string[];
+  notices: RetrievalNotice[];
+  /** 주요 문서 경로 (중복 없이 최대 5개) */
+  topPaths: string[];
+  /** CLI가 추가로 부른 지식베이스 도구 횟수 (스트림에서 센다) */
+  toolCalls?: number;
+  timings?: RetrievalTimings;
+  sufficient?: boolean;
 }
 
 /** 리랭커 (교체 가능, 없어도 동작) */
@@ -363,4 +500,50 @@ export interface RetrievalService {
   retrieve(req: RetrievalRequest, signal?: AbortSignal): Promise<RetrievalResult>;
   /** 출처 보기 */
   source(kbId: string, chunkId: string): Promise<SourceView>;
+}
+
+// ── 계층형 폴더 메타데이터 (ADR-123) ─────────────────────
+
+/** 메타데이터 생성기 버전. 바뀌면 전체 다시 만든다 */
+export const FOLDER_META_VERSION = 1;
+
+/**
+ * 폴더 하나의 자동 생성 메타데이터 (INFO.md의 원천).
+ * 저장 위치: 앱 관리 폴더 `<kbRoot>/<kbId>/meta/` (사용자 원본 files/에는 쓰지 않는다).
+ * - `meta/folders.json`: FolderMetaFile (검색·도구가 읽는 원천)
+ * - `meta/INDEX.md`, `meta/tree/<folder>/INFO.md`: 사람이 읽는 미러 (내보내기 확장용)
+ */
+export interface FolderMeta {
+  /** files/ 기준 폴더 경로 ('' = 루트) */
+  path: string;
+  /** 사람이 읽을 제목 (폴더 이름 또는 README/INFO 첫 헤딩) */
+  title: string;
+  /** 짧은 설명 (사용자 INFO.md/README 첫 문단 또는 자동 요약) */
+  description: string;
+  /** 주요 주제 (자주 나오는 헤딩·핵심어) */
+  topics: string[];
+  /** 기술 키워드 (식별자·약어·심볼) */
+  keywords: string[];
+  /** 관련 용어·동의어 (내장 사전 ko↔en) */
+  synonyms: string[];
+  /** 주요 문서 (files/ 기준 경로, 최대 10) */
+  keyDocs: { path: string; title: string }[];
+  /** 하위 폴더 경로 */
+  children: string[];
+  /** 연관 폴더 (키워드 겹침) */
+  related: string[];
+  /** 바로 아래 문서 수 / 하위 전체 문서 수 */
+  docCount: number;
+  totalDocs: number;
+  /** 하위 문서 해시들로 만든 폴더 해시 (증분 갱신 판단) */
+  hash: string;
+  /** 사용자가 원본에 둔 INFO.md/AGENTS.md/README 경로 (사용자 작성 데이터로 구분) */
+  userNotes?: string[];
+  generator: number;
+}
+
+export interface FolderMetaFile {
+  version: number;
+  generatedAt: number;
+  folders: FolderMeta[];
 }

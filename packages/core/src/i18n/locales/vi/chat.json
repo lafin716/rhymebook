@@ -161,7 +161,11 @@
     "sources": "Nguồn: {count}",
     "read": "Đọc tệp",
     "glob": "Tìm tệp",
-    "grep": "Tìm nội dung"
+    "grep": "Tìm nội dung",
+    "searchKnowledge": "Tìm trong kho tri thức",
+    "listKnowledgeDirectory": "Xem thư mục",
+    "readKnowledgeFile": "Đọc tài liệu",
+    "getKnowledgeOutline": "Dàn ý tài liệu"
   },
   "summaryDraft": {
     "generating": "Đang viết tóm tắt…",

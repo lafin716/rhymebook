@@ -134,20 +134,28 @@
   },
   "embedding": {
     "heading": "Mô hình nhúng",
-    "local": "Cục bộ (ngoại tuyến, mặc định)",
+    "local": "Hash cục bộ (ngoại tuyến, mặc định cũ)",
     "model": "Mô hình",
     "modelDefault": "Mô hình mặc định",
-    "openai": "OpenAI (text-embedding-3-small)",
-    "openaiNotice": "Khi chọn OpenAI, nội dung tài liệu trong kho này sẽ được gửi tới máy chủ OpenAI. Dùng khóa API OpenAI hiện có. Với tài liệu nhạy cảm, hãy dùng chế độ cục bộ.",
+    "openai": "Tìm kiếm ngữ nghĩa OpenAI",
+    "openaiNotice": "Khi chọn OpenAI, nội dung tài liệu của kho tri thức này và câu hỏi của bạn sẽ được gửi tới máy chủ OpenAI. Hãy dùng \"Không vector\" cho tài liệu nhạy cảm.",
     "provider": "Phương thức",
     "reindexNeeded": "Mô hình đã thay đổi. Hãy lập chỉ mục lại để áp dụng cho tìm kiếm.",
     "save": "Lưu",
-    "saved": "Đã lưu cài đặt nhúng."
+    "saved": "Đã lưu cài đặt nhúng.",
+    "none": "Không vector (tìm theo từ khóa, mã, thư mục — mặc định)",
+    "dimensions": "Số chiều",
+    "hint": {
+      "none": "Tìm theo từ khóa (FTS5), ký hiệu mã, đường dẫn tệp và thông tin thư mục mà không cần khóa API. Đủ cho hầu hết trường hợp.",
+      "local-hash": "Mặc định cũ. Đánh giá cho thấy gần như không cải thiện chất lượng nên kho tri thức mới không dùng.",
+      "openai": "Tìm cả đoạn văn có nghĩa tương tự. Gọi OpenAI API khi lập chỉ mục và mỗi câu hỏi (dùng khóa OpenAI trong Cài đặt › Khóa API)."
+    },
+    "costEstimate": "Chi phí lập chỉ mục ước tính: khoảng {tokens} token, khoảng ${usd} (ước tính, một lần; chỉ gửi lại tệp đã thay đổi)"
   },
   "rag": {
     "enabled": "Dùng tìm kiếm kho tri thức",
     "expandParent": "Kèm đoạn văn lân cận",
-    "expandQuery": "Mở rộng câu hỏi thành từ khóa tìm mã tiếng Anh (thêm 1 lần gọi mô hình)",
+    "expandQuery": "Khi bằng chứng yếu, mở rộng câu hỏi thành từ khóa mã tiếng Anh và tìm lại (thêm một lần gọi mô hình)",
     "heading": "Cài đặt tìm kiếm",
     "maxContextChars": "Số ký tự tối đa của bằng chứng",
     "minScore": "Độ liên quan tối thiểu",
@@ -156,7 +164,9 @@
     "save": "Lưu",
     "topK": "Số lượng bằng chứng",
     "open": "Cài đặt tìm kiếm",
-    "hint": "Áp dụng cho mọi cơ sở tri thức."
+    "hint": "Áp dụng cho mọi cơ sở tri thức.",
+    "mode": "Chế độ tìm kiếm",
+    "debug": "Gỡ lỗi: hiển thị thời gian từng bước tìm kiếm dưới câu trả lời"
   },
   "sources": {
     "empty": "Chưa có nguồn nào.",
@@ -194,5 +204,33 @@
   "autoIndex": {
     "label": "Tự động lập chỉ mục",
     "hint": "Khi bật, tệp được lập chỉ mục ngay khi thêm. Khi tắt, hãy tự nhấn Lập chỉ mục lại."
+  },
+  "mode": {
+    "auto": "Tự động",
+    "fast": "Nhanh",
+    "deep": "Chuyên sâu",
+    "semantic": "Ngữ nghĩa",
+    "hint": {
+      "auto": "Tìm cục bộ, chỉ tìm thêm khi bằng chứng yếu. Phù hợp với hầu hết mọi người.",
+      "fast": "Chỉ tìm cục bộ. Không gọi thêm mô hình hay duyệt tài liệu — nhanh nhất.",
+      "deep": "Thu thập thêm bằng chứng, Codex/Claude tự đọc tài liệu gốc cần thiết.",
+      "semantic": "Tìm theo nghĩa trong kho tri thức có chỉ mục OpenAI. Nếu không có thì dùng tìm kiếm cục bộ."
+    }
+  },
+  "trace": {
+    "label": "Quá trình tìm",
+    "kbs": "{n} kho tri thức",
+    "docs": "{n} tài liệu",
+    "expanded": "đã mở rộng và tìm lại",
+    "tools": "tra cứu thêm {n} lần",
+    "semantic": "ngữ nghĩa",
+    "topDocs": "Tài liệu chính"
+  },
+  "notice": {
+    "semantic_unavailable": "Không có chỉ mục ngữ nghĩa nên đã dùng tìm kiếm cục bộ.",
+    "embed_failed": "Tìm kiếm ngữ nghĩa thất bại nên đã dùng tìm theo từ khóa.",
+    "insufficient": "Không tìm thấy bằng chứng liên quan trong kho tri thức.",
+    "timeout": "Tìm kiếm quá thời gian nên câu trả lời không có bằng chứng từ kho tri thức.",
+    "kb_skipped": "Đã bỏ qua kho tri thức chưa có chỉ mục."
   }
 }

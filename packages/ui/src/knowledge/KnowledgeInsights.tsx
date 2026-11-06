@@ -1,5 +1,16 @@
 import { t } from '../i18n';
-import { DEFAULT_RAG_SETTINGS, type KnowledgeIndexSettings, type KnowledgeIndexState, type KnowledgeSource, type RagSettings } from '@branch/core';
+import {
+  DEFAULT_OPENAI_EMBEDDING_MODEL,
+  DEFAULT_RAG_SETTINGS,
+  OPENAI_EMBEDDING_MODELS,
+  RAG_MODES,
+  type EmbeddingProviderId,
+  type KnowledgeIndexSettings,
+  type KnowledgeIndexState,
+  type KnowledgeSource,
+  type RagMode,
+  type RagSettings,
+} from '@branch/core';
 import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
@@ -183,10 +194,12 @@ export function EmbeddingPanel({ kbId, bare }: { kbId: string; bare?: boolean })
   const [settings, setSettings] = useState<KnowledgeIndexSettings | null>(null);
   const [notice, setNotice] = useState<{ text: string; tone: 'info' | 'error' } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sourceBytes, setSourceBytes] = useState(0);
 
   useEffect(() => {
     if (!api?.getIndexSettings) return;
     void api.getIndexSettings(kbId).then(setSettings).catch(() => undefined);
+    void api.indexStates?.([kbId]).then((l) => setSourceBytes(l[0]?.sourceBytes ?? 0)).catch(() => undefined);
   }, [api, kbId]);
 
   if (!api?.getIndexSettings || !settings) return null;
@@ -206,6 +219,11 @@ export function EmbeddingPanel({ kbId, bare }: { kbId: string; bare?: boolean })
     }
   };
   const provider = settings.embedding.provider;
+  const emb = settings.embedding;
+  const openaiModel = emb.model && OPENAI_EMBEDDING_MODELS[emb.model] ? emb.model : DEFAULT_OPENAI_EMBEDDING_MODEL;
+  // 비용 추정: 원본 글자 수 ≈ 바이트, 토큰 ≈ 바이트/4 (한국어는 더 많을 수 있어 상한 표시용)
+  const tokens = sourceBytes > 0 ? Math.ceil(sourceBytes / 4) : 0;
+  const usd = (tokens / 1_000_000) * (OPENAI_EMBEDDING_MODELS[openaiModel]?.usdPer1MTokens ?? 0);
   return (
     <Section title={t('knowledge.embedding.heading')} bare={bare}>
       <form onSubmit={save} className="flex flex-col gap-2 text-[13px]">
@@ -213,27 +231,58 @@ export function EmbeddingPanel({ kbId, bare }: { kbId: string; bare?: boolean })
           <span className="w-24 shrink-0 text-fg-2">{t('knowledge.embedding.provider')}</span>
           <select
             value={provider}
-            onChange={(e) => setSettings({ ...settings, embedding: { provider: e.target.value as 'local-hash' | 'openai', model: undefined } })}
+            onChange={(e) => setSettings({ ...settings, embedding: { provider: e.target.value as EmbeddingProviderId } })}
             className="h-8 rounded-lg border border-line bg-surface px-2 outline-none focus:border-accent"
           >
+            <option value="none">{t('knowledge.embedding.none')}</option>
             <option value="local-hash">{t('knowledge.embedding.local')}</option>
             <option value="openai">{t('knowledge.embedding.openai')}</option>
           </select>
         </label>
+        <p className="text-[12px] text-muted">{t(`knowledge.embedding.hint.${provider}`)}</p>
         {provider === 'openai' && (
-          <p role="note" data-external-notice="" className="rounded-lg bg-warn-soft px-3 py-2 text-[12px] text-warn">
-            {t('knowledge.embedding.openaiNotice')}
-          </p>
+          <>
+            <p role="note" data-external-notice="" className="rounded-lg bg-warn-soft px-3 py-2 text-[12px] text-warn">
+              {t('knowledge.embedding.openaiNotice')}
+            </p>
+            <label className="flex items-center gap-2">
+              <span className="w-24 shrink-0 text-fg-2">{t('knowledge.embedding.model')}</span>
+              <select
+                value={openaiModel}
+                onChange={(e) => setSettings({ ...settings, embedding: { provider, model: e.target.value } })}
+                className="h-8 rounded-lg border border-line bg-surface px-2 outline-none focus:border-accent"
+              >
+                {Object.keys(OPENAI_EMBEDDING_MODELS).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="w-24 shrink-0 text-fg-2">{t('knowledge.embedding.dimensions')}</span>
+              <input
+                type="number"
+                min={64}
+                max={OPENAI_EMBEDDING_MODELS[openaiModel]?.dim ?? 3072}
+                step={64}
+                value={emb.dimensions ?? ''}
+                placeholder={String(OPENAI_EMBEDDING_MODELS[openaiModel]?.dim ?? '')}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  const max = OPENAI_EMBEDDING_MODELS[openaiModel]?.dim ?? 3072;
+                  setSettings({ ...settings, embedding: { provider, model: openaiModel, ...(e.target.value && Number.isInteger(n) && n >= 64 && n <= max ? { dimensions: n } : {}) } });
+                }}
+                className="h-8 w-28 rounded-lg border border-line bg-surface px-2 outline-none focus:border-accent"
+              />
+            </label>
+            {tokens > 0 && (
+              <p data-cost-estimate="" className="text-[12px] text-fg-2">
+                {t('knowledge.embedding.costEstimate', { tokens: tokens.toLocaleString(), usd: usd < 0.01 ? '<0.01' : usd.toFixed(2) })}
+              </p>
+            )}
+          </>
         )}
-        <label className="flex items-center gap-2">
-          <span className="w-24 shrink-0 text-fg-2">{t('knowledge.embedding.model')}</span>
-          <input
-            value={settings.embedding.model ?? ''}
-            placeholder={provider === 'openai' ? 'text-embedding-3-small' : t('knowledge.embedding.modelDefault')}
-            onChange={(e) => setSettings({ ...settings, embedding: { provider, model: e.target.value.trim() || undefined } })}
-            className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 outline-none focus:border-accent"
-          />
-        </label>
         {notice && (
           <p role={notice.tone === 'error' ? 'alert' : 'status'} className={cn('text-[12px]', notice.tone === 'error' ? 'text-danger' : 'text-fg-2')}>
             {notice.text}
@@ -266,6 +315,22 @@ export function RagSettingsPanel({ value, onSave, bare }: { value: RagSettings; 
           {t('knowledge.rag.enabled')}
         </label>
         <label className="flex items-center gap-2">
+          <span className="w-40 shrink-0 text-fg-2">{t('knowledge.rag.mode')}</span>
+          <select
+            data-rag-mode=""
+            value={draft.mode ?? 'auto'}
+            onChange={(e) => set('mode', e.target.value as RagMode)}
+            className="h-8 rounded-lg border border-line bg-surface px-2 outline-none focus:border-accent"
+          >
+            {RAG_MODES.map((m) => (
+              <option key={m} value={m}>
+                {t(`knowledge.mode.${m}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="text-[12px] text-muted">{t(`knowledge.mode.hint.${draft.mode ?? 'auto'}`)}</p>
+        <label className="flex items-center gap-2">
           <input type="checkbox" checked={draft.rerank} onChange={(e) => set('rerank', e.target.checked)} />
           {t('knowledge.rag.rerank')}
         </label>
@@ -276,6 +341,10 @@ export function RagSettingsPanel({ value, onSave, bare }: { value: RagSettings; 
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={draft.expandQuery} onChange={(e) => set('expandQuery', e.target.checked)} />
           {t('knowledge.rag.expandQuery')}
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={draft.debug === true} onChange={(e) => set('debug', e.target.checked)} />
+          {t('knowledge.rag.debug')}
         </label>
         <label className="flex items-center gap-2">
           <span className="w-40 shrink-0 text-fg-2">{t('knowledge.rag.topK')}</span>

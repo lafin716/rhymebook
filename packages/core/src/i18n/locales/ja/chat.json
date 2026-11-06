@@ -161,7 +161,11 @@
     "sources": "情報源 {count}",
     "read": "ファイルを読む",
     "glob": "ファイルを検索",
-    "grep": "内容を検索"
+    "grep": "内容を検索",
+    "searchKnowledge": "ナレッジベース検索",
+    "listKnowledgeDirectory": "フォルダー表示",
+    "readKnowledgeFile": "ドキュメントを読む",
+    "getKnowledgeOutline": "ドキュメント概要"
   },
   "summaryDraft": {
     "generating": "要約を作成中…",

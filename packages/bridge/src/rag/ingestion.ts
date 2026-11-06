@@ -194,6 +194,8 @@ async function embedLeaves(
   leaves: Chunk[],
   opts: { signal?: AbortSignal; retryDelayMs: number; maxRetries: number },
 ): Promise<{ vecs: Map<string, Float32Array>; calls: number; hits: number }> {
+  // 벡터 없음('none'): 캐시도 호출도 하지 않는다
+  if (provider.info.provider === 'none') return { vecs: new Map(), calls: 0, hits: 0 };
   const modelKey = embeddingKey(provider.info);
   const hashes = [...new Set(leaves.map((c) => textHashOf(c.embedText)))];
   const cached = repo.getCachedVectors(hashes, modelKey);

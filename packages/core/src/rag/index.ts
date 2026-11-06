@@ -9,3 +9,7 @@ export * from './retrieval';
 export * from './rewrite';
 export * from './expand';
 export * from './prompt';
+export * from './sufficiency';
+export * from './tools';
+export * from './metrics';
+export * from './folders';

@@ -161,7 +161,11 @@
     "sources": "来源 {count}",
     "read": "读取文件",
     "glob": "查找文件",
-    "grep": "搜索内容"
+    "grep": "搜索内容",
+    "searchKnowledge": "搜索知识库",
+    "listKnowledgeDirectory": "查看文件夹",
+    "readKnowledgeFile": "读取文档",
+    "getKnowledgeOutline": "文档大纲"
   },
   "summaryDraft": {
     "generating": "正在生成摘要…",

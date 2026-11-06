@@ -134,20 +134,28 @@
   },
   "embedding": {
     "heading": "嵌入模型",
-    "local": "本地（离线，默认）",
+    "local": "本地哈希(离线,旧默认)",
     "model": "模型",
     "modelDefault": "默认模型",
-    "openai": "OpenAI（text-embedding-3-small）",
-    "openaiNotice": "选择 OpenAI 后，此知识库的文档正文会发送到 OpenAI 服务器。将使用您现有的 OpenAI API 密钥。涉及敏感资料请使用本地方式。",
+    "openai": "OpenAI 语义搜索",
+    "openaiNotice": "选择 OpenAI 后,此知识库的文档正文和你的问题会发送到 OpenAI 服务器。敏感资料请使用“无向量”。",
     "provider": "方式",
     "reindexNeeded": "模型已更改。需要重新索引才能用于检索。",
     "save": "保存",
-    "saved": "嵌入设置已保存。"
+    "saved": "嵌入设置已保存。",
+    "none": "无向量(关键词、代码、文件夹搜索,默认)",
+    "dimensions": "维度",
+    "hint": {
+      "none": "无需 API 密钥,通过关键词(FTS5)、代码符号、文件路径和文件夹信息搜索。大多数情况已足够。",
+      "local-hash": "旧默认值。评估显示几乎没有质量提升,新知识库不再使用。",
+      "openai": "还能找到含义相近的段落。索引和每次提问都会调用 OpenAI API(使用 设置 › API 密钥 中的 OpenAI 密钥)。"
+    },
+    "costEstimate": "预计索引费用:约 {tokens} 个 token,约 ${usd}(估算,一次性;之后只重新发送修改过的文件)"
   },
   "rag": {
     "enabled": "启用知识库检索",
     "expandParent": "包含前后段落",
-    "expandQuery": "将问题扩展为英文代码搜索词（多调用一次模型）",
+    "expandQuery": "证据不足时,将问题扩展为英文代码搜索词再次搜索(多一次模型调用)",
     "heading": "检索设置",
     "maxContextChars": "证据最大字符数",
     "minScore": "最低相关度",
@@ -156,7 +164,9 @@
     "save": "保存",
     "topK": "证据数量",
     "open": "检索设置",
-    "hint": "适用于所有知识库。"
+    "hint": "适用于所有知识库。",
+    "mode": "搜索方式",
+    "debug": "调试:在回答下方显示各搜索阶段耗时"
   },
   "sources": {
     "empty": "没有已添加的来源。",
@@ -194,5 +204,33 @@
   "autoIndex": {
     "label": "自动索引",
     "hint": "开启后添加文件时立即索引。关闭时请手动点击“重新索引”。"
+  },
+  "mode": {
+    "auto": "自动",
+    "fast": "快速",
+    "deep": "深入",
+    "semantic": "语义搜索",
+    "hint": {
+      "auto": "先本地搜索,只有证据不足时才进一步查找。适合大多数情况。",
+      "fast": "仅本地搜索。没有额外的模型调用和文档浏览,速度最快。",
+      "deep": "收集更多证据,Codex/Claude 会直接读取需要的文档原文。",
+      "semantic": "在有 OpenAI 语义索引的知识库中也按含义搜索,否则改用本地搜索。"
+    }
+  },
+  "trace": {
+    "label": "搜索过程",
+    "kbs": "{n} 个知识库",
+    "docs": "{n} 个文档",
+    "expanded": "扩展搜索词后重新搜索",
+    "tools": "额外查找 {n} 次",
+    "semantic": "语义搜索",
+    "topDocs": "主要文档"
+  },
+  "notice": {
+    "semantic_unavailable": "没有语义索引,已改用本地搜索。",
+    "embed_failed": "语义搜索失败,已改用关键词搜索。",
+    "insufficient": "知识库中未找到相关证据。",
+    "timeout": "搜索超时,回答未使用知识库证据。",
+    "kb_skipped": "已跳过没有索引的知识库。"
   }
 }

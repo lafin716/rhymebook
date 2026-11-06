@@ -1,5 +1,6 @@
-import { type StreamEvent, type ToolActivity, type ToolSource } from '@branch/core';
+import { KB_TOOL_NAMES, type StreamEvent, type ToolActivity, type ToolSource } from '@branch/core';
 import { finishFromExit } from './claude';
+import { KB_MCP_SERVER_NAME, KB_MCP_STARTUP_SEC, KB_MCP_TOOL_SEC } from './kbTools/config';
 import { classifyCliError, type CliErrorContext } from './errors';
 import { isObj, str, type CliParser } from './parser';
 
@@ -44,7 +45,15 @@ const IMAGE_GEN_FEATURES = ['image_generation', 'code_mode_host'];
  * webSearch면 웹 검색만 live로 켠다 (셸·파일 도구는 계속 끈다, ADR-070).
  * 값에 따옴표를 넣지 않는다 — win32 cmd 경유 시 이스케이프가 깨진다(TOML이 아니면 문자열로 읽힌다).
  */
-export function codexArgs(opts: { model?: string; effort?: string; images?: string[]; imageGen?: boolean; webSearch?: boolean }): string[] {
+export function codexArgs(opts: {
+  model?: string;
+  effort?: string;
+  images?: string[];
+  imageGen?: boolean;
+  webSearch?: boolean;
+  /** 지식베이스 MCP 서버 (stdio). 있으면 이 서버의 읽기 도구만 켠다 */
+  mcp?: { command: string; args: string[]; env?: Record<string, string> };
+}): string[] {
   // 이미지 생성은 일반 대화에서만 켠다 (ADR-041). 결과는 runChat이 generated_images에서 거둔다
   const off = opts.imageGen ? CODEX_OFF_FEATURES.filter((f) => !IMAGE_GEN_FEATURES.includes(f)) : CODEX_OFF_FEATURES;
   return [
@@ -64,10 +73,34 @@ export function codexArgs(opts: { model?: string; effort?: string; images?: stri
     ...off.flatMap((f) => ['-c', `features.${f}=false`]),
     '-c',
     `web_search=${opts.webSearch ? 'live' : 'disabled'}`,
+    ...(opts.mcp ? mcpConfigArgs(opts.mcp) : []),
     ...(opts.model ? ['-m', opts.model] : []),
     ...(opts.effort ? ['-c', `model_reasoning_effort=${opts.effort}`] : []),
     '-',
   ];
+}
+
+const TOML_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * -c 값은 TOML로 읽힌다. 문자열·배열은 JSON 문자열이 TOML 기본 문자열과 같고,
+ * 환경 변수 표는 인라인 테이블로 쓴다 (키는 식별자만 허용).
+ */
+function mcpConfigArgs(m: { command: string; args: string[]; env?: Record<string, string> }): string[] {
+  const p = `mcp_servers.${KB_MCP_SERVER_NAME}`;
+  const pairs: [string, string][] = [
+    ['command', JSON.stringify(m.command)],
+    ['args', JSON.stringify(m.args)],
+    ['startup_timeout_sec', String(KB_MCP_STARTUP_SEC)],
+    ['tool_timeout_sec', String(KB_MCP_TOOL_SEC)],
+    ['enabled_tools', JSON.stringify(KB_TOOL_NAMES)],
+  ];
+  const env = Object.entries(m.env ?? {});
+  if (env.length) {
+    for (const [k] of env) if (!TOML_KEY.test(k)) throw new Error('invalid env key for MCP config');
+    pairs.push(['env', `{${env.map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(', ')}}`]);
+  }
+  return pairs.flatMap(([k, v]) => ['-c', `${p}.${k}=${v}`]);
 }
 
 /** turn.failed / error 이벤트의 message는 JSON 문자열일 때가 있다 */
@@ -84,6 +117,18 @@ function innerMessage(raw: string): string {
     // 일반 문자열
   }
   return raw;
+}
+
+/** 지식베이스 MCP 도구 호출 → 도구 사용 (다른 MCP 서버 호출은 표시하지 않는다) */
+function kbMcpActivity(item: Record<string, unknown>, eventType: string): ToolActivity | undefined {
+  if (str(item.server) !== KB_MCP_SERVER_NAME) return undefined;
+  const tool = str(item.tool);
+  if (!tool || !(KB_TOOL_NAMES as readonly string[]).includes(tool)) return undefined;
+  const args = isObj(item.arguments) ? item.arguments : {};
+  const query = str(args.query) ?? str(args.path);
+  const failed = item.status === 'failed' || isObj(item.error);
+  const status: ToolActivity['status'] = eventType !== 'item.completed' ? 'running' : failed ? 'error' : 'done';
+  return { id: `codex-${str(item.id) ?? 'mcp'}`, name: tool, status, ...(query ? { query } : {}) };
 }
 
 /** web_search 항목 → 도구 사용 (action: search{query} / open_page{url} / find_in_page{url}) */
@@ -130,6 +175,10 @@ export function createCodexParser(): CliParser & { threadId(): string | undefine
         const item = obj.item;
         if (item.type === 'web_search') {
           return [{ type: 'tool', tool: webSearchActivity(item, `codex-${str(item.id) ?? 'ws'}`, t === 'item.completed') }];
+        }
+        if (item.type === 'mcp_tool_call') {
+          const act = kbMcpActivity(item, t);
+          return act ? [{ type: 'tool', tool: act }] : [];
         }
         if (item.type !== 'agent_message') return [];
         const text = str(item.text) ?? '';

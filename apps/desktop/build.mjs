@@ -19,6 +19,8 @@ await Promise.all([
   build({ ...common, entryPoints: ['src/preload.ts'], outfile: 'dist/preload.cjs' }),
   // 색인·검색 worker (ADR-113). worker_threads가 dist/ragWorker.cjs를 직접 연다
   build({ ...common, entryPoints: ['src/ragWorker.ts'], outfile: 'dist/ragWorker.cjs' }),
+  // 지식베이스 MCP 서버 (ADR-124). Codex·Claude CLI가 stdio로 띄운다 (Electron은 ELECTRON_RUN_AS_NODE=1로 실행)
+  build({ ...common, entryPoints: ['../../packages/bridge/src/kbTools/cli.ts'], outfile: 'dist/kbMcp.cjs' }),
 ]);
 
 // 트레이 아이콘을 main.cjs 옆에 둔다 (패키지 files: dist/**)

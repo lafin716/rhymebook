@@ -161,7 +161,11 @@
     "sources": "Sources: {count}",
     "read": "Read file",
     "glob": "Find files",
-    "grep": "Search contents"
+    "grep": "Search contents",
+    "searchKnowledge": "Search knowledge base",
+    "listKnowledgeDirectory": "List folder",
+    "readKnowledgeFile": "Read document",
+    "getKnowledgeOutline": "Document outline"
   },
   "summaryDraft": {
     "generating": "Writing summary…",

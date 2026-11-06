@@ -3,7 +3,9 @@ import {
   isKnowledgeId,
   t,
   type DocKind,
+  RAG_MODES,
   type QueryPlan,
+  type RagMode,
   type RagSettings,
   type RetrievalRequest,
 } from '@branch/core';
@@ -68,7 +70,15 @@ export function parseRagSettings(v: unknown): RagSettings {
     expandParent: bool(o.expandParent, d.expandParent),
     minScore: num(o.minScore, d.minScore, 0, 1),
     expandQuery: bool(o.expandQuery, d.expandQuery),
+    mode: mode(o.mode, d.mode ?? 'auto'),
+    debug: bool(o.debug, d.debug ?? false),
   };
+}
+
+function mode(v: unknown, fallback: RagMode): RagMode {
+  if (v === undefined) return fallback;
+  if (typeof v !== 'string' || !(RAG_MODES as readonly string[]).includes(v)) bad();
+  return v as RagMode;
 }
 
 export function parseQueryPlan(v: unknown): QueryPlan {

@@ -1,5 +1,5 @@
 import type { PromptOverrides } from './prompts';
-import type { Citation, RagSettings } from './rag/types';
+import type { Citation, RagSettings, RagTrace } from './rag/types';
 export type ID = string;
 
 export type Role = 'user' | 'assistant';
@@ -69,6 +69,8 @@ export interface Message {
   citations?: Citation[];
   /** RAG 검색에 쓴 재작성 질의 */
   ragQuery?: string;
+  /** 지식 검색 과정 요약 (모드·KB·확장 여부·안내·주요 문서·도구 호출 수, ADR-122) */
+  ragTrace?: RagTrace;
   tools?: ToolActivity[];
 }
 

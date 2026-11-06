@@ -7,6 +7,7 @@ import { mkdir, rm, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import {
   createHashEmbedder,
+  createNoneEmbedder,
   createOpenAIEmbedder,
   DEFAULT_INDEX_SETTINGS,
   embeddingKey,
@@ -30,6 +31,7 @@ import {
 import { createCodeParser } from './codeParser';
 import { createPdfExtractor } from './pdfText';
 import { IndexRepository, type JobRow } from './sqliteRepository';
+import { FOLDERS_FILE, metaDirOf, readFolderMeta, refreshFolderMeta } from './folderMeta';
 import { retrieveFrom, sourceFrom, type KbSearchTarget } from './searchEngine';
 
 export const INDEX_FILE = 'index.sqlite';
@@ -63,6 +65,12 @@ export interface KnowledgeIndexerOptions {
   now?: () => number;
   /** 디스크 여유 공간 조회 (테스트 주입). 바이트 단위 */
   freeBytes?: (dir: string) => Promise<number>;
+  /**
+   * 읽기 전용: 색인 파일을 만들거나 고치지 않는다 (복구·마이그레이션·작업 기록 없음).
+   * 조회(states·docs·retrieve·source)만 동작하고, 쓰기 계열(enqueue·drop·settingsChanged·markStale)은 오류를 던진다.
+   * MCP 서버 프로세스처럼 색인 작업을 맡지 않는 쪽이 쓴다. 키 공급자는 필요 없다.
+   */
+  readOnly?: boolean;
 }
 
 export interface KnowledgeIndexer {
@@ -144,10 +152,15 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
   function readSettings(kbId: string): KnowledgeIndexSettings {
     try {
       const raw = JSON.parse(readFileSync(path.join(kbDir(kbId), 'meta.json'), 'utf8')) as {
-        settings?: { embedding?: { provider?: string; model?: string } };
+        settings?: { embedding?: { provider?: string; model?: string; dimensions?: number } };
       };
       const e = raw.settings?.embedding;
-      if (e?.provider === 'openai') return { embedding: { provider: 'openai', model: e.model } };
+      if (e?.provider === 'none') return { embedding: { provider: 'none' } };
+      if (e?.provider === 'openai') {
+        const dimensions = typeof e.dimensions === 'number' && e.dimensions > 0 ? Math.floor(e.dimensions) : undefined;
+        return { embedding: { provider: 'openai', model: e.model, dimensions } };
+      }
+      // 설정이 없는 기존 KB는 기존처럼 local-hash를 쓴다
       return DEFAULT_INDEX_SETTINGS;
     } catch {
       return DEFAULT_INDEX_SETTINGS;
@@ -162,12 +175,15 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     let provider: EmbeddingProvider;
     if (opts.embedderFor) {
       provider = await opts.embedderFor(kbId, settings);
+    } else if (settings.embedding.provider === 'none') {
+      provider = createNoneEmbedder();
     } else if (settings.embedding.provider === 'openai') {
       const apiKey = await opts.getOpenAIKey();
       if (!apiKey) throw new IndexFatalError('key_missing', t('bridge.knowledge.index.keyMissing'));
       provider = createOpenAIEmbedder({
         getKey: async () => (await opts.getOpenAIKey()) ?? null,
         model: settings.embedding.model,
+        dimensions: settings.embedding.dimensions,
         fetch: opts.fetch,
       });
     } else {
@@ -182,6 +198,11 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     const cached = repos.get(kbId);
     if (cached) return cached;
     if (dropped.has(kbId)) throw new Error(`knowledge base dropped: ${kbId}`);
+    if (opts.readOnly) {
+      const ro = IndexRepository.openReadOnly(path.join(kbDir(kbId), INDEX_FILE));
+      repos.set(kbId, ro);
+      return ro;
+    }
     recoverSwap(kbDir(kbId));
     const repo = IndexRepository.open(path.join(kbDir(kbId), INDEX_FILE));
     repos.set(kbId, repo);
@@ -191,9 +212,14 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
   /** 색인 파일이 있을 때만 연다 (조회 전용) */
   function openRepo(kbId: string): IndexRepository | undefined {
     if (dropped.has(kbId)) return undefined;
-    recoverSwap(kbDir(kbId));
+    if (!opts.readOnly) recoverSwap(kbDir(kbId));
     if (!existsSync(path.join(kbDir(kbId), INDEX_FILE))) return undefined;
     return ensureRepo(kbId);
+  }
+
+  /** 읽기 전용 색인기에서 쓰기 계열 호출을 막는다 */
+  function assertWritable(): void {
+    if (opts.readOnly) throw new Error('읽기 전용 색인기에서는 색인을 바꿀 수 없습니다');
   }
 
   function closeRepo(kbId: string): void {
@@ -218,6 +244,15 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     repo.setMeta('state', JSON.stringify({ ...readSaved(repo), ...patch }));
   }
 
+  /** 폴더 메타데이터 갱신. 실패해도 색인은 성공이고, 오래된 폴더 파일은 지워 원문 검색만 쓰게 한다 (폴백) */
+  function refreshMetaSafely(kbId: string, repo: IndexRepository): void {
+    try {
+      refreshFolderMeta(kbDir(kbId), repo.folderDocInputs());
+    } catch {
+      rmSync(path.join(metaDirOf(kbDir(kbId)), FOLDERS_FILE), { force: true });
+    }
+  }
+
   function stateFromRepo(kbId: string, repo: IndexRepository | undefined): KnowledgeIndexState {
     if (!repo) {
       return { kbId, status: 'empty', docCount: 0, chunkCount: 0, indexBytes: 0, sourceBytes: 0, failedDocs: 0 };
@@ -235,6 +270,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
       indexedAt: saved.indexedAt,
       error: saved.error,
       failedDocs: st.failedDocs,
+      folderCount: readFolderMeta(kbDir(kbId))?.folders.length,
     };
   }
 
@@ -360,6 +396,8 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
       }
 
       const target = ensureRepo(kbId);
+      emit({ ...base, status: 'indexing', progress: { kbId, phase: 'meta', done: 0, total: 1 } });
+      refreshMetaSafely(kbId, target);
       target.saveJob(jobRow('done', { done: result.indexed, total: result.scanned }));
       const finished = stateFromRepo(kbId, target);
       emit({ ...finished, status: 'ready', sourceBytes: result.sourceBytes, indexedAt: now(), progress: undefined, error: undefined });
@@ -437,6 +475,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     },
 
     async enqueue(kbId, mode = 'incremental') {
+      assertWritable();
       if (closed) throw new Error('indexer closed');
       if (dropped.has(kbId)) throw new Error(`knowledge base dropped: ${kbId}`);
       kbDir(kbId);
@@ -451,6 +490,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     },
 
     async cancel(kbId) {
+      assertWritable();
       const rt = runtime.get(kbId);
       if (!rt) return;
       rt.mode = undefined;
@@ -481,6 +521,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     },
 
     async settingsChanged(kbId) {
+      assertWritable();
       const repo = openRepo(kbId);
       if (!repo) return;
       const provider = await providerFor(kbId).catch(() => undefined);
@@ -492,6 +533,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     },
 
     async markStale(kbId) {
+      assertWritable();
       if (closed || dropped.has(kbId)) return;
       const rt = runtime.get(kbId);
       if (rt?.running || queue.includes(kbId)) return;
@@ -513,7 +555,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
           }
           // 임베딩 제공자를 못 만들면(키 없음 등) 키워드 검색만 한다
           const provider = await providerFor(kbId).catch(() => undefined);
-          targets.push({ kbId, kbName, repo, provider });
+          targets.push({ kbId, kbName, repo, provider, folders: readFolderMeta(kbDir(kbId))?.folders });
         } catch (err) {
           targets.push({ kbId, kbName, skipReason: err instanceof Error ? err.message : String(err) });
         }
@@ -528,6 +570,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     },
 
     async drop(kbId) {
+      assertWritable();
       // 먼저 표시해서 진행 중 작업이 파일을 다시 만들지 못하게 한다
       dropped.add(kbId);
       const rt = runtime.get(kbId);
@@ -548,6 +591,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     },
 
     async resume() {
+      if (opts.readOnly) return;
       for (const kbId of listKbIds(opts.root)) {
         if (dropped.has(kbId)) continue;
         try {

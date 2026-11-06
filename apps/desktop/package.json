@@ -44,7 +44,8 @@
     "asarUnpack": [
       "dist/pdfjs/**",
       "dist/treesitter/**",
-      "dist/ragWorker.cjs"
+      "dist/ragWorker.cjs",
+      "dist/kbMcp.cjs"
     ],
     "mac": {
       "target": [

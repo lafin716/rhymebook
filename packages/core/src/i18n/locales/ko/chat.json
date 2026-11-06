@@ -161,7 +161,11 @@
     "sources": "출처 {count}",
     "read": "파일 읽기",
     "glob": "파일 찾기",
-    "grep": "내용 검색"
+    "grep": "내용 검색",
+    "searchKnowledge": "지식베이스 검색",
+    "listKnowledgeDirectory": "폴더 보기",
+    "readKnowledgeFile": "문서 읽기",
+    "getKnowledgeOutline": "문서 개요"
   },
   "summaryDraft": {
     "generating": "요약 만드는 중…",

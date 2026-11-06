@@ -9,6 +9,7 @@ import {
   rrfFuse,
   selectEvidence,
   toCitations,
+  tokenize,
   type CandidateChunk,
   type Evidence,
   type QueryPlan,
@@ -92,6 +93,22 @@ describe('selectEvidence', () => {
     const b = cand('d2', 'kubernetes pod text', { hash: 'same' });
     const ev = selectEvidence(plan({ keywords: ['kubernetes'] }), [a, b], DEFAULT_RAG_SETTINGS);
     expect(ev).toHaveLength(1);
+  });
+
+  it('경로 신호만 있고 본문이 질의와 무관한 후보는 근거가 되지 않는다', () => {
+    const pathOnly = cand('p1', 'unrelated opening paragraph about release notes', { path: 'notes/a.md', hitScore: 1 });
+    pathOnly.hit.pathRank = 1;
+    const content = cand('k1', 'login flow validates the session token', { hitScore: 0.4 });
+    content.hit.keywordRank = 1;
+    const ev = selectEvidence(plan({ keywords: ['login'], original: 'login' }), [pathOnly, content], DEFAULT_RAG_SETTINGS);
+    expect(ev.map((e) => e.chunkId)).toEqual(['k1']);
+  });
+
+  it('경로 신호 후보도 본문이 질의를 담으면 근거가 된다', () => {
+    const pathHit = cand('p2', 'login handler entry point', { path: 'auth/login.ts', hitScore: 1 });
+    pathHit.hit.pathRank = 1;
+    const ev = selectEvidence(plan({ keywords: ['login'], original: 'login' }), [pathHit], DEFAULT_RAG_SETTINGS);
+    expect(ev.map((e) => e.chunkId)).toEqual(['p2']);
   });
 
   it('빈 후보는 빈 결과', () => {
@@ -223,5 +240,62 @@ describe('selectEvidence across KBs with the same docId and parent id', () => {
     expect(a[0]!.text).toBe('PARENT TEXT');
     expect(b[0]!.text).toBe('PARENT TEXT');
     expect(a[1]!.text).not.toBe('PARENT TEXT');
+  });
+});
+
+/** core tokenize 기반 질의 계획: 한글 질의도 CJK 2-gram으로 키워드를 얻는다 */
+const planFromText = (question: string): QueryPlan => {
+  const keywords = [...new Set(tokenize(question))];
+  return { original: question, rewritten: question, keywords, contextTerms: [], vectorText: question, keywordQuery: keywords, contextual: false };
+};
+
+describe('CJK 질의 계획과 근거 선택', () => {
+  it('tokenize는 한글 질의에서 2-gram 키워드를 만든다', () => {
+    const p = planFromText('JWT 토큰 검증 로직');
+    expect(p.keywords).toEqual(expect.arrayContaining(['jwt', '토큰', '검증']));
+  });
+
+  it('관련 키워드 후보가 있으면 그 후보만 근거가 된다', () => {
+    const cands = [
+      cand('jwt1', 'JWT 토큰 검증 로직은 서명을 확인합니다', { hitScore: 1, path: 'jwt.md' }),
+      cand('ing1', '쿠버네티스 Ingress 설정 규칙', { hitScore: 0.4, path: 'ingress.md' }),
+    ];
+    cands[0]!.hit.keywordRank = 1;
+    const ev = selectEvidence(planFromText('JWT 토큰 검증 로직'), cands, DEFAULT_RAG_SETTINGS, lexicalReranker);
+    expect(ev[0]!.chunkId).toBe('jwt1');
+    expect(ev.map((e) => e.chunkId)).not.toContain('ing1');
+  });
+
+  it('관련 없는 질의는 벡터 전용 후보가 있어도 억지 근거를 붙이지 않는다', () => {
+    const vectorOnly = [
+      cand('v1', '쿠버네티스 Ingress 설정 규칙', { hitScore: 0.8, path: 'ingress.md' }),
+      cand('v2', '배포 파이프라인 승인 절차', { hitScore: 0.7, path: 'deploy.md' }),
+    ];
+    for (const c of vectorOnly) c.hit.vectorRank = 1;
+    const ev = selectEvidence(planFromText('오늘 점심 메뉴 추천해 줘'), vectorOnly, DEFAULT_RAG_SETTINGS, lexicalReranker);
+    expect(ev).toEqual([]);
+  });
+
+  it('matched에는 근거를 찾은 채널 이름이 들어간다', () => {
+    const c = cand('m1', 'RRF는 순위 목록을 합칩니다', { hitScore: 1, path: 'rrf.md' });
+    c.hit.keywordRank = 1;
+    c.hit.pathRank = 2;
+    const [e] = selectEvidence(planFromText('RRF 순위'), [c], DEFAULT_RAG_SETTINGS, lexicalReranker);
+    expect(e!.matched).toEqual(expect.arrayContaining(['keyword', 'path']));
+    expect(e!.matched).not.toContain('vector');
+  });
+
+  it('동적 topK: 강한 후보가 하나뿐이면 하한(2)까지만 본다', () => {
+    const cands = [
+      cand('s1', 'alpha beta gamma', { hitScore: 1, path: 'a.md' }),
+      cand('w1', 'alpha delta', { hitScore: 0.1, path: 'b.md' }),
+      cand('w2', 'alpha epsilon', { hitScore: 0.1, path: 'c.md' }),
+      cand('w3', 'alpha zeta', { hitScore: 0.1, path: 'd.md' }),
+    ];
+    for (const c of cands) c.hit.keywordRank = 1;
+    const settings = { ...DEFAULT_RAG_SETTINGS, minScore: 0, topK: 10, rerank: false };
+    const ev = selectEvidence(plan({ keywords: ['alpha'] }), cands, settings);
+    expect(ev).toHaveLength(2);
+    expect(ev[0]!.chunkId).toBe('s1');
   });
 });

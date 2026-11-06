@@ -1,4 +1,5 @@
-import { t, providerError, type Attachment, type StreamEvent, type ToolActivity, type ToolSource } from '@branch/core';
+import { KB_TOOL_NAMES, t, providerError, type Attachment, type KbToolName, type StreamEvent, type ToolActivity, type ToolSource } from '@branch/core';
+import { KB_MCP_TOOL_PREFIX } from './kbTools/config';
 import { classifyCliError, type CliErrorContext } from './errors';
 import { isObj, str, type CliParser } from './parser';
 import type { RunResult } from './run';
@@ -21,14 +22,17 @@ export function claudeArgs(opts: {
   webSearch?: boolean;
   knowledge?: boolean;
   knowledgeDir?: string;
+  /** 지식베이스 MCP 서버 (ADR-124). 있으면 Read·Glob·Grep·--add-dir 대신 이 도구만 쓴다 */
+  kbMcp?: { config: string; tools: readonly string[] };
 }): string[] {
   // --tools: 쓸 수 있는 도구 목록 (지식베이스 읽기 + 웹)
   // 지식베이스가 있으면 웹 도구를 끈다: 자료 속 지시문이 자료 내용을 외부 주소로 내보내지 못하게 (ADR-107)
-  const web = opts.webSearch && !opts.knowledge;
+  const web = opts.webSearch && !opts.knowledge && !opts.kbMcp;
   const toolList = [...(opts.knowledge ? CLAUDE_KNOWLEDGE_TOOLS : []), ...(web ? CLAUDE_WEB_TOOLS : [])].join(',');
   // --allowedTools: -p 모드에서 확인 없이 허용할 도구. 웹 도구만 둔다.
   // Read·Glob·Grep은 넣지 않는다 (넓게 허용하면 폴더 밖 파일도 읽힌다). 폴더 안 읽기는 --add-dir로 충분하다.
-  const allowList = web ? CLAUDE_WEB_TOOLS.join(',') : '';
+  // MCP 지식 도구는 읽기 전용이고 서버가 폴더 밖을 막으므로 이름으로 미리 허용한다.
+  const allowList = [...(opts.kbMcp ? opts.kbMcp.tools : []), ...(web ? CLAUDE_WEB_TOOLS : [])].join(',');
   return [
     '-p',
     '--output-format',
@@ -43,6 +47,8 @@ export function claudeArgs(opts: {
     '--system-prompt-file',
     opts.systemFile,
     '--no-session-persistence',
+    // MCP는 우리 서버만 쓴다 (사용자 설정의 서버는 읽지 않는다)
+    ...(opts.kbMcp ? ['--mcp-config', opts.kbMcp.config] : []),
     '--strict-mcp-config',
     '--setting-sources',
     '',
@@ -74,6 +80,13 @@ function toolQuery(name: string, input: Record<string, unknown>, knowledgeDir?: 
 /** CLI 도구 이름 → 앱 도구 이름 */
 function toolName(name: string): string {
   return name === 'WebSearch' ? 'web_search' : name === 'WebFetch' ? 'web_fetch' : name.toLowerCase();
+}
+
+/** mcp__octobooks__<tool> → <tool> (지식베이스 도구가 아니면 undefined) */
+export function kbToolNameOf(raw: string): KbToolName | undefined {
+  if (!raw.startsWith(KB_MCP_TOOL_PREFIX)) return undefined;
+  const n = raw.slice(KB_MCP_TOOL_PREFIX.length);
+  return (KB_TOOL_NAMES as readonly string[]).includes(n) ? (n as KbToolName) : undefined;
 }
 
 /** CLI의 tool_use_result에서 출처 목록 (WebSearch: results[].content[], WebFetch: url) */
@@ -157,10 +170,11 @@ export function createClaudeParser(opts: { knowledgeDir?: string } = {}): CliPar
           if (!id || tools.has(id)) continue;
           const input = isObj(b.input) ? b.input : {};
           const rawName = str(b.name) ?? 'tool';
-          const q = toolQuery(rawName, input, opts.knowledgeDir);
+          const kbName = kbToolNameOf(rawName);
+          const q = kbName ? (str(input.query) ?? str(input.path)) : toolQuery(rawName, input, opts.knowledgeDir);
           const tool: ToolActivity = {
             id,
-            name: toolName(rawName),
+            name: kbName ?? toolName(rawName),
             status: 'running',
             ...(q ? { query: q } : {}),
             ...(str(input.url) ? { url: str(input.url)! } : {}),

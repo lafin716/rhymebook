@@ -175,8 +175,9 @@ const api: DesktopApiExt = {
     sources: (id: string) => ipcRenderer.invoke(CH.knowledgeSources, id) as Promise<KnowledgeSource[]>,
     updateSource: (id: string, sourceId: string) =>
       ipcRenderer.invoke(CH.knowledgeUpdateSource, id, sourceId) as Promise<KnowledgeAddResult>,
-    retrieve: (req: RetrievalRequest) =>
-      ipcRenderer.invoke(CH.knowledgeRetrieve, req) as Promise<RetrievalResult>,
+    retrieve: (req: RetrievalRequest, requestId?: string) =>
+      ipcRenderer.invoke(CH.knowledgeRetrieve, req, requestId) as Promise<RetrievalResult>,
+    cancelRetrieve: (requestId: string) => ipcRenderer.invoke(CH.knowledgeRetrieveCancel, requestId) as Promise<void>,
     source: (kbId: string, chunkId: string) =>
       ipcRenderer.invoke(CH.knowledgeSource, kbId, chunkId) as Promise<SourceView>,
     onIndexState(listener: (s: KnowledgeIndexState) => void) {

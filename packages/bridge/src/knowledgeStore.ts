@@ -7,6 +7,7 @@ import path from 'node:path';
 import { LinkBlockedError, pinnedGet } from './linkFetch';
 import {
   DEFAULT_INDEX_SETTINGS,
+  NEW_KB_INDEX_SETTINGS,
   KNOWLEDGE_ID_RE,
   KNOWLEDGE_LIMITS,
   cleanKnowledgeName,
@@ -348,12 +349,14 @@ const DESCRIPTION_MAX = 500;
 const MIN_FREE_FOR_ADD = 100 * 1024 * 1024;
 
 function isIndexSettings(v: unknown): v is KnowledgeIndexSettings {
-  const e = (v as { embedding?: { provider?: unknown; model?: unknown } } | null | undefined)?.embedding;
+  const e = (v as { embedding?: { provider?: unknown; model?: unknown; dimensions?: unknown } } | null | undefined)
+    ?.embedding;
   const auto = (v as { autoIndex?: unknown } | null | undefined)?.autoIndex;
   return (
     !!e &&
-    (e.provider === 'local-hash' || e.provider === 'openai') &&
+    (e.provider === 'none' || e.provider === 'local-hash' || e.provider === 'openai') &&
     (e.model === undefined || typeof e.model === 'string') &&
+    (e.dimensions === undefined || (Number.isInteger(e.dimensions) && (e.dimensions as number) > 0)) &&
     (auto === undefined || typeof auto === 'boolean')
   );
 }
@@ -964,7 +967,14 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
         checkId(id);
         await mkdir(filesDir(id), { recursive: true });
         const now = Date.now();
-        const meta: KbMeta = { name: clean, createdAt: now, updatedAt: now, stats: { fileCount: 0, totalBytes: 0 } };
+        // 새 KB는 임베딩 없음이 기본 (ADR-121). settings가 없는 기존 KB는 그대로 local-hash로 읽는다 (호환)
+        const meta: KbMeta = {
+          name: clean,
+          createdAt: now,
+          updatedAt: now,
+          stats: { fileCount: 0, totalBytes: 0 },
+          settings: { embedding: { ...NEW_KB_INDEX_SETTINGS.embedding } },
+        };
         await saveMeta(id, meta);
         return toBase(id, meta);
       });
@@ -1192,6 +1202,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
           embedding: {
             provider: settings.embedding.provider,
             ...(settings.embedding.model ? { model: settings.embedding.model } : {}),
+            ...(settings.embedding.provider === 'openai' && settings.embedding.dimensions ? { dimensions: settings.embedding.dimensions } : {}),
           },
           ...(settings.autoIndex === false ? { autoIndex: false } : {}),
         };

@@ -193,7 +193,8 @@ describe('runAssistant with retriever', () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]!.system).not.toContain('<documents>');
     const asst = store.getState().messages[SEED_IDS.root]!.filter((m) => m.role === 'assistant').at(-1)!;
-    expect(asst.citations).toBeUndefined();
+    expect(asst.citations ?? []).toEqual([]);
+    expect(asst.ragTrace?.topPaths).toEqual([]);
   });
 
   it('지식베이스가 없으면 검색을 부르지 않는다', async () => {
@@ -266,11 +267,90 @@ describe('runAssistant with retriever', () => {
     expect(searches).toHaveLength(1);
     expect(searches[0]!.knowledgeId).toBeUndefined();
     expect(searches[0]!.webSearch).toBeUndefined();
-    const plan = calls[0]!.plan;
+    // 먼저 빠른 검색(확장 없음) → 근거 부족 → 확장 후 재검색 (ADR-122)
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.plan.rewritten).not.toContain('ShouldContainerBeRestarted');
+    const plan = calls[1]!.plan;
     expect(plan.rewritten).toContain('ShouldContainerBeRestarted');
     expect(plan.rewritten).toContain('syncReplicaSet');
     expect(plan.keywordQuery).toEqual(expect.arrayContaining(['shouldcontainerberestarted', 'syncreplicaset']));
     expect(seen[0]!.system).toContain('<documents>');
+    const asst = store.getState().messages[SEED_IDS.root]!.filter((m) => m.role === 'assistant').at(-1)!;
+    expect(asst.ragTrace?.expanded).toBe(true);
+    expect(asst.ragTrace?.notices.map((n) => n.code)).toContain('expanded');
+  });
+
+  it('빠른 검색 근거가 충분하면 LLM 확장을 부르지 않는다 (ADR-122)', async () => {
+    const seen: StreamRequest[] = [];
+    const calls: RetrievalRequest[] = [];
+    const searches: StreamRequest[] = [];
+    const store = makeStore(seen, okRetriever(calls), { searches, reply: 'ShouldContainerBeRestarted' });
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB]);
+    store.getState().sendMessage(SEED_IDS.root, 'CIDR 블록을 나눈다');
+    await idle(store);
+    expect(searches).toHaveLength(0);
+    expect(calls).toHaveLength(1);
+    const asst = store.getState().messages[SEED_IDS.root]!.filter((m) => m.role === 'assistant').at(-1)!;
+    expect(asst.ragTrace).toMatchObject({ mode: 'auto', kbIds: [KB], expanded: false, sufficient: true, topPaths: ['net.md'] });
+  });
+
+  it('fast 모드는 근거가 부족해도 LLM을 부르지 않고 도구 없이 넘긴다', async () => {
+    const seen: StreamRequest[] = [];
+    const calls: RetrievalRequest[] = [];
+    const searches: StreamRequest[] = [];
+    const store = makeStore(seen, okRetriever(calls), { searches, reply: 'ShouldContainerBeRestarted' });
+    store.getState().updateSettings({ rag: { ...DEFAULT_RAG_SETTINGS, mode: 'fast' } });
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB]);
+    store.getState().sendMessage(SEED_IDS.root, '파드가 죽으면 다시 살리는 코드 찾아줘');
+    await idle(store);
+    expect(searches).toHaveLength(0);
+    expect(calls).toHaveLength(1);
+    expect(seen[0]!.knowledgeMode).toBe('fast');
+  });
+
+  it('deep 모드는 topK를 넓히고 semantic 모드는 의미 검색이 없으면 대체를 알린다', async () => {
+    const calls: RetrievalRequest[] = [];
+    const store = makeStore([], okRetriever(calls));
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB]);
+    store.getState().updateSettings({ rag: { ...DEFAULT_RAG_SETTINGS, mode: 'deep' } });
+    store.getState().sendMessage(SEED_IDS.root, 'CIDR 블록을 나눈다');
+    await idle(store);
+    expect(calls[0]!.settings.topK).toBe(Math.ceil(DEFAULT_RAG_SETTINGS.topK * 1.5));
+
+    store.getState().updateSettings({ rag: { ...DEFAULT_RAG_SETTINGS, mode: 'semantic' } });
+    store.getState().sendMessage(SEED_IDS.root, 'CIDR 블록을 나눈다');
+    await idle(store);
+    const asst = store.getState().messages[SEED_IDS.root]!.filter((m) => m.role === 'assistant').at(-1)!;
+    expect(asst.ragTrace?.mode).toBe('semantic');
+    expect(asst.ragTrace?.notices.map((n) => n.code)).toContain('semantic_unavailable');
+  });
+
+  it('선택된 KB 전체와 모드를 요청에 넘기고 지식베이스 도구 호출을 센다 (ADR-124)', async () => {
+    const seen: StreamRequest[] = [];
+    const registry = new ProviderRegistry();
+    registry.register({
+      id: 'mock',
+      label: 'M',
+      available: async () => ({ status: 'ready' }),
+      async *stream(req) {
+        seen.push(req);
+        yield { type: 'tool', tool: { id: 't1', name: 'searchKnowledge', status: 'running', query: 'x' } };
+        yield { type: 'tool', tool: { id: 't1', name: 'searchKnowledge', status: 'done' } };
+        yield { type: 'tool', tool: { id: 't2', name: 'readKnowledgeFile', status: 'done', query: 'a.md' } };
+        yield { type: 'tool', tool: { id: 't3', name: 'web_search', status: 'done' } };
+        yield { type: 'delta', text: '답' };
+        yield { type: 'done' };
+      },
+    });
+    const store = createAppStore({ registry, repo: memoryRepository(), retriever: okRetriever([]), initial: { ...createSeed(0), view: emptyView(SEED_IDS.root) } });
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB, KB2]);
+    store.getState().sendMessage(SEED_IDS.root, 'CIDR 블록을 나눈다');
+    await idle(store);
+    expect(seen[0]!.knowledgeIds).toEqual([KB, KB2]);
+    expect(seen[0]!.knowledgeId).toBe(KB);
+    expect(seen[0]!.knowledgeMode).toBe('auto');
+    const asst = store.getState().messages[SEED_IDS.root]!.filter((m) => m.role === 'assistant').at(-1)!;
+    expect(asst.ragTrace?.toolCalls).toBe(2);
   });
 
   it('영어 질문이나 설정을 끈 경우는 확장하지 않는다', async () => {

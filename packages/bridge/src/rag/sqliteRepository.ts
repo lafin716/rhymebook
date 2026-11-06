@@ -4,9 +4,35 @@
  */
 import { existsSync, statSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import type { DocKind, EmbeddingModelInfo } from '@branch/core';
+import { tokenize, type DocKind, type EmbeddingModelInfo, type FolderDocInput } from '@branch/core';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
+
+/** 경로·제목 검색용 토큰 (파일명 질의 채널) */
+function pathTokens(path: string, title: string): string {
+  return tokenize(`${path} ${title}`).join(' ');
+}
+
+/**
+ * 점수 내림차순 상위 k개. 전체 정렬 대신 작은 목록을 유지한다. 동점은 먼저 나온 쪽이 앞선다 (정렬 안정성과 같다).
+ */
+export function topKBy<T>(items: Iterable<T>, k: number, score: (item: T) => number): T[] {
+  if (k <= 0) return [];
+  const out: { item: T; s: number }[] = [];
+  for (const item of items) {
+    const s = score(item);
+    if (out.length >= k && s <= (out[out.length - 1]?.s ?? -Infinity)) continue;
+    let at = out.length;
+    while (at > 0 && (out[at - 1]?.s ?? 0) < s) at--;
+    out.splice(at, 0, { item, s });
+    if (out.length > k) out.pop();
+  }
+  return out.map((e) => e.item);
+}
+
+function* indexRange(n: number): Generator<number> {
+  for (let i = 0; i < n; i++) yield i;
+}
 
 /** 벡터 행렬 메모리 캐시 상한 */
 const VECTOR_CACHE_LIMIT_BYTES = 256 * 1024 * 1024;
@@ -201,6 +227,26 @@ const MIGRATIONS: ((db: DatabaseSync) => void)[] = [
       CREATE INDEX symbols_doc ON symbols(doc_id);
     `);
   },
+  // 파일명·경로 채널: 문서별 안정적인 정수 id(docs.path_fts_id)를 FTS rowid로 쓴다 (docs.rowid는 VACUUM 때 바뀔 수 있다)
+  (db) => {
+    db.exec(`
+      ALTER TABLE docs ADD COLUMN path_fts_id INTEGER;
+      CREATE UNIQUE INDEX docs_path_fts_id ON docs(path_fts_id);
+      CREATE VIRTUAL TABLE path_fts USING fts5(tokens, doc_id UNINDEXED, tokenize = 'unicode61');
+    `);
+    const rows = db.prepare('SELECT doc_id, path, title FROM docs ORDER BY doc_id').all() as {
+      doc_id: string;
+      path: string;
+      title: string;
+    }[];
+    const ins = db.prepare('INSERT INTO path_fts(rowid, tokens, doc_id) VALUES (?, ?, ?)');
+    const setId = db.prepare('UPDATE docs SET path_fts_id = ? WHERE doc_id = ?');
+    rows.forEach((r, i) => {
+      const id = i + 1;
+      ins.run(id, pathTokens(r.path, r.title), r.doc_id);
+      setId.run(id, r.doc_id);
+    });
+  },
 ];
 
 function toBlob(vec: Float32Array): Uint8Array {
@@ -280,11 +326,32 @@ export class IndexRepository {
 
   /** 열기 (없으면 생성, 스키마 마이그레이션). 더 새로운 스키마면 IndexSchemaError */
   static open(file: string): IndexRepository {
-    const db = new DatabaseSync(file);
+    return IndexRepository.openWith(file, false);
+  }
+
+  /**
+   * 읽기 전용 열기: 파일을 만들지 않고, WAL 전환·마이그레이션을 하지 않는다.
+   * 파일이 없거나 스키마가 낮으면(마이그레이션 필요) 오류를 던진다. 데스크탑 앱이 먼저 열어 올려 둬야 한다.
+   */
+  static openReadOnly(file: string): IndexRepository {
+    return IndexRepository.openWith(file, true);
+  }
+
+  private static openWith(file: string, readOnly: boolean): IndexRepository {
+    if (readOnly && !existsSync(file)) throw new IndexSchemaError(`index file missing: ${file}`);
+    const db = new DatabaseSync(file, { readOnly: readOnly === true });
     try {
-      db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+      if (readOnly) {
+        db.exec('PRAGMA busy_timeout = 5000;');
+      } else {
+        db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+      }
       const current = Number((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version);
       if (current > SCHEMA_VERSION) throw new IndexSchemaError(`index schema ${current} is newer than ${SCHEMA_VERSION}`);
+      if (readOnly) {
+        if (current < SCHEMA_VERSION) throw new IndexSchemaError(`index schema ${current} needs migration to ${SCHEMA_VERSION} (read-only)`);
+        return new IndexRepository(file, db);
+      }
       for (let v = current; v < SCHEMA_VERSION; v++) {
         db.exec('BEGIN IMMEDIATE');
         try {
@@ -353,6 +420,36 @@ export class IndexRepository {
     return (this.db.prepare('SELECT * FROM docs ORDER BY path').all() as Record<string, unknown>[]).map(rowToDoc);
   }
 
+  /**
+   * 폴더 메타데이터 입력: 정상 문서마다 제목·해시·헤딩(최대 60)·본문 앞부분(maxTextChars)을 모은다.
+   * 앞쪽 청크 몇 개만 읽으므로 큰 저장소에서도 메모리를 일정하게 둔다.
+   */
+  folderDocInputs(maxTextChars = 1200, maxOrdinal = 12): FolderDocInput[] {
+    const docs = this.db
+      .prepare("SELECT doc_id, path, title, content_hash FROM docs WHERE status = 'ok' ORDER BY path")
+      .all() as { doc_id: string; path: string; title: string; content_hash: string }[];
+    const byId = new Map<string, FolderDocInput & { headingSet: Set<string> }>();
+    for (const d of docs) {
+      byId.set(d.doc_id, { path: d.path, title: d.title, hash: d.content_hash, headings: [], text: '', headingSet: new Set() });
+    }
+    const rows = this.db
+      .prepare('SELECT doc_id, heading_path, text FROM chunks WHERE ordinal < ? ORDER BY doc_id, ordinal')
+      .all(maxOrdinal) as { doc_id: string; heading_path: string; text: string }[];
+    for (const r of rows) {
+      const d = byId.get(r.doc_id);
+      if (!d) continue;
+      let hp: string[];
+      try {
+        hp = JSON.parse(r.heading_path) as string[];
+      } catch {
+        hp = [];
+      }
+      for (const h of hp) if (d.headingSet.size < 60) d.headingSet.add(h);
+      if (d.text.length < maxTextChars) d.text += r.text.slice(0, maxTextChars - d.text.length) + '\n';
+    }
+    return [...byId.values()].map(({ headingSet, ...rest }) => ({ ...rest, headings: [...headingSet] }));
+  }
+
   docByPath(p: string): DocRow | undefined {
     const r = this.db.prepare('SELECT * FROM docs WHERE path = ?').get(p) as Record<string, unknown> | undefined;
     return r ? rowToDoc(r) : undefined;
@@ -398,6 +495,12 @@ export class IndexRepository {
           doc.error ?? null,
           doc.indexedAt,
         );
+      // 경로 채널: 기존 id가 있으면 재사용하고 없으면 다음 번호를 쓴다 (deleteDocRows가 이전 행을 지웠다)
+      const pid = this.pathFtsIdOf(doc.docId) ?? this.nextPathFtsId();
+      this.db.prepare('UPDATE docs SET path_fts_id = ? WHERE doc_id = ?').run(pid, doc.docId);
+      this.db
+        .prepare('INSERT INTO path_fts(rowid, tokens, doc_id) VALUES (?, ?, ?)')
+        .run(pid, pathTokens(doc.path, doc.title), doc.docId);
       const insChunk = this.db.prepare(
         `INSERT INTO chunks (chunk_id, doc_id, parent_id, level, ordinal, heading_path, text, page, line_start, line_end, symbol, hash)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -466,8 +569,20 @@ export class IndexRepository {
     const rowids = (this.db.prepare('SELECT rowid FROM chunks WHERE doc_id = ?').all(docId) as { rowid: number }[]).map((r) => r.rowid);
     const delFts = this.db.prepare('DELETE FROM fts WHERE rowid = ?');
     for (const rid of rowids) delFts.run(rid);
+    const pid = this.pathFtsIdOf(docId);
+    if (pid !== undefined) this.db.prepare('DELETE FROM path_fts WHERE rowid = ?').run(pid);
     this.db.prepare('DELETE FROM chunks WHERE doc_id = ?').run(docId);
     this.db.prepare('DELETE FROM symbols WHERE doc_id = ?').run(docId);
+  }
+
+  private pathFtsIdOf(docId: string): number | undefined {
+    const r = this.db.prepare('SELECT path_fts_id FROM docs WHERE doc_id = ?').get(docId) as { path_fts_id: number | null } | undefined;
+    return r?.path_fts_id == null ? undefined : Number(r.path_fts_id);
+  }
+
+  private nextPathFtsId(): number {
+    const r = this.db.prepare('SELECT COALESCE(MAX(path_fts_id), 0) + 1 AS n FROM docs').get() as { n: number };
+    return Number(r.n);
   }
 
   stats(): { docCount: number; chunkCount: number; leafCount: number; failedDocs: number } {
@@ -512,7 +627,7 @@ export class IndexRepository {
     for (let i = 0; i < rowids.length; i += SQL_IN_CHUNK) {
       const part = rowids.slice(i, i + SQL_IN_CHUNK);
       const rows = this.db
-        .prepare(`SELECT * FROM chunks WHERE rowid IN (${part.map(() => '?').join(',')})`)
+        .prepare(`SELECT rowid AS rowid, * FROM chunks WHERE rowid IN (${part.map(() => '?').join(',')})`)
         .all(...part) as Record<string, unknown>[];
       for (const r of rows) {
         const c = rowToChunk(r);
@@ -541,6 +656,89 @@ export class IndexRepository {
       docId: String(r.doc_id),
       rank: Number(r.rank),
     }));
+  }
+
+  /** 파일명·경로·제목 토큰 검색. 문서마다 첫 leaf 청크 하나를 돌려준다 (근거 후보의 대표) */
+  pathSearch(tokens: string[], limit: number, filter?: SearchFilter): KeywordHit[] {
+    if (tokens.length === 0) return [];
+    const f = filterSql(filter);
+    const rows = this.db
+      .prepare(
+        `WITH m AS (SELECT doc_id, rank FROM path_fts WHERE path_fts MATCH ? ORDER BY rank LIMIT ?),
+         firsts AS (
+           SELECT c.rowid AS rowid, c.chunk_id AS chunk_id, c.doc_id AS doc_id, m.rank AS rank,
+             ROW_NUMBER() OVER (PARTITION BY c.doc_id ORDER BY c.ordinal) AS rn
+           FROM m JOIN chunks c ON c.doc_id = m.doc_id AND c.level = 'leaf' JOIN docs d ON d.doc_id = c.doc_id
+           WHERE 1 = 1${f.sql}
+         )
+         SELECT rowid, chunk_id, doc_id, rank FROM firsts WHERE rn = 1 ORDER BY rank LIMIT ?`,
+      )
+      .all(ftsQuery(tokens), limit, ...f.params, limit) as Record<string, unknown>[];
+    return rows.map((r) => ({
+      chunkRowid: Number(r.rowid),
+      chunkId: String(r.chunk_id),
+      docId: String(r.doc_id),
+      rank: Number(r.rank),
+    }));
+  }
+
+  // ── batched lookups (검색 후보 한 번에 가져오기) ──
+
+  /** 문서 메타 여러 개 (doc_id 기준) */
+  docsByIds(docIds: string[]): Map<string, DocRow> {
+    const out = new Map<string, DocRow>();
+    for (let i = 0; i < docIds.length; i += SQL_IN_CHUNK) {
+      const part = docIds.slice(i, i + SQL_IN_CHUNK);
+      const rows = this.db
+        .prepare(`SELECT * FROM docs WHERE doc_id IN (${part.map(() => '?').join(',')})`)
+        .all(...part) as Record<string, unknown>[];
+      for (const r of rows) {
+        const d = rowToDoc(r);
+        out.set(d.docId, d);
+      }
+    }
+    return out;
+  }
+
+  /** leaf 청크 여러 개 + 문서 정보 (rowid 기준) */
+  getChunksWithDocByRowids(rowids: number[]): Map<number, ChunkRow & { path: string; title: string; kind: DocKind; url?: string }> {
+    const out = new Map<number, ChunkRow & { path: string; title: string; kind: DocKind; url?: string }>();
+    for (let i = 0; i < rowids.length; i += SQL_IN_CHUNK) {
+      const part = rowids.slice(i, i + SQL_IN_CHUNK);
+      const rows = this.db
+        .prepare(
+          `SELECT c.rowid AS rowid, c.*, d.path AS d_path, d.title AS d_title, d.kind AS d_kind, d.url AS d_url
+           FROM chunks c JOIN docs d ON d.doc_id = c.doc_id WHERE c.rowid IN (${part.map(() => '?').join(',')})`,
+        )
+        .all(...part) as Record<string, unknown>[];
+      for (const r of rows) {
+        const c = rowToChunk(r);
+        out.set(c.rowid, {
+          ...c,
+          path: String(r.d_path),
+          title: String(r.d_title),
+          kind: r.d_kind as DocKind,
+          url: r.d_url == null ? undefined : String(r.d_url),
+        });
+      }
+    }
+    return out;
+  }
+
+  /** 섹션(부모) 청크 여러 개 (chunk_id 기준) */
+  getSectionsByIds(chunkIds: string[]): Map<string, ChunkRow> {
+    const out = new Map<string, ChunkRow>();
+    for (let i = 0; i < chunkIds.length; i += SQL_IN_CHUNK) {
+      const part = chunkIds.slice(i, i + SQL_IN_CHUNK);
+      const rows = this.db
+        .prepare(`SELECT * FROM chunks WHERE level = 'section' AND chunk_id IN (${part.map(() => '?').join(',')})`)
+        .all(...part) as Record<string, unknown>[];
+      for (const r of rows) {
+        const c = rowToChunk(r);
+        out.set(c.chunkId, c);
+      }
+    }
+    return out;
   }
 
   // ── symbol search (ADR-115) ──────────────────────
@@ -608,8 +806,8 @@ export class IndexRepository {
         for (let k = 0; k < dim; k++) s += (m.data[off + k] ?? 0) * (query[k] ?? 0);
         scores[i] = s;
       }
-      const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0));
-      return order.slice(0, limit).map((i) => ({ chunkRowid: Number(m.rowids[i]), score: scores[i] ?? 0 }));
+      const top = topKBy(indexRange(n), limit, (i) => scores[i] ?? 0);
+      return top.map((i) => ({ chunkRowid: Number(m.rowids[i]), score: scores[i] ?? 0 }));
     }
     const rows = this.db
       .prepare(

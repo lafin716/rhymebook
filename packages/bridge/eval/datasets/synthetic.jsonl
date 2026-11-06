@@ -1,0 +1,68 @@
+{"id":"syn-tt-01","type":"technical-term","source":"synthetic","question":"averageUtilization 목표값은 어떻게 정해?","gold":["kubernetes/autoscaling/hpa.md"]}
+{"id":"syn-tt-02","type":"technical-term","source":"synthetic","question":"consolidationPolicy WhenEmptyOrUnderutilized","gold":["kubernetes/autoscaling/karpenter.md"]}
+{"id":"syn-tt-03","type":"technical-term","source":"synthetic","question":"CrashLoopBackOff 재시작 간격","gold":["kubernetes/workloads/restart-policy.md"]}
+{"id":"syn-tt-04","type":"technical-term","source":"synthetic","question":"CREATE INDEX CONCURRENTLY","gold":["db/migrations.md"]}
+{"id":"syn-tt-05","type":"technical-term","source":"synthetic","question":"카디널리티 복합 인덱스 컬럼 순서","gold":["db/btree-index.md"]}
+{"id":"syn-tt-06","type":"technical-term","source":"synthetic","question":"code_challenge S256 base64url","gold":["auth/oauth-pkce.md"]}
+{"id":"syn-tt-07","type":"technical-term","source":"synthetic","question":"argon2id 메모리 사용량","gold":["auth/password-hashing.md"]}
+{"id":"syn-tt-08","type":"technical-term","source":"synthetic","question":"chmod u+s setuid 비트","gold":["linux/permissions/setuid.md"]}
+{"id":"syn-tt-09","type":"technical-term","source":"synthetic","question":"oom_score 점수","gold":["linux/process/oom-killer.md"]}
+{"id":"syn-tt-10","type":"technical-term","source":"synthetic","question":"volumeBindingMode WaitForFirstConsumer","gold":["kubernetes/storage/pvc.md"]}
+{"id":"syn-tt-11","type":"technical-term","source":"synthetic","question":"pathType Prefix Exact ImplementationSpecific","gold":["kubernetes/networking/ingress.md"]}
+{"id":"syn-tt-12","type":"technical-term","source":"synthetic","question":"df -i inode 사용률","gold":["linux/filesystem/inode.md"]}
+{"id":"syn-ko-01","type":"ko-en-mixed","source":"synthetic","question":"쿠버네티스에서 스팟 인스턴스로 노드 자동 프로비저닝","gold":["kubernetes/autoscaling/karpenter.md"]}
+{"id":"syn-ko-02","type":"ko-en-mixed","source":"synthetic","question":"프로메테우스 알림이 for 기간 동안 이어질 때만 보내는 이유","gold":["kubernetes/observability/alerts.md"]}
+{"id":"syn-ko-03","type":"ko-en-mixed","source":"synthetic","question":"dirty read를 막으려면 격리 수준을 뭘로 바꿔?","gold":["db/transactions.md"]}
+{"id":"syn-ko-04","type":"ko-en-mixed","source":"synthetic","question":"읽기 replica에서 방금 쓴 데이터가 몇 초 늦게 보이는 이유","gold":["db/replication-lag.md"]}
+{"id":"syn-ko-05","type":"ko-en-mixed","source":"synthetic","question":"systemd 서비스 파일을 고친 뒤 daemon-reload가 필요한가","gold":["linux/systemd/unit-files.md"]}
+{"id":"syn-ko-06","type":"ko-en-mixed","source":"synthetic","question":"resolv.conf에서 search 도메인 자동 붙이기","gold":["linux/network/dns-resolv.md"]}
+{"id":"syn-ko-07","type":"ko-en-mixed","source":"synthetic","question":"iptables INPUT 체인 기본 정책을 DROP으로 바꾸기","gold":["linux/network/iptables.md"]}
+{"id":"syn-ko-08","type":"ko-en-mixed","source":"synthetic","question":"StatefulSet 파드 시작 순서와 volumeClaimTemplates","gold":["kubernetes/workloads/statefulset.md"]}
+{"id":"syn-ko-09","type":"ko-en-mixed","source":"synthetic","question":"NetworkPolicy에서 podSelector로 정책 적용 대상 고르기","gold":["kubernetes/networking/network-policy.md"]}
+{"id":"syn-ko-10","type":"ko-en-mixed","source":"synthetic","question":"비밀번호 해시에 bcrypt를 쓸 때 72바이트 제한","gold":["auth/password-hashing.md"]}
+{"id":"syn-sem-01","type":"semantic","source":"synthetic","question":"트래픽이 몰리면 파드 개수를 자동으로 늘리는 방법","gold":["kubernetes/autoscaling/hpa.md"]}
+{"id":"syn-sem-02","type":"semantic","source":"synthetic","question":"디스크 용량은 남았는데 새 파일을 만들 수 없다는 오류","gold":["linux/filesystem/inode.md"]}
+{"id":"syn-sem-03","type":"semantic","source":"synthetic","question":"프로세스가 갑자기 사라졌는데 메모리가 모자랐던 걸까","gold":["linux/process/oom-killer.md"]}
+{"id":"syn-sem-04","type":"semantic","source":"synthetic","question":"일반 사용자가 관리자 권한으로 프로그램을 돌리게 하는 원리","gold":["linux/permissions/setuid.md"]}
+{"id":"syn-sem-05","type":"semantic","source":"synthetic","question":"두 작업이 같은 데이터를 동시에 고칠 때 충돌을 막는 장치","gold":["db/transactions.md"]}
+{"id":"syn-sem-06","type":"semantic","source":"synthetic","question":"방금 저장한 값을 다른 서버에서 조회했더니 옛날 값이 나온다","gold":["db/replication-lag.md"]}
+{"id":"syn-sem-07","type":"semantic","source":"synthetic","question":"외부 HTTP 요청을 도메인과 경로에 따라 여러 서비스로 나눠 주는 입구","gold":["kubernetes/networking/ingress.md"]}
+{"id":"syn-sem-08","type":"semantic","source":"synthetic","question":"사용자 역할별로 허용 행동을 확인하는 코드","gold":["auth/rbac.py"]}
+{"id":"syn-sem-09","type":"semantic","source":"synthetic","question":"회의에서 정한 베타 공개 날짜와 검수 지연 시 계획","gold":["writing/ko/meeting-notes-2026.md"]}
+{"id":"syn-sem-10","type":"semantic","source":"synthetic","question":"데이터베이스를 매일 밤 복사해 두는 규칙과 보관 기간","gold":["ops/backup-policy.md"]}
+{"id":"syn-code-01","type":"code-symbol","source":"synthetic","question":"verifyToken 함수는 어디 있어?","gold":["auth/jwt.ts"],"goldMarker":"export function verifyToken"}
+{"id":"syn-code-02","type":"code-symbol","source":"synthetic","question":"touchSession 세션 갱신","gold":["auth/session-cookie.ts"],"goldMarker":"touchSession"}
+{"id":"syn-code-03","type":"code-symbol","source":"synthetic","question":"check_permission 권한 검사 함수","gold":["auth/rbac.py"],"goldMarker":"def check_permission"}
+{"id":"syn-code-04","type":"code-symbol","source":"synthetic","question":"ConnectionPool 클래스 구현","gold":["db/connection-pool.ts"],"goldMarker":"class ConnectionPool"}
+{"id":"syn-code-05","type":"code-symbol","source":"synthetic","question":"LoggingMiddleware 요청 로그 남기기","gold":["go/http/middleware.go"],"goldMarker":"func LoggingMiddleware"}
+{"id":"syn-code-06","type":"code-symbol","source":"synthetic","question":"NewWorkerPool 고루틴 개수 설정","gold":["go/concurrency/worker_pool.go"],"goldMarker":"func NewWorkerPool"}
+{"id":"syn-code-07","type":"code-symbol","source":"synthetic","question":"aggregate_sales 지점 월별 합계","gold":["py/data/sales_report.py"],"goldMarker":"def aggregate_sales"}
+{"id":"syn-code-08","type":"code-symbol","source":"synthetic","question":"load_csv utf-8-sig BOM 처리","gold":["py/data/csv_import.py"],"goldMarker":"def load_csv"}
+{"id":"syn-file-01","type":"filename","source":"synthetic","question":"rbac.py 파일 내용 보여줘","gold":["auth/rbac.py"]}
+{"id":"syn-file-02","type":"filename","source":"synthetic","question":"session-cookie 파일","gold":["auth/session-cookie.ts"]}
+{"id":"syn-file-03","type":"filename","source":"synthetic","question":"worker_pool.go","gold":["go/concurrency/worker_pool.go"]}
+{"id":"syn-file-04","type":"filename","source":"synthetic","question":"q3-budget 예산 파일","gold":["finance/budget/q3-budget.md"]}
+{"id":"syn-file-05","type":"filename","source":"synthetic","question":"kimchi-jjigae 레시피","gold":["cooking/kimchi-jjigae.md"]}
+{"id":"syn-file-06","type":"filename","source":"synthetic","question":"release-notes v2.4.0","gold":["writing/en/release-notes.md"]}
+{"id":"syn-multi-01","type":"multi-doc","source":"synthetic","question":"HPA와 VPA를 함께 쓰면 왜 충돌하고 어떻게 나눠야 해?","gold":["kubernetes/autoscaling/hpa.md","kubernetes/autoscaling/vpa.md"]}
+{"id":"syn-multi-02","type":"multi-doc","source":"synthetic","question":"CPU 요청값 자동 조정과 노드 프로비저닝 차이","gold":["kubernetes/autoscaling/vpa.md","kubernetes/autoscaling/karpenter.md"]}
+{"id":"syn-multi-03","type":"multi-doc","source":"synthetic","question":"인덱스 선택도와 트랜잭션 격리가 성능에 주는 영향","gold":["db/btree-index.md","db/transactions.md"]}
+{"id":"syn-multi-04","type":"multi-doc","source":"synthetic","question":"JWT 서명 토큰 검증과 비밀번호 저장 방식","gold":["auth/jwt.ts","auth/password-hashing.md"]}
+{"id":"syn-multi-05","type":"multi-doc","source":"synthetic","question":"DNS 이름 풀이와 방화벽 규칙이 연결을 막는 경우","gold":["linux/network/dns-resolv.md","linux/network/iptables.md"]}
+{"id":"syn-multi-06","type":"multi-doc","source":"synthetic","question":"복제 지연이 있을 때 백업 복구 시점 목표","gold":["db/replication-lag.md","ops/backup-policy.md"]}
+{"id":"syn-fu-01","type":"follow-up","source":"synthetic","question":"그럼 노드는 어떻게 늘어?","context":{"turns":[{"role":"user","content":"HPA는 파드 수를 어떻게 정해?"},{"role":"assistant","content":"HPA는 측정한 메트릭이 목표값을 넘으면 복제본 수를 늘린다."}]},"gold":["kubernetes/autoscaling/karpenter.md"]}
+{"id":"syn-fu-02","type":"follow-up","source":"synthetic","question":"그거 요청값은 어떻게 정해?","context":{"turns":[{"role":"user","content":"VPA가 뭐야?"},{"role":"assistant","content":"VPA는 파드 하나의 CPU와 메모리 요청값을 실제 사용량에 맞춰 조정한다."}]},"gold":["kubernetes/autoscaling/vpa.md"]}
+{"id":"syn-fu-03","type":"follow-up","source":"synthetic","question":"그 모드들은 어떤 차이가 있어?","context":{"turns":[{"role":"user","content":"VPA에는 어떤 업데이트 모드가 있어?"},{"role":"assistant","content":"Off, Initial, Auto 같은 모드가 있다."}]},"gold":["kubernetes/autoscaling/vpa.md"]}
+{"id":"syn-fu-04","type":"follow-up","source":"synthetic","question":"그럼 READ COMMITTED면 충분해?","context":{"turns":[{"role":"user","content":"트랜잭션 격리 수준이 뭐야?"},{"role":"assistant","content":"격리 수준은 동시에 실행되는 트랜잭션이 서로의 중간 결과를 얼마나 볼 수 있는지 정한다."}]},"gold":["db/transactions.md"]}
+{"id":"syn-fu-05","type":"follow-up","source":"synthetic","question":"그럼 대략 몇 초야?","context":{"turns":[{"role":"user","content":"복제 지연이 뭐야?"},{"role":"assistant","content":"기본 서버에 쓴 내용이 복제본에 보일 때까지 생기는 시간 차다."}]},"gold":["db/replication-lag.md"]}
+{"id":"syn-fu-06","type":"follow-up","source":"synthetic","question":"그건 잠금 없이 어떻게 해?","context":{"turns":[{"role":"user","content":"큰 테이블에 인덱스 만들 때 주의점이 뭐야?"},{"role":"assistant","content":"잠금이 걸리지 않는 방식으로 만들어야 서비스가 멈추지 않는다."}]},"gold":["db/migrations.md"]}
+{"id":"syn-fu-07","type":"follow-up","source":"synthetic","question":"그 명령은 어떤 체인에 걸려?","context":{"turns":[{"role":"user","content":"iptables 규칙은 어떻게 써?"},{"role":"assistant","content":"iptables -A INPUT -p tcp --dport 22 처럼 체인에 규칙을 추가한다."}]},"gold":["linux/network/iptables.md"]}
+{"id":"syn-fu-08","type":"follow-up","source":"synthetic","question":"이거 메모리 부족이면 어떻게 확인해?","context":{"turns":[{"role":"user","content":"프로세스가 갑자기 죽는 이유가 뭐야?"},{"role":"assistant","content":"커널이 메모리가 바닥나면 OOM 킬러가 프로세스를 강제로 끝낼 수 있다."}]},"gold":["linux/process/oom-killer.md"]}
+{"id":"syn-none-01","type":"no-result","source":"synthetic","question":"비트코인 채굴 난이도 조정 알고리즘","gold":[]}
+{"id":"syn-none-02","type":"no-result","source":"synthetic","question":"기상청 날씨 API 호출 제한 횟수","gold":[]}
+{"id":"syn-none-03","type":"no-result","source":"synthetic","question":"고래의 이동 경로 연구 결과","gold":[]}
+{"id":"syn-none-04","type":"no-result","source":"synthetic","question":"2030년 올림픽 개최지 투표 결과","gold":[]}
+{"id":"syn-none-05","type":"no-result","source":"synthetic","question":"양자 컴퓨터 큐비트 오류 정정 코드","gold":[]}
+{"id":"syn-none-06","type":"no-result","source":"synthetic","question":"Kafka consumer group rebalance timeout","gold":[]}
+{"id":"syn-none-07","type":"no-result","source":"synthetic","question":"세종대왕 훈민정음 창제 배경","gold":[]}
+{"id":"syn-none-08","type":"no-result","source":"synthetic","question":"Rust borrow checker lifetime elision rules","gold":[]}

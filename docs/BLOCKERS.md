@@ -24,5 +24,6 @@
 | B-18 | 자동 업데이트 대상 발행 | 개선 | CI는 태그마다 초안 Release를 만들고 설치본과 `latest*.yml`·blockmap을 올린다. 초안·prerelease는 앱이 무시 | 버전 올림 → 태그 `vX.Y.Z` 푸시 → Actions 완료 후 Release에 `latest.yml`·`latest-mac.yml`·`latest-linux.yml` 있는지 확인 → **Publish(Latest)** |
 | B-19 | 기존 사용자(v0.54.0 이하)는 updater가 없어 한 번 수동 설치 필요 | 개선 | 같은 appId·데이터 폴더(`<appData>/rhymebook`)라 덮어 설치해도 학습 기록·설정 유지 | 첫 자동 업데이트 버전 릴리스 노트에 "이번 한 번은 직접 설치" 안내 |
 | B-20 | 실제 설치·재실행 종단 확인 | 개선 | 패키지 앱 e2e(모의 GitHub 응답)로 확인·알림·오류·중복 방지 검증. 실제 다운로드·설치·재실행은 실제 릴리스가 있어야 확인 가능 | 첫 자동 업데이트 버전(N) 설치 → N+1 정식 발행 → Windows·서명 mac에서 알림 → 다운로드 % → 재시작하여 설치 → 새 버전 실행·데이터 유지 확인 |
+| B-21 | 지식베이스 OpenAI 의미 검색 실측(ADR-121·124) | 개선 | 키 없이 단위 테스트(dimensions·Retry-After·임베딩 캐시)만 검증. local-hash 대비 OpenAI 품질·지연·비용과 벡터 임계값(VECTOR_ONLY_MIN_COS 0.35·VECTOR_MIN_COS 0.1)은 미측정 | 본인 OpenAI 키로 `EVAL_OPENAI=1 OPENAI_API_KEY=… EVAL_LABEL=openai pnpm --filter @branch/bridge eval:rag` 실행(합성 평가 문서와 이 저장소 코드 일부가 OpenAI로 전송됨) → docs/eval/openai.md를 final-2026-11-06.md와 비교, 임계값 조정 |
 
 예상 항목(발생 시 위 표로 이동): (없음)

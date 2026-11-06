@@ -1,0 +1,6857 @@
+{
+  "label": "baseline",
+  "generatedAt": "2026-11-06T03:42:07.353Z",
+  "node": "v24.16.0",
+  "gitHead": "2aec63de8d14ef5f4ee3c95f50d29b49863249ed",
+  "realRev": "2aec63d",
+  "topK": 10,
+  "reps": 3,
+  "openai": false,
+  "configs": [
+    {
+      "id": "local-hash",
+      "label": "local-hash 기본 설정 (키워드 + 해시 벡터 + 경량 리랭커)"
+    },
+    {
+      "id": "fts-symbol",
+      "label": "local-hash, 벡터 가중치 0 (키워드·심볼 중심 근사, HEAD에서는 벡터도 계산되므로 순수 FTS가 아님)"
+    },
+    {
+      "id": "none",
+      "label": "provider none (벡터 없음, ADR-121)",
+      "skipped": "synthetic: provider none 미지원 (색인 모델 local-hash); real: provider none 미지원 (색인 모델 local-hash)"
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI text-embedding-3-small",
+      "skipped": "EVAL_OPENAI=1 과 OPENAI_API_KEY가 모두 필요 (문서가 OpenAI로 전송됨)"
+    }
+  ],
+  "datasets": {
+    "synthetic": {
+      "total": 68,
+      "byType": {
+        "technical-term": 12,
+        "ko-en-mixed": 10,
+        "semantic": 10,
+        "code-symbol": 8,
+        "filename": 6,
+        "multi-doc": 6,
+        "follow-up": 8,
+        "no-result": 8
+      }
+    },
+    "real": {
+      "total": 43,
+      "byType": {
+        "code-symbol": 12,
+        "technical-term": 9,
+        "ko-en-mixed": 7,
+        "semantic": 9,
+        "no-result": 6
+      }
+    }
+  },
+  "corpus": {
+    "synthetic": {
+      "files": 39,
+      "bytes": 31645
+    },
+    "real": {
+      "files": 300,
+      "bytes": 2897133
+    }
+  },
+  "index": [
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "provider": "local-hash",
+      "status": "ready",
+      "indexMs": 70.48845899999992,
+      "docCount": 39,
+      "chunkCount": 286,
+      "indexBytes": 974848,
+      "sourceBytes": 31645,
+      "failedDocs": 0,
+      "goldIndexed": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "provider": "local-hash",
+      "status": "ready",
+      "indexMs": 1035.1672079999998,
+      "docCount": 295,
+      "chunkCount": 3767,
+      "indexBytes": 21061632,
+      "sourceBytes": 2210299,
+      "failedDocs": 0,
+      "goldIndexed": 1
+    },
+    {
+      "config": "none",
+      "source": "synthetic",
+      "provider": "none",
+      "status": "ready",
+      "indexMs": 54.43795799999998,
+      "docCount": 39,
+      "chunkCount": 286,
+      "indexBytes": 974848,
+      "sourceBytes": 31645,
+      "failedDocs": 0,
+      "goldIndexed": 1,
+      "error": "provider none 미지원 (색인 모델 local-hash)"
+    },
+    {
+      "config": "none",
+      "source": "real",
+      "provider": "none",
+      "status": "ready",
+      "indexMs": 960.8913329999996,
+      "docCount": 295,
+      "chunkCount": 3767,
+      "indexBytes": 21061632,
+      "sourceBytes": 2210299,
+      "failedDocs": 0,
+      "goldIndexed": 1,
+      "error": "provider none 미지원 (색인 모델 local-hash)"
+    }
+  ],
+  "summary": [
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "all",
+      "row": {
+        "n": 60,
+        "recall5": 0.9416666666666667,
+        "recall10": 0.9416666666666667,
+        "hit5": 0.95,
+        "mrr": 0.8902777777777777,
+        "ndcg10": 0.8989435501925538,
+        "span5": 0.75,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "code-symbol",
+      "row": {
+        "n": 8,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 0.9166666666666666,
+        "ndcg10": 0.9375,
+        "span5": 0.75,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "filename",
+      "row": {
+        "n": 6,
+        "recall5": 0.6666666666666666,
+        "recall10": 0.6666666666666666,
+        "hit5": 0.6666666666666666,
+        "mrr": 0.5555555555555555,
+        "ndcg10": 0.5833333333333334,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "follow-up",
+      "row": {
+        "n": 8,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 0.9375,
+        "ndcg10": 0.9538662191964322,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "ko-en-mixed",
+      "row": {
+        "n": 10,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 1,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "multi-doc",
+      "row": {
+        "n": 6,
+        "recall5": 0.9166666666666666,
+        "recall10": 0.9166666666666666,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 0.9355245321275764,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "no-result",
+      "row": {
+        "n": 0,
+        "recall5": null,
+        "recall10": null,
+        "hit5": null,
+        "mrr": null,
+        "ndcg10": null,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "semantic",
+      "row": {
+        "n": 10,
+        "recall5": 0.9,
+        "recall10": 0.9,
+        "hit5": 0.9,
+        "mrr": 0.725,
+        "ndcg10": 0.7692536065216309,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "type": "technical-term",
+      "row": {
+        "n": 12,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 1,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "type": "all",
+      "row": {
+        "n": 37,
+        "recall5": 0.6486486486486487,
+        "recall10": 0.8108108108108109,
+        "hit5": 0.6756756756756757,
+        "mrr": 0.437001287001287,
+        "ndcg10": 0.5169404602756114,
+        "span5": 0.48,
+        "spanN": 25
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "type": "code-symbol",
+      "row": {
+        "n": 12,
+        "recall5": 0.5833333333333334,
+        "recall10": 0.8333333333333334,
+        "hit5": 0.5833333333333334,
+        "mrr": 0.2841269841269841,
+        "ndcg10": 0.41424068470645725,
+        "span5": 0.3333333333333333,
+        "spanN": 12
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "type": "ko-en-mixed",
+      "row": {
+        "n": 7,
+        "recall5": 0.7857142857142857,
+        "recall10": 0.7857142857142857,
+        "hit5": 0.8571428571428571,
+        "mrr": 0.6071428571428571,
+        "ndcg10": 0.6150976082831096,
+        "span5": 1,
+        "spanN": 5
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "type": "no-result",
+      "row": {
+        "n": 0,
+        "recall5": null,
+        "recall10": null,
+        "hit5": null,
+        "mrr": null,
+        "ndcg10": null,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "type": "semantic",
+      "row": {
+        "n": 9,
+        "recall5": 0.4444444444444444,
+        "recall10": 0.6666666666666666,
+        "hit5": 0.4444444444444444,
+        "mrr": 0.3297619047619047,
+        "ndcg10": 0.40739786343611795,
+        "span5": 0.375,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "type": "technical-term",
+      "row": {
+        "n": 9,
+        "recall5": 0.8333333333333334,
+        "recall10": 0.9444444444444444,
+        "hit5": 0.8888888888888888,
+        "mrr": 0.6157407407407407,
+        "ndcg10": 0.6870716427570343,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "all",
+      "row": {
+        "n": 97,
+        "recall5": 0.8298969072164949,
+        "recall10": 0.8917525773195877,
+        "hit5": 0.845360824742268,
+        "mrr": 0.7173784977908692,
+        "ndcg10": 0.7532310313582559,
+        "span5": 0.5454545454545454,
+        "spanN": 33
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "code-symbol",
+      "row": {
+        "n": 20,
+        "recall5": 0.75,
+        "recall10": 0.9,
+        "hit5": 0.75,
+        "mrr": 0.5371428571428571,
+        "ndcg10": 0.6235444108238745,
+        "span5": 0.5,
+        "spanN": 20
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "filename",
+      "row": {
+        "n": 6,
+        "recall5": 0.6666666666666666,
+        "recall10": 0.6666666666666666,
+        "hit5": 0.6666666666666666,
+        "mrr": 0.5555555555555555,
+        "ndcg10": 0.5833333333333334,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "follow-up",
+      "row": {
+        "n": 8,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 0.9375,
+        "ndcg10": 0.9538662191964322,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "ko-en-mixed",
+      "row": {
+        "n": 17,
+        "recall5": 0.9117647058823529,
+        "recall10": 0.9117647058823529,
+        "hit5": 0.9411764705882353,
+        "mrr": 0.8382352941176471,
+        "ndcg10": 0.8415107798812804,
+        "span5": 1,
+        "spanN": 5
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "multi-doc",
+      "row": {
+        "n": 6,
+        "recall5": 0.9166666666666666,
+        "recall10": 0.9166666666666666,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 0.9355245321275764,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "no-result",
+      "row": {
+        "n": 0,
+        "recall5": null,
+        "recall10": null,
+        "hit5": null,
+        "mrr": null,
+        "ndcg10": null,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "semantic",
+      "row": {
+        "n": 19,
+        "recall5": 0.6842105263157895,
+        "recall10": 0.7894736842105263,
+        "hit5": 0.6842105263157895,
+        "mrr": 0.537781954887218,
+        "ndcg10": 0.5978482545337563,
+        "span5": 0.375,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "type": "technical-term",
+      "row": {
+        "n": 21,
+        "recall5": 0.9285714285714286,
+        "recall10": 0.9761904761904762,
+        "hit5": 0.9523809523809523,
+        "mrr": 0.8353174603174602,
+        "ndcg10": 0.865887846895872,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "all",
+      "row": {
+        "n": 60,
+        "recall5": 0.9833333333333333,
+        "recall10": 0.9833333333333333,
+        "hit5": 0.9833333333333333,
+        "mrr": 0.9222222222222223,
+        "ndcg10": 0.9356512470413494,
+        "span5": 1,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "code-symbol",
+      "row": {
+        "n": 8,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 1,
+        "span5": 1,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "filename",
+      "row": {
+        "n": 6,
+        "recall5": 0.8333333333333334,
+        "recall10": 0.8333333333333334,
+        "hit5": 0.8333333333333334,
+        "mrr": 0.611111111111111,
+        "ndcg10": 0.6666666666666666,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "follow-up",
+      "row": {
+        "n": 8,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 0.9166666666666666,
+        "ndcg10": 0.9375,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "ko-en-mixed",
+      "row": {
+        "n": 10,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 1,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "multi-doc",
+      "row": {
+        "n": 6,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 0.9795358858896749,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "no-result",
+      "row": {
+        "n": 0,
+        "recall5": null,
+        "recall10": null,
+        "hit5": null,
+        "mrr": null,
+        "ndcg10": null,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "semantic",
+      "row": {
+        "n": 10,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 0.8333333333333333,
+        "ndcg10": 0.8761859507142915,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "type": "technical-term",
+      "row": {
+        "n": 12,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 1,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "type": "all",
+      "row": {
+        "n": 37,
+        "recall5": 0.7567567567567568,
+        "recall10": 0.8108108108108109,
+        "hit5": 0.7837837837837838,
+        "mrr": 0.5214285714285714,
+        "ndcg10": 0.5819264312781999,
+        "span5": 0.6,
+        "spanN": 25
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "type": "code-symbol",
+      "row": {
+        "n": 12,
+        "recall5": 0.8333333333333334,
+        "recall10": 0.8333333333333334,
+        "hit5": 0.8333333333333334,
+        "mrr": 0.4888888888888889,
+        "ndcg10": 0.5732613064127321,
+        "span5": 0.5833333333333334,
+        "spanN": 12
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "type": "ko-en-mixed",
+      "row": {
+        "n": 7,
+        "recall5": 0.7857142857142857,
+        "recall10": 0.7857142857142857,
+        "hit5": 0.8571428571428571,
+        "mrr": 0.5714285714285714,
+        "ndcg10": 0.5875924561093512,
+        "span5": 1,
+        "spanN": 5
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "type": "no-result",
+      "row": {
+        "n": 0,
+        "recall5": null,
+        "recall10": null,
+        "hit5": null,
+        "mrr": null,
+        "ndcg10": null,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "type": "semantic",
+      "row": {
+        "n": 9,
+        "recall5": 0.5555555555555556,
+        "recall10": 0.6666666666666666,
+        "hit5": 0.5555555555555556,
+        "mrr": 0.4259259259259259,
+        "ndcg10": 0.4840230207897802,
+        "span5": 0.375,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "type": "technical-term",
+      "row": {
+        "n": 9,
+        "recall5": 0.8333333333333334,
+        "recall10": 0.9444444444444444,
+        "hit5": 0.8888888888888888,
+        "mrr": 0.6214285714285714,
+        "ndcg10": 0.6869764333852362,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "all",
+      "row": {
+        "n": 97,
+        "recall5": 0.8969072164948454,
+        "recall10": 0.9175257731958762,
+        "hit5": 0.9072164948453608,
+        "mrr": 0.7693421698576337,
+        "ndcg10": 0.8007252863894263,
+        "span5": 0.696969696969697,
+        "spanN": 33
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "code-symbol",
+      "row": {
+        "n": 20,
+        "recall5": 0.9,
+        "recall10": 0.9,
+        "hit5": 0.9,
+        "mrr": 0.6933333333333334,
+        "ndcg10": 0.7439567838476393,
+        "span5": 0.75,
+        "spanN": 20
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "filename",
+      "row": {
+        "n": 6,
+        "recall5": 0.8333333333333334,
+        "recall10": 0.8333333333333334,
+        "hit5": 0.8333333333333334,
+        "mrr": 0.611111111111111,
+        "ndcg10": 0.6666666666666666,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "follow-up",
+      "row": {
+        "n": 8,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 0.9166666666666666,
+        "ndcg10": 0.9375,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "ko-en-mixed",
+      "row": {
+        "n": 17,
+        "recall5": 0.9117647058823529,
+        "recall10": 0.9117647058823529,
+        "hit5": 0.9411764705882353,
+        "mrr": 0.823529411764706,
+        "ndcg10": 0.8301851289862034,
+        "span5": 1,
+        "spanN": 5
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "multi-doc",
+      "row": {
+        "n": 6,
+        "recall5": 1,
+        "recall10": 1,
+        "hit5": 1,
+        "mrr": 1,
+        "ndcg10": 0.9795358858896749,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "no-result",
+      "row": {
+        "n": 0,
+        "recall5": null,
+        "recall10": null,
+        "hit5": null,
+        "mrr": null,
+        "ndcg10": null,
+        "span5": null,
+        "spanN": 0
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "semantic",
+      "row": {
+        "n": 19,
+        "recall5": 0.7894736842105263,
+        "recall10": 0.8421052631578947,
+        "hit5": 0.7894736842105263,
+        "mrr": 0.6403508771929824,
+        "ndcg10": 0.6904245628553125,
+        "span5": 0.375,
+        "spanN": 8
+      }
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "type": "technical-term",
+      "row": {
+        "n": 21,
+        "recall5": 0.9285714285714286,
+        "recall10": 0.9761904761904762,
+        "hit5": 0.9523809523809523,
+        "mrr": 0.8377551020408163,
+        "ndcg10": 0.8658470428793871,
+        "span5": null,
+        "spanN": 0
+      }
+    }
+  ],
+  "latency": [
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "p50": 2.6397289999999884,
+      "p95": 3.3715330500001754,
+      "samples": 204
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "p50": 8.079208000000108,
+      "p95": 10.356441199999608,
+      "samples": 129
+    },
+    {
+      "config": "local-hash",
+      "source": "all",
+      "p50": 3.0228750000001128,
+      "p95": 9.581574999999972,
+      "samples": 333
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "p50": 2.625811999999769,
+      "p95": 3.217893700000468,
+      "samples": 204
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "p50": 8.784291999999368,
+      "p95": 10.887783200000012,
+      "samples": 129
+    },
+    {
+      "config": "fts-symbol",
+      "source": "all",
+      "p50": 3.052458000000115,
+      "p95": 10.321391400000174,
+      "samples": 333
+    }
+  ],
+  "noResult": [
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "n": 8,
+      "fp015": 8,
+      "fp050": 8
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "n": 6,
+      "fp015": 6,
+      "fp050": 6
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "n": 8,
+      "fp015": 7,
+      "fp050": 7
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "n": 6,
+      "fp015": 6,
+      "fp050": 6
+    }
+  ],
+  "queries": [
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-01",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/hpa.md",
+        "product/roadmap/2026-h2.md",
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.8625420000003032,
+        2.716041000000132,
+        2.6156660000001466
+      ],
+      "topScore": 0.883,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-02",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/karpenter.md",
+        "linux/network/dns-resolv.md",
+        "ml/embeddings/cosine.md",
+        "personal/travel/jeju-itinerary.md",
+        "auth/password-hashing.md"
+      ],
+      "latencyMs": [
+        2.5633750000001783,
+        2.563250000000153,
+        2.4968330000001515
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-03",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "top": [
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/workloads/restart-policy.md",
+        "linux/systemd/unit-files.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.5307080000002316,
+        2.500500000000102,
+        2.4407499999997526
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-04",
+      "type": "technical-term",
+      "gold": [
+        "db/migrations.md"
+      ],
+      "top": [
+        "db/migrations.md",
+        "writing/en/release-notes.md",
+        "db/btree-index.md",
+        "auth/rbac.py",
+        "auth/oauth-pkce.md"
+      ],
+      "latencyMs": [
+        2.3731669999997393,
+        2.3579580000000533,
+        2.3884579999999005
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-05",
+      "type": "technical-term",
+      "gold": [
+        "db/btree-index.md"
+      ],
+      "top": [
+        "db/btree-index.md",
+        "db/btree-index.md",
+        "db/btree-index.md",
+        "db/migrations.md",
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "latencyMs": [
+        2.8867079999999987,
+        2.81112499999972,
+        2.8137919999999212
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-06",
+      "type": "technical-term",
+      "gold": [
+        "auth/oauth-pkce.md"
+      ],
+      "top": [
+        "auth/oauth-pkce.md",
+        "auth/oauth-pkce.md",
+        "go/http/middleware.go",
+        "auth/jwt.ts",
+        "writing/en/release-notes.md"
+      ],
+      "latencyMs": [
+        2.3537499999997635,
+        2.304458000000068,
+        2.367374999999811
+      ],
+      "topScore": 0.925,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-07",
+      "type": "technical-term",
+      "gold": [
+        "auth/password-hashing.md"
+      ],
+      "top": [
+        "auth/password-hashing.md",
+        "kubernetes/autoscaling/vpa.md",
+        "linux/process/oom-killer.md",
+        "kubernetes/workloads/restart-policy.md",
+        "linux/process/oom-killer.md"
+      ],
+      "latencyMs": [
+        2.596042000000125,
+        2.615208999999595,
+        2.576958000000104
+      ],
+      "topScore": 0.967,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-08",
+      "type": "technical-term",
+      "gold": [
+        "linux/permissions/setuid.md"
+      ],
+      "top": [
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "go/http/middleware.go",
+        "go/http/middleware.go"
+      ],
+      "latencyMs": [
+        2.3239999999996144,
+        2.3612080000002607,
+        2.3667089999999007
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-09",
+      "type": "technical-term",
+      "gold": [
+        "linux/process/oom-killer.md"
+      ],
+      "top": [
+        "linux/process/oom-killer.md",
+        "linux/process/oom-killer.md",
+        "ml/rag/reranking.md",
+        "ml/rag/reranking.md",
+        "ml/rag/reranking.md"
+      ],
+      "latencyMs": [
+        2.470166000000063,
+        2.3164160000001175,
+        2.3201669999998558
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-10",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/storage/pvc.md"
+      ],
+      "top": [
+        "kubernetes/storage/pvc.md",
+        "writing/en/release-notes.md",
+        "ml/rag/chunking.md",
+        "db/migrations.md",
+        "db/connection-pool.ts"
+      ],
+      "latencyMs": [
+        2.2814589999998134,
+        2.218582999999853,
+        2.245249999999942
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-11",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/networking/ingress.md"
+      ],
+      "top": [
+        "kubernetes/networking/ingress.md",
+        "kubernetes/networking/ingress.md",
+        "go/http/middleware.go",
+        "kubernetes/storage/pvc.md",
+        "ml/rag/chunking.md"
+      ],
+      "latencyMs": [
+        2.2731250000001637,
+        2.2922920000000886,
+        2.3333339999999225
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-tt-12",
+      "type": "technical-term",
+      "gold": [
+        "linux/filesystem/inode.md"
+      ],
+      "top": [
+        "linux/filesystem/inode.md",
+        "kubernetes/autoscaling/hpa.md",
+        "linux/filesystem/inode.md",
+        "linux/network/iptables.md",
+        "linux/filesystem/inode.md"
+      ],
+      "latencyMs": [
+        2.602541000000201,
+        2.6023340000001554,
+        2.588959000000159
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-01",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/networking/ingress.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/networking/ingress.md"
+      ],
+      "latencyMs": [
+        3.2156660000000556,
+        3.1796669999998812,
+        12.198207999999795
+      ],
+      "topScore": 0.818,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-02",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/observability/alerts.md"
+      ],
+      "top": [
+        "kubernetes/observability/alerts.md",
+        "kubernetes/observability/alerts.md",
+        "kubernetes/observability/alerts.md",
+        "kubernetes/networking/ingress.md",
+        "ml/embeddings/cosine.md"
+      ],
+      "latencyMs": [
+        3.49279099999967,
+        3.396709000000101,
+        3.4834999999998217
+      ],
+      "topScore": 0.905,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-03",
+      "type": "ko-en-mixed",
+      "gold": [
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/transactions.md",
+        "db/transactions.md",
+        "kubernetes/autoscaling/hpa.md",
+        "db/replication-lag.md",
+        "db/transactions.md"
+      ],
+      "latencyMs": [
+        2.8109169999997903,
+        2.9802499999996144,
+        3.0221670000000813
+      ],
+      "topScore": 0.675,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-04",
+      "type": "ko-en-mixed",
+      "gold": [
+        "db/replication-lag.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "db/migrations.md",
+        "kubernetes/workloads/statefulset.md",
+        "ops/backup-policy.md"
+      ],
+      "latencyMs": [
+        2.931166999999732,
+        3.259042000000136,
+        3.207915999999841
+      ],
+      "topScore": 0.767,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-05",
+      "type": "ko-en-mixed",
+      "gold": [
+        "linux/systemd/unit-files.md"
+      ],
+      "top": [
+        "linux/systemd/unit-files.md",
+        "linux/systemd/unit-files.md",
+        "linux/filesystem/inode.md",
+        "kubernetes/workloads/statefulset.md",
+        "linux/filesystem/inode.md"
+      ],
+      "latencyMs": [
+        3.002707999999984,
+        2.9612919999999576,
+        2.9345000000002983
+      ],
+      "topScore": 0.783,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-06",
+      "type": "ko-en-mixed",
+      "gold": [
+        "linux/network/dns-resolv.md"
+      ],
+      "top": [
+        "linux/network/dns-resolv.md",
+        "linux/network/dns-resolv.md",
+        "linux/network/dns-resolv.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "latencyMs": [
+        2.85216599999967,
+        2.730999999999767,
+        2.646625000000313
+      ],
+      "topScore": 0.9,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-07",
+      "type": "ko-en-mixed",
+      "gold": [
+        "linux/network/iptables.md"
+      ],
+      "top": [
+        "linux/network/iptables.md",
+        "linux/network/iptables.md",
+        "kubernetes/networking/network-policy.md",
+        "linux/network/iptables.md",
+        "kubernetes/networking/network-policy.md"
+      ],
+      "latencyMs": [
+        2.6741659999997864,
+        2.6234999999996944,
+        2.596875000000182
+      ],
+      "topScore": 0.777,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-08",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "top": [
+        "kubernetes/workloads/statefulset.md",
+        "kubernetes/workloads/statefulset.md",
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/workloads/statefulset.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.540124999999989,
+        2.5760830000003807,
+        2.5371250000002874
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-09",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/networking/network-policy.md"
+      ],
+      "top": [
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/networking/network-policy.md",
+        "ops/backup-policy.md",
+        "kubernetes/storage/pvc.md"
+      ],
+      "latencyMs": [
+        2.4217090000001917,
+        2.4127080000002934,
+        2.3940419999998994
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-ko-10",
+      "type": "ko-en-mixed",
+      "gold": [
+        "auth/password-hashing.md"
+      ],
+      "top": [
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "db/btree-index.md",
+        "ml/embeddings/cosine.md"
+      ],
+      "latencyMs": [
+        2.8640000000000327,
+        2.9219590000002427,
+        3.0485419999999976
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-01",
+      "type": "semantic",
+      "gold": [
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "top": [
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.9845409999998083,
+        2.9988750000002256,
+        3.0228750000001128
+      ],
+      "topScore": 0.623,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-02",
+      "type": "semantic",
+      "gold": [
+        "linux/filesystem/inode.md"
+      ],
+      "top": [
+        "linux/filesystem/inode.md",
+        "linux/filesystem/inode.md",
+        "db/migrations.md",
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/storage/pvc.md"
+      ],
+      "latencyMs": [
+        2.9948749999998654,
+        3.0373329999997623,
+        2.993750000000091
+      ],
+      "topScore": 0.813,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-03",
+      "type": "semantic",
+      "gold": [
+        "linux/process/oom-killer.md"
+      ],
+      "top": [
+        "linux/process/oom-killer.md",
+        "linux/process/oom-killer.md",
+        "auth/password-hashing.md",
+        "kubernetes/autoscaling/vpa.md",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        3.24316699999963,
+        3.172041000000263,
+        3.1390000000001237
+      ],
+      "topScore": 0.709,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-04",
+      "type": "semantic",
+      "gold": [
+        "linux/permissions/setuid.md"
+      ],
+      "top": [
+        "linux/permissions/setuid.md",
+        "kubernetes/storage/pvc.md",
+        "auth/rbac.py",
+        "kubernetes/autoscaling/hpa.md",
+        "linux/systemd/unit-files.md"
+      ],
+      "latencyMs": [
+        3.1755000000002838,
+        3.1173330000001442,
+        3.1054589999998825
+      ],
+      "topScore": 0.685,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-05",
+      "type": "semantic",
+      "gold": [
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "go/concurrency/worker_pool.go",
+        "kubernetes/workloads/statefulset.md",
+        "db/transactions.md",
+        "db/migrations.md"
+      ],
+      "latencyMs": [
+        3.1357920000000377,
+        3.371958000000177,
+        3.6461669999998776
+      ],
+      "topScore": 0.708,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-06",
+      "type": "semantic",
+      "gold": [
+        "db/replication-lag.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "auth/password-hashing.md",
+        "ml/embeddings/cosine.md",
+        "db/replication-lag.md"
+      ],
+      "latencyMs": [
+        3.3691250000001673,
+        3.3605829999996786,
+        3.3606249999998
+      ],
+      "topScore": 0.682,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-07",
+      "type": "semantic",
+      "gold": [
+        "kubernetes/networking/ingress.md"
+      ],
+      "top": [
+        "kubernetes/networking/ingress.md",
+        "kubernetes/networking/ingress.md",
+        "go/http/middleware.go",
+        "kubernetes/workloads/statefulset.md",
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "latencyMs": [
+        13.871166000000358,
+        3.600666000000274,
+        3.4866250000000036
+      ],
+      "topScore": 0.907,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-08",
+      "type": "semantic",
+      "gold": [
+        "auth/rbac.py"
+      ],
+      "top": [
+        "linux/filesystem/inode.md",
+        "auth/rbac.py",
+        "auth/password-hashing.md",
+        "linux/network/iptables.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        3.2390000000000327,
+        3.126082999999653,
+        3.0779999999999745
+      ],
+      "topScore": 0.633,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-09",
+      "type": "semantic",
+      "gold": [
+        "writing/ko/meeting-notes-2026.md"
+      ],
+      "top": [
+        "writing/ko/meeting-notes-2026.md",
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "product/roadmap/2026-h2.md"
+      ],
+      "latencyMs": [
+        2.9236249999999018,
+        2.9651249999997162,
+        2.976292000000285
+      ],
+      "topScore": 0.652,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-sem-10",
+      "type": "semantic",
+      "gold": [
+        "ops/backup-policy.md"
+      ],
+      "top": [
+        "db/migrations.md",
+        "ops/backup-policy.md",
+        "db/connection-pool.ts",
+        "kubernetes/workloads/statefulset.md",
+        "db/migrations.md"
+      ],
+      "latencyMs": [
+        3.232332999999926,
+        3.1692920000000413,
+        3.110834000000068
+      ],
+      "topScore": 0.758,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-01",
+      "type": "code-symbol",
+      "gold": [
+        "auth/jwt.ts"
+      ],
+      "top": [
+        "linux/filesystem/inode.md",
+        "kubernetes/autoscaling/hpa.md",
+        "auth/jwt.ts",
+        "ml/rag/chunking.md",
+        "linux/filesystem/inode.md"
+      ],
+      "latencyMs": [
+        2.5260410000000775,
+        2.5585000000000946,
+        2.3722500000003492
+      ],
+      "topScore": 0.6,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-02",
+      "type": "code-symbol",
+      "gold": [
+        "auth/session-cookie.ts"
+      ],
+      "top": [
+        "auth/session-cookie.ts",
+        "linux/filesystem/inode.md",
+        "auth/session-cookie.ts",
+        "auth/session-cookie.ts",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.347167000000354,
+        2.3326250000000073,
+        2.330083999999715
+      ],
+      "topScore": 0.711,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-03",
+      "type": "code-symbol",
+      "gold": [
+        "auth/rbac.py"
+      ],
+      "top": [
+        "auth/rbac.py",
+        "auth/password-hashing.md",
+        "linux/permissions/setuid.md",
+        "auth/password-hashing.md",
+        "product/roadmap/2026-h2.md"
+      ],
+      "latencyMs": [
+        2.475666999999703,
+        2.458209000000352,
+        2.5583749999996144
+      ],
+      "topScore": 0.928,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-04",
+      "type": "code-symbol",
+      "gold": [
+        "db/connection-pool.ts"
+      ],
+      "top": [
+        "db/connection-pool.ts",
+        "db/migrations.md",
+        "db/migrations.md",
+        "db/migrations.md",
+        "db/connection-pool.ts"
+      ],
+      "latencyMs": [
+        2.423334000000068,
+        2.4208749999997963,
+        2.4102920000000267
+      ],
+      "topScore": 0.65,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-05",
+      "type": "code-symbol",
+      "gold": [
+        "go/http/middleware.go"
+      ],
+      "top": [
+        "go/http/middleware.go",
+        "auth/session-cookie.ts",
+        "linux/systemd/unit-files.md",
+        "auth/password-hashing.md",
+        "personal/travel/jeju-itinerary.md"
+      ],
+      "latencyMs": [
+        2.4843329999998787,
+        2.4641670000000886,
+        2.486750000000029
+      ],
+      "topScore": 0.717,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-06",
+      "type": "code-symbol",
+      "gold": [
+        "go/concurrency/worker_pool.go"
+      ],
+      "top": [
+        "go/concurrency/worker_pool.go",
+        "linux/network/dns-resolv.md",
+        "ml/rag/chunking.md",
+        "product/roadmap/2026-h2.md",
+        "linux/network/dns-resolv.md"
+      ],
+      "latencyMs": [
+        2.5039999999999054,
+        2.472125000000233,
+        2.4947910000000775
+      ],
+      "topScore": 0.967,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-07",
+      "type": "code-symbol",
+      "gold": [
+        "py/data/sales_report.py"
+      ],
+      "top": [
+        "py/data/sales_report.py",
+        "py/data/sales_report.py",
+        "py/data/sales_report.py",
+        "ops/backup-policy.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.4854159999999865,
+        2.561290999999983,
+        2.516417000000274
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-code-08",
+      "type": "code-symbol",
+      "gold": [
+        "py/data/csv_import.py"
+      ],
+      "top": [
+        "py/data/csv_import.py",
+        "writing/en/release-notes.md",
+        "db/migrations.md",
+        "linux/network/iptables.md",
+        "py/data/csv_import.py"
+      ],
+      "latencyMs": [
+        2.7154160000000047,
+        2.66787499999964,
+        2.6525409999999283
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-file-01",
+      "type": "filename",
+      "gold": [
+        "auth/rbac.py"
+      ],
+      "top": [
+        "db/migrations.md",
+        "linux/filesystem/inode.md",
+        "linux/systemd/unit-files.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        2.620542000000114,
+        2.570791999999983,
+        2.5599170000000413
+      ],
+      "topScore": 0.688,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-file-02",
+      "type": "filename",
+      "gold": [
+        "auth/session-cookie.ts"
+      ],
+      "top": [
+        "linux/systemd/unit-files.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "auth/session-cookie.ts"
+      ],
+      "latencyMs": [
+        2.3825839999999516,
+        2.3779169999997976,
+        2.3580830000000788
+      ],
+      "topScore": 0.735,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-file-03",
+      "type": "filename",
+      "gold": [
+        "go/concurrency/worker_pool.go"
+      ],
+      "top": [
+        "go/concurrency/worker_pool.go",
+        "go/concurrency/worker_pool.go",
+        "go/concurrency/worker_pool.go",
+        "db/connection-pool.ts",
+        "db/connection-pool.ts"
+      ],
+      "latencyMs": [
+        2.312332999999853,
+        2.2705000000000837,
+        2.2768339999997806
+      ],
+      "topScore": 0.829,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-file-04",
+      "type": "filename",
+      "gold": [
+        "finance/budget/q3-budget.md"
+      ],
+      "top": [
+        "finance/budget/q3-budget.md",
+        "linux/permissions/setuid.md",
+        "linux/systemd/unit-files.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        2.497957999999926,
+        2.454917000000023,
+        2.4798749999999927
+      ],
+      "topScore": 0.911,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-file-05",
+      "type": "filename",
+      "gold": [
+        "cooking/kimchi-jjigae.md"
+      ],
+      "top": [
+        "personal/travel/jeju-itinerary.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/storage/pvc.md",
+        "kubernetes/storage/pvc.md",
+        "kubernetes/storage/pvc.md"
+      ],
+      "latencyMs": [
+        2.3364999999998872,
+        2.386333999999806,
+        2.3411250000003747
+      ],
+      "topScore": 0.6,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-file-06",
+      "type": "filename",
+      "gold": [
+        "writing/en/release-notes.md"
+      ],
+      "top": [
+        "writing/en/release-notes.md",
+        "writing/en/release-notes.md",
+        "writing/en/release-notes.md",
+        "db/connection-pool.ts",
+        "personal/travel/jeju-itinerary.md"
+      ],
+      "latencyMs": [
+        2.283042000000023,
+        2.287166999999954,
+        10.885749999999916
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-multi-01",
+      "type": "multi-doc",
+      "gold": [
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/vpa.md",
+        "auth/oauth-pkce.md",
+        "kubernetes/workloads/restart-policy.md",
+        "db/btree-index.md",
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "latencyMs": [
+        2.707415999999739,
+        2.696584000000257,
+        2.7021249999997963
+      ],
+      "topScore": 0.779,
+      "recall5": 0.5,
+      "recall10": 0.5,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 0.6131471927654584
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-multi-02",
+      "type": "multi-doc",
+      "gold": [
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.884874999999738,
+        2.847208000000137,
+        2.8763340000000426
+      ],
+      "topScore": 0.892,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-multi-03",
+      "type": "multi-doc",
+      "gold": [
+        "db/btree-index.md",
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/transactions.md",
+        "db/transactions.md",
+        "db/transactions.md",
+        "db/btree-index.md",
+        "db/migrations.md"
+      ],
+      "latencyMs": [
+        2.9672919999998157,
+        2.9648329999999987,
+        2.9532500000000255
+      ],
+      "topScore": 0.747,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-multi-04",
+      "type": "multi-doc",
+      "gold": [
+        "auth/jwt.ts",
+        "auth/password-hashing.md"
+      ],
+      "top": [
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "auth/jwt.ts",
+        "auth/jwt.ts"
+      ],
+      "latencyMs": [
+        2.6413330000000315,
+        2.652042000000165,
+        2.6381249999999454
+      ],
+      "topScore": 0.863,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-multi-05",
+      "type": "multi-doc",
+      "gold": [
+        "linux/network/dns-resolv.md",
+        "linux/network/iptables.md"
+      ],
+      "top": [
+        "linux/network/iptables.md",
+        "linux/network/dns-resolv.md",
+        "linux/network/iptables.md",
+        "kubernetes/networking/ingress.md",
+        "linux/network/iptables.md"
+      ],
+      "latencyMs": [
+        2.967208000000028,
+        2.928458999999748,
+        2.9290000000000873
+      ],
+      "topScore": 0.738,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-multi-06",
+      "type": "multi-doc",
+      "gold": [
+        "db/replication-lag.md",
+        "ops/backup-policy.md"
+      ],
+      "top": [
+        "ops/backup-policy.md",
+        "db/replication-lag.md",
+        "ops/backup-policy.md",
+        "db/replication-lag.md",
+        "db/replication-lag.md"
+      ],
+      "latencyMs": [
+        2.6005409999997937,
+        2.583791999999903,
+        2.569792000000234
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-01",
+      "type": "follow-up",
+      "gold": [
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/vpa.md",
+        "cooking/kimchi-jjigae.md"
+      ],
+      "latencyMs": [
+        2.767707999999857,
+        2.765875000000051,
+        2.731583000000228
+      ],
+      "topScore": 0.703,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-02",
+      "type": "follow-up",
+      "gold": [
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.8220830000000205,
+        2.762416999999914,
+        2.7274170000000595
+      ],
+      "topScore": 0.897,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-03",
+      "type": "follow-up",
+      "gold": [
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/vpa.md",
+        "db/transactions.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "latencyMs": [
+        2.8488330000000133,
+        2.8366250000003674,
+        2.831083000000035
+      ],
+      "topScore": 0.63,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-04",
+      "type": "follow-up",
+      "gold": [
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/transactions.md",
+        "db/transactions.md",
+        "db/transactions.md",
+        "auth/rbac.py",
+        "db/replication-lag.md"
+      ],
+      "latencyMs": [
+        2.745542000000114,
+        2.8510419999997794,
+        2.7323750000000473
+      ],
+      "topScore": 0.779,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-05",
+      "type": "follow-up",
+      "gold": [
+        "db/replication-lag.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "kubernetes/autoscaling/hpa.md",
+        "linux/network/dns-resolv.md"
+      ],
+      "latencyMs": [
+        2.4366249999998217,
+        2.41662499999984,
+        2.518999999999778
+      ],
+      "topScore": 0.839,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-06",
+      "type": "follow-up",
+      "gold": [
+        "db/migrations.md"
+      ],
+      "top": [
+        "db/migrations.md",
+        "db/btree-index.md",
+        "auth/session-cookie.ts",
+        "db/btree-index.md",
+        "db/btree-index.md"
+      ],
+      "latencyMs": [
+        2.7739999999998872,
+        2.7745420000001104,
+        2.762000000000171
+      ],
+      "topScore": 0.724,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-07",
+      "type": "follow-up",
+      "gold": [
+        "linux/network/iptables.md"
+      ],
+      "top": [
+        "linux/network/iptables.md",
+        "linux/network/iptables.md",
+        "linux/network/iptables.md",
+        "auth/jwt.ts",
+        "kubernetes/observability/alerts.md"
+      ],
+      "latencyMs": [
+        2.6519579999999223,
+        2.6717090000001917,
+        2.6882919999998194
+      ],
+      "topScore": 0.717,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-fu-08",
+      "type": "follow-up",
+      "gold": [
+        "linux/process/oom-killer.md"
+      ],
+      "top": [
+        "linux/process/oom-killer.md",
+        "linux/process/oom-killer.md",
+        "kubernetes/workloads/restart-policy.md",
+        "auth/password-hashing.md",
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "latencyMs": [
+        3.079707999999755,
+        3.1082079999996495,
+        3.2720829999998386
+      ],
+      "topScore": 0.729,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-01",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "auth/password-hashing.md",
+        "linux/process/oom-killer.md",
+        "linux/permissions/setuid.md",
+        "linux/filesystem/inode.md",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        2.9766669999999067,
+        3.029834000000392,
+        2.943416999999954
+      ],
+      "topScore": 0.781,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-02",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "ml/embeddings/cosine.md",
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/networking/ingress.md",
+        "auth/password-hashing.md",
+        "ml/rag/chunking.md"
+      ],
+      "latencyMs": [
+        11.21704200000022,
+        2.96554100000003,
+        2.546875
+      ],
+      "topScore": 0.563,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-03",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "ml/rag/chunking.md",
+        "ml/rag/reranking.md",
+        "kubernetes/networking/ingress.md",
+        "go/http/middleware.go",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        2.423583000000235,
+        2.538083999999799,
+        2.5455409999999574
+      ],
+      "topScore": 0.643,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-04",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "ml/rag/reranking.md",
+        "writing/ko/meeting-notes-2026.md",
+        "db/transactions.md",
+        "writing/ko/meeting-notes-2026.md",
+        "writing/ko/meeting-notes-2026.md"
+      ],
+      "latencyMs": [
+        2.574000000000069,
+        2.5588749999997162,
+        2.561999999999898
+      ],
+      "topScore": 0.575,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-05",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "linux/permissions/setuid.md",
+        "go/http/middleware.go",
+        "kubernetes/workloads/restart-policy.md",
+        "db/connection-pool.ts",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        2.636250000000473,
+        2.653584000000592,
+        2.635124999999789
+      ],
+      "topScore": 0.574,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-06",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "writing/en/release-notes.md",
+        "kubernetes/observability/alerts.md",
+        "ml/rag/chunking.md",
+        "auth/password-hashing.md",
+        "writing/ko/meeting-notes-2026.md"
+      ],
+      "latencyMs": [
+        2.2370419999997466,
+        2.248207999999977,
+        2.2248749999998836
+      ],
+      "topScore": 0.6,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-07",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "auth/rbac.py",
+        "kubernetes/storage/pvc.md",
+        "writing/en/release-notes.md",
+        "writing/en/release-notes.md",
+        "linux/process/oom-killer.md"
+      ],
+      "latencyMs": [
+        2.356582999999773,
+        2.343124999999418,
+        2.336833000000297
+      ],
+      "topScore": 0.5,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "synthetic",
+      "id": "syn-none-08",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "linux/network/iptables.md",
+        "db/connection-pool.ts",
+        "auth/jwt.ts",
+        "writing/ko/meeting-notes-2026.md",
+        "product/roadmap/2026-h2.md"
+      ],
+      "latencyMs": [
+        2.4615420000000086,
+        2.431792000000314,
+        2.3530829999999696
+      ],
+      "topScore": 0.583,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-01",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/02-ARCHITECTURE.md",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "latencyMs": [
+        7.808665999999903,
+        7.536208999999872,
+        7.422875000000204
+      ],
+      "topScore": 0.863,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-02",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/prompt.ts",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/retrieval.ts",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "latencyMs": [
+        6.828042000000096,
+        6.736541999999645,
+        6.768332999999984
+      ],
+      "topScore": 0.611,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-03",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/promptAssist.ts",
+        "packages/core/src/rag/prompt.ts",
+        "packages/core/src/update.ts",
+        "packages/core/src/tts.ts"
+      ],
+      "latencyMs": [
+        7.581499999999323,
+        8.094207999999526,
+        7.812917000000198
+      ],
+      "topScore": 0.751,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-04",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "packages/core/src/skillFolder.ts",
+        "packages/core/src/skill-match.ts",
+        "packages/core/src/skillFolder.ts",
+        "packages/core/src/skill-match.ts",
+        "packages/core/src/skill-match.ts"
+      ],
+      "latencyMs": [
+        7.2028339999997115,
+        7.870583999999326,
+        8.353582999999162
+      ],
+      "topScore": 0.95,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-05",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "packages/core/src/tts.ts",
+        "packages/core/src/annotations.ts",
+        "packages/core/src/knowledge.ts",
+        "packages/core/src/rag/embedding.ts",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        6.9111669999992955,
+        6.691082999999708,
+        6.617000000000189
+      ],
+      "topScore": 0.961,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-06",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/skill-match.ts",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "latencyMs": [
+        7.947540999999546,
+        7.962832999999591,
+        7.457916000000296
+      ],
+      "topScore": 0.717,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-07",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/skillAssist.ts",
+        "packages/core/src/skillAssist.ts"
+      ],
+      "latencyMs": [
+        6.970999999999549,
+        6.974333000000115,
+        7.01208299999962
+      ],
+      "topScore": 0.883,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.16666666666666666,
+      "ndcg10": 0.3562071871080222,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-08",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "packages/core/src/canvas.ts",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/update.ts",
+        "docs/DEVELOPMENT.ko.md",
+        "docs/plans/scheduling/MASTER_PLAN.md"
+      ],
+      "latencyMs": [
+        7.208625000000211,
+        7.206083999999464,
+        7.110375000000204
+      ],
+      "topScore": 0.563,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.1,
+      "ndcg10": 0.2890648263178879,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-09",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "docs/plans/free-branch-vault-navhandle-plan.md",
+        "docs/plans/imp-12-plan.md",
+        "packages/core/src/rag/rewrite.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/seed.json"
+      ],
+      "latencyMs": [
+        8.261875000000146,
+        8.257416999999805,
+        8.264417000000321
+      ],
+      "topScore": 0.6,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-10",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "docs/03-PROVIDERS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/rag/embedding.ts",
+        "docs/PROGRESS.md"
+      ],
+      "latencyMs": [
+        8.395790999999917,
+        8.222125000000233,
+        8.079208000000108
+      ],
+      "topScore": 0.75,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-11",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/skill-match.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/chat.json",
+        "packages/core/src/i18n/locales/ko/book.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json"
+      ],
+      "latencyMs": [
+        8.136499999999614,
+        8.14154199999939,
+        8.259750000000167
+      ],
+      "topScore": 0.772,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "c-12",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "top": [
+        "docs/plans/scheduling/MOBILE_NOTIFICATIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "docs/plans/knowledge-rag-plan.md",
+        "packages/core/src/rag/types.ts"
+      ],
+      "latencyMs": [
+        8.075667000000067,
+        7.706124999999702,
+        7.467333000000508
+      ],
+      "topScore": 0.738,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.14285714285714285,
+      "ndcg10": 0.3333333333333333,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-01",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "top": [
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "docs/knowledge-pack-architecture.md",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        8.387917000000016,
+        8.438834000000497,
+        8.628333000000566
+      ],
+      "topScore": 0.772,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.125,
+      "ndcg10": 0.31546487678572877
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-02",
+      "type": "technical-term",
+      "gold": [
+        "docs/02-ARCHITECTURE.md"
+      ],
+      "top": [
+        "docs/knowledge-pack-architecture.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        6.4534169999997175,
+        6.508375000000342,
+        6.463832999999795
+      ],
+      "topScore": 0.925,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-03",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/plans/knowledge-base-plan.md",
+        "docs/plans/knowledge-base-plan.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        7.5917090000002645,
+        7.60833300000013,
+        7.85058300000037
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-04",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/auto-update-plan.md",
+        "docs/PROGRESS.md",
+        "packages/core/src/update.ts",
+        "docs/02-ARCHITECTURE.md"
+      ],
+      "latencyMs": [
+        8.128749999999854,
+        8.107582999999977,
+        8.19733400000041
+      ],
+      "topScore": 0.992,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-05",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "top": [
+        "docs/DEVELOPMENT.ko.md",
+        "docs/03-PROVIDERS.md",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "docs/03-PROVIDERS.md"
+      ],
+      "latencyMs": [
+        9.100083000000268,
+        11.810707999999977,
+        9.266750000000684
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-06",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "packages/core/src/backup/drive.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/backup/drive.ts",
+        "docs/01-PRD.md",
+        "packages/core/src/i18n/locales/ko/backup.json",
+        "packages/core/src/backup/target.ts"
+      ],
+      "latencyMs": [
+        8.510832999999366,
+        8.53900000000067,
+        8.404041000000689
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-07",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/chat.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/parse.ts",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        7.988957999999911,
+        7.970124999999825,
+        7.9916250000005675
+      ],
+      "topScore": 0.823,
+      "recall5": 0.5,
+      "recall10": 0.5,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.3065735963827292
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-08",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/retrieval.ts",
+        "docs/knowledge-pack-architecture.md",
+        "packages/core/src/rag/types.ts",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "latencyMs": [
+        7.07916700000078,
+        7.088875000000371,
+        6.974624999999833
+      ],
+      "topScore": 0.798,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "t-09",
+      "type": "technical-term",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "packages/core/src/backup/crypto.ts",
+        "docs/PROGRESS.md"
+      ],
+      "latencyMs": [
+        7.316375000000335,
+        7.511249999999563,
+        7.492541000000529
+      ],
+      "topScore": 0.939,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "k-01",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/chat.json"
+      ],
+      "latencyMs": [
+        7.972583000000668,
+        8.546540999999706,
+        11.640792000000147
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "k-02",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts"
+      ],
+      "latencyMs": [
+        9.324875000000247,
+        8.829542000000401,
+        8.634417000000212
+      ],
+      "topScore": 0.732,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "k-03",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/types.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        6.778582999999344,
+        7.035125000000335,
+        6.732165999999779
+      ],
+      "topScore": 0.925,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "k-04",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/bridge/remote.ts",
+        "packages/core/src/i18n/locales/ko/notes.json",
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        8.900125000000116,
+        8.968666999999186,
+        8.887040999999954
+      ],
+      "topScore": 0.666,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "k-05",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/llm.json"
+      ],
+      "latencyMs": [
+        10.638249999999971,
+        10.689124999999876,
+        10.58441700000003
+      ],
+      "topScore": 0.726,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "k-06",
+      "type": "ko-en-mixed",
+      "gold": [
+        "docs/DECISIONS.md",
+        "packages/core/src/bridge/desktop.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/plans/remote-only-plan.md",
+        "docs/DECISIONS.md",
+        "docs/01-PRD.md"
+      ],
+      "latencyMs": [
+        9.546124999999847,
+        9.690875000000233,
+        9.525499999999738
+      ],
+      "topScore": 0.833,
+      "recall5": 0.5,
+      "recall10": 0.5,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 0.6131471927654584
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "k-07",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/04-UX-SPEC.md",
+        "docs/01-PRD.md",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        7.525333000000501,
+        7.449000000000524,
+        7.498665999999503
+      ],
+      "topScore": 0.639,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-01",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/store/index.ts"
+      ],
+      "latencyMs": [
+        9.044958000000406,
+        8.96979199999987,
+        8.925458000000617
+      ],
+      "topScore": 0.738,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.125,
+      "ndcg10": 0.31546487678572877,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-02",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/i18n/locales/ko/canvas.json",
+        "packages/core/src/i18n/locales/ko/rag.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/skillAssist.ts"
+      ],
+      "latencyMs": [
+        9.115625000000364,
+        9.17041700000027,
+        9.103250000000116
+      ],
+      "topScore": 0.772,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-03",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        9.37866699999995,
+        9.357874999999694,
+        9.303082999999788
+      ],
+      "topScore": 0.829,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.14285714285714285,
+      "ndcg10": 0.3333333333333333,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-04",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/bridge/desktop.ts",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json"
+      ],
+      "latencyMs": [
+        9.634750000000167,
+        9.713458000000173,
+        9.69512500000019
+      ],
+      "topScore": 0.786,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-05",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/secrets.ts",
+        "docs/01-PRD.md",
+        "docs/DECISIONS.md",
+        "docs/05-ROADMAP.md"
+      ],
+      "latencyMs": [
+        8.888875000000553,
+        9.053041000000121,
+        8.657500000000255
+      ],
+      "topScore": 0.764,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-06",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/app.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        10.384041000000252,
+        10.355290999999852,
+        10.357207999999446
+      ],
+      "topScore": 0.772,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-07",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "docs/plans/knowledge-base-plan.md",
+        "docs/knowledge-pack-architecture.md"
+      ],
+      "latencyMs": [
+        8.21691600000031,
+        8.226666000000478,
+        8.31854199999998
+      ],
+      "topScore": 0.894,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.2,
+      "ndcg10": 0.38685280723454163,
+      "span5": false
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-08",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "latencyMs": [
+        9.031084000000192,
+        8.886583999999857,
+        8.861792000000605
+      ],
+      "topScore": 0.644,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "s-09",
+      "type": "semantic",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/auto-update-plan.md",
+        "packages/core/src/update.ts",
+        "packages/core/src/i18n/locales/ko/update.json",
+        "docs/PROGRESS.md"
+      ],
+      "latencyMs": [
+        8.833332999999584,
+        9.055250000000342,
+        9.006249999999454
+      ],
+      "topScore": 0.895,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "n-01",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/BLOCKERS.md",
+        "docs/PROGRESS.md",
+        "docs/plans/auto-update-plan.md",
+        "packages/core/src/schedules.ts",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        7.338999999999942,
+        7.268707999999606,
+        7.329459000000497
+      ],
+      "topScore": 0.589,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "n-02",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/knowledge-pack-architecture.md",
+        "packages/core/src/prompts.ts",
+        "packages/core/src/seed.ts",
+        "docs/knowledge-pack-architecture.md"
+      ],
+      "latencyMs": [
+        7.041541999999936,
+        9.838875000000371,
+        7.568374999999833
+      ],
+      "topScore": 0.8,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "n-03",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/03-PROVIDERS.md",
+        "docs/03-PROVIDERS.md",
+        "docs/plans/page-editor-overhaul-plan.md",
+        "docs/DEVELOPMENT.ko.md",
+        "packages/core/src/providers/anthropic.ts"
+      ],
+      "latencyMs": [
+        7.203541999999288,
+        6.714625000000524,
+        6.322541999999885
+      ],
+      "topScore": 0.688,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "n-04",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/03-PROVIDERS.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/plans/headless-serve-plan.md",
+        "docs/plans/remote-only-plan.md"
+      ],
+      "latencyMs": [
+        6.3796659999998155,
+        6.755916999999499,
+        6.608249999999316
+      ],
+      "topScore": 0.798,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "n-05",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/pageFormat.ts",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/knowledge.ts"
+      ],
+      "latencyMs": [
+        6.850083000000268,
+        6.864041999999245,
+        7.003125000000182
+      ],
+      "topScore": 0.638,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "local-hash",
+      "source": "real",
+      "id": "n-06",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "packages/core/src/update.ts",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        6.680124999999862,
+        6.823833000000377,
+        6.685875000000124
+      ],
+      "topScore": 0.625,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-01",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/hpa.md",
+        "product/roadmap/2026-h2.md",
+        "ops/backup-policy.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.8765840000005483,
+        2.7261249999992287,
+        2.574999999999818
+      ],
+      "topScore": 0.883,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-02",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/karpenter.md",
+        "linux/network/dns-resolv.md",
+        "ml/embeddings/cosine.md",
+        "personal/travel/jeju-itinerary.md",
+        "auth/password-hashing.md"
+      ],
+      "latencyMs": [
+        2.219833000000108,
+        2.1951669999998558,
+        2.200332999999773
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-03",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "top": [
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/workloads/restart-policy.md",
+        "linux/systemd/unit-files.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.3363329999992857,
+        2.298041000000012,
+        2.2768749999995634
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-04",
+      "type": "technical-term",
+      "gold": [
+        "db/migrations.md"
+      ],
+      "top": [
+        "db/migrations.md",
+        "writing/en/release-notes.md",
+        "db/btree-index.md",
+        "auth/rbac.py",
+        "auth/oauth-pkce.md"
+      ],
+      "latencyMs": [
+        2.2502910000002885,
+        2.2612499999995634,
+        2.29229099999975
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-05",
+      "type": "technical-term",
+      "gold": [
+        "db/btree-index.md"
+      ],
+      "top": [
+        "db/btree-index.md",
+        "db/btree-index.md",
+        "db/btree-index.md",
+        "db/migrations.md",
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "latencyMs": [
+        2.693125000000691,
+        2.804291999999805,
+        2.6956669999999576
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-06",
+      "type": "technical-term",
+      "gold": [
+        "auth/oauth-pkce.md"
+      ],
+      "top": [
+        "auth/oauth-pkce.md",
+        "auth/oauth-pkce.md",
+        "go/http/middleware.go",
+        "auth/jwt.ts",
+        "writing/en/release-notes.md"
+      ],
+      "latencyMs": [
+        2.2373749999997017,
+        2.2600000000002183,
+        2.2664999999997235
+      ],
+      "topScore": 0.925,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-07",
+      "type": "technical-term",
+      "gold": [
+        "auth/password-hashing.md"
+      ],
+      "top": [
+        "auth/password-hashing.md",
+        "kubernetes/autoscaling/vpa.md",
+        "linux/process/oom-killer.md",
+        "kubernetes/workloads/restart-policy.md",
+        "linux/process/oom-killer.md"
+      ],
+      "latencyMs": [
+        2.6283329999996567,
+        2.556624999999258,
+        2.482708000000457
+      ],
+      "topScore": 0.971,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-08",
+      "type": "technical-term",
+      "gold": [
+        "linux/permissions/setuid.md"
+      ],
+      "top": [
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "go/http/middleware.go",
+        "go/http/middleware.go"
+      ],
+      "latencyMs": [
+        2.2394589999994423,
+        2.259166999999252,
+        2.228041000000303
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-09",
+      "type": "technical-term",
+      "gold": [
+        "linux/process/oom-killer.md"
+      ],
+      "top": [
+        "linux/process/oom-killer.md",
+        "linux/process/oom-killer.md",
+        "ml/rag/reranking.md",
+        "ml/embeddings/cosine.md",
+        "ml/rag/reranking.md"
+      ],
+      "latencyMs": [
+        2.2300840000007156,
+        2.4256670000004306,
+        2.3366670000004888
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-10",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/storage/pvc.md"
+      ],
+      "top": [
+        "kubernetes/storage/pvc.md",
+        "writing/en/release-notes.md",
+        "ml/rag/chunking.md",
+        "db/migrations.md",
+        "db/connection-pool.ts"
+      ],
+      "latencyMs": [
+        2.170208999999886,
+        2.2315410000001066,
+        2.168083000000479
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-11",
+      "type": "technical-term",
+      "gold": [
+        "kubernetes/networking/ingress.md"
+      ],
+      "top": [
+        "kubernetes/networking/ingress.md",
+        "kubernetes/networking/ingress.md",
+        "go/http/middleware.go",
+        "kubernetes/storage/pvc.md",
+        "ml/rag/chunking.md"
+      ],
+      "latencyMs": [
+        2.1351660000000265,
+        2.1704170000002705,
+        2.1484169999994265
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-tt-12",
+      "type": "technical-term",
+      "gold": [
+        "linux/filesystem/inode.md"
+      ],
+      "top": [
+        "linux/filesystem/inode.md",
+        "kubernetes/autoscaling/hpa.md",
+        "linux/filesystem/inode.md",
+        "linux/filesystem/inode.md",
+        "linux/network/iptables.md"
+      ],
+      "latencyMs": [
+        2.438875000000735,
+        2.4226669999998194,
+        2.4117089999999735
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-01",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/networking/ingress.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/networking/ingress.md"
+      ],
+      "latencyMs": [
+        2.997124999999869,
+        3.0007910000003903,
+        2.9909170000000813
+      ],
+      "topScore": 0.818,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-02",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/observability/alerts.md"
+      ],
+      "top": [
+        "kubernetes/observability/alerts.md",
+        "kubernetes/observability/alerts.md",
+        "kubernetes/networking/ingress.md",
+        "product/roadmap/2026-h2.md",
+        "kubernetes/observability/alerts.md"
+      ],
+      "latencyMs": [
+        3.0608329999995476,
+        3.1478329999999914,
+        3.137832999999773
+      ],
+      "topScore": 0.905,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-03",
+      "type": "ko-en-mixed",
+      "gold": [
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/transactions.md",
+        "db/transactions.md",
+        "kubernetes/autoscaling/hpa.md",
+        "db/transactions.md",
+        "auth/rbac.py"
+      ],
+      "latencyMs": [
+        2.6724169999997684,
+        2.7293750000008004,
+        2.7359589999996388
+      ],
+      "topScore": 0.675,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-04",
+      "type": "ko-en-mixed",
+      "gold": [
+        "db/replication-lag.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "db/migrations.md",
+        "kubernetes/storage/pvc.md",
+        "ops/backup-policy.md"
+      ],
+      "latencyMs": [
+        2.9478330000001733,
+        2.8601669999998194,
+        2.8669589999999516
+      ],
+      "topScore": 0.767,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-05",
+      "type": "ko-en-mixed",
+      "gold": [
+        "linux/systemd/unit-files.md"
+      ],
+      "top": [
+        "linux/systemd/unit-files.md",
+        "linux/systemd/unit-files.md",
+        "kubernetes/workloads/statefulset.md",
+        "linux/filesystem/inode.md",
+        "linux/filesystem/inode.md"
+      ],
+      "latencyMs": [
+        2.9332500000000437,
+        2.951915999999983,
+        11.352999999999156
+      ],
+      "topScore": 0.783,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-06",
+      "type": "ko-en-mixed",
+      "gold": [
+        "linux/network/dns-resolv.md"
+      ],
+      "top": [
+        "linux/network/dns-resolv.md",
+        "linux/network/dns-resolv.md",
+        "linux/network/dns-resolv.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "writing/en/release-notes.md"
+      ],
+      "latencyMs": [
+        2.5639579999997295,
+        2.5283330000002024,
+        2.519458000000668
+      ],
+      "topScore": 0.9,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-07",
+      "type": "ko-en-mixed",
+      "gold": [
+        "linux/network/iptables.md"
+      ],
+      "top": [
+        "linux/network/iptables.md",
+        "linux/network/iptables.md",
+        "linux/network/iptables.md",
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/networking/network-policy.md"
+      ],
+      "latencyMs": [
+        2.5274170000002414,
+        2.518000000000029,
+        2.6059170000007725
+      ],
+      "topScore": 0.769,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-08",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "top": [
+        "kubernetes/workloads/statefulset.md",
+        "kubernetes/workloads/statefulset.md",
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/workloads/statefulset.md",
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "latencyMs": [
+        2.4142919999994774,
+        2.400749999999789,
+        2.4087079999999332
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-09",
+      "type": "ko-en-mixed",
+      "gold": [
+        "kubernetes/networking/network-policy.md"
+      ],
+      "top": [
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/networking/network-policy.md",
+        "ops/backup-policy.md",
+        "kubernetes/storage/pvc.md"
+      ],
+      "latencyMs": [
+        2.4260000000003856,
+        2.3642079999999623,
+        2.44275000000016
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-ko-10",
+      "type": "ko-en-mixed",
+      "gold": [
+        "auth/password-hashing.md"
+      ],
+      "top": [
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "db/btree-index.md",
+        "ml/embeddings/cosine.md"
+      ],
+      "latencyMs": [
+        2.8008340000005774,
+        2.7954170000002705,
+        2.7830409999996846
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-01",
+      "type": "semantic",
+      "gold": [
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "top": [
+        "linux/network/dns-resolv.md",
+        "kubernetes/networking/network-policy.md",
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/vpa.md",
+        "finance/budget/q3-budget.md"
+      ],
+      "latencyMs": [
+        2.906166000000667,
+        2.9460830000007263,
+        2.9242919999996957
+      ],
+      "topScore": 0.633,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-02",
+      "type": "semantic",
+      "gold": [
+        "linux/filesystem/inode.md"
+      ],
+      "top": [
+        "linux/filesystem/inode.md",
+        "linux/filesystem/inode.md",
+        "kubernetes/storage/pvc.md",
+        "kubernetes/storage/pvc.md",
+        "db/migrations.md"
+      ],
+      "latencyMs": [
+        2.907666000000063,
+        2.930500000000393,
+        2.924833000000035
+      ],
+      "topScore": 0.813,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-03",
+      "type": "semantic",
+      "gold": [
+        "linux/process/oom-killer.md"
+      ],
+      "top": [
+        "linux/process/oom-killer.md",
+        "linux/process/oom-killer.md",
+        "db/replication-lag.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        3.0845829999998386,
+        3.120915999999852,
+        3.056916999999885
+      ],
+      "topScore": 0.709,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-04",
+      "type": "semantic",
+      "gold": [
+        "linux/permissions/setuid.md"
+      ],
+      "top": [
+        "linux/permissions/setuid.md",
+        "kubernetes/storage/pvc.md",
+        "auth/rbac.py",
+        "kubernetes/autoscaling/hpa.md",
+        "auth/password-hashing.md"
+      ],
+      "latencyMs": [
+        3.1287090000005264,
+        3.0865410000005795,
+        3.0686249999998836
+      ],
+      "topScore": 0.713,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-05",
+      "type": "semantic",
+      "gold": [
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "db/transactions.md",
+        "go/concurrency/worker_pool.go",
+        "db/connection-pool.ts",
+        "go/concurrency/worker_pool.go"
+      ],
+      "latencyMs": [
+        3.037333000000217,
+        3.042124999999942,
+        3.052458000000115
+      ],
+      "topScore": 0.708,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-06",
+      "type": "semantic",
+      "gold": [
+        "db/replication-lag.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "auth/password-hashing.md",
+        "py/data/csv_import.py",
+        "ml/embeddings/cosine.md"
+      ],
+      "latencyMs": [
+        3.202917000000525,
+        3.272874999999658,
+        3.280959000000621
+      ],
+      "topScore": 0.682,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-07",
+      "type": "semantic",
+      "gold": [
+        "kubernetes/networking/ingress.md"
+      ],
+      "top": [
+        "kubernetes/networking/ingress.md",
+        "kubernetes/networking/ingress.md",
+        "go/http/middleware.go",
+        "linux/network/dns-resolv.md",
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "latencyMs": [
+        3.391540999999961,
+        3.3378750000001673,
+        3.307499999999891
+      ],
+      "topScore": 0.907,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-08",
+      "type": "semantic",
+      "gold": [
+        "auth/rbac.py"
+      ],
+      "top": [
+        "auth/rbac.py",
+        "kubernetes/autoscaling/hpa.md",
+        "linux/filesystem/inode.md",
+        "linux/network/dns-resolv.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        3.083417000000736,
+        3.076458999999886,
+        3.0791250000002037
+      ],
+      "topScore": 0.65,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-09",
+      "type": "semantic",
+      "gold": [
+        "writing/ko/meeting-notes-2026.md"
+      ],
+      "top": [
+        "writing/ko/meeting-notes-2026.md",
+        "writing/ko/meeting-notes-2026.md",
+        "writing/ko/meeting-notes-2026.md",
+        "db/replication-lag.md",
+        "product/roadmap/2026-h2.md"
+      ],
+      "latencyMs": [
+        2.9327089999997042,
+        2.95837500000016,
+        2.9590830000006463
+      ],
+      "topScore": 0.685,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-sem-10",
+      "type": "semantic",
+      "gold": [
+        "ops/backup-policy.md"
+      ],
+      "top": [
+        "db/migrations.md",
+        "ops/backup-policy.md",
+        "db/connection-pool.ts",
+        "kubernetes/workloads/statefulset.md",
+        "db/migrations.md"
+      ],
+      "latencyMs": [
+        3.005374999999731,
+        3.0205830000004426,
+        3.1060829999996713
+      ],
+      "topScore": 0.75,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-01",
+      "type": "code-symbol",
+      "gold": [
+        "auth/jwt.ts"
+      ],
+      "top": [
+        "auth/jwt.ts",
+        "ml/rag/chunking.md",
+        "linux/filesystem/inode.md",
+        "auth/password-hashing.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.499041000000034,
+        2.5362089999998716,
+        2.4782500000001164
+      ],
+      "topScore": 0.65,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-02",
+      "type": "code-symbol",
+      "gold": [
+        "auth/session-cookie.ts"
+      ],
+      "top": [
+        "auth/session-cookie.ts",
+        "linux/filesystem/inode.md",
+        "auth/session-cookie.ts",
+        "auth/session-cookie.ts",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.2172499999996944,
+        2.2107920000007653,
+        2.204666999999972
+      ],
+      "topScore": 0.75,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-03",
+      "type": "code-symbol",
+      "gold": [
+        "auth/rbac.py"
+      ],
+      "top": [
+        "auth/rbac.py",
+        "auth/password-hashing.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "auth/rbac.py"
+      ],
+      "latencyMs": [
+        2.3668330000000424,
+        2.344833000000108,
+        2.304584000000432
+      ],
+      "topScore": 0.95,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-04",
+      "type": "code-symbol",
+      "gold": [
+        "db/connection-pool.ts"
+      ],
+      "top": [
+        "db/connection-pool.ts",
+        "db/migrations.md",
+        "db/migrations.md",
+        "db/migrations.md",
+        "db/connection-pool.ts"
+      ],
+      "latencyMs": [
+        2.346625000000131,
+        2.321834000000308,
+        2.350416999999652
+      ],
+      "topScore": 0.65,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-05",
+      "type": "code-symbol",
+      "gold": [
+        "go/http/middleware.go"
+      ],
+      "top": [
+        "go/http/middleware.go",
+        "auth/session-cookie.ts",
+        "go/http/middleware.go",
+        "linux/systemd/unit-files.md",
+        "auth/password-hashing.md"
+      ],
+      "latencyMs": [
+        2.38012499999968,
+        2.3476659999996627,
+        2.35425000000032
+      ],
+      "topScore": 0.717,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-06",
+      "type": "code-symbol",
+      "gold": [
+        "go/concurrency/worker_pool.go"
+      ],
+      "top": [
+        "go/concurrency/worker_pool.go",
+        "go/concurrency/worker_pool.go",
+        "linux/network/dns-resolv.md",
+        "ml/rag/chunking.md",
+        "product/roadmap/2026-h2.md"
+      ],
+      "latencyMs": [
+        2.4407090000004246,
+        2.3548329999994166,
+        2.338082999999642
+      ],
+      "topScore": 0.967,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-07",
+      "type": "code-symbol",
+      "gold": [
+        "py/data/sales_report.py"
+      ],
+      "top": [
+        "py/data/sales_report.py",
+        "py/data/sales_report.py",
+        "py/data/sales_report.py",
+        "ops/backup-policy.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.55658399999993,
+        2.4909999999999854,
+        2.4395000000004075
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-code-08",
+      "type": "code-symbol",
+      "gold": [
+        "py/data/csv_import.py"
+      ],
+      "top": [
+        "py/data/csv_import.py",
+        "writing/en/release-notes.md",
+        "py/data/csv_import.py",
+        "db/migrations.md",
+        "auth/jwt.ts"
+      ],
+      "latencyMs": [
+        2.5612090000004173,
+        2.5560420000001614,
+        2.5241249999999127
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-file-01",
+      "type": "filename",
+      "gold": [
+        "auth/rbac.py"
+      ],
+      "top": [
+        "linux/filesystem/inode.md",
+        "db/migrations.md",
+        "auth/rbac.py",
+        "ml/rag/chunking.md",
+        "linux/systemd/unit-files.md"
+      ],
+      "latencyMs": [
+        2.444666000000325,
+        2.4470830000000205,
+        2.417707999999948
+      ],
+      "topScore": 0.693,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-file-02",
+      "type": "filename",
+      "gold": [
+        "auth/session-cookie.ts"
+      ],
+      "top": [
+        "linux/systemd/unit-files.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "auth/session-cookie.ts"
+      ],
+      "latencyMs": [
+        2.2344160000002375,
+        2.2401669999999285,
+        2.192833000000064
+      ],
+      "topScore": 0.712,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-file-03",
+      "type": "filename",
+      "gold": [
+        "go/concurrency/worker_pool.go"
+      ],
+      "top": [
+        "go/concurrency/worker_pool.go",
+        "go/concurrency/worker_pool.go",
+        "go/concurrency/worker_pool.go",
+        "db/connection-pool.ts",
+        "db/connection-pool.ts"
+      ],
+      "latencyMs": [
+        2.1345839999994496,
+        2.1860420000002705,
+        2.12670800000069
+      ],
+      "topScore": 0.833,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-file-04",
+      "type": "filename",
+      "gold": [
+        "finance/budget/q3-budget.md"
+      ],
+      "top": [
+        "finance/budget/q3-budget.md",
+        "linux/systemd/unit-files.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        2.3065409999999247,
+        2.2794160000003103,
+        2.34375
+      ],
+      "topScore": 0.925,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-file-05",
+      "type": "filename",
+      "gold": [
+        "cooking/kimchi-jjigae.md"
+      ],
+      "top": [
+        "personal/travel/jeju-itinerary.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/storage/pvc.md",
+        "kubernetes/storage/pvc.md",
+        "kubernetes/storage/pvc.md"
+      ],
+      "latencyMs": [
+        2.3179589999999735,
+        2.210541999999805,
+        2.1875
+      ],
+      "topScore": 0.6,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-file-06",
+      "type": "filename",
+      "gold": [
+        "writing/en/release-notes.md"
+      ],
+      "top": [
+        "writing/en/release-notes.md",
+        "writing/en/release-notes.md",
+        "writing/en/release-notes.md",
+        "db/connection-pool.ts",
+        "personal/travel/jeju-itinerary.md"
+      ],
+      "latencyMs": [
+        2.2055840000002718,
+        2.186666000000514,
+        2.177875000000313
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-multi-01",
+      "type": "multi-doc",
+      "gold": [
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/vpa.md",
+        "db/transactions.md",
+        "ml/rag/chunking.md",
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.778542000000016,
+        2.8274170000004233,
+        3.21887500000048
+      ],
+      "topScore": 0.779,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 0.8772153153380493
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-multi-02",
+      "type": "multi-doc",
+      "gold": [
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "linux/process/oom-killer.md"
+      ],
+      "latencyMs": [
+        3.206416999999419,
+        3.1520000000000437,
+        3.0987919999997757
+      ],
+      "topScore": 0.892,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-multi-03",
+      "type": "multi-doc",
+      "gold": [
+        "db/btree-index.md",
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/transactions.md",
+        "db/transactions.md",
+        "db/transactions.md",
+        "db/btree-index.md",
+        "db/btree-index.md"
+      ],
+      "latencyMs": [
+        3.238083000000188,
+        3.1279999999997017,
+        3.1138750000000073
+      ],
+      "topScore": 0.747,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-multi-04",
+      "type": "multi-doc",
+      "gold": [
+        "auth/jwt.ts",
+        "auth/password-hashing.md"
+      ],
+      "top": [
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "auth/password-hashing.md",
+        "auth/jwt.ts",
+        "auth/jwt.ts"
+      ],
+      "latencyMs": [
+        2.8474999999998545,
+        2.901708000000326,
+        2.9477499999993597
+      ],
+      "topScore": 0.863,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-multi-05",
+      "type": "multi-doc",
+      "gold": [
+        "linux/network/dns-resolv.md",
+        "linux/network/iptables.md"
+      ],
+      "top": [
+        "linux/network/iptables.md",
+        "linux/network/dns-resolv.md",
+        "db/connection-pool.ts",
+        "db/connection-pool.ts",
+        "kubernetes/networking/ingress.md"
+      ],
+      "latencyMs": [
+        3.2031660000002375,
+        12.112583000000086,
+        3.163875000000189
+      ],
+      "topScore": 0.738,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-multi-06",
+      "type": "multi-doc",
+      "gold": [
+        "db/replication-lag.md",
+        "ops/backup-policy.md"
+      ],
+      "top": [
+        "ops/backup-policy.md",
+        "db/replication-lag.md",
+        "ops/backup-policy.md",
+        "db/replication-lag.md",
+        "db/replication-lag.md"
+      ],
+      "latencyMs": [
+        5.625250000000051,
+        2.9605830000000424,
+        2.750333999999384
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-01",
+      "type": "follow-up",
+      "gold": [
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/karpenter.md",
+        "kubernetes/autoscaling/hpa.md"
+      ],
+      "latencyMs": [
+        2.958792000000358,
+        2.854000000000269,
+        2.8079999999999927
+      ],
+      "topScore": 0.703,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-02",
+      "type": "follow-up",
+      "gold": [
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/hpa.md",
+        "finance/budget/q3-budget.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.8065830000005008,
+        2.8444170000002487,
+        2.834833000000799
+      ],
+      "topScore": 0.897,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-03",
+      "type": "follow-up",
+      "gold": [
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "top": [
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/vpa.md",
+        "kubernetes/autoscaling/vpa.md",
+        "db/transactions.md",
+        "kubernetes/workloads/statefulset.md"
+      ],
+      "latencyMs": [
+        3.1366250000000946,
+        3.085584000000381,
+        3.177375000000211
+      ],
+      "topScore": 0.63,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-04",
+      "type": "follow-up",
+      "gold": [
+        "db/transactions.md"
+      ],
+      "top": [
+        "db/transactions.md",
+        "db/transactions.md",
+        "db/transactions.md",
+        "db/migrations.md",
+        "auth/rbac.py"
+      ],
+      "latencyMs": [
+        3.0089170000001104,
+        2.9165830000001733,
+        2.8421669999997903
+      ],
+      "topScore": 0.779,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-05",
+      "type": "follow-up",
+      "gold": [
+        "db/replication-lag.md"
+      ],
+      "top": [
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "db/replication-lag.md",
+        "kubernetes/autoscaling/hpa.md",
+        "kubernetes/autoscaling/vpa.md"
+      ],
+      "latencyMs": [
+        2.5737920000001395,
+        2.6424580000002607,
+        2.548416999999972
+      ],
+      "topScore": 0.839,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-06",
+      "type": "follow-up",
+      "gold": [
+        "db/migrations.md"
+      ],
+      "top": [
+        "db/migrations.md",
+        "db/btree-index.md",
+        "auth/session-cookie.ts",
+        "db/btree-index.md",
+        "kubernetes/networking/network-policy.md"
+      ],
+      "latencyMs": [
+        2.897791000000325,
+        2.8760409999995318,
+        2.8392079999994166
+      ],
+      "topScore": 0.742,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-07",
+      "type": "follow-up",
+      "gold": [
+        "linux/network/iptables.md"
+      ],
+      "top": [
+        "linux/network/iptables.md",
+        "linux/network/iptables.md",
+        "linux/network/iptables.md",
+        "go/concurrency/worker_pool.go",
+        "kubernetes/autoscaling/karpenter.md"
+      ],
+      "latencyMs": [
+        2.7492910000000848,
+        2.9483329999993657,
+        2.7983329999997295
+      ],
+      "topScore": 0.709,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-fu-08",
+      "type": "follow-up",
+      "gold": [
+        "linux/process/oom-killer.md"
+      ],
+      "top": [
+        "linux/process/oom-killer.md",
+        "linux/process/oom-killer.md",
+        "kubernetes/workloads/restart-policy.md",
+        "kubernetes/autoscaling/vpa.md",
+        "auth/password-hashing.md"
+      ],
+      "latencyMs": [
+        3.260250000000269,
+        3.212333000000399,
+        3.1322919999993246
+      ],
+      "topScore": 0.738,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-01",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "auth/password-hashing.md",
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "linux/process/oom-killer.md",
+        "linux/permissions/setuid.md"
+      ],
+      "latencyMs": [
+        2.9021249999996144,
+        2.9479580000006536,
+        2.863208000000668
+      ],
+      "topScore": 0.781,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-02",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "kubernetes/networking/ingress.md",
+        "kubernetes/networking/network-policy.md",
+        "auth/password-hashing.md",
+        "ml/embeddings/cosine.md",
+        "ml/rag/chunking.md"
+      ],
+      "latencyMs": [
+        2.550583000000188,
+        2.5408330000000205,
+        2.5392919999994774
+      ],
+      "topScore": 0.563,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-03",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "ml/rag/chunking.md",
+        "ml/rag/reranking.md",
+        "go/http/middleware.go",
+        "linux/permissions/setuid.md",
+        "kubernetes/networking/ingress.md"
+      ],
+      "latencyMs": [
+        2.654125000000022,
+        2.567124999999578,
+        2.485000000000582
+      ],
+      "topScore": 0.643,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-04",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "ml/rag/reranking.md",
+        "writing/ko/meeting-notes-2026.md",
+        "ml/rag/chunking.md",
+        "writing/ko/meeting-notes-2026.md",
+        "db/transactions.md"
+      ],
+      "latencyMs": [
+        2.623290999999881,
+        2.6906660000004194,
+        2.611167000000023
+      ],
+      "topScore": 0.575,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-05",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "linux/permissions/setuid.md",
+        "linux/permissions/setuid.md",
+        "go/http/middleware.go",
+        "linux/permissions/setuid.md",
+        "kubernetes/workloads/restart-policy.md"
+      ],
+      "latencyMs": [
+        2.717083999999886,
+        2.72649999999976,
+        2.746917000000394
+      ],
+      "topScore": 0.575,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-06",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "writing/en/release-notes.md",
+        "kubernetes/observability/alerts.md",
+        "ml/rag/chunking.md",
+        "auth/password-hashing.md",
+        "writing/ko/meeting-notes-2026.md"
+      ],
+      "latencyMs": [
+        2.286207999999533,
+        2.2808329999998023,
+        2.2774170000002414
+      ],
+      "topScore": 0.6,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-07",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "auth/rbac.py",
+        "kubernetes/storage/pvc.md",
+        "writing/en/release-notes.md",
+        "writing/en/release-notes.md",
+        "linux/process/oom-killer.md"
+      ],
+      "latencyMs": [
+        2.379084000000148,
+        2.3995420000001104,
+        2.429291999999805
+      ],
+      "topScore": 0,
+      "fp015": false,
+      "fp050": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "synthetic",
+      "id": "syn-none-08",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "linux/network/iptables.md",
+        "db/connection-pool.ts",
+        "auth/jwt.ts",
+        "writing/ko/meeting-notes-2026.md",
+        "product/roadmap/2026-h2.md"
+      ],
+      "latencyMs": [
+        2.4217919999991864,
+        2.4131250000000364,
+        2.3310419999997976
+      ],
+      "topScore": 0.583,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-01",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/02-ARCHITECTURE.md",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "latencyMs": [
+        7.735166999999819,
+        8.001874999999927,
+        8.32183299999997
+      ],
+      "topScore": 0.863,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-02",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/i18n/locales/en/rag.json",
+        "packages/core/src/canvas.ts"
+      ],
+      "latencyMs": [
+        7.25683299999946,
+        7.323875000000044,
+        6.956208000000515
+      ],
+      "topScore": 0.772,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-03",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/prompt.ts",
+        "packages/core/src/update.ts",
+        "packages/core/src/tts.ts",
+        "packages/core/src/rag/prompt.ts",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        7.308917000000292,
+        7.402917000000343,
+        7.262249999999767
+      ],
+      "topScore": 0.738,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-04",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "packages/core/src/skillFolder.ts",
+        "packages/core/src/skill-match.ts",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/skillFolder.ts",
+        "packages/core/src/skill-match.ts"
+      ],
+      "latencyMs": [
+        7.933332999999948,
+        7.6947500000005675,
+        8.032000000000153
+      ],
+      "topScore": 0.942,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-05",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "packages/core/src/tts.ts",
+        "packages/core/src/rag/embedding.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/bridge/sync.ts"
+      ],
+      "latencyMs": [
+        7.518415999999888,
+        7.763875000000553,
+        7.713749999999891
+      ],
+      "topScore": 0.967,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-06",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/rag/chunk.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts"
+      ],
+      "latencyMs": [
+        9.319209000000228,
+        8.906708000000435,
+        9.489542000000256
+      ],
+      "topScore": 0.717,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-07",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/skillAssist.ts",
+        "packages/core/src/skillAssist.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/skills.json"
+      ],
+      "latencyMs": [
+        7.393459000000803,
+        7.395125000000007,
+        7.420875000000706
+      ],
+      "topScore": 0.875,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-08",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/skill-match.ts",
+        "packages/core/src/rag/embedding.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "latencyMs": [
+        7.7583749999994325,
+        7.582083000000239,
+        7.593958000000384
+      ],
+      "topScore": 0.624,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-09",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/rag/rewrite.ts",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        9.379958000000443,
+        9.196125000000393,
+        9.61083299999973
+      ],
+      "topScore": 0.7,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-10",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "docs/03-PROVIDERS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/rag/embedding.ts",
+        "docs/PROGRESS.md"
+      ],
+      "latencyMs": [
+        7.319000000000415,
+        7.219707999999628,
+        7.264832999999271
+      ],
+      "topScore": 0.75,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-11",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/skillAssist.ts",
+        "packages/core/src/skill-match.ts",
+        "packages/core/src/i18n/locales/ko/book.json",
+        "packages/core/src/i18n/locales/ko/llm.json"
+      ],
+      "latencyMs": [
+        9.28979199999958,
+        9.894959000000199,
+        8.958583999999973
+      ],
+      "topScore": 0.8,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "c-12",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/scheduling/MOBILE_NOTIFICATIONS.md",
+        "packages/core/src/i18n/locales/ko/core.json",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/rag/parse.ts"
+      ],
+      "latencyMs": [
+        8.47345899999982,
+        8.616957999999613,
+        8.236375000000407
+      ],
+      "topScore": 0.738,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.2,
+      "ndcg10": 0.38685280723454163,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-01",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "docs/knowledge-pack-architecture.md",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        9.94208399999934,
+        9.989958000000115,
+        10.636790999999903
+      ],
+      "topScore": 0.776,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.14285714285714285,
+      "ndcg10": 0.3333333333333333
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-02",
+      "type": "technical-term",
+      "gold": [
+        "docs/02-ARCHITECTURE.md"
+      ],
+      "top": [
+        "docs/knowledge-pack-architecture.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        7.783124999999927,
+        7.639000000000124,
+        7.993166000000201
+      ],
+      "topScore": 0.925,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.25,
+      "ndcg10": 0.43067655807339306
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-03",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/PROGRESS.md",
+        "docs/plans/remote-manage-plan.md",
+        "docs/plans/knowledge-base-plan.md"
+      ],
+      "latencyMs": [
+        13.401749999999993,
+        12.38379199999963,
+        8.794499999999971
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-04",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/auto-update-plan.md",
+        "docs/PROGRESS.md",
+        "packages/core/src/update.ts",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        10.044667000000118,
+        10.596332999999504,
+        10.066082999999708
+      ],
+      "topScore": 0.992,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-05",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "top": [
+        "docs/DEVELOPMENT.ko.md",
+        "docs/03-PROVIDERS.md",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/bridge/desktop.ts"
+      ],
+      "latencyMs": [
+        9.631457999999839,
+        9.734459000000243,
+        9.731082999999671
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-06",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "packages/core/src/backup/drive.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/01-PRD.md",
+        "packages/core/src/backup/drive.ts",
+        "docs/BLOCKERS.md",
+        "packages/core/src/i18n/locales/ko/backup.json"
+      ],
+      "latencyMs": [
+        8.542124999999942,
+        8.526708000000326,
+        8.651499999999942
+      ],
+      "topScore": 1,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 0.9197207891481876
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-07",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/rag/parse.ts",
+        "packages/core/src/attachments.ts",
+        "packages/core/src/i18n/locales/ko/chat.json",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        9.798499999999876,
+        9.010750000000371,
+        9.097458000000188
+      ],
+      "topScore": 0.815,
+      "recall5": 0.5,
+      "recall10": 0.5,
+      "hit5": 1,
+      "rr": 0.2,
+      "ndcg10": 0.23719771276929622
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-08",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts",
+        "docs/plans/knowledge-rag-plan.md",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        8.894125000000713,
+        11.899583000000348,
+        9.176749999999629
+      ],
+      "topScore": 0.833,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "t-09",
+      "type": "technical-term",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/backup/crypto.ts",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "docs/01-PRD.md"
+      ],
+      "latencyMs": [
+        7.999749999999949,
+        8.237041999999747,
+        8.080458000000363
+      ],
+      "topScore": 0.931,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.5,
+      "ndcg10": 0.6309297535714575
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "k-01",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/chat.json",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/skills.ts"
+      ],
+      "latencyMs": [
+        8.965500000000247,
+        9.211167000000387,
+        10.817707999999584
+      ],
+      "topScore": 0.8,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "k-02",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "docs/plans/knowledge-rag-plan.md",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/knowledge.ts",
+        "packages/core/src/i18n/locales/ko/knowledge.json"
+      ],
+      "latencyMs": [
+        9.075291999999536,
+        8.920083999999406,
+        8.996625000000677
+      ],
+      "topScore": 0.724,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "k-03",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/types.ts"
+      ],
+      "latencyMs": [
+        8.164749999999913,
+        8.0829590000003,
+        8.061166000000412
+      ],
+      "topScore": 0.925,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "k-04",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/notes.json",
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "docs/DECISIONS.md",
+        "docs/plans/imp-12-plan.md"
+      ],
+      "latencyMs": [
+        9.844708999999966,
+        9.663625000000138,
+        9.58270899999934
+      ],
+      "topScore": 0.726,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "k-05",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json"
+      ],
+      "latencyMs": [
+        10.604624999999942,
+        10.742083000000093,
+        10.799791000000369
+      ],
+      "topScore": 0.764,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "k-06",
+      "type": "ko-en-mixed",
+      "gold": [
+        "docs/DECISIONS.md",
+        "packages/core/src/bridge/desktop.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/plans/multi-profile-plan.md",
+        "docs/DEVELOPMENT.ko.md",
+        "docs/00-VISION.md"
+      ],
+      "latencyMs": [
+        8.686375000000226,
+        9.47833300000002,
+        9.719208999999864
+      ],
+      "topScore": 0.825,
+      "recall5": 0.5,
+      "recall10": 0.5,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 0.6131471927654584
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "k-07",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "top": [
+        "docs/01-PRD.md",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/scheduling.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        7.9389579999997295,
+        7.799291000000267,
+        7.801250000000437
+      ],
+      "topScore": 0.603,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-01",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "docs/plans/headless-serve-plan.md"
+      ],
+      "latencyMs": [
+        10.222875000000386,
+        10.294541000000208,
+        13.215209000000868
+      ],
+      "topScore": 0.745,
+      "recall5": 0,
+      "recall10": 1,
+      "hit5": 0,
+      "rr": 0.16666666666666666,
+      "ndcg10": 0.3562071871080222,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-02",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/i18n/locales/ko/rag.json",
+        "packages/core/src/skillAssist.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/vault.json"
+      ],
+      "latencyMs": [
+        8.730583999999908,
+        9.239959000000454,
+        9.294458999999733
+      ],
+      "topScore": 0.772,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-03",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/plans/remote-manage-plan.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "latencyMs": [
+        9.399666000000252,
+        9.264667000000372,
+        9.27179200000046
+      ],
+      "topScore": 0.829,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-04",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        9.951042000000598,
+        9.812667000000147,
+        9.882583999999952
+      ],
+      "topScore": 0.778,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-05",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/secrets.ts",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/01-PRD.md"
+      ],
+      "latencyMs": [
+        8.756624999999985,
+        8.74433399999998,
+        8.784291999999368
+      ],
+      "topScore": 0.784,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-06",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "docs/DECISIONS.md",
+        "docs/00-VISION.md",
+        "docs/DECISIONS.md"
+      ],
+      "latencyMs": [
+        10.962792000000263,
+        10.934500000000298,
+        13.543749999999818
+      ],
+      "topScore": 0.786,
+      "recall5": 0,
+      "recall10": 0,
+      "hit5": 0,
+      "rr": 0,
+      "ndcg10": 0,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-07",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "latencyMs": [
+        8.815207999999984,
+        8.715749999999389,
+        8.66229100000055
+      ],
+      "topScore": 0.894,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 0.3333333333333333,
+      "ndcg10": 0.5,
+      "span5": false
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-08",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "top": [
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/store/index.ts",
+        "docs/knowledge-pack-architecture.md"
+      ],
+      "latencyMs": [
+        9.779958000000079,
+        9.277665999999954,
+        9.292417000000569
+      ],
+      "topScore": 0.675,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "s-09",
+      "type": "semantic",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/update.json",
+        "docs/plans/auto-update-plan.md",
+        "packages/core/src/update.ts",
+        "packages/core/src/i18n/locales/ko/update.json"
+      ],
+      "latencyMs": [
+        9.949999999999818,
+        9.955207999999402,
+        9.929582999999184
+      ],
+      "topScore": 0.865,
+      "recall5": 1,
+      "recall10": 1,
+      "hit5": 1,
+      "rr": 1,
+      "ndcg10": 1,
+      "span5": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "n-01",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "packages/core/src/schedules.ts",
+        "docs/BLOCKERS.md",
+        "docs/DECISIONS.md",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md"
+      ],
+      "latencyMs": [
+        7.985042000000249,
+        8.502958999999464,
+        8.476249999999709
+      ],
+      "topScore": 0.6,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "n-02",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/knowledge-pack-architecture.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/prompts.ts",
+        "packages/core/src/seed.ts",
+        "docs/knowledge-pack-architecture.md"
+      ],
+      "latencyMs": [
+        7.452874999999949,
+        7.413916999999856,
+        10.532790999999634
+      ],
+      "topScore": 0.85,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "n-03",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/03-PROVIDERS.md",
+        "docs/03-PROVIDERS.md",
+        "docs/03-PROVIDERS.md",
+        "docs/plans/page-editor-overhaul-plan.md",
+        "docs/PROGRESS.md"
+      ],
+      "latencyMs": [
+        6.380458000000544,
+        6.575708000000304,
+        6.815249999999651
+      ],
+      "topScore": 0.688,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "n-04",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/03-PROVIDERS.md",
+        "docs/DECISIONS.md",
+        "docs/03-PROVIDERS.md",
+        "docs/03-PROVIDERS.md"
+      ],
+      "latencyMs": [
+        7.365792000000511,
+        7.301375000000007,
+        7.275875000000269
+      ],
+      "topScore": 0.8,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "n-05",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/pageFormat.ts",
+        "packages/core/src/knowledge.ts",
+        "packages/core/src/branch-suggest.ts"
+      ],
+      "latencyMs": [
+        8.596833000000515,
+        8.784291999999368,
+        8.605833999999959
+      ],
+      "topScore": 0.657,
+      "fp015": true,
+      "fp050": true
+    },
+    {
+      "config": "fts-symbol",
+      "source": "real",
+      "id": "n-06",
+      "type": "no-result",
+      "gold": [],
+      "top": [
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/speak-block.ts"
+      ],
+      "latencyMs": [
+        7.569791000000805,
+        7.1487090000000535,
+        10.361667000000125
+      ],
+      "topScore": 0.719,
+      "fp015": true,
+      "fp050": true
+    }
+  ]
+}

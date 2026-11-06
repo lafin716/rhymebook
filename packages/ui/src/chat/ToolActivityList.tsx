@@ -12,6 +12,11 @@ const TOOL_LABEL_KEYS: Record<string, MessageKey> = {
   read: 'chat.tool.read',
   glob: 'chat.tool.glob',
   grep: 'chat.tool.grep',
+  // 지식베이스 읽기 전용 MCP 도구 (ADR-124)
+  searchKnowledge: 'chat.tool.searchKnowledge',
+  listKnowledgeDirectory: 'chat.tool.listKnowledgeDirectory',
+  readKnowledgeFile: 'chat.tool.readKnowledgeFile',
+  getKnowledgeOutline: 'chat.tool.getKnowledgeOutline',
 };
 
 function hostOf(url: string): string {

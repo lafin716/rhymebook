@@ -1,10 +1,16 @@
 import { t } from '../i18n';
 import { newId } from '../id';
 import type { ProviderId } from '../model';
-import { PROVIDER_LABELS, providerError, wantsKnowledge, wantsWebTools, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
+import { knowledgeIdsOf, PROVIDER_LABELS, providerError, wantsKnowledge, wantsWebTools, type Availability, type LLMProvider, type StreamEvent, type StreamRequest } from '../provider';
 import type { SttModelId, SttState, SttStatus } from '../stt';
 import type { BridgeClientMsg, BridgeServerMsg, BridgeStatus, CliProviderId, SttManageOp } from './protocol';
 import { CLI_PROVIDER_IDS } from './protocol';
+
+/** chat.start의 지식베이스 필드: 전체 목록 + 예전 bridge용 첫 KB (ADR-124) */
+function knowledgeFields(req: StreamRequest): { knowledgeId: string; knowledgeIds: string[]; knowledgeMode?: StreamRequest['knowledgeMode'] } {
+  const ids = knowledgeIdsOf(req);
+  return { knowledgeId: ids[0]!, knowledgeIds: ids, ...(req.knowledgeMode ? { knowledgeMode: req.knowledgeMode } : {}) };
+}
 
 /** 메시지 전송로. Electron IPC, WebSocket 모두 이 모양으로 감싼다 */
 export interface BridgeTransport {
@@ -209,7 +215,7 @@ export function createBridgeClient(transport: BridgeTransport, opts: BridgeClien
               ...(req.effort ? { effort: req.effort } : {}),
               ...(!req.purpose || req.purpose === 'chat' ? { imageGen: true } : {}),
               ...(wantsWebTools(req) ? { webSearch: true } : {}),
-              ...(wantsKnowledge(req) ? { knowledgeId: req.knowledgeId! } : {}),
+              ...(wantsKnowledge(req) ? knowledgeFields(req) : {}),
             });
           } catch {
             push({ type: 'error', error: providerError('offline', offlineText()) });

@@ -61,7 +61,7 @@ import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
 import { newCanvasTitle } from '../canvas';
 import { isKnowledgeId } from '../knowledge';
-import { buildExpandRequest, buildRagSystem, buildRewriteContext, DEFAULT_RAG_SETTINGS, EXPAND_TIMEOUT_MS, expandPlan, needsExpansion, parseExpandTerms, rewriteQuery, toCitations, type Citation, type QueryPlan, type RagSettings, type RetrievalService, type RewriteContext } from '../rag';
+import { assessEvidence, buildExpandRequest, buildRagSystem, buildRewriteContext, DEFAULT_RAG_SETTINGS, EXPAND_TIMEOUT_MS, expandPlan, KB_TOOL_NAMES, needsExpansion, parseExpandTerms, rewriteQuery, toCitations, type Citation, type Evidence, type QueryPlan, type RagSettings, type RagTrace, type RetrievalNotice, type RetrievalResult, type RetrievalService, type RewriteContext } from '../rag';
 import { newPageTitle, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
 import { hasScheduleIntent, scheduleSystemHint, type ScheduleSkillOption } from '../schedules';
@@ -137,70 +137,145 @@ export function knowledgeInherited(sessions: Record<ID, Session>, id: ID): boole
   return !!s && s.knowledgeIds === undefined && s.parentId !== null;
 }
 
-/** 채팅 한 번의 지식 검색. 실패·시간 초과·검색 없음이면 null (RAG 없이 답한다) */
+/** 채팅 한 번의 지식 검색 결과. 중단이면 null (RAG 없이 답한다) */
 interface ChatRag {
+  /** 시스템 프롬프트에 붙일 근거 블록. 검색 실패·시간 초과면 '' */
   system: string;
   citations: Citation[];
   ragQuery: string;
+  trace: RagTrace;
 }
 
 /** 질의 확장: 계획을 받아 영어 검색어 목록을 돌려준다 (ADR-119) */
 export type ExpandTerms = (plan: QueryPlan, signal: AbortSignal) => Promise<string[]>;
 
-/** 확장어를 시간 제한 안에서 받아 계획에 합친다. 실패·시간 초과·중단이면 원래 계획 그대로 */
-async function maybeExpand(plan: QueryPlan, settings: RagSettings, expand: ExpandTerms | undefined, parent: AbortSignal): Promise<QueryPlan> {
-  if (!expand || !settings.expandQuery || !needsExpansion(plan.original) || parent.aborted) return plan;
+/** deep 모드는 근거를 더 넓게 가져온다 (ADR-122) */
+export const DEEP_TOPK_FACTOR = 1.5;
+
+/** parent 중단·시간 초과를 함께 걸어 fn을 실행한다. 실패·시간 초과·중단이면 fallback */
+async function bounded<T>(fn: (signal: AbortSignal) => Promise<T>, ms: number, parent: AbortSignal, fallback: T): Promise<{ value: T; timedOut: boolean }> {
+  if (parent.aborted) return { value: fallback, timedOut: false };
   const ctrl = new AbortController();
   const onAbort = () => ctrl.abort();
   parent.addEventListener('abort', onAbort);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<string[]>((resolve) => {
+  let timedOut = false;
+  const timeout = new Promise<T>((resolve) => {
     timer = setTimeout(() => {
+      timedOut = true;
       ctrl.abort();
-      resolve([]);
-    }, EXPAND_TIMEOUT_MS);
+      resolve(fallback);
+    }, ms);
   });
   try {
-    const terms = await Promise.race([expand(plan, ctrl.signal).catch(() => []), timeout]);
-    return expandPlan(plan, terms);
+    const value = await Promise.race([fn(ctrl.signal).catch(() => fallback), timeout]);
+    return { value, timedOut };
   } finally {
     clearTimeout(timer);
     parent.removeEventListener('abort', onAbort);
   }
 }
 
-async function retrieveForChat(
+/** 모드별 실제 검색 설정 */
+export function ragSettingsForMode(settings: RagSettings): RagSettings {
+  const mode = settings.mode ?? 'auto';
+  if (mode === 'deep') return { ...settings, topK: Math.ceil(settings.topK * DEEP_TOPK_FACTOR) };
+  return settings;
+}
+
+/** 확장을 시도할 수 있는가: fast가 아니고, 설정이 켜져 있고, CJK 질문 (영어 질문은 그대로도 코드와 맞는다) */
+function canExpand(plan: QueryPlan, settings: RagSettings, expand: ExpandTerms | undefined): expand is ExpandTerms {
+  return !!expand && settings.expandQuery && (settings.mode ?? 'auto') !== 'fast' && needsExpansion(plan.original);
+}
+
+const isKbToolName = (name: string): boolean => (KB_TOOL_NAMES as readonly string[]).includes(name);
+
+const topPathsOf = (evidence: readonly Evidence[]): string[] => [...new Set(evidence.map((e) => e.path))].slice(0, 5);
+
+/**
+ * 채팅용 지식 검색 (ADR-122): 결정적 재작성 → 빠른 로컬 검색 → 충분성 판단 → 부족할 때만 LLM 질의 확장·재검색.
+ * fast 모드는 LLM을 부르지 않는다. 더 나은 쪽(충분성 신뢰도)을 쓴다.
+ */
+export async function retrieveForChat(
   retriever: RetrievalService,
   ctx: RewriteContext,
   kbIds: string[],
-  settings: RagSettings,
+  base: RagSettings,
   parent: AbortSignal,
   expand?: ExpandTerms,
 ): Promise<ChatRag | null> {
   if (parent.aborted) return null;
-  const plan = await maybeExpand(rewriteQuery(ctx), settings, expand, parent);
-  const ctrl = new AbortController();
-  const onAbort = () => ctrl.abort();
+  const settings = ragSettingsForMode(base);
+  const mode = settings.mode ?? 'auto';
+  const started = Date.now();
+  const search = (plan: QueryPlan, ms: number) =>
+    bounded<RetrievalResult | null>((signal) => retriever.retrieve({ kbIds, plan, settings }, signal), ms, parent, null);
+
+  let plan = rewriteQuery(ctx);
+  const first = await search(plan, RAG_TIMEOUT_MS);
   if (parent.aborted) return null;
-  parent.addEventListener('abort', onAbort);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => {
-      ctrl.abort();
-      resolve(null);
-    }, RAG_TIMEOUT_MS);
-  });
-  try {
-    const result = await Promise.race([
-      retriever.retrieve({ kbIds, plan, settings }, ctrl.signal).catch(() => null),
-      timeout,
-    ]);
-    if (!result) return null;
-    return { system: buildRagSystem(result.evidence, plan), citations: toCitations(result.evidence), ragQuery: plan.rewritten };
-  } finally {
-    clearTimeout(timer);
-    parent.removeEventListener('abort', onAbort);
+  const notices: RetrievalNotice[] = [];
+  const trace = (result: RetrievalResult | null, expanded: boolean, sufficient: boolean | undefined, expandMs?: number): RagTrace => {
+    if (mode === 'semantic' && !(result?.semanticKbIds?.length)) notices.unshift({ code: 'semantic_unavailable' });
+    const all = [...notices, ...(result?.notices ?? [])];
+    const seen = new Set<string>();
+    const uniq = all.filter((n) => {
+      const k = `${n.code}:${n.kbId ?? ''}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return {
+      mode,
+      kbIds,
+      expanded,
+      ...(result?.semanticKbIds?.length ? { semanticKbIds: result.semanticKbIds } : {}),
+      notices: uniq,
+      topPaths: topPathsOf(result?.evidence ?? []),
+      timings: { ...(result?.timings ?? {}), ...(expandMs !== undefined ? { expandMs } : {}), totalMs: Date.now() - started },
+      ...(sufficient !== undefined ? { sufficient } : {}),
+    };
+  };
+  if (!first.value) {
+    if (first.timedOut) notices.push({ code: 'timeout' });
+    return { system: '', citations: [], ragQuery: plan.rewritten, trace: trace(null, false, undefined) };
   }
+
+  let result = first.value;
+  let assessment = result.assessment ?? assessEvidence(plan, result.evidence);
+  let expanded = false;
+  let expandMs: number | undefined;
+  if (!assessment.sufficient && canExpand(plan, settings, expand)) {
+    const t0 = Date.now();
+    const terms = await bounded((signal) => expand(plan, signal), EXPAND_TIMEOUT_MS, parent, [] as string[]);
+    expandMs = Date.now() - t0;
+    if (parent.aborted) return null;
+    const plan2 = expandPlan(plan, terms.value);
+    if (plan2 !== plan) {
+      const remain = Math.max(1_000, RAG_TIMEOUT_MS - (Date.now() - started));
+      const second = await search(plan2, remain);
+      if (parent.aborted) return null;
+      if (second.value) {
+        const a2 = second.value.assessment ?? assessEvidence(plan2, second.value.evidence);
+        // 확장 결과가 같거나 나으면 쓴다 (근거가 없던 경우 포함)
+        if (a2.confidence >= assessment.confidence || (!result.evidence.length && second.value.evidence.length)) {
+          result = second.value;
+          assessment = a2;
+          plan = plan2;
+          expanded = true;
+          notices.push({ code: 'expanded' });
+        }
+      }
+    }
+  }
+  if (!result.evidence.length) notices.push({ code: 'insufficient' });
+  for (const sk of result.skipped) notices.push({ code: 'kb_skipped', kbId: sk.kbId });
+  return {
+    system: buildRagSystem(result.evidence, plan),
+    citations: toCitations(result.evidence),
+    ragQuery: plan.rewritten,
+    trace: trace(result, expanded, assessment.sufficient, expandMs),
+  };
 }
 
 /** 재정리 기본 스킬 사본 (사용자가 스킬을 지웠어도 동작) */
@@ -623,15 +698,18 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
             parseExpandTerms(await collectStream(provider, { ...buildExpandRequest(plan), ...target.options, signal }));
           const rag = await retrieveForChat(opts.retriever, ctx, kbIds, ragSettings, ctrl.signal, expand);
           if (rag) {
-            req.system += `\n\n${rag.system}`;
+            if (rag.system) req.system += `\n\n${rag.system}`;
             const m = getMessage(sessionId, messageId);
-            if (m) putMessage({ ...m, citations: rag.citations, ragQuery: rag.ragQuery });
+            if (m) putMessage({ ...m, citations: rag.citations, ragQuery: rag.ragQuery, ragTrace: rag.trace });
           }
         }
-        // 검색기와 별개로 bridge 파일 도구(Claude CLI)와 검색기가 없는 플랫폼을 위해 첫 KB를 계속 넘긴다 (ADR-107).
-        // 세션에 적용되는 목록(가지 덮어쓰기·끔 반영)의 첫 번째를 쓰고, 목록이 비면 넘기지 않는다
-        const knowledgeId = kbIds[0];
-        if (knowledgeId) req.knowledgeId = knowledgeId;
+        // bridge의 지식베이스 도구(Codex·Claude MCP)와 검색기가 없는 플랫폼을 위해 선택된 KB 전체와 모드를 넘긴다 (ADR-124).
+        // 예전 bridge 호환으로 첫 KB도 knowledgeId에 남긴다. 목록이 비면 넘기지 않는다
+        if (kbIds.length > 0) {
+          req.knowledgeIds = kbIds;
+          req.knowledgeId = kbIds[0];
+          req.knowledgeMode = ragSettings.mode ?? 'auto';
+        }
       }
       req.signal = ctrl.signal;
 
@@ -653,7 +731,12 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
             if (m) putMessage({ ...m, attachments: [...(m.attachments ?? []), ev.attachment] });
           } else if (ev.type === 'tool') {
             const m = getMessage(sessionId, messageId);
-            if (m) putMessage({ ...m, tools: upsertTool(m.tools, ev.tool) });
+            if (m) {
+              const tools = upsertTool(m.tools, ev.tool);
+              // 지식베이스 추가 탐색 횟수를 검색 과정 요약에 센다 (ADR-124)
+              const ragTrace = m.ragTrace ? { ...m.ragTrace, toolCalls: tools.filter((x) => isKbToolName(x.name)).length } : undefined;
+              putMessage({ ...m, tools, ...(ragTrace ? { ragTrace } : {}) });
+            }
           } else if (ev.type === 'error') {
             fail(ev.error, text);
             break;

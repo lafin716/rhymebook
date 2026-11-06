@@ -60,6 +60,7 @@ export const CH = {
   knowledgeSources: 'knowledge:sources',
   knowledgeUpdateSource: 'knowledge:update-source',
   knowledgeRetrieve: 'knowledge:retrieve',
+  knowledgeRetrieveCancel: 'knowledge:retrieveCancel',
   knowledgeSource: 'knowledge:source',
   sttState: 'stt:state',
   sttSetEnabled: 'stt:set-enabled',

@@ -53,10 +53,20 @@ const knowledgeEnv: NodeJS.ProcessEnv = { ...process.env };
 void resolveCliEnv().then(({ env }) => Object.assign(knowledgeEnv, env)).catch(() => undefined);
 const knowledge = createKnowledgeStore({ root: path.join(userData, 'knowledge'), env: knowledgeEnv });
 
-const bridge = createBridgeServer({ log: bridgeLog, stt, knowledge });
-
 /** asar 안의 경로를 asarUnpack된 실제 경로로 바꾼다 (worker 스크립트·pdfjs 자산은 디스크에서 읽어야 한다) */
 const unpackedPath = (p: string) => p.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
+
+/**
+ * Codex·Claude가 쓰는 지식베이스 읽기 전용 MCP 서버 (ADR-124). 이 앱 실행 파일을 Node 모드로 띄워 kbMcp.cjs를 돌린다.
+ * 자식 프로세스에는 API 키를 넘기지 않는다 (env는 ELECTRON_RUN_AS_NODE만).
+ */
+const knowledgeTools = {
+  command: process.execPath,
+  args: [unpackedPath(path.join(__dirname, 'kbMcp.cjs'))],
+  env: { ELECTRON_RUN_AS_NODE: '1' },
+  root: path.join(userData, 'knowledge'),
+};
+const bridge = createBridgeServer({ log: bridgeLog, stt, knowledge, knowledgeTools });
 
 /**
  * 지식베이스 색인 (ADR-113). 색인·검색은 worker_threads에서 돈다. main은 IPC 검증과 RPC 전달만 한다.
@@ -436,16 +446,26 @@ void app.whenReady().then(() => {
     return v.trim();
   };
   const kbSettings = (v: unknown): KnowledgeIndexSettings => {
-    const emb = (v as { embedding?: { provider?: unknown; model?: unknown } } | null)?.embedding;
+    const emb = (v as { embedding?: { provider?: unknown; model?: unknown; dimensions?: unknown } } | null)?.embedding;
     const provider = emb?.provider;
-    if (provider !== 'local-hash' && provider !== 'openai') throw new Error(t('knowledge.error.badSettings'));
+    if (provider !== 'none' && provider !== 'local-hash' && provider !== 'openai') {
+      throw new Error(t('knowledge.error.badSettings'));
+    }
     if (emb?.model !== undefined && (typeof emb.model !== 'string' || emb.model.length > 100)) {
+      throw new Error(t('knowledge.error.badSettings'));
+    }
+    const dims = emb?.dimensions;
+    if (dims !== undefined && (!Number.isInteger(dims) || (dims as number) < 64 || (dims as number) > 3072)) {
       throw new Error(t('knowledge.error.badSettings'));
     }
     const auto = (v as { autoIndex?: unknown }).autoIndex;
     if (auto !== undefined && typeof auto !== 'boolean') throw new Error(t('knowledge.error.badSettings'));
     return {
-      embedding: { provider, ...(typeof emb?.model === 'string' ? { model: emb.model } : {}) },
+      embedding: {
+        provider,
+        ...(typeof emb?.model === 'string' ? { model: emb.model } : {}),
+        ...(typeof dims === 'number' ? { dimensions: dims } : {}),
+      },
       ...(auto === false ? { autoIndex: false } : {}),
     };
   };
@@ -592,9 +612,42 @@ void app.whenReady().then(() => {
     const sid = sourceId;
     return kbTask(e, (ctl) => knowledge.updateSource(kid, sid, ctl)).then((r) => (queueIndexAuto(kid), r));
   });
-  kbHandle(CH.knowledgeRetrieve, (_e, req) => {
+  // 검색 취소 (R-07): renderer가 requestId를 붙여 보내고, 취소 IPC가 오면 worker까지 AbortSignal로 끊는다.
+  // 창이 닫히면 그 창의 진행 중 검색을 모두 끊는다.
+  const retrievals = new Map<string, { ac: AbortController; wcId: number }>();
+  const retrieveWatched = new Set<number>();
+  const reqIdOf = (v: unknown): string | undefined => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : undefined);
+  kbHandle(CH.knowledgeRetrieve, async (e, req, rid) => {
     // 모양·길이·숫자 범위를 검증하고 정규화한다 (worker도 같은 검증을 한 번 더 한다)
-    return needIndexer().retrieve(parseRetrievalRequest(req));
+    const parsed = parseRetrievalRequest(req);
+    const id = reqIdOf(rid);
+    if (!id) return needIndexer().retrieve(parsed);
+    const wcId = e.sender.id;
+    const ac = new AbortController();
+    retrievals.get(id)?.ac.abort();
+    retrievals.set(id, { ac, wcId });
+    if (!retrieveWatched.has(wcId)) {
+      retrieveWatched.add(wcId);
+      e.sender.once('destroyed', () => {
+        for (const [k, r] of retrievals) {
+          if (r.wcId !== wcId) continue;
+          r.ac.abort();
+          retrievals.delete(k);
+        }
+        retrieveWatched.delete(wcId);
+      });
+    }
+    try {
+      return await needIndexer().retrieve(parsed, ac.signal);
+    } finally {
+      if (retrievals.get(id)?.ac === ac) retrievals.delete(id);
+    }
+  });
+  kbHandle(CH.knowledgeRetrieveCancel, (_e, rid) => {
+    const id = reqIdOf(rid);
+    if (!id) return;
+    retrievals.get(id)?.ac.abort();
+    retrievals.delete(id);
   });
   kbHandle(CH.knowledgeSource, (_e, kbid, chunkId) => {
     if (typeof chunkId !== 'string' || chunkId.length === 0 || chunkId.length > 200 || /[\\/]/.test(chunkId)) {

@@ -134,20 +134,28 @@
   },
   "embedding": {
     "heading": "Embedding model",
-    "local": "Local (offline, default)",
+    "local": "Local hash (offline, old default)",
     "model": "Model",
     "modelDefault": "Default model",
-    "openai": "OpenAI (text-embedding-3-small)",
-    "openaiNotice": "With OpenAI, document text from this knowledge base is sent to OpenAI servers. It uses your existing OpenAI API key. Use local embedding for sensitive material.",
+    "openai": "OpenAI semantic search",
+    "openaiNotice": "With OpenAI, this knowledge base's document text and your questions are sent to OpenAI servers. Use \"No vectors\" for sensitive material.",
     "provider": "Method",
     "reindexNeeded": "The model changed. Reindex to apply it to search.",
     "save": "Save",
-    "saved": "Embedding settings saved."
+    "saved": "Embedding settings saved.",
+    "none": "No vectors (keyword, code, folder search — default)",
+    "dimensions": "Dimensions",
+    "hint": {
+      "none": "Searches by keyword (FTS5), code symbols, file paths, and folder info with no API key. Enough for most cases.",
+      "local-hash": "The old default. Evaluation showed almost no quality gain, so new knowledge bases don't use it.",
+      "openai": "Also finds passages with similar meaning. Calls the OpenAI API for indexing and each question (uses the OpenAI key in Settings › API keys)."
+    },
+    "costEstimate": "Estimated indexing cost: about {tokens} tokens, about ${usd} (estimate, one-time; only changed files are resent)"
   },
   "rag": {
     "enabled": "Use knowledge search",
     "expandParent": "Include neighboring paragraphs",
-    "expandQuery": "Expand questions into English code search terms (one extra model call)",
+    "expandQuery": "When evidence is weak, widen the question into English code search terms and search again (one extra model call)",
     "heading": "Search settings",
     "maxContextChars": "Max evidence characters",
     "minScore": "Minimum relevance",
@@ -156,7 +164,9 @@
     "save": "Save",
     "topK": "Evidence count",
     "open": "Search settings",
-    "hint": "Applies to every knowledge base."
+    "hint": "Applies to every knowledge base.",
+    "mode": "Search mode",
+    "debug": "Debug: show per-stage search timings under answers"
   },
   "sources": {
     "empty": "No sources added.",
@@ -194,5 +204,33 @@
   "autoIndex": {
     "label": "Auto index",
     "hint": "When on, files are indexed as soon as you add them. When off, press Re-index yourself."
+  },
+  "mode": {
+    "auto": "Auto",
+    "fast": "Fast",
+    "deep": "Deep",
+    "semantic": "Semantic",
+    "hint": {
+      "auto": "Searches locally and looks further only when evidence is weak. Right for most people.",
+      "fast": "Local search only. No extra model calls or document browsing — fastest.",
+      "deep": "Gathers more evidence, and Codex/Claude read the source documents they need.",
+      "semantic": "Also searches by meaning in knowledge bases with an OpenAI index. Falls back to local search otherwise."
+    }
+  },
+  "trace": {
+    "label": "Search",
+    "kbs": "{n} knowledge bases",
+    "docs": "{n} documents",
+    "expanded": "widened and searched again",
+    "tools": "{n} extra lookups",
+    "semantic": "semantic",
+    "topDocs": "Top documents"
+  },
+  "notice": {
+    "semantic_unavailable": "No semantic index, so local search was used.",
+    "embed_failed": "Semantic search failed, so keyword search was used.",
+    "insufficient": "No relevant evidence found in the knowledge base.",
+    "timeout": "Search timed out, so the answer has no knowledge base evidence.",
+    "kb_skipped": "Knowledge bases without an index were skipped."
   }
 }
