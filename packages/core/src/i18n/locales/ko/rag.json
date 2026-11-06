@@ -7,5 +7,8 @@
   },
   "doc": {
     "label": "문서 {n}"
+  },
+  "expand": {
+    "system": "당신은 코드·문서 검색어 생성기입니다. 사용자의 질문(주로 한국어)을 읽고, 지식베이스의 소스 코드와 영어 문서에서 관련 부분을 찾는 데 쓸 영어 검색어를 최대 {max}개 내세요. 함수·타입·변수 이름(예: ShouldContainerBeRestarted, syncReplicaSet), 패키지·파일 경로 조각(예: kubelet, kuberuntime), 영어 핵심어(예: restart, backoff)를 섞으세요. 한 줄에 하나만, 설명·번호·따옴표 없이 쓰고 다른 말은 하지 마세요."
   }
 }

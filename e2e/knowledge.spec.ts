@@ -310,7 +310,7 @@ test('API가 없는 웹에서는 지식베이스 버튼이 보이지 않는다',
   await expect(main.locator('[data-knowledge-button]')).toHaveCount(0);
 });
 
-test('설명·문서 검색·출처 갱신·임베딩 설정', async ({ page }) => {
+test('설명·출처 갱신·임베딩 설정 (문서 목록 없음)', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.addInitScript(installFakeKnowledge);
@@ -330,17 +330,9 @@ test('설명·문서 검색·출처 갱신·임베딩 설정', async ({ page }) 
   await dialog.getByRole('button', { name: '클론' }).click();
   await expect(dialog.locator('[data-entry="repos/repo/README.md"]')).toBeVisible();
 
-  // 문서 목록: 두 문서가 보이고, 검색어로 걸러진다
-  const docs = dialog.locator('[data-doc]');
-  await expect(docs).toHaveCount(2);
-  const search = dialog.getByRole('searchbox', { name: '경로나 제목으로 검색' });
-  await search.fill('readme');
-  await expect(docs).toHaveCount(1);
-  await expect(docs.first()).toContainText('README.md');
-  await search.fill('없는문서');
-  await expect(dialog).toContainText('검색 결과가 없어요.');
-  await search.fill('');
-  await expect(docs).toHaveCount(2);
+  // 색인된 문서 목록은 상세에 그리지 않는다 (ADR-119: 큰 저장소에서 느려짐)
+  await expect(dialog.locator('[data-doc]')).toHaveCount(0);
+  await expect(dialog.getByRole('searchbox', { name: '경로나 제목으로 검색' })).toHaveCount(0);
 
   // 출처: GitHub 출처만 갱신 버튼이 있고, 누르면 완료 문구가 뜬다
   const sources = dialog.locator('[data-source]');

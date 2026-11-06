@@ -224,6 +224,8 @@ export interface RagSettings {
   expandParent: boolean;
   /** 최소 관련도(0~1). 이보다 낮은 근거는 넣지 않는다 (기본 0.15) */
   minScore: number;
+  /** 한국어 등 질문을 세션 모델로 영어 코드 식별자·키워드까지 넓혀 검색 (기본 true, ADR-119) */
+  expandQuery: boolean;
 }
 
 export const DEFAULT_RAG_SETTINGS: RagSettings = {
@@ -237,6 +239,7 @@ export const DEFAULT_RAG_SETTINGS: RagSettings = {
   maxContextChars: 9000,
   expandParent: true,
   minScore: 0.15,
+  expandQuery: true,
 };
 
 /** 문맥 기반 질의 계획 (core rewriteQuery 결과) */

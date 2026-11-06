@@ -299,8 +299,11 @@ export interface KnowledgeStore {
   preview(id: string, relPath: string): Promise<KnowledgePreview>;
   /** 지식베이스 폴더(files/) 절대 경로. 답변 CLI의 작업 폴더로 쓴다 */
   dirFor(id: string): string;
-  /** 답변용 파일 목록: 파일 경로(files/ 기준)를 최대 indexPaths개 + 전체 개수 */
-  index(id: string): Promise<{ paths: string[]; total: number }>;
+  /**
+   * 답변용 폴더 개요 (ADR-119): 얕은 층부터 너비 우선으로 최대 indexPaths개, 깊이 OUTLINE_DEPTH까지.
+   * 폴더는 끝에 '/'를 붙인다. 파일 크기는 읽지 않아 큰 저장소에서도 빠르다. truncated면 다 담지 못했다.
+   */
+  index(id: string): Promise<{ paths: string[]; truncated: boolean }>;
   /** 경로(files/ 기준)를 절대 경로로 바꾼다. 항목이 없거나 링크면 throw */
   resolvePath(id: string, relPath: string): Promise<string>;
   /** 설명 저장 (빈 문자열이면 지운다) */
@@ -389,6 +392,38 @@ async function walk(dirAbs: string, prefix: string, out: KnowledgeEntry[], budge
       out.push({ path: rel, dir: false, size: st?.size ?? 0 });
     }
   }
+}
+
+/** index()가 내려가는 최대 깊이 (1 = 최상위 항목만) */
+export const OUTLINE_DEPTH = 3;
+
+/** 너비 우선 폴더 개요: 상위 층을 먼저 채우고 limit개에서 멈춘다 (숨김·링크 제외, lstat 없음) */
+export async function outline(root: string, limit: number): Promise<{ paths: string[]; truncated: boolean }> {
+  const paths: string[] = [];
+  let level: string[] = [''];
+  for (let depth = 1; depth <= OUTLINE_DEPTH && level.length > 0; depth++) {
+    const next: string[] = [];
+    for (const rel of level) {
+      let names: import('node:fs').Dirent[];
+      try {
+        names = await readdir(rel ? path.join(root, rel) : root, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      names.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      for (const d of names) {
+        if (isHidden(d.name) || d.isSymbolicLink()) continue;
+        const child = rel ? `${rel}/${d.name}` : d.name;
+        if (!d.isDirectory() && !d.isFile()) continue;
+        if (paths.length >= limit) return { paths, truncated: true };
+        paths.push(d.isDirectory() ? `${child}/` : child);
+        if (d.isDirectory()) next.push(child);
+      }
+    }
+    level = next;
+  }
+  // 마지막 층 아래에 더 있으면 잘린 것으로 본다 (폴더만 있고 내용은 안 봤다)
+  return { paths, truncated: level.length > 0 };
 }
 
 /** 크기·개수 합계 (files/ 기준) */
@@ -906,10 +941,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
 
     async index(id) {
       await existingKb(id);
-      const entries: KnowledgeEntry[] = [];
-      await walk(filesDir(id), '', entries, { n: 0 });
-      const files = entries.filter((e) => !e.dir).map((e) => e.path);
-      return { paths: files.slice(0, KNOWLEDGE_LIMITS.indexPaths), total: files.length };
+      return outline(filesDir(id), KNOWLEDGE_LIMITS.indexPaths);
     },
 
     dirFor(id) {

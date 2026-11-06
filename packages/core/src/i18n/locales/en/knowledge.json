@@ -132,15 +132,6 @@
     "placeholder": "e.g. Our team deployment runbooks",
     "save": "Save"
   },
-  "docs": {
-    "chunks": "{count} chunks",
-    "empty": "No indexed documents.",
-    "failed": "Failed",
-    "heading": "Documents",
-    "noMatch": "No matching documents.",
-    "search": "Search by path or title",
-    "skipped": "Skipped"
-  },
   "embedding": {
     "heading": "Embedding model",
     "local": "Local (offline, default)",
@@ -156,6 +147,7 @@
   "rag": {
     "enabled": "Use knowledge search",
     "expandParent": "Include neighboring paragraphs",
+    "expandQuery": "Expand questions into English code search terms (one extra model call)",
     "heading": "Search settings",
     "maxContextChars": "Max evidence characters",
     "minScore": "Minimum relevance",

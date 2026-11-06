@@ -7,5 +7,8 @@
   },
   "doc": {
     "label": "Tài liệu {n}"
+  },
+  "expand": {
+    "system": "Bạn tạo từ khóa tìm kiếm cho mã và tài liệu. Đọc câu hỏi của người dùng và đưa ra tối đa {max} từ khóa tiếng Anh để tìm phần liên quan trong mã nguồn và tài liệu tiếng Anh của cơ sở tri thức. Kết hợp tên hàm, kiểu, biến (ví dụ: ShouldContainerBeRestarted, syncReplicaSet), đoạn tên gói hoặc đường dẫn tệp (ví dụ: kubelet, kuberuntime) và từ khóa tiếng Anh (ví dụ: restart, backoff). Mỗi dòng một từ, không giải thích, không đánh số, không dấu ngoặc kép và không viết gì khác."
   }
 }

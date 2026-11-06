@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import { DEFAULT_RAG_SETTINGS, type KnowledgeDoc, type KnowledgeIndexSettings, type KnowledgeIndexState, type KnowledgeSource, type RagSettings } from '@branch/core';
+import { DEFAULT_RAG_SETTINGS, type KnowledgeIndexSettings, type KnowledgeIndexState, type KnowledgeSource, type RagSettings } from '@branch/core';
 import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button, IconButton } from '../components/Button';
@@ -9,7 +9,7 @@ import { cn } from '../lib/cn';
 import { ipcErrorMessage, knowledgeApi } from './api';
 
 /**
- * 지식베이스 상세의 부가 패널 (ADR-113): 설명, 문서 목록·검색, 출처, 임베딩 설정, 검색 설정, 저장 용량.
+ * 지식베이스 상세의 부가 패널 (ADR-113): 설명, 출처, 임베딩 설정, 검색 설정, 저장 용량.
  * 모두 DesktopKnowledgeApi의 optional 메서드를 쓰고, 없으면 해당 패널을 그리지 않는다.
  */
 
@@ -101,72 +101,6 @@ export function DescriptionEditor({ kbId, description, onSaved }: { kbId: string
         </Button>
       </div>
     </form>
-  );
-}
-
-/** 문서 목록과 검색 (경로·제목 부분 일치). 색인이 끝나면 다시 읽는다 */
-/** revision: 자료가 바뀔 때마다 바뀌는 값 (상위의 트리). 바뀌면 목록을 다시 읽는다 */
-export function DocsPanel({ kbId, revision }: { kbId: string; revision: unknown }) {
-  const api = knowledgeApi();
-  const [query, setQuery] = useState('');
-  const [docs, setDocs] = useState<KnowledgeDoc[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!api?.docs) return;
-    let alive = true;
-    const handle = setTimeout(() => {
-      api
-        .docs!(kbId, query.trim() || undefined)
-        .then((list) => alive && (setDocs(list), setError(null)))
-        .catch((e: unknown) => alive && setError(failure(e)));
-    }, 150);
-    return () => {
-      alive = false;
-      clearTimeout(handle);
-    };
-  }, [api, kbId, query, revision]);
-
-  useEffect(() => {
-    if (!api?.onIndexState || !api.docs) return;
-    return api.onIndexState((s: KnowledgeIndexState) => {
-      if (s.kbId !== kbId || s.status !== 'ready') return;
-      void api.docs!(kbId, query.trim() || undefined).then(setDocs).catch(() => undefined);
-    });
-  }, [api, kbId, query]);
-
-  if (!api?.docs) return null;
-  return (
-    <Section title={t('knowledge.docs.heading')}>
-      <input
-        type="search"
-        aria-label={t('knowledge.docs.search')}
-        placeholder={t('knowledge.docs.search')}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="h-8 rounded-lg border border-line bg-surface px-2 text-[13px] outline-none focus:border-accent"
-      />
-      {error && <p role="alert" className="text-[12px] text-danger">{error}</p>}
-      {docs === null ? null : docs.length === 0 ? (
-        <p className="text-[13px] text-fg-2">{query.trim() ? t('knowledge.docs.noMatch') : t('knowledge.docs.empty')}</p>
-      ) : (
-        <ul aria-label={t('knowledge.docs.heading')} className="flex flex-col gap-1">
-          {docs.map((d) => (
-            <li key={d.docId} data-doc={d.path} className="flex items-center gap-2 rounded-md px-1 py-0.5 text-[12px]">
-              <span className="min-w-0 flex-1 truncate" title={d.path}>
-                {d.title || d.path}
-              </span>
-              <span className="shrink-0 text-muted">{t('knowledge.docs.chunks', { count: d.chunkCount })}</span>
-              {d.status !== 'ok' && (
-                <span className={cn('shrink-0', d.status === 'error' ? 'text-danger' : 'text-muted')} title={d.error}>
-                  {d.status === 'error' ? t('knowledge.docs.failed') : t('knowledge.docs.skipped')}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Section>
   );
 }
 
@@ -340,6 +274,10 @@ export function RagSettingsPanel({ value, onSave, bare }: { value: RagSettings; 
           {t('knowledge.rag.expandParent')}
         </label>
         <label className="flex items-center gap-2">
+          <input type="checkbox" checked={draft.expandQuery} onChange={(e) => set('expandQuery', e.target.checked)} />
+          {t('knowledge.rag.expandQuery')}
+        </label>
+        <label className="flex items-center gap-2">
           <span className="w-40 shrink-0 text-fg-2">{t('knowledge.rag.topK')}</span>
           <input type="number" min={1} max={12} value={draft.topK} onChange={(e) => set('topK', num(e, 1, 12))} className="h-8 w-20 rounded-lg border border-line bg-surface px-2" />
         </label>
@@ -411,11 +349,10 @@ export function StoragePanel({ kbId, bare }: { kbId: string; bare?: boolean }) {
   );
 }
 
-/** 상세에 남는 패널: 문서 목록·검색과 출처 (설명·용량·임베딩은 설정 팝업으로) */
+/** 상세에 남는 패널: 출처 (설명·용량·임베딩은 설정 팝업으로). 색인된 문서 목록은 보여 주지 않는다 (ADR-119) */
 export function KnowledgeInsights({ kbId, revision, onChanged }: { kbId: string; revision: unknown; onChanged(): void }) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-line p-3">
-      <DocsPanel kbId={kbId} revision={revision} />
       <SourcesPanel kbId={kbId} revision={revision} onChanged={onChanged} />
     </div>
   );

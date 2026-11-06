@@ -99,8 +99,8 @@
     "cloneStalled": "Kho không phản hồi nên đã dừng. Hãy kiểm tra mạng và thử lại",
     "cloneTimeout": "Kho quá lớn nên không tải kịp trong thời gian cho phép",
     "openFailed": "Không mở được thư mục: {error}",
-    "systemNote": "Việc học này đang gắn một cơ sở tri thức (tài liệu tham khảo). Trước khi trả lời, hãy dùng công cụ Read, Glob và Grep để tìm và kiểm tra các tệp liên quan, rồi trả lời dựa trên nội dung tệp. Đường dẫn tính từ thư mục làm việc. Danh sách tệp ({shown} trong tổng {total}): {paths}",
-    "codexIndex": "Danh sách tệp của cơ sở tri thức ({shown} trong tổng {total}; không cung cấp nội dung tệp): {paths}",
+    "systemNote": "Việc học này đang gắn một cơ sở tri thức (tài liệu tham khảo). Đường dẫn tuyệt đối của thư mục là {dir}. Thư mục làm việc hiện tại KHÔNG phải cơ sở tri thức, vì vậy luôn dùng đường dẫn tuyệt đối này cho path của Glob, Grep và cho đường dẫn tệp của Read. Trước khi trả lời, hãy dùng công cụ để tìm và đọc trực tiếp các tệp liên quan, trả lời dựa trên nội dung tệp và nêu đường dẫn tệp đã dùng. Mã nguồn được viết bằng tiếng Anh, nên hãy Grep bằng định danh, tên hàm và từ khóa tiếng Anh (ví dụ: restart, replica, sync) ngay cả khi câu hỏi bằng ngôn ngữ khác. Nếu không tìm thấy, hãy nói rõ. Tổng quan thư mục (một phần, thư mục kết thúc bằng /):\n{outline}",
+    "codexIndex": "Tổng quan thư mục cơ sở tri thức (một phần, thư mục kết thúc bằng /):\n{outline}\nTrong câu trả lời này bạn không thể mở hay tìm kiếm trực tiếp các tệp của cơ sở tri thức. Nếu có trích đoạn <documents>, hãy trả lời dựa trên chúng và ghi số nguồn. Nếu trích đoạn không có câu trả lời, hãy nói rằng không tìm thấy trong trích đoạn của cơ sở tri thức và gợi ý các đường dẫn nên xem từ tổng quan ở trên. Có thể cho biết chuyển sang nhà cung cấp Claude sẽ đọc được tệp trực tiếp.",
     "repoNotFound": "Không tìm thấy kho. Hãy kiểm tra địa chỉ và đảm bảo kho là công khai",
     "index": {
       "diskFull": "Không đủ dung lượng trống trên ổ đĩa để tạo chỉ mục",

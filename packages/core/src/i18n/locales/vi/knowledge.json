@@ -132,15 +132,6 @@
     "placeholder": "VD: Tài liệu quy trình triển khai của nhóm",
     "save": "Lưu"
   },
-  "docs": {
-    "chunks": "{count} đoạn",
-    "empty": "Chưa có tài liệu nào được lập chỉ mục.",
-    "failed": "Lỗi",
-    "heading": "Tài liệu",
-    "noMatch": "Không có tài liệu phù hợp.",
-    "search": "Tìm theo đường dẫn hoặc tiêu đề",
-    "skipped": "Bỏ qua"
-  },
   "embedding": {
     "heading": "Mô hình nhúng",
     "local": "Cục bộ (ngoại tuyến, mặc định)",
@@ -156,6 +147,7 @@
   "rag": {
     "enabled": "Dùng tìm kiếm kho tri thức",
     "expandParent": "Kèm đoạn văn lân cận",
+    "expandQuery": "Mở rộng câu hỏi thành từ khóa tìm mã tiếng Anh (thêm 1 lần gọi mô hình)",
     "heading": "Cài đặt tìm kiếm",
     "maxContextChars": "Số ký tự tối đa của bằng chứng",
     "minScore": "Độ liên quan tối thiểu",

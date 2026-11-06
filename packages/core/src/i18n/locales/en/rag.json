@@ -7,5 +7,8 @@
   },
   "doc": {
     "label": "Document {n}"
+  },
+  "expand": {
+    "system": "You generate search terms for code and documents. Read the user's question and output up to {max} English search terms for finding the relevant parts of the knowledge base's source code and English docs. Mix function, type and variable names (e.g. ShouldContainerBeRestarted, syncReplicaSet), package or file path fragments (e.g. kubelet, kuberuntime) and English keywords (e.g. restart, backoff). One per line, no explanations, numbering or quotes, and nothing else."
   }
 }

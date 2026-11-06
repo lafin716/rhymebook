@@ -103,6 +103,8 @@ function focusOf(req: StreamRequest): string | null {
 /** 요청 목적과 내용에 맞는 가짜 응답 텍스트 */
 export function mockAnswer(req: StreamRequest): string {
   const user = lastUser(req);
+  // 데모는 질의 확장어를 내지 않는다 (확장 없이 검색)
+  if (req.purpose === 'search') return '';
   if (req.purpose === 'title') {
     if (/어텐션|attention/i.test(user)) return t('demo.title.attention');
     const first = user.replace(/\[[^\]]+\]\s*/g, '').split(/\s+/).slice(0, 3).join(' ');

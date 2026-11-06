@@ -7,4 +7,5 @@ export * from './chunk';
 export * from './embedding';
 export * from './retrieval';
 export * from './rewrite';
+export * from './expand';
 export * from './prompt';

@@ -123,12 +123,14 @@ describe('bridge server — 지식베이스 연결 (ADR-107)', () => {
     expect(echo.args).not.toContain('--allowedTools');
     expect(echo.args[echo.args.length - 1]).toBe(store.dirFor(kb.id));
     expect(echo.system).toContain('튜터 지시');
-    expect(echo.system).toContain('a.txt');
+    expect(echo.system).toContain('- a.txt');
+    // 작업 폴더는 임시 폴더라 절대 경로를 알려야 Glob·Grep이 지식베이스를 찾는다 (ADR-119)
+    expect(echo.system).toContain(store.dirFor(kb.id));
 
     const codex = createBridgeServer({ cliEnv: cliEnv('echo'), knowledge: store });
     const x = await chat(codex, 'codex-cli', kb.id);
-    const note = t('bridge.knowledge.codexIndex', { total: 1, shown: 1, paths: 'a.txt' });
-    expect(x.text).toContain(note);
+    const note = t('bridge.knowledge.codexIndex', { dir: store.dirFor(kb.id), outline: '- a.txt' });
+    expect((JSON.parse(x.text) as { stdin: string }).stdin).toContain(note);
     // 샌드박스·셸 차단은 지식베이스가 있어도 그대로 (ADR-070)
     const args = (JSON.parse(x.text) as { args: string[] }).args;
     expect(args[args.indexOf('--sandbox') + 1]).toBe('read-only');

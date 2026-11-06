@@ -61,7 +61,7 @@ import { childrenOf, descendantIds, subSessionTitle, type SessionMap } from '../
 import { planTurnMove, planTurnSplit, turnMessageIds, type TurnSplitPlan } from '../turns';
 import { newCanvasTitle } from '../canvas';
 import { isKnowledgeId } from '../knowledge';
-import { buildRagSystem, buildRewriteContext, DEFAULT_RAG_SETTINGS, rewriteQuery, toCitations, type Citation, type RagSettings, type RetrievalService, type RewriteContext } from '../rag';
+import { buildExpandRequest, buildRagSystem, buildRewriteContext, DEFAULT_RAG_SETTINGS, EXPAND_TIMEOUT_MS, expandPlan, needsExpansion, parseExpandTerms, rewriteQuery, toCitations, type Citation, type QueryPlan, type RagSettings, type RetrievalService, type RewriteContext } from '../rag';
 import { newPageTitle, isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import { vaultDescendants } from '../vault';
 import { hasScheduleIntent, scheduleSystemHint, type ScheduleSkillOption } from '../schedules';
@@ -144,14 +144,41 @@ interface ChatRag {
   ragQuery: string;
 }
 
+/** 질의 확장: 계획을 받아 영어 검색어 목록을 돌려준다 (ADR-119) */
+export type ExpandTerms = (plan: QueryPlan, signal: AbortSignal) => Promise<string[]>;
+
+/** 확장어를 시간 제한 안에서 받아 계획에 합친다. 실패·시간 초과·중단이면 원래 계획 그대로 */
+async function maybeExpand(plan: QueryPlan, settings: RagSettings, expand: ExpandTerms | undefined, parent: AbortSignal): Promise<QueryPlan> {
+  if (!expand || !settings.expandQuery || !needsExpansion(plan.original) || parent.aborted) return plan;
+  const ctrl = new AbortController();
+  const onAbort = () => ctrl.abort();
+  parent.addEventListener('abort', onAbort);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<string[]>((resolve) => {
+    timer = setTimeout(() => {
+      ctrl.abort();
+      resolve([]);
+    }, EXPAND_TIMEOUT_MS);
+  });
+  try {
+    const terms = await Promise.race([expand(plan, ctrl.signal).catch(() => []), timeout]);
+    return expandPlan(plan, terms);
+  } finally {
+    clearTimeout(timer);
+    parent.removeEventListener('abort', onAbort);
+  }
+}
+
 async function retrieveForChat(
   retriever: RetrievalService,
   ctx: RewriteContext,
   kbIds: string[],
   settings: RagSettings,
   parent: AbortSignal,
+  expand?: ExpandTerms,
 ): Promise<ChatRag | null> {
-  const plan = rewriteQuery(ctx);
+  if (parent.aborted) return null;
+  const plan = await maybeExpand(rewriteQuery(ctx), settings, expand, parent);
   const ctrl = new AbortController();
   const onAbort = () => ctrl.abort();
   if (parent.aborted) return null;
@@ -591,7 +618,10 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         const kbIds = effectiveKnowledgeIds(state.sessions, sessionId);
         if (opts.retriever && ragSettings.enabled && kbIds.length > 0 && userMessage) {
           const ctx = buildRewriteContext(state.sessions, state.messages, sessionId, userMessage.content);
-          const rag = await retrieveForChat(opts.retriever, ctx, kbIds, ragSettings, ctrl.signal);
+          // 질의 확장은 이 턴과 같은 provider·모델로 짧게 묻는다 (도구·지식베이스 없이)
+          const expand: ExpandTerms = async (plan, signal) =>
+            parseExpandTerms(await collectStream(provider, { ...buildExpandRequest(plan), ...target.options, signal }));
+          const rag = await retrieveForChat(opts.retriever, ctx, kbIds, ragSettings, ctrl.signal, expand);
           if (rag) {
             req.system += `\n\n${rag.system}`;
             const m = getMessage(sessionId, messageId);

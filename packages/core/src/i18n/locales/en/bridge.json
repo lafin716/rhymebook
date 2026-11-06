@@ -99,8 +99,8 @@
     "cloneStalled": "The repository stopped responding. Check your network and try again",
     "cloneTimeout": "The repository took too long to download",
     "openFailed": "Could not open the folder: {error}",
-    "systemNote": "This study has a knowledge base (reference files) attached. Before answering, use the Read, Glob, and Grep tools to find and check the relevant files, and base your answer on their contents. Paths are relative to the working folder. File list ({shown} of {total}): {paths}",
-    "codexIndex": "Knowledge base file list ({shown} of {total}; file contents are not provided): {paths}",
+    "systemNote": "This study has a knowledge base (reference files) attached. Its folder's absolute path is {dir}. The current working folder is NOT the knowledge base, so always pass this absolute path as the path for Glob and Grep and in Read file paths. Before answering, find and read the relevant files with the tools, base your answer on their contents, and cite the file paths you used. Source code is written in English, so grep with English identifiers, function names and keywords (e.g. restart, replica, sync) even when the question is in another language. If you cannot find it, say so. Folder outline (partial, folders end with /):\n{outline}",
+    "codexIndex": "Knowledge base folder outline (partial, folders end with /):\n{outline}\nIn this answer you cannot open or search knowledge base files directly. If <documents> excerpts are provided, answer from them and cite their numbers. If the excerpts do not contain the answer, say it was not found in the knowledge base excerpts and suggest paths from the outline above to look at. You may mention that switching to the Claude provider lets the assistant read the files directly.",
     "repoNotFound": "Repository not found. Check the address and make sure it is public",
     "index": {
       "diskFull": "Not enough free disk space to build the index",

@@ -5,6 +5,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { KNOWLEDGE_LIMITS, t } from '@branch/core';
 import {
   createKnowledgeStore,
+  OUTLINE_DEPTH,
   extractTitle,
   gitCloneArgs,
   htmlToMarkdown,
@@ -173,19 +174,31 @@ describe('knowledge store: 파일 넣기·목록·미리보기', () => {
     expect(tree.map((e) => e.path)).toEqual(['a.txt', 'b.txt']);
     expect(tree[0]).toMatchObject({ dir: false, size: 2 });
     const idx = await store.index(kbId);
-    expect(idx).toEqual({ paths: ['a.txt', 'b.txt'], total: 2 });
+    expect(idx).toEqual({ paths: ['a.txt', 'b.txt'], truncated: false });
     const kb = (await store.list()).find((k) => k.id === kbId)!;
     expect(kb.fileCount).toBe(2);
     expect(kb.totalBytes).toBe(3);
   });
 
-  it('index는 indexPaths 개수까지만 경로를 주고 total은 전체 수다', async () => {
+  it('index는 indexPaths 개수까지만 경로를 주고 잘렸음을 알린다', async () => {
     const n = KNOWLEDGE_LIMITS.indexPaths + 3;
     const files = Array.from({ length: n }, (_, i) => ({ name: `f${String(i).padStart(4, '0')}.txt`, data: new Uint8Array([1]) }));
     await store.addFiles(kbId, files);
     const idx = await store.index(kbId);
-    expect(idx.total).toBe(n);
+    expect(idx.truncated).toBe(true);
     expect(idx.paths).toHaveLength(KNOWLEDGE_LIMITS.indexPaths);
+  });
+
+  it('index는 얕은 층부터 너비 우선으로, 폴더는 /를 붙이고 깊이 OUTLINE_DEPTH까지 준다', async () => {
+    await mkdir(filesOf('repo/pkg/kubelet/deep'), { recursive: true });
+    await writeFile(filesOf('repo/pkg/kubelet/deep/x.go'), 'x');
+    await writeFile(filesOf('repo/pkg/a.go'), 'a');
+    await writeFile(filesOf('z.md'), 'z');
+    const idx = await store.index(kbId);
+    // 깊이 1: repo/, z.md → 깊이 2: repo/pkg/ → 깊이 3: repo/pkg/a.go, repo/pkg/kubelet/
+    expect(idx.paths).toEqual(['repo/', 'z.md', 'repo/pkg/', 'repo/pkg/a.go', 'repo/pkg/kubelet/']);
+    expect(idx.truncated).toBe(true);
+    expect(OUTLINE_DEPTH).toBe(3);
   });
 
   it('preview는 텍스트를 자르고, 바이너리는 text null로 준다', async () => {

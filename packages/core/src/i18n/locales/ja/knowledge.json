@@ -132,15 +132,6 @@
     "placeholder": "例：チームのデプロイ手順書",
     "save": "保存"
   },
-  "docs": {
-    "chunks": "チャンク {count}件",
-    "empty": "索引済みの文書がありません。",
-    "failed": "失敗",
-    "heading": "文書",
-    "noMatch": "一致する文書がありません。",
-    "search": "パスまたはタイトルで検索",
-    "skipped": "スキップ"
-  },
   "embedding": {
     "heading": "埋め込みモデル",
     "local": "ローカル（オフライン・既定）",
@@ -156,6 +147,7 @@
   "rag": {
     "enabled": "知識ベース検索を使う",
     "expandParent": "前後の段落も含める",
+    "expandQuery": "質問を英語のコード検索語に広げて探す（モデル呼び出し 1 回追加）",
     "heading": "検索設定",
     "maxContextChars": "根拠の最大文字数",
     "minScore": "最小関連度",

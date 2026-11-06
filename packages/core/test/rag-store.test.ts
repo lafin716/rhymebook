@@ -4,7 +4,7 @@ import { createAppStore, effectiveKnowledgeIds, knowledgeInherited, sanitizeKnow
 import { ProviderRegistry, type StreamRequest } from '../src/provider';
 import { mockControl } from '../src/providers/mock';
 import { memoryRepository } from '../src/repo';
-import type { RetrievalRequest, RetrievalResult, RetrievalService, Evidence } from '../src/rag';
+import { DEFAULT_RAG_SETTINGS, type RetrievalRequest, type RetrievalResult, type RetrievalService, type Evidence } from '../src/rag';
 import type { Session } from '../src/model';
 
 const KB = 'kbabc123def';
@@ -30,13 +30,25 @@ const evidence: Evidence = {
   score: 0.8,
 };
 
-function makeStore(seen: StreamRequest[], retriever?: RetrievalService) {
+/** 질의 확장 요청(purpose 'search')은 searches에, 나머지는 seen에 모은다 */
+function makeStore(seen: StreamRequest[], retriever?: RetrievalService, search?: { searches?: StreamRequest[]; reply?: string | Error }) {
   const registry = new ProviderRegistry();
   registry.register({
     id: 'mock',
     label: 'M',
     available: async () => ({ status: 'ready' }),
     async *stream(req) {
+      if (req.purpose === 'search') {
+        search?.searches?.push(req);
+        const reply = search?.reply ?? '';
+        if (reply instanceof Error) {
+          yield { type: 'error', error: { code: 'network', message: reply.message, retryable: false } };
+          return;
+        }
+        yield { type: 'delta', text: reply };
+        yield { type: 'done' };
+        return;
+      }
       seen.push(req);
       yield { type: 'delta', text: '답' };
       yield { type: 'done' };
@@ -240,6 +252,51 @@ describe('runAssistant with retriever', () => {
     await idle(store);
     expect(chatFor('끈 뒤 질문')).toBeDefined();
     expect(chatFor('끈 뒤 질문')!.knowledgeId).toBeUndefined();
+  });
+
+  it('한국어 질문은 모델로 영어 검색어를 받아 검색 계획에 더한다 (ADR-119)', async () => {
+    const seen: StreamRequest[] = [];
+    const calls: RetrievalRequest[] = [];
+    const searches: StreamRequest[] = [];
+    const store = makeStore(seen, okRetriever(calls), { searches, reply: '- ShouldContainerBeRestarted\n2. `syncReplicaSet()`\n설명 문장' });
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB]);
+    store.getState().sendMessage(SEED_IDS.root, '파드가 죽으면 다시 살리는 코드 찾아줘');
+    await idle(store);
+
+    expect(searches).toHaveLength(1);
+    expect(searches[0]!.knowledgeId).toBeUndefined();
+    expect(searches[0]!.webSearch).toBeUndefined();
+    const plan = calls[0]!.plan;
+    expect(plan.rewritten).toContain('ShouldContainerBeRestarted');
+    expect(plan.rewritten).toContain('syncReplicaSet');
+    expect(plan.keywordQuery).toEqual(expect.arrayContaining(['shouldcontainerberestarted', 'syncreplicaset']));
+    expect(seen[0]!.system).toContain('<documents>');
+  });
+
+  it('영어 질문이나 설정을 끈 경우는 확장하지 않는다', async () => {
+    const searches: StreamRequest[] = [];
+    const store = makeStore([], okRetriever([]), { searches, reply: 'x_term' });
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB]);
+    store.getState().sendMessage(SEED_IDS.root, 'where is syncReplicaSet?');
+    await idle(store);
+    expect(searches).toHaveLength(0);
+
+    store.getState().updateSettings({ rag: { ...DEFAULT_RAG_SETTINGS, ...store.getState().settings.rag, expandQuery: false } });
+    store.getState().sendMessage(SEED_IDS.root, '재시작 코드 찾아줘');
+    await idle(store);
+    expect(searches).toHaveLength(0);
+  });
+
+  it('확장이 실패해도 원래 계획으로 검색하고 답한다', async () => {
+    const seen: StreamRequest[] = [];
+    const calls: RetrievalRequest[] = [];
+    const store = makeStore(seen, okRetriever(calls), { reply: new Error('boom') });
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB]);
+    store.getState().sendMessage(SEED_IDS.root, '재시작 코드 찾아줘');
+    await idle(store);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.plan.rewritten).not.toContain('boom');
+    expect(seen[0]!.system).toContain('<documents>');
   });
 
   it('지식베이스가 없으면 knowledgeId를 넘기지 않는다', async () => {

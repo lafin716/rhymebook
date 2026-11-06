@@ -16,7 +16,7 @@ export interface StreamRequest {
   effort?: string;
   signal?: AbortSignal;
   /** 요청 목적. Mock/로깅용 힌트 */
-  purpose?: 'chat' | 'summary' | 'title' | 'skill' | 'page';
+  purpose?: 'chat' | 'summary' | 'title' | 'skill' | 'page' | 'search';
   /** 웹 검색·페이지 읽기 도구 허용 (일반 대화에서만 쓴다, ADR-070) */
   webSearch?: boolean;
   /** 학습의 지식베이스 id. CLI bridge가 그 폴더를 읽기 전용으로 탐색하게 한다 (일반 대화에서만, ADR-107) */

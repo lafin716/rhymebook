@@ -8,6 +8,20 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 큰 코드 저장소 지식베이스: 문서 목록 제거·코드 찾기 (2026-11-06, ADR-119)
+
+계획: docs/plans/kb-code-search-plan.md
+
+| ID | 내용 | 상태 |
+|---|---|---|
+| K1 | 상세 문서 목록 패널 제거·e2e 갱신 | DONE |
+| K2 | bridge 폴더 개요 `outline()`(깊이 3 BFS) | DONE |
+| K3 | Claude·Codex 안내문(KB 절대 경로·영어 식별자 grep·발췌 근거) 5개 언어 | DONE |
+| K4 | core 질의 확장 `rag/expand.ts`·store 연결·설정 `expandQuery` | DONE |
+| K5 | 검증·독립 리뷰·데스크톱 재빌드 | DONE (리뷰 반영: 확장 토큰 필터·핵심어 6개 상한·CJK 조각 중복 제거·8초 제한·파일명 제어문자 제거. typecheck·lint 통과, core 835·ui 134·bridge 169·relay 9·server 10 pass, e2e 236 pass/26 skip, 데스크톱 재빌드·실행 확인) |
+
+남은 것: 실제 kubernetes 저장소로 질문→코드 근거 답변 수동 확인(사람).
+
 ## 데스크톱 앱 자동 업데이트 (2026-11-06, ADR-118)
 
 계획: docs/plans/auto-update-plan.md

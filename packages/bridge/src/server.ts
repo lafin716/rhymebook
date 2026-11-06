@@ -49,15 +49,19 @@ const imageGenNote = () => t('bridge.server.imageGenNote');
 
 const sttUnsupported = () => t('bridge.server.sttUnsupported');
 
-/** 답변에 붙는 지식베이스 정보: 폴더(작업 경로)와 파일 목록 요약 */
+/** 답변에 붙는 지식베이스 정보: 폴더 절대 경로와 얕은 폴더 개요 (ADR-119) */
 interface KnowledgeContext {
   dir: string;
-  total: number;
   paths: string[];
+  truncated: boolean;
 }
 
-function knowledgeNote(kb: KnowledgeContext, key: 'bridge.knowledge.systemNote' | 'bridge.knowledge.codexIndex'): string {
-  return t(key, { total: kb.total, shown: kb.paths.length, paths: kb.paths.join(', ') || '-' });
+/** 지식베이스 안내문. 개요는 한 줄에 하나, 잘렸으면 끝에 '…' */
+export function knowledgeNote(kb: KnowledgeContext, key: 'bridge.knowledge.systemNote' | 'bridge.knowledge.codexIndex'): string {
+  // 파일 이름의 줄바꿈·제어 문자는 공백으로: 이름으로 안내문에 줄을 끼워 넣지 못하게
+  const lines = kb.paths.length ? kb.paths.map((p) => `- ${p.replace(/[\p{Cc}\u2028\u2029]+/gu, ' ')}`) : ['-'];
+  if (kb.truncated) lines.push('- …');
+  return t(key, { dir: kb.dir, outline: lines.join('\n') });
 }
 
 /**
@@ -169,8 +173,8 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
   async function knowledgeFor(msg: ChatStartMsg): Promise<KnowledgeContext | null> {
     if (!opts.knowledge || !isKnowledgeId(msg.knowledgeId)) return null;
     try {
-      const { paths, total } = await opts.knowledge.index(msg.knowledgeId);
-      return { dir: opts.knowledge.dirFor(msg.knowledgeId), total, paths };
+      const { paths, truncated } = await opts.knowledge.index(msg.knowledgeId);
+      return { dir: opts.knowledge.dirFor(msg.knowledgeId), paths, truncated };
     } catch (err) {
       if (err instanceof KnowledgeNotFoundError) return null;
       throw err;
@@ -224,7 +228,7 @@ export function createBridgeServer(opts: BridgeServerOptions = {}): BridgeServer
         }
         const note = binaryNote(files.filter((f) => f.kind === 'pdf'));
         const imageGen = msg.imageGen === true;
-        // Codex는 셸이 꺼져 있어 파일 내용을 읽지 못한다 (ADR-070). 파일 목록만 알린다
+        // Codex는 셸이 꺼져 있어 파일 내용을 읽지 못한다 (ADR-070). 개요만 알리고 검색 발췌에 근거하게 한다
         const codexSystem = kb ? `${system}\n\n${knowledgeNote(kb, 'bridge.knowledge.codexIndex')}` : system;
         args = codexArgs({ ...cliModelOptions(msg), images, imageGen, webSearch: msg.webSearch === true });
         stdin = withInstructions(imageGen ? `${codexSystem}\n\n${imageGenNote()}` : codexSystem, note ? `${prompt}\n\n${note}` : prompt);

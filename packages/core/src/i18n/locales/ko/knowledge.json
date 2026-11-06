@@ -132,15 +132,6 @@
     "placeholder": "예: 우리 팀 배포 절차 문서 모음",
     "save": "저장"
   },
-  "docs": {
-    "chunks": "청크 {count}개",
-    "empty": "색인된 문서가 없어요.",
-    "failed": "실패",
-    "heading": "문서",
-    "noMatch": "검색 결과가 없어요.",
-    "search": "경로나 제목으로 검색",
-    "skipped": "건너뜀"
-  },
   "embedding": {
     "heading": "임베딩 모델",
     "local": "로컬 (오프라인, 기본)",
@@ -156,6 +147,7 @@
   "rag": {
     "enabled": "지식베이스 검색 사용",
     "expandParent": "앞뒤 문단 함께 넣기",
+    "expandQuery": "질문을 영어 코드 검색어로 넓혀 찾기 (모델 호출 1회 추가)",
     "heading": "검색 설정",
     "maxContextChars": "근거 최대 글자 수",
     "minScore": "최소 관련도",

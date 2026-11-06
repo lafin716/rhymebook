@@ -67,6 +67,7 @@ export function parseRagSettings(v: unknown): RagSettings {
     maxContextChars: Math.round(num(o.maxContextChars, d.maxContextChars, 500, 50_000)),
     expandParent: bool(o.expandParent, d.expandParent),
     minScore: num(o.minScore, d.minScore, 0, 1),
+    expandQuery: bool(o.expandQuery, d.expandQuery),
   };
 }
 

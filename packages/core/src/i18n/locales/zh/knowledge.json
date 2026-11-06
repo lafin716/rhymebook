@@ -132,15 +132,6 @@
     "placeholder": "例如：团队部署流程文档",
     "save": "保存"
   },
-  "docs": {
-    "chunks": "{count} 个分块",
-    "empty": "没有已索引的文档。",
-    "failed": "失败",
-    "heading": "文档",
-    "noMatch": "没有匹配的文档。",
-    "search": "按路径或标题搜索",
-    "skipped": "已跳过"
-  },
   "embedding": {
     "heading": "嵌入模型",
     "local": "本地（离线，默认）",
@@ -156,6 +147,7 @@
   "rag": {
     "enabled": "启用知识库检索",
     "expandParent": "包含前后段落",
+    "expandQuery": "将问题扩展为英文代码搜索词（多调用一次模型）",
     "heading": "检索设置",
     "maxContextChars": "证据最大字符数",
     "minScore": "最低相关度",
