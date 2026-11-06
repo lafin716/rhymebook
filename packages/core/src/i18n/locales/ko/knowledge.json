@@ -29,7 +29,8 @@
     "linkedBadge": "이 학습에 연결됨",
     "link": "이 학습에 연결",
     "unlink": "연결 해제",
-    "count": "파일 {count}개"
+    "count": "파일 {count}개",
+    "counting": "파일 세는 중…"
   },
   "create": {
     "title": "새 지식베이스",
@@ -46,7 +47,8 @@
     "action": "지식베이스 지우기",
     "title": "'{name}'을(를) 지울까요?",
     "message": "안의 파일 {count}개도 함께 지워져요. 되돌릴 수 없어요.",
-    "confirm": "지우기"
+    "confirm": "지우기",
+    "messageUnknown": "안의 파일도 모두 함께 지워져요. 되돌릴 수 없어요."
   },
   "tree": {
     "heading": "파일",

@@ -29,7 +29,8 @@
     "linkedBadge": "Linked to this study",
     "link": "Link to this study",
     "unlink": "Unlink",
-    "count": "{count} files"
+    "count": "{count} files",
+    "counting": "Counting files…"
   },
   "create": {
     "title": "New knowledge base",
@@ -46,7 +47,8 @@
     "action": "Delete knowledge base",
     "title": "Delete '{name}'?",
     "message": "The {count} files inside will be deleted too. This cannot be undone.",
-    "confirm": "Delete"
+    "confirm": "Delete",
+    "messageUnknown": "All files inside will be deleted too. This cannot be undone."
   },
   "tree": {
     "heading": "Files",

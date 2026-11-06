@@ -29,7 +29,8 @@
     "linkedBadge": "この学習に接続中",
     "link": "この学習に接続",
     "unlink": "接続を解除",
-    "count": "ファイル {count}件"
+    "count": "ファイル {count}件",
+    "counting": "ファイルを数えています…"
   },
   "create": {
     "title": "新しいナレッジベース",
@@ -46,7 +47,8 @@
     "action": "ナレッジベースを削除",
     "title": "「{name}」を削除しますか？",
     "message": "中のファイル {count}件も一緒に削除されます。元に戻せません。",
-    "confirm": "削除"
+    "confirm": "削除",
+    "messageUnknown": "中のファイルもすべて一緒に削除されます。元に戻せません。"
   },
   "tree": {
     "heading": "ファイル",

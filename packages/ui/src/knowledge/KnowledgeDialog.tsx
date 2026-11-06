@@ -141,6 +141,14 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, api]);
 
+  // 개수·크기를 아직 세는 지식베이스가 있으면 끝날 때까지 목록만 다시 읽는다 (ADR-126: 목록은 파일을 훑지 않아 가볍다)
+  const pending = open && bases.some((b) => b.statsPending);
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setTimeout(() => void reload().catch(() => undefined), 1000);
+    return () => clearTimeout(timer);
+  }, [pending, bases, reload]);
+
   // 원격: 원격 삭제 허용 여부를 PC에 확인한다
   useEffect(() => {
     if (!open || !remote || remoteState.manage !== true) return;
@@ -311,7 +319,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     if (!current || !api) return;
     const ok = await confirm({
       title: t('knowledge.delete.title', { name: current.name }),
-      message: t('knowledge.delete.message', { count: current.fileCount }),
+      message: current.statsPending ? t('knowledge.delete.messageUnknown') : t('knowledge.delete.message', { count: current.fileCount }),
       confirmLabel: t('knowledge.delete.confirm'),
       tone: 'danger',
     });
@@ -519,7 +527,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                         </span>
                       )}
                     </span>
-                    <span className="text-[12px] text-fg-2">{t('knowledge.list.count', { count: b.fileCount })}</span>
+                    <span className="text-[12px] text-fg-2">{b.statsPending ? t('knowledge.list.counting') : t('knowledge.list.count', { count: b.fileCount })}</span>
                   </button>
                 </li>
               ))}

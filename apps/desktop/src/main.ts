@@ -315,6 +315,8 @@ void app.whenReady().then(() => {
     process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null,
   );
   const vault = createSecretVault(app.getPath('userData'));
+  // 개수·크기 캐시가 없는 지식베이스(구버전에서 만든 것)를 시작 직후 뒤에서 미리 센다 (ADR-126). 목록은 기다리지 않는다
+  setTimeout(() => void knowledge.warmStats().catch(() => undefined), 3000);
   // 색인 worker: 동시 1개. 임베딩 키는 openai 설정일 때만 읽는다
   indexer = startIndexerWorker({
     workerPath: unpackedPath(path.join(__dirname, 'ragWorker.cjs')),

@@ -29,7 +29,8 @@
     "linkedBadge": "已关联到本次学习",
     "link": "关联到本次学习",
     "unlink": "取消关联",
-    "count": "{count} 个文件"
+    "count": "{count} 个文件",
+    "counting": "正在统计文件…"
   },
   "create": {
     "title": "新建知识库",
@@ -46,7 +47,8 @@
     "action": "删除知识库",
     "title": "要删除“{name}”吗？",
     "message": "其中的 {count} 个文件也会一并删除。删除后无法恢复。",
-    "confirm": "删除"
+    "confirm": "删除",
+    "messageUnknown": "其中的所有文件也会一并删除。删除后无法恢复。"
   },
   "tree": {
     "heading": "文件",

@@ -29,7 +29,8 @@
     "linkedBadge": "Đã liên kết với việc học này",
     "link": "Liên kết với việc học này",
     "unlink": "Hủy liên kết",
-    "count": "{count} tệp"
+    "count": "{count} tệp",
+    "counting": "Đang đếm tệp…"
   },
   "create": {
     "title": "Cơ sở tri thức mới",
@@ -46,7 +47,8 @@
     "action": "Xóa cơ sở tri thức",
     "title": "Xóa '{name}'?",
     "message": "{count} tệp bên trong cũng sẽ bị xóa. Không thể khôi phục.",
-    "confirm": "Xóa"
+    "confirm": "Xóa",
+    "messageUnknown": "Tất cả tệp bên trong cũng sẽ bị xóa. Không thể khôi phục."
   },
   "tree": {
     "heading": "Tệp",

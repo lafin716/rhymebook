@@ -33,6 +33,11 @@ export interface KnowledgeBase {
   fileCount: number;
   /** files/ 아래 파일 크기 합 (바이트) */
   totalBytes: number;
+  /**
+   * 개수·크기를 아직 세는 중이면 true (ADR-126). 이때 fileCount·totalBytes는 0이고 의미가 없다.
+   * 목록은 파일을 훑지 않고 바로 돌려주며, 세기는 뒤에서 끝난다.
+   */
+  statsPending?: boolean;
 }
 
 /** 지식베이스 안의 항목. path는 files/ 기준 POSIX 상대 경로 */

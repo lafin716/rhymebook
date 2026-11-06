@@ -208,18 +208,36 @@ describe('knowledge store: 파일 넣기·목록·미리보기', () => {
     expect(kb).toMatchObject({ fileCount: 1, totalBytes: 3 });
   });
 
-  it('크기 캐시가 없는 이전 메타는 한 번 재서 저장한다', async () => {
+  it('크기 캐시가 없는 이전 메타: 목록은 파일을 훑지 않고 바로 돌려주고, 뒤에서 재서 저장한다 (ADR-126)', async () => {
     await writeFile(filesOf('a.txt'), 'abcd');
     const metaFile = path.join(root, kbId, 'meta.json');
     const meta = JSON.parse(await readFile(metaFile, 'utf8')) as Record<string, unknown>;
     delete meta.stats;
     await writeFile(metaFile, JSON.stringify(meta));
+    const first = (await store.list()).find((k) => k.id === kbId)!;
+    expect(first).toMatchObject({ statsPending: true, fileCount: 0, totalBytes: 0 });
+    await store.warmStats();
     const kb = (await store.list()).find((k) => k.id === kbId)!;
     expect(kb).toMatchObject({ fileCount: 1, totalBytes: 4 });
-    await store.rename(kbId, 'later'); // serial 순서 뒤에서 저장이 끝난 것을 확인한다
+    expect(kb.statsPending).toBeUndefined();
+    await store.rename(kbId, 'later');
     const saved = JSON.parse(await readFile(metaFile, 'utf8')) as { stats?: unknown; name: string };
     expect(saved.stats).toEqual({ fileCount: 1, totalBytes: 4 });
     expect(saved.name).toBe('later');
+  });
+
+  it('warmStats는 캐시 없는 지식베이스를 모두 재 두고, 캐시가 있으면 건드리지 않는다', async () => {
+    await writeFile(filesOf('b.txt'), 'xy');
+    const metaFile = path.join(root, kbId, 'meta.json');
+    const meta = JSON.parse(await readFile(metaFile, 'utf8')) as Record<string, unknown>;
+    delete meta.stats;
+    await writeFile(metaFile, JSON.stringify(meta));
+    await store.warmStats();
+    const saved = JSON.parse(await readFile(metaFile, 'utf8')) as { stats?: unknown };
+    expect(saved.stats).toEqual({ fileCount: 1, totalBytes: 2 });
+    await writeFile(filesOf('c.txt'), 'zzz'); // 캐시가 있으면 다시 재지 않는다
+    await store.warmStats();
+    expect((JSON.parse(await readFile(metaFile, 'utf8')) as { stats?: unknown }).stats).toEqual({ fileCount: 1, totalBytes: 2 });
   });
 
   it('index는 indexPaths 개수까지만 경로를 주고 잘렸음을 알린다', async () => {

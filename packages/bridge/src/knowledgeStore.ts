@@ -282,7 +282,10 @@ const dnsLookupAll = async (hostname: string): Promise<string[]> =>
 const MAX_REDIRECTS = 5;
 
 export interface KnowledgeStore {
+  /** 지식베이스 목록. 파일을 훑지 않는다 — 개수·크기 캐시가 없으면 statsPending으로 돌려주고 뒤에서 잰다 (ADR-126) */
   list(): Promise<KnowledgeBase[]>;
+  /** 개수·크기 캐시가 없는 지식베이스를 미리 잰다 (앱 시작 뒤 한가할 때). 하나씩, 끝나면 resolve */
+  warmStats(): Promise<void>;
   create(name: string): Promise<KnowledgeBase>;
   rename(id: string, name: string): Promise<KnowledgeBase>;
   remove(id: string): Promise<void>;
@@ -529,17 +532,30 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
   }
 
   /**
-   * 캐시가 없을 때(이전 버전에서 만든 지식베이스) 한 번 재서 저장한다.
+   * 개수·크기 캐시가 없는 지식베이스(이전 버전에서 만든 것)를 뒤에서 하나씩 재서 저장한다 (ADR-126).
+   * 목록·이름 바꾸기 등은 이 결과를 기다리지 않는다. 같은 지식베이스를 두 번 재지 않고, 동시에 하나만 잰다.
    * 저장은 변경 작업 순서(serial) 안에서 최신 메타에 덧붙여, 동시에 바뀐 내용을 덮어쓰지 않는다.
    */
-  async function statsOf(id: string, meta: KbMeta): Promise<KbStats> {
-    if (meta.stats) return meta.stats;
-    const m = await measure(filesDir(id));
-    void serial(async () => {
-      const cur = await readMeta(id);
-      if (cur && !cur.stats) await saveMeta(id, { ...cur, stats: m });
-    }).catch(() => undefined);
-    return m;
+  const measuring = new Set<string>();
+  let measureQueue: Promise<unknown> = Promise.resolve();
+  function measureLater(id: string): Promise<void> {
+    if (measuring.has(id)) return measureQueue.then(() => undefined);
+    measuring.add(id);
+    const p = measureQueue.then(async () => {
+      try {
+        const cur = await readMeta(id);
+        if (!cur || cur.stats) return;
+        const m = await measure(filesDir(id));
+        await serial(async () => {
+          const latest = await readMeta(id);
+          if (latest && !latest.stats) await saveMeta(id, { ...latest, stats: m });
+        });
+      } finally {
+        measuring.delete(id);
+      }
+    });
+    measureQueue = p.catch(() => undefined);
+    return p.catch(() => undefined);
   }
 
   /** 파일이 바뀐 뒤 크기·개수를 다시 재서 메타에 담는다 (serial 안에서 부른다) */
@@ -547,16 +563,19 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     return { ...meta, stats: await measure(filesDir(id)) };
   }
 
-  async function toBase(id: string, meta: KbMeta): Promise<KnowledgeBase> {
-    const m = await statsOf(id, meta);
+  /** 메타만으로 만든다 — 파일을 훑지 않는다. 캐시가 없으면 statsPending으로 돌려주고 뒤에서 잰다 */
+  function toBase(id: string, meta: KbMeta): KnowledgeBase {
+    const m = meta.stats;
+    if (!m) void measureLater(id);
     return {
       id,
       name: meta.name,
       ...(meta.description ? { description: meta.description } : {}),
       createdAt: meta.createdAt,
       updatedAt: meta.updatedAt,
-      fileCount: m.fileCount,
-      totalBytes: m.totalBytes,
+      fileCount: m?.fileCount ?? 0,
+      totalBytes: m?.totalBytes ?? 0,
+      ...(m ? {} : { statsPending: true }),
     };
   }
 
@@ -947,15 +966,30 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       } catch {
         return [];
       }
-      const out: KnowledgeBase[] = [];
-      for (const n of names.sort()) {
-        if (!KNOWLEDGE_ID_RE.test(n)) continue;
-        const st = await lstatOrNull(path.join(root, n));
-        if (!st?.isDirectory()) continue;
-        const meta = await readMeta(n);
-        if (meta) out.push(await toBase(n, meta));
+      // 지식베이스마다 meta.json 하나만 읽는다(동시에). 파일 수·크기와 무관하게 바로 돌려준다 (ADR-126)
+      const ids = names.filter((n) => KNOWLEDGE_ID_RE.test(n)).sort();
+      const bases = await Promise.all(
+        ids.map(async (n) => {
+          const st = await lstatOrNull(path.join(root, n));
+          if (!st?.isDirectory()) return null;
+          const meta = await readMeta(n);
+          return meta ? toBase(n, meta) : null;
+        }),
+      );
+      return bases.filter((b): b is KnowledgeBase => b !== null);
+    },
+
+    async warmStats() {
+      let names: string[];
+      try {
+        names = await readdir(root);
+      } catch {
+        return;
       }
-      return out;
+      for (const n of names.filter((x) => KNOWLEDGE_ID_RE.test(x)).sort()) {
+        const meta = await readMeta(n);
+        if (meta && !meta.stats) await measureLater(n);
+      }
     },
 
     create(name) {

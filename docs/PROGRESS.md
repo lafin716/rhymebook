@@ -8,6 +8,10 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 지식베이스 목록 첫 열기 지연 제거 (2026-11-06, ADR-126)
+
+- DONE: `list()`는 meta.json만 동시에 읽고 반환(파일을 훑지 않음). 크기 캐시 없는 구버전 KB는 `statsPending`으로 돌려주고 뒤 대기열이 재서 저장. 데스크톱 시작 3초 뒤 `warmStats()`. UI "파일 세는 중…"·1초 목록 재조회·개수 모르는 삭제 안내. 검증: `pnpm typecheck && pnpm lint && pnpm test` PASS (core 886·ui 139·bridge 263(3 skip)·relay 9·server 10).
+
 ## 지식베이스 RAG v2 (2026-11-06, ADR-121~126)
 
 계획: docs/plans/kb-rag-v2-plan.md
