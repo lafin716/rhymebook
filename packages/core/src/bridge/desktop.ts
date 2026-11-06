@@ -81,8 +81,12 @@ export interface DesktopKnowledgeApi {
   rename(id: string, name: string): Promise<KnowledgeBase>;
   /** 지식베이스와 그 파일 전체를 지운다 */
   remove(id: string): Promise<void>;
-  /** files/ 아래 모든 항목 (경로순, 숨김 항목·.git 제외) */
-  tree(id: string): Promise<KnowledgeEntry[]>;
+  /**
+   * 항목 목록 (경로순, 숨김 항목·.git 제외).
+   * dir을 주면 그 폴더 바로 아래 항목만 ('' = 최상위). 없으면 files/ 아래 전체.
+   * 이전 버전 PC(원격)는 dir을 무시하고 전체를 돌려줄 수 있다.
+   */
+  tree(id: string, dir?: string): Promise<KnowledgeEntry[]>;
   /** 끌어다 놓은 파일의 절대 경로 (Electron webUtils). 못 얻으면 '' */
   pathForFile(file: File): string;
   /** 디스크의 파일·폴더를 복사해 넣는다 (끌어다 놓기). dest는 files/ 기준 폴더 경로 */

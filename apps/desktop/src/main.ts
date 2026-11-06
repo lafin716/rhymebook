@@ -460,7 +460,7 @@ void app.whenReady().then(() => {
     await indexer?.drop(kid).catch(() => undefined);
     return knowledge.remove(kid);
   });
-  kbHandle(CH.knowledgeTree, (_e, id) => knowledge.tree(kbId(id)));
+  kbHandle(CH.knowledgeTree, (_e, id, dir) => knowledge.tree(kbId(id), dir === undefined || dir === null ? undefined : dir === '' ? '' : kbPath(dir)));
   // 가져오기 진행률·취소 (창마다 하나). 같은 창에서 새 가져오기를 시작하면 이전 것은 취소한다
   const kbTasks = new Map<number, AbortController>();
   const kbWatched = new Set<number>();

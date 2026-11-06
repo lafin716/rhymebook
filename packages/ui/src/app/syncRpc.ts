@@ -134,7 +134,7 @@ export function createSyncRpcHandler(deps: SyncRpcDeps) {
         requireDelete(peerId);
         return changed(() => kbApi().remove(s(0)));
       case 'knowledge.tree':
-        return ipc(() => kbApi().tree(s(0)));
+        return ipc(() => kbApi().tree(s(0), args[1] as string | undefined));
       case 'knowledge.addLink':
         return changed(() => kbApi().addLink(s(0), s(1)));
       case 'knowledge.cloneGit':

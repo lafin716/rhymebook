@@ -139,7 +139,7 @@ const SPECS: Record<SyncRpcMethod, readonly Check[]> = {
   'knowledge.create': [nonEmpty(KNOWLEDGE_NAME_MAX * 2)],
   'knowledge.rename': [kb, nonEmpty(KNOWLEDGE_NAME_MAX * 2)],
   'knowledge.remove': [kb],
-  'knowledge.tree': [kb],
+  'knowledge.tree': [kb, opt(kbDest)],
   'knowledge.addLink': [kb, url],
   'knowledge.cloneGit': [kb, url],
   'knowledge.removeEntry': [kb, kbPath],

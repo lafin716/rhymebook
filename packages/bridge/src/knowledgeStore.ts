@@ -285,7 +285,11 @@ export interface KnowledgeStore {
   create(name: string): Promise<KnowledgeBase>;
   rename(id: string, name: string): Promise<KnowledgeBase>;
   remove(id: string): Promise<void>;
-  tree(id: string): Promise<KnowledgeEntry[]>;
+  /**
+   * 항목 목록. dir을 주면 그 폴더의 바로 아래 항목만 ('' = 최상위, 폴더를 펼칠 때 하나씩 읽는다).
+   * dir이 없으면 files/ 아래 전체를 재귀로 읽는다 (최대 WALK_MAX_ENTRIES).
+   */
+  tree(id: string, dir?: string): Promise<KnowledgeEntry[]>;
   addPaths(id: string, paths: string[], dest?: string, ctl?: KnowledgeTaskControl): Promise<KnowledgeAddResult>;
   addFiles(
     id: string,
@@ -325,6 +329,18 @@ interface KbMeta {
   description?: string;
   settings?: KnowledgeIndexSettings;
   sources?: KnowledgeSource[];
+  /** 파일 수·크기 합 캐시. 목록을 열 때 전체를 훑지 않게 변경 작업 뒤에 다시 잰다 */
+  stats?: KbStats;
+}
+
+interface KbStats {
+  fileCount: number;
+  totalBytes: number;
+}
+
+function isStats(v: unknown): v is KbStats {
+  const o = v as Partial<KbStats> | null | undefined;
+  return !!o && Number.isFinite(o.fileCount) && Number.isFinite(o.totalBytes);
 }
 
 const DESCRIPTION_MAX = 500;
@@ -392,6 +408,25 @@ async function walk(dirAbs: string, prefix: string, out: KnowledgeEntry[], budge
       out.push({ path: rel, dir: false, size: st?.size ?? 0 });
     }
   }
+}
+
+/** 폴더 하나의 바로 아래 항목 (숨김·링크 제외, 이름순). 폴더를 펼칠 때 읽는다 */
+async function listLevel(dirAbs: string, prefix: string): Promise<KnowledgeEntry[]> {
+  let names: import('node:fs').Dirent[];
+  try {
+    names = await readdir(dirAbs, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  names.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const out: KnowledgeEntry[] = [];
+  for (const d of names) {
+    if (isHidden(d.name) || d.isSymbolicLink() || out.length >= WALK_MAX_ENTRIES) continue;
+    const rel = prefix ? `${prefix}/${d.name}` : d.name;
+    if (d.isDirectory()) out.push({ path: rel, dir: true });
+    else if (d.isFile()) out.push({ path: rel, dir: false, size: (await lstatOrNull(path.join(dirAbs, d.name)))?.size ?? 0 });
+  }
+  return out;
 }
 
 /** index()가 내려가는 최대 깊이 (1 = 최상위 항목만) */
@@ -475,6 +510,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       if (typeof raw.description === 'string' && raw.description) meta.description = raw.description;
       if (isIndexSettings(raw.settings)) meta.settings = raw.settings;
       if (raw.sources !== undefined) meta.sources = parseSources(raw.sources);
+      if (isStats(raw.stats)) meta.stats = { fileCount: raw.stats.fileCount, totalBytes: raw.stats.totalBytes };
       return meta;
     } catch {
       return null;
@@ -489,15 +525,35 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     return meta;
   }
 
-  async function toBase(id: string, meta: KbMeta): Promise<KnowledgeBase> {
+  /**
+   * 캐시가 없을 때(이전 버전에서 만든 지식베이스) 한 번 재서 저장한다.
+   * 저장은 변경 작업 순서(serial) 안에서 최신 메타에 덧붙여, 동시에 바뀐 내용을 덮어쓰지 않는다.
+   */
+  async function statsOf(id: string, meta: KbMeta): Promise<KbStats> {
+    if (meta.stats) return meta.stats;
     const m = await measure(filesDir(id));
+    void serial(async () => {
+      const cur = await readMeta(id);
+      if (cur && !cur.stats) await saveMeta(id, { ...cur, stats: m });
+    }).catch(() => undefined);
+    return m;
+  }
+
+  /** 파일이 바뀐 뒤 크기·개수를 다시 재서 메타에 담는다 (serial 안에서 부른다) */
+  async function withStats(id: string, meta: KbMeta): Promise<KbMeta> {
+    return { ...meta, stats: await measure(filesDir(id)) };
+  }
+
+  async function toBase(id: string, meta: KbMeta): Promise<KnowledgeBase> {
+    const m = await statsOf(id, meta);
     return {
       id,
       name: meta.name,
       ...(meta.description ? { description: meta.description } : {}),
       createdAt: meta.createdAt,
       updatedAt: meta.updatedAt,
-      ...m,
+      fileCount: m.fileCount,
+      totalBytes: m.totalBytes,
     };
   }
 
@@ -908,7 +964,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
         checkId(id);
         await mkdir(filesDir(id), { recursive: true });
         const now = Date.now();
-        const meta = { name: clean, createdAt: now, updatedAt: now };
+        const meta: KbMeta = { name: clean, createdAt: now, updatedAt: now, stats: { fileCount: 0, totalBytes: 0 } };
         await saveMeta(id, meta);
         return toBase(id, meta);
       });
@@ -932,11 +988,17 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       });
     },
 
-    async tree(id) {
+    async tree(id, dir) {
       await existingKb(id);
-      const out: KnowledgeEntry[] = [];
-      await walk(filesDir(id), '', out, { n: 0 });
-      return out;
+      if (dir === undefined) {
+        const out: KnowledgeEntry[] = [];
+        await walk(filesDir(id), '', out, { n: 0 });
+        return out;
+      }
+      const { abs, exists } = await locate(id, dir || undefined, true);
+      if (!exists) fail(t('bridge.knowledge.entryNotFound'));
+      if (dir && !(await lstatOrNull(abs))?.isDirectory()) fail(t('bridge.knowledge.badPath'));
+      return listLevel(abs, dir);
     },
 
     async index(id) {
@@ -1170,7 +1232,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
         const rows = (cur.sources ?? [])
           .filter((s) => s.id === src.id || s.dest !== newRel)
           .map((s) => (s.id === src.id ? { ...s, updatedAt: now } : s));
-        await saveMeta(id, { ...cur, sources: rows, updatedAt: now });
+        await saveMeta(id, await withStats(id, { ...cur, sources: rows, updatedAt: now }));
         return { added: [src.dest], skipped: fresh.skipped };
       });
     },
@@ -1183,10 +1245,10 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     },
   };
 
-  /** 수정 시각 갱신 (메타 파일이 있을 때만) */
+  /** 파일이 바뀐 뒤: 수정 시각과 크기·개수 캐시를 갱신한다 (메타 파일이 있을 때만) */
   async function touch(id: string) {
     const meta = await readMeta(id);
-    if (meta) await saveMeta(id, { ...meta, updatedAt: Date.now() });
+    if (meta) await saveMeta(id, await withStats(id, { ...meta, updatedAt: Date.now() }));
   }
 
   return store;

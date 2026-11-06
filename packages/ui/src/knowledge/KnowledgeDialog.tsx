@@ -21,6 +21,7 @@ import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
 import { ipcErrorMessage } from './api';
 import { IndexStatus } from './IndexStatus';
+import { ancestors, comparePath, loadedBy, mergeLevel } from './lazyTree';
 import { AutoIndexSwitch, KnowledgeInsights, KnowledgeSettingsDialog, RagSettingsDialog } from './KnowledgeInsights';
 import { fetchAllowDelete, onRemoteKnowledgeChanged, useKnowledgeApi, useRemoteState } from './remoteApi';
 import { isRemoteForbidden } from './remoteKnowledge';
@@ -60,12 +61,6 @@ function withDetail(message: string, e: unknown): string {
   return detail ? `${message} (${detail})` : message;
 }
 
-/** 'main 브랜치만' 선택을 기억한다 */
-/** 경로의 상위 폴더들 (a/b/c → a, a/b) */
-function ancestors(p: string): string[] {
-  const parts = p.split('/');
-  return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join('/'));
-}
 
 export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogProps) {
   const api = useKnowledgeApi();
@@ -97,8 +92,17 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const [dragOver, setDragOver] = useState(false);
   const [full, setFull] = useState(false);
   /** 펼친 폴더 경로. 폴더는 처음에 접혀 있다 */
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [expanded, setExpandedState] = useState<Set<string>>(() => new Set());
+  /** 다시 읽을 때 쓰는 최신 펼침 상태 (state는 다음 렌더까지 옛 값이다) */
+  const expandedRef = useRef<Set<string>>(new Set());
+  /** 바로 아래 항목을 이미 읽은 폴더 ('' = 최상위). 폴더는 처음 펼칠 때 읽는다 */
+  const loadedRef = useRef<Set<string>>(new Set());
   const selectedRef = useRef<string | null>(null);
+  const setExpanded = (next: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const value = typeof next === 'function' ? next(expandedRef.current) : next;
+    expandedRef.current = value;
+    setExpandedState(value);
+  };
 
   const setNotice = (text: string | null, tone: NoticeState['tone'] = 'info') => setNoticeState(text ? { text, tone } : null);
   const setError = (text: string) => setNotice(text, 'error');
@@ -149,14 +153,41 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     };
   }, [open, remote, remoteState.manage]);
 
+  /**
+   * 트리를 다시 읽는다: 최상위와 펼쳐 둔 폴더만 (접힌 폴더 안은 펼칠 때 읽는다).
+   * 큰 저장소도 전체를 훑지 않아 바로 보인다.
+   */
   const loadTree = useCallback(
     async (id: string) => {
       if (!api) return;
-      const entries = await api.tree(id);
-      if (selectedRef.current === id) setTree(entries);
+      const loaded = new Set<string>();
+      const root = await api.tree(id, '');
+      let next = mergeLevel([], '', root);
+      loadedBy('', root).forEach((d) => loaded.add(d));
+      // 펼친 폴더 중 아직 모르는 것만 얕은 것부터 읽는다 (사라진 폴더는 건너뛴다)
+      const open = [...expandedRef.current].filter((d) => !loaded.has(d)).sort((a, b) => a.split('/').length - b.split('/').length);
+      const results = await Promise.all(open.map((d) => api.tree(id, d).catch(() => null)));
+      open.forEach((d, i) => {
+        const r = results[i];
+        if (!r || loaded.has(d) || !next.some((e) => e.dir && e.path === d)) return;
+        next = mergeLevel(next, d, r);
+        loadedBy(d, r).forEach((x) => loaded.add(x));
+      });
+      if (selectedRef.current !== id) return;
+      loadedRef.current = loaded;
+      setTree(next);
     },
     [api],
   );
+
+  /** 폴더 하나의 내용을 읽어 트리에 합친다 */
+  const loadDir = async (id: string, dir: string) => {
+    if (!api || loadedRef.current.has(dir)) return;
+    const entries = await api.tree(id, dir);
+    if (selectedRef.current !== id) return;
+    loadedBy(dir, entries).forEach((d) => loadedRef.current.add(d));
+    setTree((prev) => mergeLevel(prev, dir, entries));
+  };
 
   // 원격: PC에서 지식베이스가 바뀌면 목록·상세를 다시 읽는다
   useEffect(() => {
@@ -217,6 +248,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     selectedRef.current = id;
     setSelected(id);
     setTree([]);
+    loadedRef.current = new Set();
     setExpanded(new Set());
     setPreview(null);
     setRenaming(false);
@@ -392,13 +424,29 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const allOpen = dirs.length > 0 && dirs.every((d) => expanded.has(d));
   // 접힌 폴더 안의 항목은 숨긴다
   const visibleTree = tree.filter((e) => ancestors(e.path).every((a) => expanded.has(a)));
-  const toggleDir = (p: string) =>
+  const toggleDir = (p: string) => {
+    const opening = !expandedRef.current.has(p);
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(p)) next.delete(p);
       else next.add(p);
       return next;
     });
+    if (opening && current && !loadedRef.current.has(p)) {
+      const id = current.id;
+      void loadDir(id, p).catch((e: unknown) => setError(withDetail(t('knowledge.error.generic'), e)));
+    }
+  };
+  /** 모두 펼치기는 접힌 폴더 안까지 알아야 하므로 이때만 전체 목록을 읽는다 */
+  const expandAll = async () => {
+    if (!api || !current) return;
+    const id = current.id;
+    const all = await run(() => api.tree(id));
+    if (!all || selectedRef.current !== id) return;
+    loadedRef.current = new Set(['', ...all.filter((e) => e.dir).map((e) => e.path)]);
+    setTree([...all].sort((a, b) => comparePath(a.path, b.path)));
+    setExpanded(new Set(all.filter((e) => e.dir).map((e) => e.path)));
+  };
 
   const body = (() => {
     if (remote && !api) {
@@ -625,7 +673,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                       size="sm"
                       variant="ghost"
                       icon={allOpen ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />}
-                      onClick={() => setExpanded(allOpen ? new Set() : new Set(dirs))}
+                      onClick={() => (allOpen ? setExpanded(new Set()) : void expandAll())}
                     >
                       {allOpen ? t('knowledge.tree.collapseAll') : t('knowledge.tree.expandAll')}
                     </Button>

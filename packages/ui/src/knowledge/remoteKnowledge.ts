@@ -132,7 +132,14 @@ export function createRemoteKnowledgeApi(deps: RemoteKnowledgeDeps): DesktopKnow
     create: (name) => rpc<KnowledgeBase>('knowledge.create', [name]),
     rename: (id, name) => rpc<KnowledgeBase>('knowledge.rename', [id, name]),
     remove: (id) => rpc<void>('knowledge.remove', [id]),
-    tree: (id) => rpc<KnowledgeEntry[]>('knowledge.tree', [id]),
+    // 이전 버전 PC는 dir 인자를 거절한다: 그때는 전체 목록을 받는다 (화면이 경로로 합친다)
+    tree: (id, dir) =>
+      dir === undefined
+        ? rpc<KnowledgeEntry[]>('knowledge.tree', [id])
+        : rpc<KnowledgeEntry[]>('knowledge.tree', [id, dir]).catch((e: unknown) => {
+            if (e instanceof SyncRpcCallError && e.code === 'invalid') return rpc<KnowledgeEntry[]>('knowledge.tree', [id]);
+            throw e;
+          }),
     pathForFile: () => '',
     addPaths: async () => {
       throw new Error(t('knowledge.remote.noOpen'));

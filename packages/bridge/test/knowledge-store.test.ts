@@ -180,6 +180,48 @@ describe('knowledge store: 파일 넣기·목록·미리보기', () => {
     expect(kb.totalBytes).toBe(3);
   });
 
+  it('tree(id, dir)는 그 폴더 바로 아래 항목만 준다 (폴더를 펼칠 때 하나씩 읽는다)', async () => {
+    await mkdir(filesOf('docs/api'), { recursive: true });
+    await writeFile(filesOf('docs/api/x.md'), 'x');
+    await writeFile(filesOf('docs/intro.md'), 'hello');
+    await writeFile(filesOf('top.txt'), 't');
+    await mkdir(filesOf('.git'));
+    expect((await store.tree(kbId, '')).map((e) => e.path)).toEqual(['docs', 'top.txt']);
+    const docs = await store.tree(kbId, 'docs');
+    expect(docs).toEqual([
+      { path: 'docs/api', dir: true },
+      { path: 'docs/intro.md', dir: false, size: 5 },
+    ]);
+    await expect(store.tree(kbId, 'nope')).rejects.toThrow(t('bridge.knowledge.entryNotFound'));
+    await expect(store.tree(kbId, 'top.txt')).rejects.toThrow(t('bridge.knowledge.badPath'));
+    await expect(store.tree(kbId, '../x')).rejects.toThrow(t('bridge.knowledge.badPath'));
+  });
+
+  it('list는 저장해 둔 크기·개수를 쓰고, 변경 뒤에 다시 잰다', async () => {
+    await store.addFiles(kbId, [{ name: 'a.txt', data: new Uint8Array([1, 2]) }]);
+    // 밖에서 넣은 파일은 다음 변경 전까지 목록 숫자에 반영되지 않는다 (목록을 열 때 전체를 훑지 않는다)
+    await writeFile(filesOf('outside.txt'), 'abc');
+    let kb = (await store.list()).find((k) => k.id === kbId)!;
+    expect(kb).toMatchObject({ fileCount: 1, totalBytes: 2 });
+    await store.removeEntry(kbId, 'a.txt');
+    kb = (await store.list()).find((k) => k.id === kbId)!;
+    expect(kb).toMatchObject({ fileCount: 1, totalBytes: 3 });
+  });
+
+  it('크기 캐시가 없는 이전 메타는 한 번 재서 저장한다', async () => {
+    await writeFile(filesOf('a.txt'), 'abcd');
+    const metaFile = path.join(root, kbId, 'meta.json');
+    const meta = JSON.parse(await readFile(metaFile, 'utf8')) as Record<string, unknown>;
+    delete meta.stats;
+    await writeFile(metaFile, JSON.stringify(meta));
+    const kb = (await store.list()).find((k) => k.id === kbId)!;
+    expect(kb).toMatchObject({ fileCount: 1, totalBytes: 4 });
+    await store.rename(kbId, 'later'); // serial 순서 뒤에서 저장이 끝난 것을 확인한다
+    const saved = JSON.parse(await readFile(metaFile, 'utf8')) as { stats?: unknown; name: string };
+    expect(saved.stats).toEqual({ fileCount: 1, totalBytes: 4 });
+    expect(saved.name).toBe('later');
+  });
+
   it('index는 indexPaths 개수까지만 경로를 주고 잘렸음을 알린다', async () => {
     const n = KNOWLEDGE_LIMITS.indexPaths + 3;
     const files = Array.from({ length: n }, (_, i) => ({ name: `f${String(i).padStart(4, '0')}.txt`, data: new Uint8Array([1]) }));

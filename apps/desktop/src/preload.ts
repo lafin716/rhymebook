@@ -126,7 +126,7 @@ const api: DesktopApiExt = {
     create: (name: string) => ipcRenderer.invoke(CH.knowledgeCreate, name) as Promise<KnowledgeBase>,
     rename: (id: string, name: string) => ipcRenderer.invoke(CH.knowledgeRename, id, name) as Promise<KnowledgeBase>,
     remove: (id: string) => ipcRenderer.invoke(CH.knowledgeRemove, id) as Promise<void>,
-    tree: (id: string) => ipcRenderer.invoke(CH.knowledgeTree, id) as Promise<KnowledgeEntry[]>,
+    tree: (id: string, dir?: string) => ipcRenderer.invoke(CH.knowledgeTree, id, dir) as Promise<KnowledgeEntry[]>,
     // 끌어다 놓은 파일의 절대 경로. 못 얻으면 ''
     pathForFile(file: File): string {
       try {

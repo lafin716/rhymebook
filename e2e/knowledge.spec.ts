@@ -74,13 +74,15 @@ function installFakeKnowledge() {
     remove: async (id: string) => {
       bases.delete(id);
     },
-    tree: async (id: string) => {
-      // 실제 브리지처럼 폴더 항목도 함께 돌려준다
+    tree: async (id: string, dir?: string) => {
+      // 실제 브리지처럼 폴더 항목도 함께 돌려준다. dir을 주면 그 폴더 바로 아래만
       const files = [...get(id).files.keys()];
       const dirs = new Set(files.flatMap((f) => f.split('/').slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join('/'))));
-      return [...dirs].map((path) => ({ path, dir: true }))
+      const all = [...dirs].map((path) => ({ path, dir: true }))
         .concat(files.map((path) => ({ path, dir: false, size: 10 })))
         .sort((a, b) => a.path.localeCompare(b.path));
+      if (dir === undefined) return all;
+      return all.filter((e) => (e.path.includes('/') ? e.path.slice(0, e.path.lastIndexOf('/')) : '') === dir);
     },
     pathForFile: () => '',
     addPaths: async (id: string, paths: string[]) => put(get(id), paths.map((p) => p.split('/').pop() ?? p)),
