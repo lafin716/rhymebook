@@ -3,10 +3,14 @@
  * worker.ts가 이 객체를 worker_thread에서 감싸 RPC로 노출한다.
  */
 import { existsSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
-import { mkdir, rm, statfs } from 'node:fs/promises';
+import { mkdir, readFile, rm, statfs } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  assertIndexAllowed,
   createHashEmbedder,
+  INDEX_FORMAT_VERSION,
+  isKnowledgePath,
+  type IndexIntegrityReport,
   createNoneEmbedder,
   createOpenAIEmbedder,
   DEFAULT_INDEX_SETTINGS,
@@ -16,14 +20,19 @@ import {
   type KnowledgeDoc,
   type KnowledgeIndexSettings,
   type KnowledgeIndexState,
+  buildKnowledgeContext,
+  type Evidence,
+  type RetrievalNotice,
   type RetrievalRequest,
   type RetrievalResult,
+  routeKnowledge,
   type SourceView,
 } from '@branch/core';
 import {
   ingestKnowledge,
   IndexFatalError,
   scanFiles,
+  sha256Bytes,
   throwIfAborted,
   type IngestProgress,
   type IngestResult,
@@ -33,6 +42,8 @@ import { createPdfExtractor } from './pdfText';
 import { IndexRepository, type JobRow } from './sqliteRepository';
 import { FOLDERS_FILE, metaDirOf, readFolderMeta, refreshFolderMeta } from './folderMeta';
 import { retrieveFrom, sourceFrom, type KbSearchTarget } from './searchEngine';
+import { assertReadableKind, filesRootOf, type KbMetaView, policyKindOf, readKbMeta, readKbMetaResult } from '../knowledgeMeta';
+import { codebaseSourceView, searchCodebaseEvidence } from './codebaseRetrieval';
 
 export const INDEX_FILE = 'index.sqlite';
 export const NEXT_INDEX_FILE = 'index.next.sqlite';
@@ -92,6 +103,18 @@ export interface KnowledgeIndexer {
   source(kbId: string, chunkId: string): Promise<SourceView | undefined>;
   /** 색인 파일 삭제 (원본 files/는 건드리지 않음) */
   drop(kbId: string): Promise<void>;
+  /**
+   * 재색인 예약 (문서형만, 코드베이스는 KnowledgePolicyError).
+   * full: 전체 재생성 · paths: 이 파일들만 다시 검사 · retryFailed: 실패한 문서를 다시 시도. 아무 옵션도 없으면 증분.
+   */
+  reindex(kbId: string, opts?: ReindexOptions): Promise<void>;
+  /** 색인 무결성 점검 (읽기만 한다, 문서형만). 원본과 색인을 비교하고 SQLite 검사를 돌린다 */
+  verify(kbId: string): Promise<IndexIntegrityReport>;
+  /**
+   * 색인 연결을 닫고 대기·진행 중 작업을 취소한다 (유형 변경으로 색인 파일을 옮기기 전에 호출).
+   * 작업이 끝나지 않으면 오류를 던진다. 색인 파일은 지우지 않는다.
+   */
+  release(kbId: string): Promise<void>;
   /** 끝나지 않은 작업 이어하기 (앱 재시작 시) */
   resume(): Promise<void>;
   /** 상태 변경 구독. 해제 함수를 돌려준다 */
@@ -100,9 +123,19 @@ export interface KnowledgeIndexer {
   close(): Promise<void>;
 }
 
+export interface ReindexOptions {
+  full?: boolean;
+  /** files/ 기준 상대 경로. 이 파일들만 다시 검사한다 */
+  paths?: string[];
+  /** 마지막 색인에서 실패한 문서를 다시 시도한다 */
+  retryFailed?: boolean;
+}
+
 interface KbRuntime {
   /** 다음 실행 모드 (undefined면 예약 없음) */
   mode?: IndexMode;
+  /** 다음 증분 실행의 범위. 'all'이거나 없으면 전체 */
+  scope?: 'all' | Set<string>;
   controller?: AbortController;
   running: boolean;
 }
@@ -136,6 +169,17 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     if (!KB_RE.test(kbId)) throw new Error(`invalid kb id: ${kbId}`);
     return path.join(opts.root, kbId);
   };
+  /** 코드베이스 KB는 색인을 만들지 않는다 (ADR-128). 메타를 읽을 수 없으면 throw (kb_meta_unreadable, fail closed) */
+  const kindOf = (kbId: string) => {
+    kbDir(kbId); // id 검증 먼저 (invalid kb id)
+    return assertReadableKind(opts.root, kbId);
+  };
+  const isCodebase = (kbId: string): boolean => policyKindOf(opts.root, kbId) === 'codebase';
+  /** 색인 경로를 건너뛴다: 코드베이스이거나 메타를 읽을 수 없음 (throw 없음) */
+  const indexBlocked = (kbId: string): boolean => {
+    const k = policyKindOf(opts.root, kbId);
+    return k === 'codebase' || k === 'unreadable';
+  };
   const emit = (s: KnowledgeIndexState): void => {
     states.set(s.kbId, s);
     for (const l of listeners) l(s);
@@ -168,6 +212,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
   }
 
   async function providerFor(kbId: string): Promise<EmbeddingProvider> {
+    assertIndexAllowed(kbId, kindOf(kbId));
     const settings = readSettings(kbId);
     const key = JSON.stringify(settings);
     const hit = providers.get(kbId);
@@ -195,6 +240,8 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
 
   /** 색인 파일을 연다. 없으면 만든다 (작업 기록을 남기기 위해 실행 시작 시 호출) */
   function ensureRepo(kbId: string): IndexRepository {
+    // 코드베이스면 색인 파일을 만들지 않는다 (throw)
+    assertIndexAllowed(kbId, kindOf(kbId));
     const cached = repos.get(kbId);
     if (cached) return cached;
     if (dropped.has(kbId)) throw new Error(`knowledge base dropped: ${kbId}`);
@@ -211,7 +258,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
 
   /** 색인 파일이 있을 때만 연다 (조회 전용) */
   function openRepo(kbId: string): IndexRepository | undefined {
-    if (dropped.has(kbId)) return undefined;
+    if (dropped.has(kbId) || indexBlocked(kbId)) return undefined;
     if (!opts.readOnly) recoverSwap(kbDir(kbId));
     if (!existsSync(path.join(kbDir(kbId), INDEX_FILE))) return undefined;
     return ensureRepo(kbId);
@@ -284,7 +331,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     for (const suffix of ['', '-wal', '-shm']) await rm(`${base}${suffix}`, { force: true });
   }
 
-  async function runJob(kbId: string, mode: IndexMode, rt: KbRuntime): Promise<void> {
+  async function runJob(kbId: string, mode: IndexMode, rt: KbRuntime, scope: 'all' | Set<string> | undefined): Promise<void> {
     const dir = kbDir(kbId);
     const filesDir = path.join(dir, 'files');
     const liveFile = path.join(dir, INDEX_FILE);
@@ -390,6 +437,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
           onProgress,
           retryDelayMs,
           now,
+          onlyPaths: scope && scope !== 'all' ? scope : undefined,
         });
         live.setModel(provider.info);
         persistState(live, { status: 'ready', sourceBytes: result.sourceBytes, indexedAt: now() });
@@ -443,9 +491,11 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
       const rt = rtOf(kbId);
       const mode = rt.mode;
       if (mode === undefined) continue;
+      const scope = rt.scope;
       rt.mode = undefined;
+      rt.scope = undefined;
       try {
-        await runJob(kbId, mode, rt);
+        await runJob(kbId, mode, rt, scope);
       } catch (err) {
         log(`[rag] ${kbId} 작업 중단: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -478,9 +528,11 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
       assertWritable();
       if (closed) throw new Error('indexer closed');
       if (dropped.has(kbId)) throw new Error(`knowledge base dropped: ${kbId}`);
+      assertIndexAllowed(kbId, kindOf(kbId));
       kbDir(kbId);
       const rt = rtOf(kbId);
       rt.mode = rt.mode === 'full' || mode === 'full' ? 'full' : 'incremental';
+      rt.scope = 'all';
       if (!rt.running && !queue.includes(kbId)) {
         queue.push(kbId);
         const cur = states.get(kbId) ?? stateFromRepo(kbId, openRepo(kbId));
@@ -494,6 +546,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
       const rt = runtime.get(kbId);
       if (!rt) return;
       rt.mode = undefined;
+      rt.scope = undefined;
       const idx = queue.indexOf(kbId);
       if (idx >= 0) queue.splice(idx, 1);
       rt.controller?.abort();
@@ -522,6 +575,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
 
     async settingsChanged(kbId) {
       assertWritable();
+      if (indexBlocked(kbId)) return;
       const repo = openRepo(kbId);
       if (!repo) return;
       const provider = await providerFor(kbId).catch(() => undefined);
@@ -534,7 +588,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
 
     async markStale(kbId) {
       assertWritable();
-      if (closed || dropped.has(kbId)) return;
+      if (closed || dropped.has(kbId) || indexBlocked(kbId)) return;
       const rt = runtime.get(kbId);
       if (rt?.running || queue.includes(kbId)) return;
       kbDir(kbId);
@@ -544,8 +598,55 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
     },
 
     async retrieve(req, signal) {
-      const targets: KbSearchTarget[] = [];
+      // 라우팅 (ADR-131): 코드베이스는 실시간 탐색(agentic), 문서·미분류는 하이브리드
+      // 메타를 읽을 수 없는 KB는 라우팅에서 뺀다 (fail closed: 문서형으로 간주하지 않는다)
+      const metas = new Map<string, KbMetaView | undefined>();
+      const notices: RetrievalNotice[] = [];
+      const extraSkipped: { kbId: string; reason: string }[] = [];
+      const routable: string[] = [];
       for (const kbId of req.kbIds) {
+        const r = readKbMetaResult(opts.root, kbId);
+        if (r.ok) {
+          metas.set(kbId, r.view);
+          routable.push(kbId);
+        } else {
+          extraSkipped.push({ kbId, reason: 'kb_meta_unreadable' });
+        }
+      }
+      const route = routeKnowledge(
+        routable.map((id) => ({ id, kind: metas.get(id)?.kind })),
+        req.plan.original,
+      );
+      const codeEvidence: Evidence[] = [];
+      const limit = Math.max(1, req.settings.candidates);
+      for (const kbId of route.agentic) {
+        const meta = metas.get(kbId);
+        const root = filesRootOf(opts.root, kbId, meta);
+        if (!root) {
+          notices.push({ code: 'codebase_missing', kbId });
+          extraSkipped.push({ kbId, reason: 'codebase_missing' });
+          continue;
+        }
+        // 실시간 탐색: 임베딩·벡터·색인 없음 (assertVectorAllowed 대상이 아니다)
+        try {
+          const hits = await searchCodebaseEvidence({
+            kbId,
+            kbName: meta?.name ?? kbId,
+            root,
+            excludes: meta?.excludes ?? [],
+            query: req.plan.rewritten || req.plan.original,
+            limit,
+            signal,
+          });
+          codeEvidence.push(...hits);
+        } catch (err) {
+          if (signal?.aborted) throw err;
+          extraSkipped.push({ kbId, reason: err instanceof Error ? err.message : String(err) });
+        }
+      }
+
+      const targets: KbSearchTarget[] = [];
+      for (const kbId of route.hybrid) {
         const kbName = readKbName(opts.root, kbId) ?? kbId;
         try {
           const repo = openRepo(kbId);
@@ -560,10 +661,33 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
           targets.push({ kbId, kbName, skipReason: err instanceof Error ? err.message : String(err) });
         }
       }
-      return retrieveFrom(targets, req, { signal, now });
+      const result = await retrieveFrom(targets, { ...req, kbIds: route.hybrid }, { signal, now });
+      result.skipped = [...result.skipped, ...extraSkipped];
+      // 두 엔진 결과를 Context Builder로 합친다 (중복 제거·예산·번호 재부여)
+      if (codeEvidence.length) {
+        const built = buildKnowledgeContext([...result.evidence, ...codeEvidence], route, {
+          maxItems: Math.max(1, req.settings.topK),
+          maxChars: Math.max(1, req.settings.maxContextChars),
+        });
+        result.evidence = built.evidence;
+        notices.push(...built.notices);
+      }
+      result.notices = [...(result.notices ?? []), ...notices];
+      result.routed = { agentic: route.agentic, hybrid: route.hybrid, intent: route.intent };
+      return result;
     },
 
     async source(kbId, chunkId) {
+      if (isCodebase(kbId)) {
+        const meta = readKbMeta(opts.root, kbId);
+        const root = filesRootOf(opts.root, kbId, meta);
+        if (!root) return undefined;
+        const view = await codebaseSourceView(
+          { kbId, kbName: meta?.name ?? kbId, root, excludes: meta?.excludes ?? [] },
+          chunkId,
+        ).catch(() => undefined);
+        return view;
+      }
       const repo = openRepo(kbId);
       if (!repo) return undefined;
       return sourceFrom({ kbId, kbName: kbId, repo }, chunkId);
@@ -576,6 +700,7 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
       const rt = runtime.get(kbId);
       if (rt) {
         rt.mode = undefined;
+        rt.scope = undefined;
         rt.controller?.abort();
       }
       const idx = queue.indexOf(kbId);
@@ -590,10 +715,134 @@ export function createKnowledgeIndexer(opts: KnowledgeIndexerOptions): Knowledge
       states.delete(kbId);
     },
 
+    async reindex(kbId, o = {}) {
+      assertWritable();
+      if (closed) throw new Error('indexer closed');
+      if (dropped.has(kbId)) throw new Error(`knowledge base dropped: ${kbId}`);
+      assertIndexAllowed(kbId, kindOf(kbId));
+      kbDir(kbId);
+      const wanted = new Set<string>();
+      for (const p of o.paths ?? []) {
+        if (!isKnowledgePath(p)) throw new Error(`invalid path: ${p}`);
+        wanted.add(p);
+      }
+      if (o.retryFailed) {
+        for (const d of openRepo(kbId)?.listDocs() ?? []) if (d.status === 'error') wanted.add(d.path);
+      }
+      const rt = rtOf(kbId);
+      if (o.full) {
+        await api.enqueue(kbId, 'full');
+        return;
+      }
+      if (wanted.size === 0 && !o.paths && !o.retryFailed) {
+        await api.enqueue(kbId, 'incremental');
+        return;
+      }
+      // 부분 재색인: 같은 KB에 쌓인 범위는 합친다. 전체 예약이 있으면 전체 그대로
+      rt.mode = rt.mode === 'full' ? 'full' : 'incremental';
+      rt.scope = rt.scope === 'all' ? 'all' : new Set([...(rt.scope ?? []), ...wanted]);
+      if (!rt.running && !queue.includes(kbId)) {
+        queue.push(kbId);
+        const cur = states.get(kbId) ?? stateFromRepo(kbId, openRepo(kbId));
+        emit({ ...cur, status: 'queued', progress: undefined });
+      }
+      schedule();
+    },
+
+    async verify(kbId) {
+      assertIndexAllowed(kbId, kindOf(kbId));
+      const checkedAt = now();
+      const repo = openRepo(kbId);
+      const filesDir = path.join(kbDir(kbId), 'files');
+      const source = existsSync(filesDir) ? (await scanFiles(filesDir)).files : [];
+      const docs = new Map((repo?.listDocs() ?? []).map((d) => [d.path, d]));
+      const samples: IndexIntegrityReport['samples'] = [];
+      const sample = (p: string, issue: IndexIntegrityReport['samples'][number]['issue']) => {
+        if (samples.length < 20) samples.push({ path: p, issue });
+      };
+      let missing = 0;
+      let changed = 0;
+      const seen = new Set<string>();
+      for (const f of source) {
+        seen.add(f.rel);
+        const doc = docs.get(f.rel);
+        if (!doc) {
+          missing++;
+          sample(f.rel, 'missing');
+          continue;
+        }
+        if (doc.status === 'error') {
+          sample(f.rel, 'failed');
+          continue;
+        }
+        if (doc.status !== 'ok') continue;
+        // 메타가 같으면 내용도 같다고 본다. 다르면 해시로 확인한다 (mtime만 바뀐 파일은 changed가 아니다)
+        if (doc.mtime === f.mtime && doc.ctime === f.ctime && doc.bytes === f.size) continue;
+        const hash = sha256Bytes(new Uint8Array(await readFile(f.abs)));
+        if (hash !== doc.contentHash) {
+          changed++;
+          sample(f.rel, 'changed');
+        }
+      }
+      let orphaned = 0;
+      for (const p of docs.keys()) {
+        if (seen.has(p)) continue;
+        orphaned++;
+        sample(p, 'orphaned');
+      }
+      const provider = await providerFor(kbId).catch(() => undefined);
+      const model = repo?.getModel();
+      const modelMismatch = !!(model && provider && embeddingKey(model) !== embeddingKey(provider.info));
+      const storageOk = repo ? repo.integrityOk() : true;
+      const formatVersion = repo?.formatVersion();
+      const failedDocs = repo?.stats().failedDocs ?? 0;
+      const ok =
+        storageOk &&
+        formatVersion === INDEX_FORMAT_VERSION &&
+        !modelMismatch &&
+        missing === 0 &&
+        orphaned === 0 &&
+        changed === 0 &&
+        failedDocs === 0;
+      return {
+        kbId,
+        checkedAt,
+        ok,
+        formatVersion,
+        expectedFormatVersion: INDEX_FORMAT_VERSION,
+        model,
+        modelMismatch,
+        missing,
+        orphaned,
+        changed,
+        failedDocs,
+        storageOk,
+        samples,
+      };
+    },
+
+    async release(kbId) {
+      assertWritable();
+      const rt = runtime.get(kbId);
+      if (rt) {
+        rt.mode = undefined;
+        rt.scope = undefined;
+        rt.controller?.abort();
+      }
+      const idx = queue.indexOf(kbId);
+      if (idx >= 0) queue.splice(idx, 1);
+      for (let i = 0; i < 600 && rt?.running; i++) await new Promise((r) => setTimeout(r, 50));
+      if (rt?.running) throw new Error(`index job still running: ${kbId}`);
+      closeRepo(kbId);
+      providers.delete(kbId);
+      states.delete(kbId);
+    },
+
     async resume() {
       if (opts.readOnly) return;
       for (const kbId of listKbIds(opts.root)) {
-        if (dropped.has(kbId)) continue;
+        // 코드베이스는 색인 작업이 없다. 남은 작업 기록이 있어도 실행하지 않는다
+        if (dropped.has(kbId) || indexBlocked(kbId)) continue;
         try {
           const dir = kbDir(kbId);
           const repo = openRepo(kbId);

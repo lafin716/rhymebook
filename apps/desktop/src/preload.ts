@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeDoc, KnowledgeEntry, KnowledgeIndexSettings, KnowledgeIndexState, KnowledgePreview, KnowledgeProgress, KnowledgeSource, RetrievalRequest, RetrievalResult, SourceView, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg, UpdateState } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState, IndexIntegrityReport, KnowledgeAddResult, KnowledgeBase, KnowledgeCreateOptions, KnowledgeFolderInspection, KnowledgeKind, KnowledgeDoc, KnowledgeEntry, KnowledgeIndexSettings, KnowledgeIndexState, KnowledgePreview, KnowledgeProgress, KnowledgeSource, RetrievalRequest, RetrievalResult, SourceView, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg, UpdateState } from '@branch/core';
 import { CH } from './ipc';
 
 /** DesktopApi.sync with onPeerGone extension (ADR-026) */
@@ -123,7 +123,8 @@ const api: DesktopApiExt = {
   // 학습별 지식베이스 (ADR-107). main이 id·경로·URL·크기를 다시 확인한다
   knowledge: {
     list: () => ipcRenderer.invoke(CH.knowledgeList) as Promise<KnowledgeBase[]>,
-    create: (name: string) => ipcRenderer.invoke(CH.knowledgeCreate, name) as Promise<KnowledgeBase>,
+    create: (name: string, opts?: KnowledgeCreateOptions) =>
+      ipcRenderer.invoke(CH.knowledgeCreate, name, opts) as Promise<KnowledgeBase>,
     rename: (id: string, name: string) => ipcRenderer.invoke(CH.knowledgeRename, id, name) as Promise<KnowledgeBase>,
     remove: (id: string) => ipcRenderer.invoke(CH.knowledgeRemove, id) as Promise<void>,
     tree: (id: string, dir?: string) => ipcRenderer.invoke(CH.knowledgeTree, id, dir) as Promise<KnowledgeEntry[]>,
@@ -163,7 +164,7 @@ const api: DesktopApiExt = {
       ipcRenderer.invoke(CH.knowledgeSetDescription, id, description) as Promise<KnowledgeBase>,
     indexStates: (ids?: string[]) =>
       ipcRenderer.invoke(CH.knowledgeIndexStates, ids) as Promise<KnowledgeIndexState[]>,
-    reindex: (id: string, opts?: { full?: boolean }) =>
+    reindex: (id: string, opts?: { full?: boolean; paths?: string[]; retryFailed?: boolean }) =>
       ipcRenderer.invoke(CH.knowledgeReindex, id, opts) as Promise<void>,
     cancelIndex: (id: string) => ipcRenderer.invoke(CH.knowledgeCancelIndex, id) as Promise<void>,
     docs: (id: string, query?: string) =>
@@ -172,6 +173,14 @@ const api: DesktopApiExt = {
       ipcRenderer.invoke(CH.knowledgeGetIndexSettings, id) as Promise<KnowledgeIndexSettings>,
     setIndexSettings: (id: string, s: KnowledgeIndexSettings) =>
       ipcRenderer.invoke(CH.knowledgeSetIndexSettings, id, s) as Promise<KnowledgeIndexState>,
+    setKind: (id: string, kind: KnowledgeKind) => ipcRenderer.invoke(CH.knowledgeSetKind, id, kind) as Promise<KnowledgeBase>,
+    setExcludes: (id: string, excludes: string[]) =>
+      ipcRenderer.invoke(CH.knowledgeSetExcludes, id, excludes) as Promise<KnowledgeBase>,
+    pickFolder: () => ipcRenderer.invoke(CH.knowledgePickFolder) as Promise<string | null>,
+    inspectFolder: (path: string) =>
+      ipcRenderer.invoke(CH.knowledgeInspectFolder, path) as Promise<KnowledgeFolderInspection>,
+    verifyIndex: (id: string) => ipcRenderer.invoke(CH.knowledgeVerifyIndex, id) as Promise<IndexIntegrityReport>,
+    restoreIndexBackup: (id: string) => ipcRenderer.invoke(CH.knowledgeRestoreIndexBackup, id) as Promise<boolean>,
     sources: (id: string) => ipcRenderer.invoke(CH.knowledgeSources, id) as Promise<KnowledgeSource[]>,
     updateSource: (id: string, sourceId: string) =>
       ipcRenderer.invoke(CH.knowledgeUpdateSource, id, sourceId) as Promise<KnowledgeAddResult>,

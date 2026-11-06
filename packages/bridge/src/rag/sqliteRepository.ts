@@ -596,6 +596,17 @@ export class IndexRepository {
     return { docCount: Number(d.n), chunkCount: Number(c.n), leafCount: Number(c.l ?? 0), failedDocs: Number(d.f ?? 0) };
   }
 
+  /** SQLite quick_check 결과가 ok인가 (무결성 점검용, 읽기만 한다) */
+  integrityOk(): boolean {
+    const r = this.db.prepare('PRAGMA quick_check').get() as { quick_check?: string } | undefined;
+    return r?.quick_check === 'ok';
+  }
+
+  /** 파일에 기록된 스키마 버전 (PRAGMA user_version) */
+  formatVersion(): number {
+    return Number((this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version);
+  }
+
   // ── chunks ────────────────────────────────────────
 
   getChunk(chunkId: string): (ChunkRow & { path: string; title: string; kind: DocKind; url?: string }) | undefined {

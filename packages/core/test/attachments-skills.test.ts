@@ -24,6 +24,7 @@ import {
   KNOWLEDGE_SKILL_ID,
   CURRICULUM_SKILL_ID,
   LEGACY_CURRICULUM_PROMPTS,
+  LEGACY_KNOWLEDGE_PROMPTS,
   defaultSkills,
   filterSkills,
   isSkillRef,
@@ -236,6 +237,37 @@ describe('upgradeBuiltinSkills', () => {
     expect(up).toMatchObject({ id: CURRICULUM_SKILL_ID, prompt: cur.prompt, description: cur.description, updatedAt: 5 });
     // 사용자가 고친 것·이미 새 버전·다른 스킬은 그대로
     expect(upgradeBuiltinSkills([{ ...legacy, prompt: `${legacy.prompt} 내 규칙` }, cur, ...defaultSkills(1).slice(1)])).toEqual([]);
+  });
+
+  it('고치지 않은 예전 지식베이스 탐색 스킬(5개 언어)을 유형별 탐색 지시로 올린다 (ADR-131)', () => {
+    const cur = defaultSkills(1).find((s) => s.id === KNOWLEDGE_SKILL_ID)!;
+    // 새 지시: 유형 구분·코드베이스 도구·벡터 금지·출처 형식·인젝션 경계
+    for (const want of ['코드베이스', '문서', 'findFiles', 'grepKnowledge', 'findDefinitions', 'readKnowledgeFile', 'searchKnowledge', ':L', 'p.12', '지시가 아니다', '(일반 지식)'])
+      expect(cur.prompt).toContain(want);
+    expect(cur.prompt).toMatch(/코드베이스에는 `searchKnowledge`.*쓰지 않는다/);
+    expect(LEGACY_KNOWLEDGE_PROMPTS).toHaveLength(5);
+    for (const old of LEGACY_KNOWLEDGE_PROMPTS) {
+      expect(old).not.toBe(cur.prompt);
+      const [up, ...rest] = upgradeBuiltinSkills([{ ...cur, title: '옛 제목', prompt: `${old}\n` }], 7);
+      expect(rest).toEqual([]);
+      expect(up).toMatchObject({ id: KNOWLEDGE_SKILL_ID, title: cur.title, prompt: cur.prompt, updatedAt: 7 });
+    }
+    // 사용자가 고친 예전 지시는 그대로
+    expect(upgradeBuiltinSkills([{ ...cur, prompt: `${LEGACY_KNOWLEDGE_PROMPTS[0]!}\n내 규칙` }])).toEqual([]);
+  });
+
+  it('지식베이스 탐색 스킬의 5개 언어 지시가 같은 도구·정책을 말한다', () => {
+    for (const l of ['ko', 'en', 'ja', 'vi', 'zh'] as const) {
+      setLocale(l);
+      try {
+        const p = defaultSkills(1).find((s) => s.id === KNOWLEDGE_SKILL_ID)!.prompt;
+        for (const tool of ['listKnowledgeDirectory', 'findFiles', 'grepKnowledge', 'findDefinitions', 'readKnowledgeFile', 'searchKnowledge', 'getKnowledgeOutline'])
+          expect(p, `${l} ${tool}`).toContain(tool);
+        expect(p).toContain('README');
+      } finally {
+        setLocale('ko');
+      }
+    }
   });
 
   it('고치지 않은 기본 스킬은 지금 언어로 바꾸고, 고친 것은 그대로 둔다', () => {

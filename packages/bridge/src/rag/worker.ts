@@ -14,6 +14,7 @@ import {
   type IndexMode,
   type KnowledgeIndexer,
   type KnowledgeIndexerOptions,
+  type ReindexOptions,
 } from './indexer';
 
 export interface WorkerData {
@@ -149,6 +150,12 @@ export function runIndexerWorker(port: PortLike | null = parentPort, data: Worke
         return indexer.source(a0 as string, a1 as string);
       case 'drop':
         return indexer.drop(a0 as string);
+      case 'reindex':
+        return indexer.reindex(a0 as string, a1 as ReindexOptions | undefined);
+      case 'verify':
+        return indexer.verify(a0 as string);
+      case 'release':
+        return indexer.release(a0 as string);
       case 'resume':
         return indexer.resume();
       case 'close':
@@ -321,6 +328,9 @@ export function startIndexerWorker(opts: IndexerWorkerOptions): KnowledgeIndexer
     retrieve: (req, signal) => call<RetrievalResult>('retrieve', [req], signal),
     source: (kbId, chunkId) => call('source', [kbId, chunkId]),
     drop: (kbId) => call<void>('drop', [kbId]),
+    reindex: (kbId, o) => call<void>('reindex', [kbId, o]),
+    verify: (kbId) => call('verify', [kbId]),
+    release: (kbId) => call<void>('release', [kbId]),
     resume: () => call<void>('resume', []),
     onState(listener) {
       listeners.add(listener);

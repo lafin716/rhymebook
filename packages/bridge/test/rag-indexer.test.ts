@@ -36,10 +36,17 @@ function requestFor(kbIds: string[], question: string): RetrievalRequest {
 let root: string;
 const indexers: KnowledgeIndexer[] = [];
 
+/** 테스트용 meta.json (kind 없음 = 미분류 문서형 동작). 깨진·없는 meta는 색인 경로가 거부하므로 항상 쓴다 */
+async function seedMeta(kbDir: string): Promise<void> {
+  await writeFile(path.join(kbDir, 'meta.json'), JSON.stringify({ name: 'test', createdAt: 1, updatedAt: 1 }), 'utf8');
+}
+
 beforeEach(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'rag-idx-'));
   await mkdir(filesOf(KB_A), { recursive: true });
   await mkdir(filesOf(KB_B), { recursive: true });
+  await seedMeta(path.join(root, KB_A));
+  await seedMeta(path.join(root, KB_B));
 });
 
 afterEach(async () => {

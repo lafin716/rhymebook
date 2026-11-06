@@ -165,6 +165,32 @@ describe('setSessionKnowledgeIds', () => {
   });
 });
 
+describe('forgetKnowledgeBase', () => {
+  it('삭제된 KB를 모든 세션 목록에서 빼고 예전 knowledgeId도 맞춘다', () => {
+    const store = makeStore([]);
+    const child = store.getState().newSubSession(SEED_IDS.root, undefined, { focus: false }) as string;
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB, KB2]);
+    store.getState().setSessionKnowledgeIds(child, [KB]);
+    expect(store.getState().forgetKnowledgeBase(KB)).toBe(2);
+    const root = store.getState().sessions[SEED_IDS.root]!;
+    expect(root.knowledgeIds).toEqual([KB2]);
+    expect(root.knowledgeId).toBe(KB2);
+    // 비어도 []로 남는다 (부모 상속으로 바뀌지 않음)
+    const c = store.getState().sessions[child]!;
+    expect(c.knowledgeIds).toEqual([]);
+    expect(c.knowledgeId).toBeUndefined();
+    expect(effectiveKnowledgeIds(store.getState().sessions, child)).toEqual([]);
+  });
+
+  it('연결된 세션이 없으면 0을 돌려주고 아무것도 바꾸지 않는다', () => {
+    const store = makeStore([]);
+    store.getState().setSessionKnowledgeIds(SEED_IDS.root, [KB2]);
+    const before = store.getState().sessions;
+    expect(store.getState().forgetKnowledgeBase(KB)).toBe(0);
+    expect(store.getState().sessions).toBe(before);
+  });
+});
+
 describe('runAssistant with retriever', () => {
   it('지식베이스가 있으면 근거를 시스템 프롬프트에 넣고 인용을 메시지에 남긴다', async () => {
     const seen: StreamRequest[] = [];

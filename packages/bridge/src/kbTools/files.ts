@@ -1,16 +1,27 @@
-import { open, readdir, realpath, stat } from 'node:fs/promises';
+import { lstat, open, readdir, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { KB_TOOL_LIMITS, KbToolError, type KbDirEntry, type KbOutlineItem } from '@branch/core';
+import { KB_TOOL_LIMITS, KbToolError, type KbDirEntry, type KbOutlineItem, isKnowledgePath } from '@branch/core';
 
 
 /**
  * KB files/ 아래 상대 경로를 실제 경로로 바꾸고, 결과가 files/ 안에 있는지 확인한다.
- * 심볼릭 링크로 밖을 가리키면 bad_path. 없으면 not_found.
+ * 경로 형식이 틀리면 bad_path. 중간이나 끝의 구성 요소가 심볼릭 링크면 bad_path (링크 폴더 미추적).
+ * 없으면 not_found. rel은 빈 문자열이면 루트다.
  */
 export async function resolveInside(filesRoot: string, rel: string): Promise<{ abs: string; isDir: boolean; size: number }> {
+  if (rel && !isKnowledgePath(rel)) throw new KbToolError('bad_path', 'invalid path');
   const rootReal = await realpath(filesRoot).catch(() => {
     throw new KbToolError('not_found', 'knowledge files folder not found');
   });
+  // 구성 요소를 하나씩 lstat해서 심볼릭 링크(디렉터리 포함)를 거부한다
+  let walk = filesRoot;
+  for (const part of rel ? rel.split('/') : []) {
+    walk = path.join(walk, part);
+    const st = await lstat(walk).catch(() => {
+      throw new KbToolError('not_found', `not found: ${rel}`);
+    });
+    if (st.isSymbolicLink()) throw new KbToolError('bad_path', 'symbolic links are not followed');
+  }
   const candidate = rel ? path.join(filesRoot, ...rel.split('/')) : filesRoot;
   let real: string;
   try {
@@ -30,12 +41,15 @@ export async function listDir(
   filesRoot: string,
   rel: string,
   offset: number,
+  /** 추가 필터 (상대 경로, 폴더 여부). false면 목록에서 뺀다 (코드베이스 제외 규칙) */
+  filter?: (rel: string, dir: boolean) => boolean,
 ): Promise<{ entries: KbDirEntry[]; nextOffset?: number }> {
   const target = await resolveInside(filesRoot, rel);
   if (!target.isDir) throw new KbToolError('not_a_directory', `not a directory: ${rel || '/'}`);
   const names = await readdir(target.abs, { withFileTypes: true });
   const visible = names
     .filter((d) => !d.name.startsWith('.') && !d.isSymbolicLink() && (d.isDirectory() || d.isFile()))
+    .filter((d) => !filter || filter(rel ? `${rel}/${d.name}` : d.name, d.isDirectory()))
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const page = visible.slice(offset, offset + KB_TOOL_LIMITS.listPageSize);
   const entries: KbDirEntry[] = [];

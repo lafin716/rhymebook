@@ -1,5 +1,9 @@
-import { KB_TOOLS_GUIDE, type RagMode } from '@branch/core';
+import { KB_TOOLS_GUIDE, type KnowledgeKind, type RagMode } from '@branch/core';
 import { KB_MCP_TOOL_PREFIX } from './config';
+
+/** 코드베이스 KB가 하나라도 있을 때: 색인 없이 실제 파일을 탐색한다는 사용법 */
+const CODEBASE_GUIDE =
+  'Codebase knowledge bases have no index and no vector search. Explore them live: findFiles (names/paths), grepKnowledge (text, line hits), findDefinitions (where a symbol is declared), getKnowledgeOutline (file outline or folder listing), then readKnowledgeFile for the exact lines. Search results from them are starting points; read the code before quoting it.';
 
 /** 심층(deep) 모드에서만 덧붙이는 문장: 비교·여러 단계 질문은 도구로 검증하게 한다 */
 const DEEP_EXTRA =
@@ -10,13 +14,18 @@ const DEEP_EXTRA =
  * mode: 'fast'는 도구를 쓰지 않으므로 호출되지 않는다. 'deep'이면 검증 문장을 덧붙인다.
  */
 export function kbToolsNote(
-  kbs: { kbId: string; kbName: string }[],
+  kbs: { kbId: string; kbName: string; kind?: KnowledgeKind }[],
   provider: 'claude-cli' | 'codex-cli',
   mode?: RagMode,
 ): string {
   // 이름의 제어 문자·줄바꿈·공백 연속은 한 칸으로: 이름으로 안내문에 줄을 끼워 넣지 못하게
-  const list = kbs.map((k) => `- ${k.kbName.replace(/[\p{Cc}\s]+/gu, ' ').trim()} (kbId: ${k.kbId})`);
+  const list = kbs.map((k) => {
+    const tag = k.kind === 'codebase' ? ' [codebase: live exploration, no index]' : '';
+    return `- ${k.kbName.replace(/[\p{Cc}\s]+/gu, ' ').trim()} (kbId: ${k.kbId})${tag}`;
+  });
+  const hasCodebase = kbs.some((k) => k.kind === 'codebase');
+  const codebase = hasCodebase ? CODEBASE_GUIDE : '';
   const names = provider === 'claude-cli' ? `In this CLI the tool names are prefixed with ${KB_MCP_TOOL_PREFIX}.` : '';
   const deep = mode === 'deep' ? DEEP_EXTRA : '';
-  return ['Knowledge bases for this answer:', ...list, KB_TOOLS_GUIDE, names, deep].filter(Boolean).join('\n');
+  return ['Knowledge bases for this answer:', ...list, KB_TOOLS_GUIDE, codebase, names, deep].filter(Boolean).join('\n');
 }

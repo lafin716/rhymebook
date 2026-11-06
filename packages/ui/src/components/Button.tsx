@@ -11,7 +11,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT: Record<Variant, string> = {
-  primary: 'bg-accent text-accent-fg hover:brightness-110 disabled:opacity-50',
+  // 비활성은 투명도 대신 표면 토큰으로 낮춘다 (투명도를 주면 다크 모드에서 글자가 배경에 묻힌다)
+  primary: 'bg-accent text-accent-fg hover:brightness-110 disabled:bg-surface-2 disabled:text-muted',
   secondary: 'bg-surface text-fg border border-line hover:bg-surface-2 disabled:opacity-50',
   ghost: 'text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40',
   danger: 'bg-danger text-white hover:brightness-110 disabled:opacity-50',

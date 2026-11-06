@@ -3,6 +3,9 @@ import { getLocale, interpolate, LANGUAGES, rawMessage, t, type Locale } from '.
 import type { ConnectionState, ID, Message, ProviderId, Session, Skill, SkillFile, SkillOptions, SkillRef } from './model';
 import { PROVIDER_LABELS } from './provider';
 import { SCHEDULE_PROTOCOL } from './schedules';
+import { LEGACY_KNOWLEDGE_PROMPTS } from './skillsLegacy';
+
+export { LEGACY_KNOWLEDGE_PROMPTS };
 
 /** 스킬 제한 (ADR-034) */
 export const SKILL_LIMITS = {
@@ -377,6 +380,7 @@ const sameContent = (s: Skill, c: BuiltinContent) =>
 /**
  * 기본 제공 스킬을 새 버전·지금 언어로 올린다. 사용자가 고치지 않은 것만 바꾼다:
  * - 예전 기본 커리큘럼 지시 그대로인 것
+ * - 예전 기본 '지식베이스 탐색' 지시(작업 폴더 Glob/Grep/Read, 5개 언어) 그대로인 것 (ADR-131)
  * - 제목·설명·지시가 다른 언어의 기본 문구와 똑같은 것 (언어를 바꾸면 기본 스킬도 그 언어로)
  * 바뀐 스킬만 돌려준다.
  */
@@ -388,7 +392,10 @@ export function upgradeBuiltinSkills(skills: readonly Skill[], now = Date.now())
     if (!def || s.name !== def.name) continue;
     const want = builtinSkillContent(def.name, locale);
     if (sameContent(s, want)) continue;
-    const legacy = s.id === CURRICULUM_SKILL_ID && LEGACY_CURRICULUM_PROMPTS.includes(s.prompt.trim());
+    const prompt = s.prompt.trim();
+    const legacy =
+      (s.id === CURRICULUM_SKILL_ID && LEGACY_CURRICULUM_PROMPTS.includes(prompt)) ||
+      (s.id === KNOWLEDGE_SKILL_ID && LEGACY_KNOWLEDGE_PROMPTS.includes(prompt));
     const otherLocale = LANGUAGES.some((l) => l.id !== locale && sameContent(s, builtinSkillContent(def.name, l.id)));
     if (legacy || otherLocale) out.push({ ...s, ...want, updatedAt: now });
   }

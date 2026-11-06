@@ -1,17 +1,20 @@
-import { t } from '../i18n';
+import { intlLocale, t } from '../i18n';
 import {
   cleanKnowledgeName,
   DEFAULT_RAG_SETTINGS,
   isKnowledgeLinkUrl,
+  knowledgeReadiness,
   parseGitHubRepo,
   type KnowledgeAddResult,
   type KnowledgeBase,
   type KnowledgeEntry,
+  type KnowledgeIndexState,
   type KnowledgePreview,
   type KnowledgeProgress,
+  type ReadinessInfo,
   type ID,
 } from '@branch/core';
-import { ArrowLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, File, FileText, Folder, FolderOpen, Link2, Maximize2, Minimize2, Pencil, Plus, Settings2, SlidersHorizontal, Trash2, Upload, X, GitBranch } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, File, FileText, Folder, FolderOpen, Link2, Maximize2, Minimize2, Pencil, Plus, Search, Settings2, SlidersHorizontal, Trash2, Upload, X, GitBranch } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { remoteMode } from '../app/capabilities';
 import { actions, useApp } from '../app/store';
@@ -19,13 +22,22 @@ import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
+import { relativeTime } from '../lib/time';
 import { ipcErrorMessage } from './api';
+import { kbErrorGuide } from './kbErrors';
 import { IndexStatus } from './IndexStatus';
+import { DocMaintenance, ExcludesEditor, KbOverview, KindBadge, KindChooser, ReadinessBadge } from './KbPanels';
+import { KnowledgeCreate } from './KnowledgeCreate';
+import { filterBases, findDuplicates, groupByKind, kindKey, middleEllipsis, sortBases, validTime, type KbFilter, type KbSort } from './kbModel';
 import { ancestors, comparePath, loadedBy, mergeLevel } from './lazyTree';
 import { AutoIndexSwitch, KnowledgeInsights, KnowledgeSettingsDialog, RagSettingsDialog } from './KnowledgeInsights';
+import { KnowledgeSearchTest } from './KnowledgeSearchTest';
 import { fetchAllowDelete, onRemoteKnowledgeChanged, useKnowledgeApi, useRemoteState } from './remoteApi';
 import { isRemoteForbidden } from './remoteKnowledge';
 import { resetSessionKnowledge, toggleSessionKnowledge, useSessionKnowledge } from './sessionKnowledge';
+
+const FILTERS: KbFilter[] = ['all', 'codebase', 'document'];
+const GROUP_ORDER = ['codebase', 'document', 'unclassified'] as const;
 
 export interface KnowledgeDialogProps {
   open: boolean;
@@ -57,6 +69,8 @@ interface PreviewState {
  */
 /** 실패 문구 뒤에 IPC가 준 원인 메시지를 덧붙인다 (접두어 제거) */
 function withDetail(message: string, e: unknown): string {
+  const guide = kbErrorGuide(e, t);
+  if (guide) return `${message} ${guide}`;
   const detail = ipcErrorMessage(e);
   return detail ? `${message} (${detail})` : message;
 }
@@ -91,6 +105,13 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   const [gitUrl, setGitUrl] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [full, setFull] = useState(false);
+  const [filter, setFilter] = useState<KbFilter>('all');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<KbSort>('recent');
+  /** 지식베이스별 색인 상태 (준비 상태 배지·색인 조치에 쓴다) */
+  const [indexMap, setIndexMap] = useState<Record<string, KnowledgeIndexState>>({});
+  /** 목록을 보여 줄 때 오른쪽은 등록 화면이거나 선택한 지식베이스다 (모바일에서는 한 칸만 보인다) */
+  const showDetail = !!selected || creating;
   /** 펼친 폴더 경로. 폴더는 처음에 접혀 있다 */
   const [expanded, setExpandedState] = useState<Set<string>>(() => new Set());
   /** 다시 읽을 때 쓰는 최신 펼침 상태 (state는 다음 렌더까지 옛 값이다) */
@@ -122,6 +143,30 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   }, [task]);
 
   const current = bases.find((b) => b.id === selected);
+
+  // 색인 상태: 처음 한 번 전부 읽고, 이후 변화는 구독으로 받는다 (코드베이스는 색인이 없어 비어 있어도 된다)
+  useEffect(() => {
+    if (!open || !api) return;
+    let alive = true;
+    void api
+      .indexStates?.()
+      ?.then((list) => {
+        if (alive) setIndexMap(Object.fromEntries(list.map((s) => [s.kbId, s])));
+      })
+      .catch(() => undefined);
+    const off = api.onIndexState?.((s) => setIndexMap((prev) => ({ ...prev, [s.kbId]: s })));
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, [open, api]);
+
+  const readinessOf = (kb: KnowledgeBase): ReadinessInfo => knowledgeReadiness(kb, indexMap[kb.id]);
+  const visibleBases = sortBases(filterBases(bases, { query, filter }), sort);
+  const groups = groupByKind(visibleBases);
+  /** 코드베이스는 색인·드롭·연결 경로 추가가 없다 (원본 폴더를 보호한다) */
+  const isCodebase = current?.kind === 'codebase';
+  const isUnclassified = !!current && kindKey(current.kind) === 'unclassified';
 
   const reload = useCallback(async () => {
     if (!api) return;
@@ -287,15 +332,16 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     setNotice(text || t('knowledge.add.nothing'), r.added.length ? 'info' : 'error');
   };
 
-  const submitCreate = async (e: FormEvent) => {
-    e.preventDefault();
-    const name = cleanKnowledgeName(draftName);
-    if (!name || !api) return;
-    const kb = await run(() => api.create(name));
-    if (!kb) return;
-    setDraftName('');
+  /** 등록 마법사가 끝나면 새 지식베이스를 고르고, 안내(예: 코드베이스 복제 실패)를 보인다 */
+  const onCreated = async (kb: KnowledgeBase, notice?: string) => {
     await reload();
     select(kb.id);
+    if (notice) setNotice(notice);
+  };
+
+  /** 문서 색인 정비 뒤: 목록·트리를 다시 읽는다 */
+  const afterIndexChange = () => {
+    if (current) void refresh(current.id).catch(() => undefined);
   };
 
   const submitRename = async (e: FormEvent) => {
@@ -324,8 +370,9 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
       tone: 'danger',
     });
     if (!ok) return;
-    if (linkedIds.includes(current.id)) toggleSessionKnowledge(sessionId, linkedIds, current.id);
     if (!(await runVoid(() => api.remove(current.id)))) return;
+    // 삭제된 KB를 모든 세션의 연결 목록에서 뺀다 (빈 목록은 끔으로 남아 부모 상속으로 바뀌지 않는다)
+    actions().forgetKnowledgeBase(current.id);
     select(null);
     await reload();
   };
@@ -360,10 +407,20 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     // 처리 중에 또 놓으면 넣지 않고 알린다 (같은 파일이 겹쳐 들어가지 않게)
     if (busy) return setError(t('knowledge.add.busyDrop'));
     const id = current.id;
+    // 같은 이름·크기의 파일이 이미 있으면 다시 넣지 않는다 (목록 안 중복은 findDuplicates가 함께 본다)
+    const existing = await api
+      .tree(id)
+      .then((es) => es.filter((x) => !x.dir && x.size !== undefined).map((x) => ({ name: x.path.split('/').pop() ?? x.path, size: x.size ?? 0 })))
+      .catch(() => []);
+    const { duplicates, unique } = findDuplicates(
+      files.map((f) => ({ name: f.name, size: f.size, file: f })),
+      existing,
+    );
+    if (!unique.length) return setError(t('knowledge.add.allDuplicates', { count: duplicates.length }));
     const results = await runImport('files', async () => {
       const paths: string[] = [];
       const blobs: { name: string; data: Uint8Array }[] = [];
-      for (const f of files) {
+      for (const { file: f } of unique) {
         const p = api.pathForFile(f);
         if (p) paths.push(p);
         else blobs.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
@@ -374,7 +431,8 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
       return out;
     });
     if (results) {
-      report(merge(results));
+      const r = merge(results);
+      report({ ...r, skipped: r.skipped + duplicates.length });
       await refresh(id);
     }
   };
@@ -466,37 +524,60 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     if (!api) return <Notice text={t('knowledge.unavailable.notice')} />;
     return (
       <div className="flex min-h-0 flex-1">
-        <aside className={cn('w-full shrink-0 flex-col border-line md:w-72 md:border-r', selected ? 'hidden md:flex' : 'flex')}>
+        <aside className={cn('w-full shrink-0 flex-col border-line md:w-72 md:border-r', showDetail ? 'hidden md:flex' : 'flex')}>
           <div className="flex items-center gap-2 px-4 pt-4 pb-2">
             <h3 className="flex-1 text-[13px] font-semibold text-fg-2">{t('knowledge.list.heading')}</h3>
-            <Button size="sm" variant="soft" icon={<Plus size={14} />} disabled={busy} onClick={() => setCreating((v) => !v)}>
+            <Button size="sm" variant="soft" icon={<Plus size={14} />} disabled={busy} onClick={() => setCreating(true)}>
               {t('knowledge.list.create')}
             </Button>
             <IconButton size="sm" label={t('knowledge.rag.open')} onClick={() => setRagOpen(true)}>
               <SlidersHorizontal size={15} />
             </IconButton>
           </div>
-          {creating && (
-            <form onSubmit={submitCreate} className="flex flex-col gap-2 px-4 pb-3">
+          <div className="flex flex-col gap-2 px-4 pb-2">
+            <div className="relative">
+              <Search size={14} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-2" />
               <input
-                autoFocus
-                aria-label={t('knowledge.create.title')}
-                value={draftName}
-                maxLength={80}
-                placeholder={t('knowledge.create.namePlaceholder')}
-                onChange={(e) => setDraftName(e.target.value)}
-                className="h-9 rounded-lg border border-line bg-surface px-3 text-[14px] outline-none focus:border-accent"
+                type="search"
+                aria-label={t('knowledge.list.search')}
+                value={query}
+                placeholder={t('knowledge.list.searchPlaceholder')}
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-8 w-full rounded-lg border border-line bg-surface pr-2 pl-8 text-[13px] outline-none focus:border-accent"
               />
-              <div className="flex justify-end gap-2">
-                <Button size="sm" variant="ghost" onClick={() => setCreating(false)}>
-                  {t('knowledge.create.cancel')}
-                </Button>
-                <Button size="sm" variant="primary" type="submit" disabled={busy || !cleanKnowledgeName(draftName)}>
-                  {t('knowledge.create.submit')}
-                </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <div role="group" aria-label={t('knowledge.list.filter')} className="flex min-w-0 flex-1 gap-1">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    aria-pressed={filter === f}
+                    onClick={() => setFilter(f)}
+                    className={cn(
+                      'min-h-7 rounded-full px-2.5 text-[12px] transition-colors',
+                      filter === f ? 'bg-accent-soft font-medium text-accent' : 'text-fg-2 hover:bg-surface-2 hover:text-fg',
+                    )}
+                  >
+                    {f === 'all' ? t('knowledge.list.filterAll') : t(`knowledge.kind.${f}`)}
+                  </button>
+                ))}
               </div>
-            </form>
-          )}
+              <label className="sr-only" htmlFor="kb-sort">
+                {t('knowledge.list.sort')}
+              </label>
+              <select
+                id="kb-sort"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as KbSort)}
+                className="h-7 shrink-0 rounded-lg border border-line bg-surface px-1.5 text-[12px] outline-none focus:border-accent"
+              >
+                <option value="recent">{t('knowledge.list.sortRecent')}</option>
+                <option value="name">{t('knowledge.list.sortName')}</option>
+                <option value="size">{t('knowledge.list.sortSize')}</option>
+              </select>
+            </div>
+          </div>
           <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-2 pb-4">
             {loaded && bases.length === 0 && (
               <div className="px-2 py-6 text-center">
@@ -507,49 +588,89 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                 </Button>
               </div>
             )}
-            <ul className="flex flex-col gap-1">
-              {bases.map((b) => (
-                <li key={b.id}>
-                  <button
-                    type="button"
-                    aria-current={b.id === selected ? 'true' : undefined}
-                    onClick={() => select(b.id)}
-                    className={cn(
-                      'flex w-full min-w-0 flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left transition-colors',
-                      b.id === selected ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2',
-                    )}
-                  >
-                    <span className="flex w-full min-w-0 items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{b.name}</span>
-                      {linkedIds.includes(b.id) && (
-                        <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[11px] font-medium text-accent-fg">
-                          {t('knowledge.list.linkedBadge')}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[12px] text-fg-2">{b.statsPending ? t('knowledge.list.counting') : t('knowledge.list.count', { count: b.fileCount })}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {loaded && bases.length > 0 && visibleBases.length === 0 && <p className="px-3 py-4 text-[13px] text-fg-2">{t('knowledge.list.noMatch')}</p>}
+            {GROUP_ORDER.map((key) =>
+              groups[key].length === 0 ? null : (
+                <section key={key} aria-label={t(`knowledge.kind.${key}`)} className="mb-2">
+                  {filter === 'all' && <h4 className="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-muted uppercase">{t(`knowledge.kind.${key}`)}</h4>}
+                  <ul className="flex flex-col gap-1">
+                    {groups[key].map((b) => {
+                      const info = readinessOf(b);
+                      return (
+                        <li key={b.id}>
+                          <button
+                            type="button"
+                            aria-current={b.id === selected ? 'true' : undefined}
+                            onClick={() => select(b.id)}
+                            className={cn(
+                              'flex w-full min-w-0 flex-col items-start gap-1 rounded-lg px-3 py-2 text-left transition-colors',
+                              b.id === selected ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-surface-2',
+                            )}
+                          >
+                            <span className="flex w-full min-w-0 items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{b.name}</span>
+                              {linkedIds.includes(b.id) && (
+                                <span className="shrink-0 rounded-full bg-accent px-1.5 py-px text-[11px] font-medium text-accent-fg">
+                                  {t('knowledge.list.linkedBadge')}
+                                </span>
+                              )}
+                            </span>
+                            {b.description && <span className="block w-full min-w-0 truncate text-[12px] text-fg-2">{b.description}</span>}
+                            {b.kind === 'codebase' && b.linkedPath && (
+                              <span className="block w-full min-w-0 truncate font-mono text-[11px] text-muted" title={b.linkedPath}>
+                                {middleEllipsis(b.linkedPath, 44)}
+                              </span>
+                            )}
+                            <span className="flex w-full min-w-0 flex-wrap items-center gap-1.5 text-[12px] text-fg-2">
+                              <KindBadge kind={b.kind} />
+                              <ReadinessBadge info={info} />
+                              {info.readiness === 'failed' && <AlertTriangle aria-hidden className="size-3.5 shrink-0 text-danger" />}
+                              <span className="min-w-0 truncate">{b.statsPending ? t('knowledge.list.counting') : t('knowledge.list.count', { count: b.fileCount })}</span>
+                              {validTime(b.updatedAt) !== null && (
+                                <time dateTime={new Date(b.updatedAt).toISOString()} title={new Date(b.updatedAt).toLocaleString(intlLocale())} className="ml-auto shrink-0 text-muted">
+                                  {relativeTime(b.updatedAt)}
+                                </time>
+                              )}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ),
+            )}
           </div>
         </aside>
 
-        <section className={cn('min-h-0 min-w-0 flex-1 flex-col', selected ? 'flex' : 'hidden md:flex')}>
-          {!current ? (
+        <section className={cn('min-h-0 min-w-0 flex-1 flex-col', showDetail ? 'flex' : 'hidden md:flex')}>
+          {creating ? (
+            <div className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+              <div className="flex items-center gap-2">
+                <IconButton size="sm" label={t('knowledge.dialog.back')} className="md:hidden" onClick={() => setCreating(false)}>
+                  <ArrowLeft size={16} />
+                </IconButton>
+              </div>
+              <KnowledgeCreate api={api} onCreated={onCreated} onCancel={() => setCreating(false)} />
+            </div>
+          ) : !current ? (
             <div className="flex flex-1 items-center justify-center p-6 text-[14px] text-fg-2">{loaded && bases.length ? t('knowledge.tree.previewEmpty') : null}</div>
           ) : (
             <div
               className="scroll-thin flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4"
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = busy ? 'none' : 'copy';
-                setDragOver(true);
-              }}
+              onDragOver={
+                isCodebase
+                  ? undefined
+                  : (e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = busy ? 'none' : 'copy';
+                      setDragOver(true);
+                    }
+              }
               onDragLeave={(e) => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
               }}
-              onDrop={(e) => void addDropped(e)}
+              onDrop={isCodebase ? undefined : (e) => void addDropped(e)}
             >
               <div className="flex flex-wrap items-center gap-2">
                 <IconButton size="sm" label={t('knowledge.dialog.back')} className="md:hidden" onClick={() => select(null)}>
@@ -616,53 +737,90 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                 </div>
               )}
 
-              <IndexStatus kbId={current.id} />
+              <KbOverview kb={current} info={readinessOf(current)} />
 
-              <KnowledgeInsights kbId={current.id} revision={tree} onChanged={() => void refresh(current.id)} />
+              {isCodebase && (
+                <ExcludesEditor
+                  kb={current}
+                  api={api}
+                  disabled={busy}
+                  onSaved={() => void reload()}
+                  onError={(e) => setError(withDetail(t('knowledge.error.generic'), e))}
+                />
+              )}
 
-              <div
-                data-knowledge-drop=""
-                className={cn(
-                  'flex flex-col gap-3 rounded-xl border border-dashed border-line p-3 transition-colors',
-                  dragOver && 'border-accent bg-accent-soft',
-                )}
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Upload size={15} className="text-fg-2" />
-                  <span className="min-w-0 flex-1 text-[13px] text-fg-2">{t('knowledge.add.drop')}</span>
-                  <Button size="sm" variant="secondary" disabled={busy} onClick={() => void pickFiles()}>
-                    {t('knowledge.add.pick')}
-                  </Button>
-                </div>
-                <form onSubmit={addLink} className="flex items-center gap-2">
-                  <Link2 size={15} className="shrink-0 text-fg-2" />
-                  <input
-                    aria-label={t('knowledge.add.linkLabel')}
-                    value={linkUrl}
-                    placeholder={t('knowledge.add.linkPlaceholder')}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 text-[13px] outline-none focus:border-accent"
+              {isUnclassified && (
+                <KindChooser
+                  kb={current}
+                  api={api}
+                  disabled={busy}
+                  onChanged={() => void reload()}
+                  onError={(e) => setError(withDetail(t('knowledge.error.generic'), e))}
+                />
+              )}
+
+              {!isUnclassified && <KnowledgeSearchTest kb={current} api={api} />}
+
+              {!isCodebase && (
+                <>
+                  <IndexStatus kbId={current.id} />
+
+                  <DocMaintenance
+                    kb={current}
+                    state={indexMap[current.id]}
+                    api={api}
+                    disabled={busy}
+                    onChanged={afterIndexChange}
+                    onError={(e) => setError(withDetail(t('knowledge.error.generic'), e))}
                   />
-                  <Button size="sm" variant="secondary" type="submit" disabled={busy || !linkUrl.trim()}>
-                    {t('knowledge.add.linkSubmit')}
-                  </Button>
-                </form>
-                <form onSubmit={addGit} className="flex items-center gap-2">
-                  <GitBranch size={15} className="shrink-0 text-fg-2" />
-                  <input
-                    aria-label={t('knowledge.add.gitLabel')}
-                    value={gitUrl}
-                    placeholder={t('knowledge.add.gitPlaceholder')}
-                    onChange={(e) => setGitUrl(e.target.value)}
-                    className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 text-[13px] outline-none focus:border-accent"
-                  />
-                  <Button size="sm" variant="secondary" type="submit" disabled={busy || !gitUrl.trim()}>
-                    {t('knowledge.add.gitSubmit')}
-                  </Button>
-                </form>
-                <p data-git-hint className="pl-[23px] text-[12px] text-fg-2">{t('knowledge.add.gitHint')}</p>
-                {task && <ImportProgress task={task} progress={progress} now={now} onCancel={api.cancel ? cancelImport : undefined} />}
-              </div>
+
+                  <KnowledgeInsights kbId={current.id} revision={tree} onChanged={() => void refresh(current.id)} />
+
+                  <div
+                    data-knowledge-drop=""
+                    className={cn(
+                      'flex flex-col gap-3 rounded-xl border border-dashed border-line p-3 transition-colors',
+                      dragOver && 'border-accent bg-accent-soft',
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Upload size={15} className="text-fg-2" />
+                      <span className="min-w-0 flex-1 text-[13px] text-fg-2">{t('knowledge.add.drop')}</span>
+                      <Button size="sm" variant="secondary" disabled={busy} onClick={() => void pickFiles()}>
+                        {t('knowledge.add.pick')}
+                      </Button>
+                    </div>
+                    <form onSubmit={addLink} className="flex items-center gap-2">
+                      <Link2 size={15} className="shrink-0 text-fg-2" />
+                      <input
+                        aria-label={t('knowledge.add.linkLabel')}
+                        value={linkUrl}
+                        placeholder={t('knowledge.add.linkPlaceholder')}
+                        onChange={(e) => setLinkUrl(e.target.value)}
+                        className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 text-[13px] outline-none focus:border-accent"
+                      />
+                      <Button size="sm" variant="secondary" type="submit" disabled={busy || !linkUrl.trim()}>
+                        {t('knowledge.add.linkSubmit')}
+                      </Button>
+                    </form>
+                    <form onSubmit={addGit} className="flex items-center gap-2">
+                      <GitBranch size={15} className="shrink-0 text-fg-2" />
+                      <input
+                        aria-label={t('knowledge.add.gitLabel')}
+                        value={gitUrl}
+                        placeholder={t('knowledge.add.gitPlaceholder')}
+                        onChange={(e) => setGitUrl(e.target.value)}
+                        className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 text-[13px] outline-none focus:border-accent"
+                      />
+                      <Button size="sm" variant="secondary" type="submit" disabled={busy || !gitUrl.trim()}>
+                        {t('knowledge.add.gitSubmit')}
+                      </Button>
+                    </form>
+                    <p data-git-hint className="pl-[23px] text-[12px] text-fg-2">{t('knowledge.add.gitHint')}</p>
+                    {task && <ImportProgress task={task} progress={progress} now={now} onCancel={api.cancel ? cancelImport : undefined} />}
+                  </div>
+                </>
+              )}
 
               {notice && (
                 <p
@@ -722,7 +880,7 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                               <FolderOpen size={13} />
                             </IconButton>
                           )}
-                          {canDelete && (
+                          {canDelete && !isCodebase && (
                             <IconButton size="sm" label={`${t('knowledge.tree.remove')}: ${name}`} disabled={busy} onClick={() => void removeEntry(entry)} className="size-6 opacity-70 hover:text-danger hover:opacity-100">
                               <X size={13} />
                             </IconButton>

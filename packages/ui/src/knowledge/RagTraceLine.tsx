@@ -4,7 +4,16 @@ import { useApp } from '../app/store';
 
 /** 사용자가 알아야 하는 대체·실패 안내 (펼치지 않아도 보인다) */
 type WarnCode = Exclude<RetrievalNoticeCode, 'expanded'>;
-const WARN_CODES: ReadonlySet<RetrievalNoticeCode> = new Set<WarnCode>(['semantic_unavailable', 'embed_failed', 'insufficient', 'timeout', 'kb_skipped']);
+const WARN_CODES: ReadonlySet<RetrievalNoticeCode> = new Set<WarnCode>([
+  'semantic_unavailable',
+  'embed_failed',
+  'insufficient',
+  'timeout',
+  'kb_skipped',
+  'keyword_only',
+  'version_conflict',
+  'codebase_missing',
+]);
 const isWarn = (c: RetrievalNoticeCode): c is WarnCode => WARN_CODES.has(c);
 
 const TIMING_KEYS: (keyof RetrievalTimings)[] = ['expandMs', 'embedMs', 'keywordMs', 'symbolMs', 'pathMs', 'folderMs', 'vectorMs', 'fetchMs', 'selectMs', 'totalMs'];

@@ -18,6 +18,7 @@ import { Modal } from '../components/Modal';
 import { Toggle } from '../settings/controls';
 import { cn } from '../lib/cn';
 import { ipcErrorMessage, knowledgeApi } from './api';
+import { kbErrorGuide } from './kbErrors';
 
 /**
  * 지식베이스 상세의 부가 패널 (ADR-113): 설명, 출처, 임베딩 설정, 검색 설정, 저장 용량.
@@ -26,6 +27,8 @@ import { ipcErrorMessage, knowledgeApi } from './api';
 
 /** 실패 문구: 기본 문구 뒤에 IPC가 준 원인을 덧붙인다 */
 function failure(e: unknown): string {
+  const guide = kbErrorGuide(e, t);
+  if (guide) return `${t('knowledge.error.generic')} ${guide}`;
   const detail = ipcErrorMessage(e);
   return detail ? `${t('knowledge.error.generic')} (${detail})` : t('knowledge.error.generic');
 }

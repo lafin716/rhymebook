@@ -230,6 +230,7 @@ export async function retrieveForChat(
       kbIds,
       expanded,
       ...(result?.semanticKbIds?.length ? { semanticKbIds: result.semanticKbIds } : {}),
+      ...(result?.routed ? { routed: result.routed } : {}),
       notices: uniq,
       topPaths: topPathsOf(result?.evidence ?? []),
       timings: { ...(result?.timings ?? {}), ...(expandMs !== undefined ? { expandMs } : {}), totalMs: Date.now() - started },
@@ -375,6 +376,8 @@ export interface AppState extends AppData {
   setSessionKnowledge(id: ID, knowledgeId: string | null): void;
   /** 이 세션의 지식베이스 목록을 정한다. []는 끔, null이면 부모를 따른다 (ADR-113) */
   setSessionKnowledgeIds(id: ID, ids: string[] | null): void;
+  /** 삭제된 지식베이스 id를 모든 세션의 연결에서 뗀다 (세션·메시지는 그대로). 바뀐 세션 수 */
+  forgetKnowledgeBase(knowledgeId: string): number;
 
   // 메시지
   /** 질문 보내기. 첨부가 있으면 text가 비어도 된다 */
@@ -1221,6 +1224,30 @@ export function createAppStore(opts: AppStoreOptions): AppStore {
         }
         set((s) => ({ sessions: { ...s.sessions, [next.id]: next } }));
         repo.saveSession(next);
+      },
+
+      forgetKnowledgeBase(knowledgeId) {
+        let changed = 0;
+        const updates: Record<ID, Session> = {};
+        for (const cur of Object.values(get().sessions)) {
+          const hasList = cur.knowledgeIds?.includes(knowledgeId) ?? false;
+          const hasLegacy = cur.knowledgeId === knowledgeId;
+          if (!hasList && !hasLegacy) continue;
+          const next: Session = { ...cur };
+          // 목록에서만 빼고, 빈 목록([] = 끔)으로 남겨 부모 상속으로 바뀌지 않게 한다
+          if (hasList) next.knowledgeIds = (cur.knowledgeIds ?? []).filter((k) => k !== knowledgeId);
+          if (hasLegacy) {
+            const first = next.knowledgeIds?.[0];
+            if (first) next.knowledgeId = first;
+            else delete next.knowledgeId;
+          }
+          updates[next.id] = next;
+          changed++;
+        }
+        if (!changed) return 0;
+        set((s) => ({ sessions: { ...s.sessions, ...updates } }));
+        for (const next of Object.values(updates)) repo.saveSession(next);
+        return changed;
       },
 
       setSessionModel(id, patch) {

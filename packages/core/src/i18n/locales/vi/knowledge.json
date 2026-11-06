@@ -30,13 +30,76 @@
     "link": "Liên kết với việc học này",
     "unlink": "Hủy liên kết",
     "count": "{count} tệp",
-    "counting": "Đang đếm tệp…"
+    "counting": "Đang đếm tệp…",
+    "filter": "Lọc theo loại",
+    "filterAll": "Tất cả",
+    "noMatch": "Không có cơ sở tri thức nào khớp.",
+    "search": "Tìm cơ sở tri thức",
+    "searchPlaceholder": "Tìm theo tên, mô tả hoặc đường dẫn",
+    "sort": "Sắp xếp",
+    "sortName": "Theo tên",
+    "sortRecent": "Mới nhất",
+    "sortSize": "Theo kích thước"
   },
   "create": {
     "title": "Cơ sở tri thức mới",
     "namePlaceholder": "Tên (ví dụ: Giáo trình sinh học tế bào)",
     "submit": "Tạo",
-    "cancel": "Hủy"
+    "cancel": "Hủy",
+    "back": "Quay lại",
+    "kindTitle": "Bạn muốn tạo cơ sở tri thức loại nào?",
+    "name": "Tên",
+    "description": "Mô tả (tuỳ chọn)",
+    "working": "Đang tạo…",
+    "failed": "Không thể tạo. Vui lòng thử lại.",
+    "kind": {
+      "codebase": {
+        "title": "Mã nguồn",
+        "desc": "Thư mục hoặc kho GitHub. Tệp được tìm trực tiếp mỗi lần bạn hỏi."
+      },
+      "document": {
+        "title": "Tài liệu",
+        "desc": "Lập chỉ mục PDF và tài liệu để tìm theo từ khoá và ngữ nghĩa."
+      }
+    },
+    "codebase": {
+      "notice": "Mã nguồn không được lập chỉ mục. Tệp thực được tìm trực tiếp mỗi lần bạn hỏi.",
+      "source": "Nguồn",
+      "pathLabel": "Đường dẫn thư mục",
+      "pathPlaceholder": "/duong-dan/du-an",
+      "pickFolder": "Chọn thư mục",
+      "gitLabel": "Hoặc kho GitHub",
+      "gitPlaceholder": "owner/repo hoặc https://github.com/owner/repo",
+      "gitHint": "Chỉ tải các tệp mới nhất của nhánh mặc định",
+      "inspecting": "Đang kiểm tra thư mục…",
+      "inspectFailed": "Không đọc được thư mục. Hãy kiểm tra đường dẫn.",
+      "inspected": "{count} tệp · {size}",
+      "truncated": "Quá nhiều tệp nên chỉ đếm một phần.",
+      "isGit": "Đây là kho Git.",
+      "suggestDocument": "Nếu thư mục chủ yếu là PDF hoặc tài liệu, nên tạo dưới dạng Tài liệu.",
+      "descPlaceholder": "VD: Mã nguồn module thanh toán",
+      "excludes": "Đường dẫn loại trừ (mỗi dòng một đường dẫn)",
+      "excludesHint": "Các thư mục build và phụ thuộc như node_modules được loại trừ mặc định.",
+      "submit": "Tạo mã nguồn",
+      "cloneFailed": "Không thể sao chép kho. Hãy kiểm tra URL và quyền truy cập. Cơ sở tri thức đã được tạo."
+    },
+    "document": {
+      "pick": "Chọn tệp",
+      "pickFolder": "Chọn thư mục",
+      "empty": "Kéo tệp hoặc thư mục vào đây",
+      "count": "{count} · {size}",
+      "listLabel": "Danh sách tệp sẽ thêm",
+      "remove": "Xoá khỏi danh sách",
+      "duplicates": "{count} tệp trùng tên và kích thước sẽ bị loại trừ.",
+      "submit": "Tạo cơ sở tri thức tài liệu",
+      "index": {
+        "label": "Phương thức lập chỉ mục",
+        "local": "Tìm kiếm ngữ nghĩa cục bộ (mặc định)",
+        "none": "Chỉ từ khoá (BM25, không có chỉ mục ngữ nghĩa)",
+        "openai": "Embedding OpenAI (nâng cao, cần khoá API)",
+        "advanced": "Nâng cao"
+      }
+    }
   },
   "rename": {
     "action": "Đổi tên",
@@ -80,7 +143,8 @@
     "busyDrop": "Vẫn đang nhập. Hãy thả lại khi xong.",
     "dropEmpty": "Không tìm thấy tệp nào trong những mục đã thả.",
     "nothing": "Chưa thêm tệp nào. Hãy kiểm tra kích thước hoặc loại tệp.",
-    "gitHint": "Chỉ tải các tệp mới nhất của nhánh mặc định (main, master, …)"
+    "gitHint": "Chỉ tải các tệp mới nhất của nhánh mặc định (main, master, …)",
+    "allDuplicates": "Đã bỏ qua {count} tệp đã có sẵn."
   },
   "error": {
     "generic": "Đã xảy ra lỗi. Hãy thử lại.",
@@ -233,6 +297,120 @@
     "embed_failed": "Tìm kiếm ngữ nghĩa thất bại nên đã dùng tìm theo từ khóa.",
     "insufficient": "Không tìm thấy bằng chứng liên quan trong kho tri thức.",
     "timeout": "Tìm kiếm quá thời gian nên câu trả lời không có bằng chứng từ kho tri thức.",
-    "kb_skipped": "Đã bỏ qua kho tri thức chưa có chỉ mục."
+    "kb_skipped": "Đã bỏ qua kho tri thức chưa có chỉ mục.",
+    "keyword_only": "Chỉ tìm theo từ khóa (không dùng embedding).",
+    "version_conflict": "Các nguồn ghi phiên bản khác nhau. Hãy kiểm tra phiên bản trong câu trả lời.",
+    "codebase_missing": "Không tìm thấy thư mục codebase nên đã bỏ qua."
+  },
+  "kind": {
+    "codebase": "Mã nguồn",
+    "document": "Tài liệu",
+    "unclassified": "Chưa phân loại",
+    "choose": "Hãy chọn loại",
+    "suggest": "Gợi ý: {kind}",
+    "blocked": "Mã nguồn liên kết thư mục không thể đổi thành tài liệu."
+  },
+  "maint": {
+    "heading": "Bảo trì chỉ mục",
+    "retryFailed": "Thử lại {count} tài liệu lỗi",
+    "retried": "Đang lập chỉ mục lại {count} tài liệu lỗi.",
+    "rebuild": "Xây dựng lại tất cả",
+    "rebuilding": "Đang xây dựng lại toàn bộ.",
+    "verify": "Kiểm tra chỉ mục",
+    "verifyOk": "Chỉ mục không có vấn đề.",
+    "verifyBad": "Chỉ mục có vấn đề. Hãy thử xây dựng lại tất cả.",
+    "restore": "Khôi phục từ bản sao lưu",
+    "restored": "Đã khôi phục chỉ mục từ bản sao lưu.",
+    "noBackup": "Không có bản sao lưu để khôi phục."
+  },
+  "overview": {
+    "heading": "Tổng quan",
+    "kind": "Loại",
+    "method": "Phương thức tìm kiếm",
+    "path": "Đường dẫn liên kết",
+    "files": "Tệp",
+    "updated": "Cập nhật"
+  },
+  "method": {
+    "agentic": "Tìm trực tiếp (không chỉ mục)",
+    "hybrid": "Tìm kết hợp (vector + từ khoá)"
+  },
+  "codebase": {
+    "excludes": "Danh sách loại trừ",
+    "excludesHint": "Thay đổi áp dụng từ câu hỏi tiếp theo. Không cần lập chỉ mục lại.",
+    "excludesReset": "Khôi phục mặc định",
+    "excludesSave": "Lưu"
+  },
+  "readiness": {
+    "ready": "Sẵn sàng",
+    "empty": "Trống",
+    "loading": "Đang tải",
+    "indexing": "Đang lập chỉ mục",
+    "rebuilding": "Đang xây dựng lại",
+    "partial": "Sẵn sàng một phần",
+    "cancelled": "Đã huỷ",
+    "needsKind": "Cần chọn loại",
+    "failed": "Lỗi"
+  },
+  "cause": {
+    "updating": "Tệp đã thay đổi và đang cập nhật nội dung mới nhất.",
+    "last_failed": "Tác vụ gần nhất đã lỗi.",
+    "stale": "Tệp đã thay đổi và cần lập chỉ mục lại.",
+    "failed_docs": "Một số tài liệu không thể lập chỉ mục.",
+    "index_error": "Đã xảy ra lỗi khi lập chỉ mục.",
+    "not_indexed": "Chưa được lập chỉ mục.",
+    "codebase_missing": "Không tìm thấy thư mục liên kết. Có thể đã bị di chuyển hoặc xoá.",
+    "cancelled": "Tác vụ đã bị huỷ.",
+    "interrupted": "Tác vụ bị gián đoạn khi ứng dụng đóng.",
+    "unknown": "Đã xảy ra sự cố không xác định."
+  },
+  "fix": {
+    "addFiles": "Hãy thêm tệp.",
+    "reindex": "Nhấn Lập chỉ mục lại.",
+    "retryFailed": "Chỉ thử lại các tài liệu lỗi.",
+    "rebuild": "Hãy xây dựng lại toàn bộ.",
+    "chooseKind": "Hãy chọn loại bên dưới.",
+    "relink": "Kết nối lại thư mục, hoặc xoá cơ sở tri thức này và tạo mới.",
+    "openSettings": "Kiểm tra trong Cài đặt."
+  },
+  "test": {
+    "heading": "Kiểm tra tìm kiếm",
+    "hint": "Đặt một câu hỏi để xem cơ sở tri thức này trả về những bằng chứng nào. Không tạo câu trả lời.",
+    "label": "Câu truy vấn",
+    "placeholder": "Pod Scheduling hoạt động như thế nào?",
+    "run": "Tìm kiếm",
+    "running": "Đang tìm kiếm…",
+    "cancel": "Hủy tìm kiếm",
+    "cancelled": "Đã hủy tìm kiếm. Tìm lại để nhận kết quả mới.",
+    "error": "Tìm kiếm thất bại.",
+    "unsupported": "Phiên bản này chưa hỗ trợ kiểm tra tìm kiếm.",
+    "empty": "Không tìm thấy bằng chứng. Hãy đổi câu hỏi hoặc thêm tài liệu.",
+    "count": "{count} bằng chứng · {ms}ms",
+    "results": "Kết quả tìm kiếm",
+    "relevance": "Mức liên quan",
+    "open": "Xem bản gốc",
+    "skipped": "Đã bỏ qua {count} cơ sở tri thức (chưa lập chỉ mục hoặc lỗi)"
+  },
+  "guard": {
+    "codebase_index_forbidden": {
+      "cause": "Cơ sở tri thức mã nguồn không dùng lập chỉ mục và tìm kiếm vector.",
+      "fix": "Hãy dùng lập chỉ mục và tìm kiếm với cơ sở tri thức tài liệu."
+    },
+    "linked_kind_locked": {
+      "cause": "Thư mục đã liên kết không thể chuyển thành cơ sở tri thức tài liệu.",
+      "fix": "Hãy tạo cơ sở tri thức tài liệu mới với bản sao nội dung thư mục."
+    },
+    "folder_not_allowed": {
+      "cause": "Vị trí này không thể liên kết, ví dụ thư mục gốc hoặc thư mục hệ thống.",
+      "fix": "Hãy chọn thư mục dự án và liên kết lại."
+    },
+    "kb_meta_unreadable": {
+      "cause": "Không đọc được tệp thông tin của cơ sở tri thức.",
+      "fix": "Hãy xóa cơ sở tri thức và tạo lại."
+    },
+    "arg": {
+      "cause": "Giá trị nhập vào không hợp lệ.",
+      "fix": "Hãy kiểm tra các mục và thử lại."
+    }
   }
 }

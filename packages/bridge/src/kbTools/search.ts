@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { KB_TOOL_LIMITS, type KbSearchItem } from '@branch/core';
+import { KB_TOOL_LIMITS, KbToolError, type KbSearchItem } from '@branch/core';
 import { resolveInside } from './files';
 
 /** 검색 한도: 키워드 스캔이 이 범위를 넘지 않게 한다 */
@@ -48,7 +48,7 @@ async function* walkFiles(dir: string, rel: string): AsyncGenerator<{ abs: strin
 export async function keywordSearch(
   kbs: SearchKb[],
   query: string,
-  opts: { limit: number; pathPrefix?: string; now?: () => number },
+  opts: { limit: number; pathPrefix?: string; now?: () => number; signal?: AbortSignal },
 ): Promise<{ results: KbSearchItem[]; skipped: { kbId: string; reason: string }[] }> {
   const terms = queryTerms(query);
   const now = opts.now ?? Date.now;
@@ -67,6 +67,7 @@ export async function keywordSearch(
     }
     const start = target.abs;
     for await (const f of walkFiles(start, opts.pathPrefix ?? '')) {
+      if (opts.signal?.aborted) throw new KbToolError('cancelled', 'search cancelled');
       if (now() > deadline || files >= SEARCH_LIMITS.maxFiles || bytes >= SEARCH_LIMITS.maxTotalBytes) break;
       const fst = await stat(f.abs).catch(() => undefined);
       if (!fst || fst.size > SEARCH_LIMITS.maxFileBytes) continue;

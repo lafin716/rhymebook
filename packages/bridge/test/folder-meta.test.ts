@@ -61,7 +61,14 @@ function runJob(ix: KnowledgeIndexer, kbId: string): Promise<KnowledgeIndexState
   });
 }
 
+/** 테스트용 meta.json (kind 없음 = 미분류 문서형 동작). 깨진·없는 meta는 색인 경로가 거부하므로 항상 쓴다 */
+async function seedMeta(kbDir: string): Promise<void> {
+  await writeFile(path.join(kbDir, 'meta.json'), JSON.stringify({ name: 'test', createdAt: 1, updatedAt: 1 }), 'utf8');
+}
+
 async function seedFiles(files: Record<string, string>): Promise<void> {
+  await mkdir(kbDir, { recursive: true });
+  await seedMeta(kbDir);
   for (const [rel, body] of Object.entries(files)) {
     const file = path.join(kbDir, 'files', rel);
     await mkdir(path.dirname(file), { recursive: true });
@@ -87,6 +94,7 @@ afterEach(async () => {
 describe('폴더 메타데이터 저장 (직접 호출)', () => {
   it('처음 만들면 folders.json·INDEX.md·폴더별 INFO.md를 쓴다', async () => {
     await mkdir(kbDir, { recursive: true });
+    await seedMeta(kbDir);
     const r = refreshFolderMeta(kbDir, docsFrom(FILES), 1700000000000);
     expect(r.folders).toBe(4);
     expect(r.reused).toBe(0);
@@ -99,6 +107,7 @@ describe('폴더 메타데이터 저장 (직접 호출)', () => {
 
   it('증분: 한 문서만 바뀌면 나머지 폴더는 재사용하고 INFO.md도 바뀐 폴더 것만 다시 쓴다', async () => {
     await mkdir(kbDir, { recursive: true });
+    await seedMeta(kbDir);
     refreshFolderMeta(kbDir, docsFrom(FILES), 1);
     const authInfo = path.join(metaDirOf(kbDir), 'tree', 'auth', 'INFO.md');
     const before = await readFile(authInfo, 'utf8');
@@ -113,6 +122,7 @@ describe('폴더 메타데이터 저장 (직접 호출)', () => {
 
   it('사라진 폴더의 INFO.md는 지운다', async () => {
     await mkdir(kbDir, { recursive: true });
+    await seedMeta(kbDir);
     refreshFolderMeta(kbDir, docsFrom(FILES), 1);
     const without = { ...FILES };
     delete without['infra/k8s/ingress.md'];
@@ -123,6 +133,7 @@ describe('폴더 메타데이터 저장 (직접 호출)', () => {
 
   it('안전하지 않은 폴더 경로(..)는 거부한다 (호출자가 폴백)', async () => {
     await mkdir(kbDir, { recursive: true });
+    await seedMeta(kbDir);
     expect(() => refreshFolderMeta(kbDir, docsFrom({ '../escape/x.md': '# x\n\nbody' }), 1)).toThrow();
   });
 });
@@ -130,11 +141,13 @@ describe('폴더 메타데이터 저장 (직접 호출)', () => {
 describe('폴백: 메타데이터 없음·깨짐', () => {
   it('파일이 없으면 null', async () => {
     await mkdir(kbDir, { recursive: true });
+    await seedMeta(kbDir);
     expect(readFolderMeta(kbDir)).toBeNull();
   });
 
   it('JSON이 깨졌거나 버전이 다르면 null, 다음 갱신은 전부 다시 만든다', async () => {
     await mkdir(kbDir, { recursive: true });
+    await seedMeta(kbDir);
     refreshFolderMeta(kbDir, docsFrom(FILES), 1);
     await writeFile(path.join(metaDirOf(kbDir), FOLDERS_FILE), '{ 깨진 json');
     expect(readFolderMeta(kbDir)).toBeNull();

@@ -19,7 +19,14 @@ function filesOf(kbId: string): string {
   return path.join(root, kbId, 'files');
 }
 
+/** 테스트용 meta.json (kind 없음 = 미분류 문서형 동작). 깨진·없는 meta는 색인 경로가 거부하므로 항상 쓴다 */
+async function seedMeta(kbDir: string): Promise<void> {
+  await writeFile(path.join(kbDir, 'meta.json'), JSON.stringify({ name: 'test', createdAt: 1, updatedAt: 1 }), 'utf8');
+}
+
 async function writeKb(kbId: string, files: Record<string, string>): Promise<void> {
+  await mkdir(path.join(root, kbId), { recursive: true });
+  await seedMeta(path.join(root, kbId));
   for (const [rel, body] of Object.entries(files)) {
     const dest = path.join(filesOf(kbId), rel);
     await mkdir(path.dirname(dest), { recursive: true });

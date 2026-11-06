@@ -5,13 +5,20 @@ import { constants as fsc } from 'node:fs';
 import { copyFile, lstat, mkdir, open, readFile, readdir, rename, rm, statfs, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { LinkBlockedError, pinnedGet } from './linkFetch';
+import { measureLinked, validateLinkedFolder } from './knowledgeFolder';
+import { filesRootOf, parseKindField } from './knowledgeMeta';
+import { hasIndexFiles, moveIndexFilesToBackup, restoreLatestIndexBackup } from './knowledgeBackup';
 import {
   DEFAULT_INDEX_SETTINGS,
-  NEW_KB_INDEX_SETTINGS,
+  NEW_DOCUMENT_INDEX_SETTINGS,
   KNOWLEDGE_ID_RE,
   KNOWLEDGE_LIMITS,
+  KnowledgePolicyError,
+  canChangeKind,
+  cleanExcludes,
   cleanKnowledgeName,
   isKnowledgeId,
+  isKnowledgeKind,
   isKnowledgeLinkUrl,
   isKnowledgePath,
   newId,
@@ -20,7 +27,10 @@ import {
   t,
   type KnowledgeAddResult,
   type KnowledgeBase,
+  type KnowledgeCreateOptions,
   type KnowledgeEntry,
+  type KnowledgeKind,
+  type KnowledgeKindSuggestion,
   type KnowledgePreview,
   type KnowledgeIndexSettings,
   type KnowledgeProgress,
@@ -65,6 +75,18 @@ function fail(message: string): never {
 }
 
 /** 지식베이스가 없을 때의 오류 (채팅은 이 경우 지식베이스 없이 답한다) */
+/** 두 신호 중 하나라도 중단되면 중단되는 신호를 만든다 (AbortSignal.any 대체: 대상 lib에 없음) */
+function combineSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const c = new AbortController();
+  const abort = (): void => c.abort();
+  if (a.aborted || b.aborted) c.abort();
+  else {
+    a.addEventListener('abort', abort, { once: true });
+    b.addEventListener('abort', abort, { once: true });
+  }
+  return c.signal;
+}
+
 export class KnowledgeNotFoundError extends Error {}
 
 /** 경로 조각 하나가 안전한지: 빈 값·점·숨김·Windows 예약 이름·금지 문자 금지 */
@@ -265,6 +287,11 @@ export interface KnowledgeStoreOptions {
   /** 클론 무응답·전체 제한 시간 (테스트용) */
   cloneIdleMs?: number;
   cloneTimeoutMs?: number;
+  /**
+   * 색인 연결을 먼저 닫는다 (코드베이스로 바꾸기 전 색인 파일을 옮기기 위해). 진행 중 작업 취소·대기는 호출 쪽 책임.
+   * 기본은 아무것도 하지 않는다.
+   */
+  releaseIndex?: (kbId: string) => Promise<void>;
 }
 
 /** 링크 응답 한 개 (주입 fetch와 연결 검사 요청을 같은 모양으로 맞춘다) */
@@ -286,7 +313,22 @@ export interface KnowledgeStore {
   list(): Promise<KnowledgeBase[]>;
   /** 개수·크기 캐시가 없는 지식베이스를 미리 잰다 (앱 시작 뒤 한가할 때). 하나씩, 끝나면 resolve */
   warmStats(): Promise<void>;
-  create(name: string): Promise<KnowledgeBase>;
+  /** 새 지식베이스. 옵션을 생략하면 문서형. 코드베이스는 linkedPath로 로컬 폴더를 읽기 전용 연결할 수 있다 (ADR-128) */
+  create(name: string, opts?: KnowledgeCreateOptions): Promise<KnowledgeBase>;
+  /**
+   * 유형 지정·변경. 연결 폴더 코드베이스는 문서형이 될 수 없다. 색인 파일 옮기기·작업 취소는 호출 쪽이 먼저 한다.
+   * migratedFrom은 자동 마이그레이션이 적용했을 때만 넘긴다 (ADR-132).
+   */
+  setKind(id: string, kind: KnowledgeKind, migratedFrom?: KbMigrationRecord): Promise<KnowledgeBase>;
+  /** 미분류 KB의 유형 추정 저장 (자동 적용하지 않는다). null이면 지운다 */
+  setKindSuggestion(id: string, suggestion: KnowledgeKindSuggestion | null): Promise<KnowledgeBase>;
+  /**
+   * 백업 폴더(backup/<ts>/)의 가장 최근 색인 파일을 되돌린다. 현재 색인이 있으면 false (덮어쓰지 않는다).
+   * 코드베이스 KB는 색인을 갖지 않으므로 항상 false.
+   */
+  restoreIndexBackup(id: string): Promise<boolean>;
+  /** 코드베이스 제외 경로 저장 (코드베이스만) */
+  setExcludes(id: string, excludes: string[]): Promise<KnowledgeBase>;
   rename(id: string, name: string): Promise<KnowledgeBase>;
   remove(id: string): Promise<void>;
   /**
@@ -335,6 +377,33 @@ interface KbMeta {
   sources?: KnowledgeSource[];
   /** 파일 수·크기 합 캐시. 목록을 열 때 전체를 훑지 않게 변경 작업 뒤에 다시 잰다 */
   stats?: KbStats;
+  /** 유형 (ADR-127). 없으면 미분류 */
+  kind?: KnowledgeKind;
+  /** 연결 폴더 절대 경로 (코드베이스 전용, ADR-128) */
+  linkedPath?: string;
+  /** 코드베이스 제외 패턴 */
+  excludes?: string[];
+  kindSuggestion?: KnowledgeKindSuggestion;
+  migratedFrom?: KbMigrationRecord;
+}
+
+/** 자동 마이그레이션 기록 (ADR-132). 어떤 버전·근거로 유형이 정해졌는지 남긴다 */
+export interface KbMigrationRecord {
+  version: string;
+  at: number;
+  reason: string;
+}
+
+function parseMigrated(v: unknown): KbMigrationRecord | undefined {
+  const o = v as Partial<KbMigrationRecord> | null | undefined;
+  if (!o || typeof o.version !== 'string' || typeof o.at !== 'number' || typeof o.reason !== 'string') return undefined;
+  return { version: o.version, at: o.at, reason: o.reason };
+}
+
+function parseSuggestion(v: unknown): KnowledgeKindSuggestion | undefined {
+  const o = v as Partial<KnowledgeKindSuggestion> | null | undefined;
+  if (!o || !isKnowledgeKind(o.kind) || typeof o.reason !== 'string') return undefined;
+  return { kind: o.kind, reason: o.reason };
 }
 
 interface KbStats {
@@ -517,6 +586,16 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       if (isIndexSettings(raw.settings)) meta.settings = raw.settings;
       if (raw.sources !== undefined) meta.sources = parseSources(raw.sources);
       if (isStats(raw.stats)) meta.stats = { fileCount: raw.stats.fileCount, totalBytes: raw.stats.totalBytes };
+      // kind가 있는데 알 수 없는 값이면 메타 전체를 읽을 수 없는 것으로 본다 (fail closed)
+      const kind = parseKindField(raw.kind);
+      if (kind === 'invalid') return null;
+      if (kind) meta.kind = kind;
+      if (meta.kind === 'codebase' && typeof raw.linkedPath === 'string' && path.isAbsolute(raw.linkedPath)) meta.linkedPath = raw.linkedPath;
+      if (raw.excludes !== undefined) meta.excludes = cleanExcludes(raw.excludes);
+      const sug = parseSuggestion(raw.kindSuggestion);
+      if (sug) meta.kindSuggestion = sug;
+      const mig = parseMigrated(raw.migratedFrom);
+      if (mig) meta.migratedFrom = mig;
       return meta;
     } catch {
       return null;
@@ -528,6 +607,15 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     if (!st?.isDirectory()) throw new KnowledgeNotFoundError(t('bridge.knowledge.notFound'));
     const meta = await readMeta(id);
     if (!meta) throw new KnowledgeNotFoundError(t('bridge.knowledge.notFound'));
+    return meta;
+  }
+
+  /** 파일을 바꾸는 작업 전 확인: 연결 폴더 코드베이스는 읽기 전용이다 (ADR-128) */
+  async function writableKb(id: string): Promise<KbMeta> {
+    const meta = await existingKb(id);
+    if (meta.linkedPath) {
+      throw new KnowledgePolicyError('linked_kind_locked', 'linked codebase knowledge base is read-only');
+    }
     return meta;
   }
 
@@ -545,7 +633,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       try {
         const cur = await readMeta(id);
         if (!cur || cur.stats) return;
-        const m = await measure(filesDir(id));
+        const m = await measureKb(id, cur);
         await serial(async () => {
           const latest = await readMeta(id);
           if (latest && !latest.stats) await saveMeta(id, { ...latest, stats: m });
@@ -558,9 +646,18 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     return p.catch(() => undefined);
   }
 
+  /** 원본 루트: 연결 폴더면 그 폴더, 아니면 files/ */
+  const baseOf = (id: string, meta: KbMeta): string => (meta.linkedPath ? meta.linkedPath : filesDir(id));
+
+  /** 개수·크기: 연결 폴더는 제외 규칙을 따라 세고, 아니면 files/ 전체 */
+  async function measureKb(id: string, meta: KbMeta): Promise<{ fileCount: number; totalBytes: number }> {
+    if (meta.linkedPath) return measureLinked(meta.linkedPath, meta.excludes ?? []);
+    return measure(filesDir(id));
+  }
+
   /** 파일이 바뀐 뒤 크기·개수를 다시 재서 메타에 담는다 (serial 안에서 부른다) */
   async function withStats(id: string, meta: KbMeta): Promise<KbMeta> {
-    return { ...meta, stats: await measure(filesDir(id)) };
+    return { ...meta, stats: await measureKb(id, meta) };
   }
 
   /** 메타만으로 만든다 — 파일을 훑지 않는다. 캐시가 없으면 statsPending으로 돌려주고 뒤에서 잰다 */
@@ -576,6 +673,10 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       fileCount: m?.fileCount ?? 0,
       totalBytes: m?.totalBytes ?? 0,
       ...(m ? {} : { statsPending: true }),
+      ...(meta.kind ? { kind: meta.kind } : {}),
+      ...(meta.linkedPath ? { linkedPath: meta.linkedPath } : {}),
+      ...(meta.kind === 'codebase' ? { excludes: meta.excludes ?? [] } : {}),
+      ...(meta.kind === undefined && meta.kindSuggestion ? { kindSuggestion: meta.kindSuggestion } : {}),
     };
   }
 
@@ -619,15 +720,20 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
    * files/ 아래 상대 경로의 실제 위치를 찾는다. 중간 조각이 링크이거나 파일이면 throw.
    * mustExist=false면 없는 조각을 허용한다(쓰기 전 확인용).
    */
-  async function locate(id: string, rel: string | undefined, mustExist: boolean): Promise<{ abs: string; exists: boolean }> {
+  async function locate(
+    id: string,
+    rel: string | undefined,
+    mustExist: boolean,
+    base: string = filesDir(id),
+  ): Promise<{ abs: string; exists: boolean }> {
     const segs = splitRel(rel);
-    let cur = filesDir(id);
+    let cur = base;
     for (const [i, seg] of segs.entries()) {
       cur = path.join(cur, seg);
       const st = await lstatOrNull(cur);
       if (!st) {
         if (mustExist) fail(t('bridge.knowledge.entryNotFound'));
-        return { abs: path.join(filesDir(id), ...segs), exists: false };
+        return { abs: path.join(base, ...segs), exists: false };
       }
       if (st.isSymbolicLink()) fail(t('bridge.knowledge.badPath'));
       if (i < segs.length - 1 && !st.isDirectory()) fail(t('bridge.knowledge.badPath'));
@@ -879,7 +985,8 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       if (addrs.some((a) => isPrivateHost(a))) fail(t('bridge.knowledge.privateHost'));
     };
     const headers = { accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' };
-    const signal = outer ? AbortSignal.any([outer, AbortSignal.timeout(FETCH_TIMEOUT_MS)]) : AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    const timeout = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    const signal = outer ? combineSignals(outer, timeout) : timeout;
     /**
      * 한 번 요청한다. 주입된 fetch가 있으면 그것을 쓰고(테스트·다른 구현),
      * 없으면 연결 직전에도 주소를 다시 검사하는 요청을 쓴다 (DNS 리바인딩 방지).
@@ -992,25 +1099,108 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       }
     },
 
-    create(name) {
+    create(name, opts) {
       return serial(async () => {
         const clean = cleanKnowledgeName(name);
         if (!clean) fail(t('bridge.knowledge.badName'));
+        const kind: KnowledgeKind = opts?.kind ?? 'document';
+        if (!isKnowledgeKind(kind)) fail(t('bridge.knowledge.badSettings'));
+        if (opts?.linkedPath !== undefined && kind !== 'codebase') {
+          throw new KnowledgePolicyError('linked_kind_locked', 'only codebase knowledge bases can link a folder');
+        }
+        const linkedPath = opts?.linkedPath !== undefined ? await validateLinkedFolder(opts.linkedPath, root) : undefined;
         await mkdir(root, { recursive: true });
         const id = newId('kb');
         checkId(id);
         await mkdir(filesDir(id), { recursive: true });
         const now = Date.now();
-        // 새 KB는 임베딩 없음이 기본 (ADR-121). settings가 없는 기존 KB는 그대로 local-hash로 읽는다 (호환)
+        const description = typeof opts?.description === 'string' ? opts.description.trim().slice(0, DESCRIPTION_MAX) : '';
         const meta: KbMeta = {
           name: clean,
           createdAt: now,
           updatedAt: now,
-          stats: { fileCount: 0, totalBytes: 0 },
-          settings: { embedding: { ...NEW_KB_INDEX_SETTINGS.embedding } },
+          kind,
+          ...(description ? { description } : {}),
+          ...(linkedPath ? { linkedPath } : {}),
+          ...(kind === 'codebase' ? { excludes: cleanExcludes(opts?.excludes) } : {}),
+          // 문서형은 로컬 해시 임베딩으로 시작한다 (키 없이도 동작). 코드베이스는 색인 설정이 없다 (ADR-127)
+          ...(kind === 'document' ? { settings: { embedding: { ...NEW_DOCUMENT_INDEX_SETTINGS.embedding } } } : {}),
+          ...(linkedPath ? {} : { stats: { fileCount: 0, totalBytes: 0 } }),
         };
         await saveMeta(id, meta);
         return toBase(id, meta);
+      });
+    },
+
+    setKind(id, kind, migratedFrom) {
+      return serial(async () => {
+        const meta = await existingKb(id);
+        if (!isKnowledgeKind(kind)) fail(t('bridge.knowledge.badSettings'));
+        if (!canChangeKind({ kind: meta.kind, linkedPath: meta.linkedPath }, kind)) {
+          throw new KnowledgePolicyError('linked_kind_locked', 'linked codebase knowledge base cannot become a document base');
+        }
+        const next: KbMeta = { ...meta, kind, updatedAt: Date.now() };
+        delete next.kindSuggestion;
+        if (kind === 'codebase') {
+          next.excludes = meta.excludes ?? [];
+          delete next.settings;
+        } else {
+          delete next.excludes;
+          if (!next.settings) next.settings = { embedding: { ...NEW_DOCUMENT_INDEX_SETTINGS.embedding } };
+        }
+        if (migratedFrom) next.migratedFrom = migratedFrom;
+        const toSave = await withStats(id, next);
+        if (kind === 'codebase') {
+          // 연결을 먼저 닫는다 (파일을 옮기려면 필요). 메타를 먼저 저장하고 나서 색인 파일을 백업 폴더로 옮긴다 (ADR-132).
+          // 메타 저장이 실패하면 아무것도 옮기지 않는다. 옮기다 실패하면 메타를 원래대로 되돌린다.
+          if (opts.releaseIndex) await opts.releaseIndex(id);
+          await saveMeta(id, toSave);
+          if (hasIndexFiles(kbDir(id))) {
+            try {
+              moveIndexFilesToBackup(kbDir(id), {
+                now: Date.now(),
+                reason: migratedFrom ? migratedFrom.reason : 'kind_change',
+                fromKind: meta.kind,
+                toKind: kind,
+              });
+            } catch (err) {
+              await saveMeta(id, meta).catch(() => undefined);
+              throw err;
+            }
+          }
+          return toBase(id, toSave);
+        }
+        await saveMeta(id, toSave);
+        return toBase(id, next);
+      });
+    },
+
+    restoreIndexBackup(id) {
+      return serial(async () => {
+        const meta = await existingKb(id);
+        if (meta.kind === 'codebase') return false;
+        return restoreLatestIndexBackup(kbDir(id));
+      });
+    },
+
+    setKindSuggestion(id, suggestion) {
+      return serial(async () => {
+        const meta = await existingKb(id);
+        const next: KbMeta = { ...meta };
+        delete next.kindSuggestion;
+        if (suggestion && !meta.kind) next.kindSuggestion = { kind: suggestion.kind, reason: suggestion.reason };
+        await saveMeta(id, next);
+        return toBase(id, next);
+      });
+    },
+
+    setExcludes(id, excludes) {
+      return serial(async () => {
+        const meta = await existingKb(id);
+        if (meta.kind !== 'codebase') fail(t('bridge.knowledge.badSettings'));
+        const next: KbMeta = { ...meta, excludes: cleanExcludes(excludes), updatedAt: Date.now() };
+        await saveMeta(id, await withStats(id, next));
+        return toBase(id, next);
       });
     },
 
@@ -1033,31 +1223,33 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     },
 
     async tree(id, dir) {
-      await existingKb(id);
+      const meta = await existingKb(id);
+      const base = baseOf(id, meta);
       if (dir === undefined) {
         const out: KnowledgeEntry[] = [];
-        await walk(filesDir(id), '', out, { n: 0 });
+        await walk(base, '', out, { n: 0 });
         return out;
       }
-      const { abs, exists } = await locate(id, dir || undefined, true);
+      const { abs, exists } = await locate(id, dir || undefined, true, base);
       if (!exists) fail(t('bridge.knowledge.entryNotFound'));
       if (dir && !(await lstatOrNull(abs))?.isDirectory()) fail(t('bridge.knowledge.badPath'));
       return listLevel(abs, dir);
     },
 
     async index(id) {
-      await existingKb(id);
-      return outline(filesDir(id), KNOWLEDGE_LIMITS.indexPaths);
+      const meta = await existingKb(id);
+      return outline(baseOf(id, meta), KNOWLEDGE_LIMITS.indexPaths);
     },
 
     dirFor(id) {
-      return filesDir(id);
+      // 연결 폴더 코드베이스는 그 폴더, 아니면 files/ (답변 CLI 작업 폴더)
+      return filesRootOf(root, checkId(id)) ?? filesDir(id);
     },
 
     addPaths(id, paths, dest, ctl) {
       return serial(async () => {
         if (ctl?.signal?.aborted) throw cancelledError();
-        await existingKb(id);
+        await writableKb(id);
         await checkDiskRoom();
         if (!Array.isArray(paths) || paths.length > 500) fail(t('bridge.knowledge.badPath'));
         const dstDir = await ensureDir(id, dest);
@@ -1097,7 +1289,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     addFiles(id, files, dest, ctl) {
       return serial(async () => {
         if (ctl?.signal?.aborted) throw cancelledError();
-        await existingKb(id);
+        await writableKb(id);
         await checkDiskRoom();
         if (!Array.isArray(files) || files.length > 500) fail(t('bridge.knowledge.badPath'));
         const dstDir = await ensureDir(id, dest);
@@ -1130,7 +1322,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     },
 
     async addLink(id, url, ctl) {
-      await existingKb(id);
+      await writableKb(id);
       await checkDiskRoom();
       ctl?.onProgress?.({ phase: 'download' });
       const page = await fetchPage(url, ctl?.signal);
@@ -1151,7 +1343,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     },
 
     async cloneGit(id, url, ctl) {
-      await existingKb(id);
+      await writableKb(id);
       await checkDiskRoom();
       const repo = parseGitHubRepo(url);
       if (!repo) fail(t('bridge.knowledge.badRepo'));
@@ -1182,7 +1374,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
 
     removeEntry(id, relPath) {
       return serial(async () => {
-        await existingKb(id);
+        await writableKb(id);
         if (!relPath) fail(t('bridge.knowledge.badPath'));
         const { abs, exists } = await locate(id, relPath, false);
         if (!exists) fail(t('bridge.knowledge.entryNotFound'));
@@ -1192,9 +1384,9 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     },
 
     async preview(id, relPath) {
-      await existingKb(id);
+      const meta = await existingKb(id);
       if (!relPath) fail(t('bridge.knowledge.badPath'));
-      const { abs } = await locate(id, relPath, true);
+      const { abs } = await locate(id, relPath, true, baseOf(id, meta));
       const st = await lstatOrNull(abs);
       if (!st?.isFile()) fail(t('bridge.knowledge.badPath'));
       const fh = await open(abs, 'r');
@@ -1231,6 +1423,9 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     setSettings(id, settings) {
       return serial(async () => {
         const meta = await existingKb(id);
+        if (meta.kind === 'codebase') {
+          throw new KnowledgePolicyError('codebase_index_forbidden', 'index settings do not apply to codebase knowledge bases');
+        }
         if (!isIndexSettings(settings)) fail(t('bridge.knowledge.badSettings'));
         const clean: KnowledgeIndexSettings = {
           embedding: {
@@ -1251,7 +1446,7 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     },
 
     async updateSource(id, sourceId, ctl) {
-      const meta = await existingKb(id);
+      const meta = await writableKb(id);
       const src = (meta.sources ?? []).find((s) => s.id === sourceId);
       if (!src) fail(t('bridge.knowledge.entryNotFound'));
       if (src.type === 'files') fail(t('bridge.knowledge.sourceNoOrigin'));
@@ -1265,7 +1460,12 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
       const newRel = fresh.added[0];
       if (!newRel) return fresh;
       return serial(async () => {
+        // 받는 동안 KB가 지워지거나 유형이 바뀌었으면 교체하지 않는다 (새로 받은 항목은 치운다)
         const cur = await existingKb(id);
+        if (cur.kind !== meta.kind) {
+          if (newRel !== src.dest) await rm((await locate(id, newRel, true)).abs, { recursive: true, force: true });
+          fail(t('bridge.knowledge.badSettings'));
+        }
         const oldAbs = (await locate(id, src.dest, false)).abs;
         const newAbs = (await locate(id, newRel, true)).abs;
         if (newRel !== src.dest) {
@@ -1283,8 +1483,8 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
     },
 
     async resolvePath(id, relPath) {
-      await existingKb(id);
-      const { abs, exists } = await locate(id, relPath, true);
+      const meta = await existingKb(id);
+      const { abs, exists } = await locate(id, relPath, true, baseOf(id, meta));
       if (!exists) fail(t('bridge.knowledge.entryNotFound'));
       return abs;
     },

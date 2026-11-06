@@ -61,7 +61,7 @@ describe('MCP 핸드셰이크와 도구 목록', () => {
     expect(await handle({ jsonrpc: '2.0', method: 'notifications/initialized' })).toBeUndefined();
   });
 
-  it('tools/list는 네 도구를 모두 읽기 전용으로 표시한다', async () => {
+  it('tools/list는 일곱 도구를 모두 읽기 전용으로 표시한다', async () => {
     const r = await handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
     const tools = (r?.result as { tools: { name: string; annotations: { readOnlyHint: boolean }; inputSchema: unknown }[] }).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([...KB_TOOL_NAMES].sort());
@@ -69,7 +69,7 @@ describe('MCP 핸드셰이크와 도구 목록', () => {
       expect(t.annotations.readOnlyHint).toBe(true);
       expect(t.inputSchema).toBeTruthy();
     }
-    expect(KB_TOOL_DEFINITIONS).toHaveLength(4);
+    expect(KB_TOOL_DEFINITIONS).toHaveLength(7);
   });
 
   it('알 수 없는 도구와 메서드는 오류 코드로 답한다', async () => {

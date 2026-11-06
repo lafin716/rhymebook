@@ -1,13 +1,16 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import readline from 'node:readline';
+import path from 'node:path';
 import { KB_MAX_KBS_PER_CHAT } from './config';
 import { createMcpHandler, parseLine, type JsonRpcResponse } from './mcp';
 import { KbToolService, type KbEntry } from './service';
+import { filesRootOf, readKbMeta } from '../knowledgeMeta';
 
 const KB_ID_RE = /^kb[a-z0-9]{6,40}$/;
 
-/** 명령행 KB 목록을 실제 폴더와 대조한다. 이름은 meta.json에서 읽고, 없으면 id를 쓴다 */
+/**
+ * 명령행 KB 목록을 실제 폴더와 대조한다. 이름·유형·제외 규칙·연결 폴더는 meta.json에서 읽는다 (knowledgeMeta 공용 도우미).
+ * 연결 폴더 코드베이스가 사라졌으면 항목은 남기고 missing으로 표시한다 (도구 호출 때 not_found로 알린다).
+ */
 export async function loadKbEntries(root: string, kbIds: string[]): Promise<{ entries: KbEntry[]; problems: string[] }> {
   const entries: KbEntry[] = [];
   const problems: string[] = [];
@@ -17,16 +20,19 @@ export async function loadKbEntries(root: string, kbIds: string[]): Promise<{ en
       problems.push(`invalid kb id skipped`);
       continue;
     }
-    const kbDir = path.join(root, kbId);
-    const filesRoot = path.join(kbDir, 'files');
-    let kbName = kbId;
-    try {
-      const meta = JSON.parse(await readFile(path.join(kbDir, 'meta.json'), 'utf8')) as { name?: unknown };
-      if (typeof meta.name === 'string' && meta.name.trim()) kbName = meta.name.trim().slice(0, 200);
-    } catch {
-      /* 이름 없이 진행 */
-    }
-    entries.push({ kbId, kbName, filesRoot });
+    const meta = readKbMeta(root, kbId);
+    const resolved = filesRootOf(root, kbId, meta);
+    const missing = resolved === undefined;
+    const filesRoot = resolved ?? path.join(root, kbId, 'files');
+    if (missing) problems.push(`linked folder missing: ${kbId}`);
+    entries.push({
+      kbId,
+      kbName: meta?.name ?? kbId,
+      filesRoot,
+      ...(meta?.kind ? { kind: meta.kind } : {}),
+      excludes: meta?.excludes ?? [],
+      ...(missing ? { missing: true } : {}),
+    });
   }
   return { entries, problems };
 }

@@ -25,6 +25,11 @@ export function CitationChips({ citations }: { citations: Citation[] }) {
         >
           <span className="shrink-0 font-medium text-accent">[{c.n}]</span>
           <span className="truncate">{c.title}</span>
+          {c.method && (
+            <span data-citation-method={c.method} className="shrink-0 rounded-full border border-line px-1 text-[10.5px] leading-4 text-muted">
+              {t(`knowledge.method.${c.method}`)}
+            </span>
+          )}
         </button>
       ))}
       <SourceViewer citation={active} onClose={() => setActive(null)} />

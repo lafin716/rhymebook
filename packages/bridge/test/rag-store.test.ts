@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_INDEX_SETTINGS, NEW_KB_INDEX_SETTINGS, t } from '@branch/core';
+import { DEFAULT_INDEX_SETTINGS, NEW_DOCUMENT_INDEX_SETTINGS, t } from '@branch/core';
 import { createKnowledgeStore, type KnowledgeStore } from '../src';
 
 function htmlResponse(body: string): Response {
@@ -34,9 +34,9 @@ describe('knowledge store: RAG 확장', () => {
     expect(updated.description?.startsWith('가')).toBe(true);
   });
 
-  it('새 KB는 임베딩 없음(none)으로 만든다 (ADR-121)', async () => {
+  it('새 문서 KB는 로컬 해시 임베딩으로 만든다 (유형별 기본값)', async () => {
     const kb = await store.create('설정 기본');
-    expect(await store.getSettings(kb.id)).toEqual(NEW_KB_INDEX_SETTINGS);
+    expect(await store.getSettings(kb.id)).toEqual(NEW_DOCUMENT_INDEX_SETTINGS);
   });
 
   it('설정이 없는 기존 KB는 예전 기본값(local-hash)으로 읽는다 (호환)', async () => {

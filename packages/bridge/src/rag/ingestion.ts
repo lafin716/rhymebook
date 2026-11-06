@@ -62,6 +62,11 @@ export interface IngestOptions {
   /** 임베딩 재시도 횟수 기본 3 */
   maxRetries?: number;
   now?: () => number;
+  /**
+   * 부분 재색인 범위 (files/ 기준 상대 경로). 주어지면 incremental에서 이 목록의 파일만 검사하고 나머지는 그대로 둔다.
+   * full 모드에서는 무시한다.
+   */
+  onlyPaths?: ReadonlySet<string>;
 }
 
 export interface IngestResult {
@@ -321,6 +326,10 @@ export async function ingestKnowledge(opts: IngestOptions): Promise<IngestResult
     throwIfAborted(opts.signal);
     const f = files[i];
     if (!f) continue;
+    if (opts.mode === 'incremental' && opts.onlyPaths && !opts.onlyPaths.has(f.rel)) {
+      result.unchanged++;
+      continue;
+    }
     opts.onProgress?.({ phase: 'parse', done: i, total: files.length, current: f.rel });
     const prev = existingLive.get(f.rel);
     const docId = docIdOf(f.rel);

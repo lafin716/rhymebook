@@ -30,13 +30,76 @@
     "link": "이 학습에 연결",
     "unlink": "연결 해제",
     "count": "파일 {count}개",
-    "counting": "파일 세는 중…"
+    "counting": "파일 세는 중…",
+    "filter": "유형 필터",
+    "filterAll": "전체",
+    "noMatch": "조건에 맞는 지식베이스가 없어요.",
+    "search": "지식베이스 검색",
+    "searchPlaceholder": "이름, 설명, 경로로 찾기",
+    "sort": "정렬",
+    "sortName": "이름순",
+    "sortRecent": "최근순",
+    "sortSize": "크기순"
   },
   "create": {
     "title": "새 지식베이스",
     "namePlaceholder": "이름 (예: 세포생물학 교재)",
     "submit": "만들기",
-    "cancel": "취소"
+    "cancel": "취소",
+    "back": "뒤로",
+    "kindTitle": "어떤 지식베이스를 만들까요?",
+    "name": "이름",
+    "description": "설명 (선택)",
+    "working": "만드는 중…",
+    "failed": "만들지 못했어요. 다시 시도해 주세요.",
+    "kind": {
+      "codebase": {
+        "title": "코드베이스",
+        "desc": "폴더나 GitHub 저장소. 질문할 때마다 실제 파일을 직접 찾아봐요."
+      },
+      "document": {
+        "title": "문서",
+        "desc": "PDF·문서 파일을 색인해 키워드와 의미로 검색해요."
+      }
+    },
+    "codebase": {
+      "notice": "코드베이스는 색인하지 않고 질문할 때마다 실제 파일을 직접 탐색해요.",
+      "source": "소스",
+      "pathLabel": "폴더 경로",
+      "pathPlaceholder": "/경로/프로젝트",
+      "pickFolder": "폴더 선택",
+      "gitLabel": "또는 GitHub 저장소",
+      "gitPlaceholder": "owner/repo 또는 https://github.com/owner/repo",
+      "gitHint": "기본 브랜치의 최신 파일만 받아요",
+      "inspecting": "폴더를 살펴보는 중…",
+      "inspectFailed": "폴더를 읽지 못했어요. 경로를 확인해 주세요.",
+      "inspected": "파일 {count}개 · {size}",
+      "truncated": "파일이 많아 일부만 세었어요.",
+      "isGit": "Git 저장소예요.",
+      "suggestDocument": "PDF나 문서 위주의 폴더라면 '문서'로 만드는 편이 나아요.",
+      "descPlaceholder": "예: 결제 모듈 소스",
+      "excludes": "제외할 경로 (한 줄에 하나)",
+      "excludesHint": "node_modules 같은 빌드·의존성 폴더는 기본으로 제외돼요.",
+      "submit": "코드베이스 만들기",
+      "cloneFailed": "저장소를 가져오지 못했어요. 주소와 접근 권한을 확인해 주세요. 지식베이스는 만들어졌어요."
+    },
+    "document": {
+      "pick": "파일 선택",
+      "pickFolder": "폴더 선택",
+      "empty": "여기에 파일이나 폴더를 끌어다 놓으세요",
+      "count": "{count}개 · {size}",
+      "listLabel": "추가할 파일 목록",
+      "remove": "목록에서 빼기",
+      "duplicates": "같은 이름·크기 파일 {count}개는 제외돼요.",
+      "submit": "문서 지식베이스 만들기",
+      "index": {
+        "label": "색인 방식",
+        "local": "로컬 의미 검색 (기본)",
+        "none": "키워드만 (색인 없이 BM25)",
+        "openai": "OpenAI 임베딩 (고급, API 키 필요)",
+        "advanced": "고급 설정"
+      }
+    }
   },
   "rename": {
     "action": "이름 바꾸기",
@@ -80,7 +143,8 @@
     "busyDrop": "아직 가져오는 중이에요. 끝난 뒤에 다시 놓아 주세요.",
     "dropEmpty": "놓은 항목에서 파일을 찾지 못했어요.",
     "nothing": "추가된 파일이 없어요. 크기나 형식을 확인해 주세요.",
-    "gitHint": "기본 브랜치(main·master 등)의 최신 파일만 받아요"
+    "gitHint": "기본 브랜치(main·master 등)의 최신 파일만 받아요",
+    "allDuplicates": "{count}개는 이미 있는 파일이라 건너뛰었어요."
   },
   "error": {
     "generic": "문제가 생겼어요. 다시 시도해 주세요.",
@@ -233,6 +297,120 @@
     "embed_failed": "의미 검색에 실패해 키워드 검색으로 찾았어요.",
     "insufficient": "지식베이스에서 관련 근거를 찾지 못했어요.",
     "timeout": "검색 시간이 초과돼 지식베이스 근거 없이 답했어요.",
-    "kb_skipped": "색인이 없는 지식베이스는 건너뛰었어요."
+    "kb_skipped": "색인이 없는 지식베이스는 건너뛰었어요.",
+    "keyword_only": "임베딩 없이 키워드 검색만 사용했어요.",
+    "version_conflict": "자료마다 다른 버전을 말하고 있어요. 답변의 버전 표기를 확인하세요.",
+    "codebase_missing": "코드베이스 폴더를 찾을 수 없어 건너뛰었어요."
+  },
+  "kind": {
+    "codebase": "코드베이스",
+    "document": "문서",
+    "unclassified": "미분류",
+    "choose": "유형을 골라 주세요",
+    "suggest": "추천: {kind}",
+    "blocked": "연결된 폴더 코드베이스는 문서로 바꿀 수 없어요."
+  },
+  "maint": {
+    "heading": "색인 관리",
+    "retryFailed": "실패한 문서 {count}개 다시 시도",
+    "retried": "실패한 문서 {count}개를 다시 색인하고 있어요.",
+    "rebuild": "전체 다시 만들기",
+    "rebuilding": "전체를 다시 만드는 중이에요.",
+    "verify": "색인 검사",
+    "verifyOk": "색인에 문제가 없어요.",
+    "verifyBad": "색인에 문제가 있어요. 전체 다시 만들기를 해 주세요.",
+    "restore": "백업으로 복원",
+    "restored": "백업에서 색인을 복원했어요.",
+    "noBackup": "복원할 백업이 없어요."
+  },
+  "overview": {
+    "heading": "개요",
+    "kind": "유형",
+    "method": "검색 방식",
+    "path": "연결 경로",
+    "files": "파일",
+    "updated": "갱신"
+  },
+  "method": {
+    "agentic": "직접 탐색 (색인 없음)",
+    "hybrid": "하이브리드 검색 (벡터 + 키워드)"
+  },
+  "codebase": {
+    "excludes": "제외 목록",
+    "excludesHint": "저장하면 다음 질문부터 새 목록을 써요. 다시 색인할 필요는 없어요.",
+    "excludesReset": "기본값으로",
+    "excludesSave": "저장"
+  },
+  "readiness": {
+    "ready": "준비됨",
+    "empty": "비어 있음",
+    "loading": "불러오는 중",
+    "indexing": "색인 중",
+    "rebuilding": "다시 만드는 중",
+    "partial": "일부만 준비됨",
+    "cancelled": "취소됨",
+    "needsKind": "유형 선택 필요",
+    "failed": "실패"
+  },
+  "cause": {
+    "updating": "파일이 바뀌어 최신 내용을 반영하는 중이에요.",
+    "last_failed": "마지막 작업이 실패했어요.",
+    "stale": "파일이 바뀌어 다시 색인이 필요해요.",
+    "failed_docs": "일부 문서를 색인하지 못했어요.",
+    "index_error": "색인 중 오류가 났어요.",
+    "not_indexed": "아직 색인되지 않았어요.",
+    "codebase_missing": "연결된 폴더를 찾을 수 없어요. 폴더가 옮겨졌거나 삭제됐을 수 있어요.",
+    "cancelled": "사용자가 작업을 취소했어요.",
+    "interrupted": "앱이 종료되어 작업이 중단됐어요.",
+    "unknown": "알 수 없는 문제가 있어요."
+  },
+  "fix": {
+    "addFiles": "파일을 더 추가해 주세요.",
+    "reindex": "다시 색인을 눌러 주세요.",
+    "retryFailed": "실패한 문서만 다시 시도해 주세요.",
+    "rebuild": "전체 다시 만들기를 해 주세요.",
+    "chooseKind": "아래에서 유형을 골라 주세요.",
+    "relink": "폴더를 다시 연결하거나 이 지식베이스를 지우고 새로 만들어 주세요.",
+    "openSettings": "설정에서 확인해 주세요."
+  },
+  "test": {
+    "heading": "검색 테스트",
+    "hint": "질문 하나로 이 지식베이스에서 어떤 근거가 나오는지 확인해요. 답변은 만들지 않아요.",
+    "label": "검색 질문",
+    "placeholder": "Pod Scheduling은 어떻게 동작하나요?",
+    "run": "검색",
+    "running": "검색하는 중…",
+    "cancel": "검색 취소",
+    "cancelled": "검색을 취소했어요. 다시 검색하면 새 결과를 받아요.",
+    "error": "검색에 실패했어요.",
+    "unsupported": "이 버전에서는 검색 테스트를 쓸 수 없어요.",
+    "empty": "근거를 찾지 못했어요. 질문을 바꾸거나 문서를 더 추가해 보세요.",
+    "count": "근거 {count}개 · {ms}ms",
+    "results": "검색 결과",
+    "relevance": "관련도",
+    "open": "원문 보기",
+    "skipped": "{count}개 지식베이스를 건너뛰었어요 (색인 없음 또는 실패)"
+  },
+  "guard": {
+    "codebase_index_forbidden": {
+      "cause": "코드베이스 지식베이스는 색인과 벡터 검색을 쓰지 않아요.",
+      "fix": "문서 지식베이스로 만든 자료에서 색인과 검색을 이용해 주세요."
+    },
+    "linked_kind_locked": {
+      "cause": "연결한 폴더는 문서 지식베이스로 바꿀 수 없어요.",
+      "fix": "폴더 내용을 복사한 새 문서 지식베이스를 만들어 주세요."
+    },
+    "folder_not_allowed": {
+      "cause": "홈 폴더, 시스템 폴더처럼 연결할 수 없는 위치예요.",
+      "fix": "프로젝트 폴더를 골라 다시 연결해 주세요."
+    },
+    "kb_meta_unreadable": {
+      "cause": "지식베이스 정보 파일을 읽지 못했어요.",
+      "fix": "지식베이스를 지우고 다시 만들어 주세요."
+    },
+    "arg": {
+      "cause": "입력 값이 올바르지 않아요.",
+      "fix": "항목을 확인하고 다시 시도해 주세요."
+    }
   }
 }

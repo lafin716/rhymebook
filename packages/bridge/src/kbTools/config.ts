@@ -22,7 +22,8 @@ const pathSchema = { type: 'string', description: 'Relative path inside the know
 export const KB_TOOL_DEFINITIONS = [
   {
     name: 'searchKnowledge',
-    description: 'Keyword search across the selected knowledge bases. Returns ranked excerpts with paths and line ranges.',
+    description:
+      'Keyword search across the selected knowledge bases. Document bases use their index; codebase bases are searched by scanning the live files (no index). Returns ranked excerpts with paths and line ranges.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -77,6 +78,56 @@ export const KB_TOOL_DEFINITIONS = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true, title: 'Knowledge outline' },
+  },
+  {
+    name: 'findFiles',
+    description:
+      'Find files by name or path in a knowledge base (live listing, no index). A pattern with * or ? or ** is a glob (.gitignore style); otherwise it matches a path substring, case-insensitively.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kbId: kbIdSchema,
+        pattern: { type: 'string', minLength: 1, maxLength: KB_TOOL_LIMITS.queryMaxChars },
+        limit: { type: 'integer', minimum: 1, maximum: KB_TOOL_LIMITS.findFilesMaxLimit },
+      },
+      required: ['kbId', 'pattern'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, title: 'Find knowledge files' },
+  },
+  {
+    name: 'grepKnowledge',
+    description:
+      'Search file contents line by line in a knowledge base (live scan, no index). Literal and case-insensitive by default; regex=true uses a restricted regex. Returns hits with path and line number.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kbId: kbIdSchema,
+        pattern: { type: 'string', minLength: 1, maxLength: KB_TOOL_LIMITS.grepPatternMaxChars },
+        regex: { type: 'boolean' },
+        pathPrefix: pathSchema,
+        limit: { type: 'integer', minimum: 1, maximum: KB_TOOL_LIMITS.grepMaxLimit },
+      },
+      required: ['kbId', 'pattern'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, title: 'Grep knowledge' },
+  },
+  {
+    name: 'findDefinitions',
+    description:
+      'Find where a symbol is declared (function, class, type, variable, method) in a knowledge base. Uses language-agnostic declaration patterns, so results are approximate.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        kbId: kbIdSchema,
+        symbol: { type: 'string', minLength: 1, maxLength: KB_TOOL_LIMITS.symbolMaxChars },
+        limit: { type: 'integer', minimum: 1, maximum: KB_TOOL_LIMITS.definitionsMaxLimit },
+      },
+      required: ['kbId', 'symbol'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, title: 'Find definitions' },
   },
 ] as const;
 

@@ -151,6 +151,8 @@ ui 번들은 모든 플랫폼에서 동일하다.
 
 ## 지식베이스 검색 (RAG v2 · ADR-121~125)
 
+> **유형 개편(ADR-127~134)**: 지식베이스는 `codebase`(Agentic Search 전용 — 임베딩·벡터 색인·벡터 검색 금지, KB id→meta.json kind로 판정)와 `document`(벡터+FTS5 BM25, RRF 병합, 출처·페이지)의 두 유형이다. 혼합은 세션에 두 유형이 함께 연결된 상태. 정책은 UI·IPC(`apps/desktop/src/kbGuard.ts`)·store·색인 큐·라우터·MCP에서 강제한다. 상세는 **docs/knowledge-architecture.md**.
+
 서버 없이 로컬에서 동작한다. API 키는 선택이다.
 
 ```text

@@ -8,6 +8,22 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 지식베이스 유형 개편 — Codebase(Agentic)·Document(Hybrid) (2026-11-06, ADR-127~134)
+계획: docs/plans/kb-types-overhaul-plan.md · 아키텍처: docs/knowledge-architecture.md · 평가: docs/eval/kb-types-2026-11-06.md
+| ID | 작업 | 소유 | 상태 |
+|---|---|---|---|
+| T1 | 공통 계약·정책(knowledgePolicy)·라우터·Context Builder + 테스트 | 리더 | DONE |
+| T2 | 코드베이스 엔진(bridge/src/codebase) + MCP findFiles·grepKnowledge·findDefinitions·readRange | Agent A | DONE (codebase-engine·guards·service 테스트) |
+| T3 | store kind·linkedPath·excludes·setKind · 색인기 가드 · verify·부분/전체 재색인 · 마이그레이션(백업·복원·멱등) | Agent B | DONE (kb-policy-guard·kb-migration·kb-rollback-guards·kb-meta-fail-closed 등) |
+| T3b | IPC·preload 검증(kbGuard·kb-arg 접두사) · 시작 시 마이그레이션 · CLI 읽기 전용 연결 · 색인 큐 가드 | Agent D | DONE (kb-guard-wiring) |
+| T4 | UI 전면(목록·단계형 등록·상세·검색 테스트·8개 상태·세션 다중 연결) + 5개 언어 + E2E | Agent C | DONE (e2e/knowledge-types.spec.ts, 다크·작은 창 스크린샷 확인) |
+| T5 | 기본 스킬 skill-knowledge 지시 ×5 언어 · LEGACY 업그레이드 · 도구 안내 | 리더 | DONE |
+| T6 | 43질의 평가(성공률·Recall@5·지연·토큰·정책 지표) | 리더 | DONE (codebase 벡터 호출 0·색인 0·출처 100%) |
+| T7 | 독립 리뷰 2회 → 수정 (ADR-133·134) | Reviewer | DONE |
+| T8 | 전체 검증·E2E·데스크톱 패키징 실행·문서 | 리더 | DONE (typecheck·lint PASS, core 918·ui 169·bridge 381(+3 skip)·relay 9·server 10, e2e 248 passed/32 skipped, OctoBooks.app 패키징·실행) |
+
+후속(사람 조치 아님, 개선): docs/BLOCKERS.md B-22 참고.
+
 ## 지식베이스 목록 첫 열기 지연 제거 (2026-11-06, ADR-126)
 
 - DONE: `list()`는 meta.json만 동시에 읽고 반환(파일을 훑지 않음). 크기 캐시 없는 구버전 KB는 `statsPending`으로 돌려주고 뒤 대기열이 재서 저장. 데스크톱 시작 3초 뒤 `warmStats()`. UI "파일 세는 중…"·1초 목록 재조회·개수 모르는 삭제 안내. 검증: `pnpm typecheck && pnpm lint && pnpm test` PASS (core 886·ui 139·bridge 263(3 skip)·relay 9·server 10).

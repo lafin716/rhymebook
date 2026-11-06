@@ -196,7 +196,8 @@ test('학습에 지식베이스를 만들어 연결하고 자료를 넣고 지�
 
   // 빈 상태의 만들기 버튼으로 새 지식베이스
   await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
-  await dialog.getByLabel('새 지식베이스').fill('세포생물학');
+  await dialog.locator('[data-kind-card="document"]').click();
+  await dialog.getByRole('textbox', { name: '새 지식베이스', exact: true }).fill('세포생물학');
   await dialog.getByRole('button', { name: '만들기' }).click();
   await expect(dialog.getByRole('heading', { name: '세포생물학', level: 3 })).toBeVisible();
 
@@ -321,7 +322,8 @@ test('설명·출처 갱신·임베딩 설정 (문서 목록 없음)', async ({ 
   await main.locator('[data-knowledge-button]').click();
   const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
   await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
-  await dialog.getByLabel('새 지식베이스').fill('논문');
+  await dialog.locator('[data-kind-card="document"]').click();
+  await dialog.getByRole('textbox', { name: '새 지식베이스', exact: true }).fill('논문');
   await dialog.getByRole('button', { name: '만들기' }).click();
   await expect(dialog.getByRole('heading', { name: '논문', level: 3 })).toBeVisible();
 
@@ -395,7 +397,8 @@ test('여러 지식베이스를 세션마다 고르고, 가지는 상속하며 �
   for (const name of ['세포생물학', '유전학']) {
     await backToList();
     await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
-    await dialog.getByLabel('새 지식베이스').fill(name);
+    await dialog.locator('[data-kind-card="document"]').click();
+    await dialog.getByRole('textbox', { name: '새 지식베이스', exact: true }).fill(name);
     await dialog.getByRole('button', { name: '만들기' }).click();
     await expect(dialog.getByRole('heading', { name, level: 3 })).toBeVisible();
     await dialog.getByRole('button', { name: '이 학습에 연결', exact: true }).click();
@@ -470,7 +473,8 @@ test('연결된 지식베이스의 근거가 답변 출처 칩으로 붙고, 누
   await main.locator('[data-knowledge-button]').click();
   const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
   await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
-  await dialog.getByLabel('새 지식베이스').fill('생명과학');
+  await dialog.locator('[data-kind-card="document"]').click();
+  await dialog.getByRole('textbox', { name: '새 지식베이스', exact: true }).fill('생명과학');
   await dialog.getByRole('button', { name: '만들기' }).click();
   await expect(dialog.getByRole('heading', { name: '생명과학', level: 3 })).toBeVisible();
   await dialog.getByRole('button', { name: '이 학습에 연결', exact: true }).click();
@@ -524,7 +528,8 @@ test('자동 색인 스위치를 끄면 지식베이스 설정에 autoIndex fals
   await main.locator('[data-knowledge-button]').click();
   const dialog = page.getByRole('dialog', { name: '지식베이스', exact: true });
   await dialog.getByRole('button', { name: '새 지식베이스' }).first().click();
-  await dialog.getByLabel('새 지식베이스').fill('자동');
+  await dialog.locator('[data-kind-card="document"]').click();
+  await dialog.getByRole('textbox', { name: '새 지식베이스', exact: true }).fill('자동');
   await dialog.getByRole('button', { name: '만들기' }).click();
   await expect(dialog.getByRole('heading', { name: '자동', level: 3 })).toBeVisible();
 

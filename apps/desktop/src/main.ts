@@ -2,13 +2,14 @@ import { app, BrowserWindow, dialog, ipcMain, shell, Menu, Tray, Notification, s
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync } from 'node:fs';
-import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, startIndexerWorker, parseRetrievalRequest, type BridgeConnection, type KnowledgeTaskControl } from '@branch/bridge';
-import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, secretName, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type KnowledgeIndexSettings, type KnowledgeProgress, type SyncServerMsg, type SyncClientMsg, type UpdateState } from '@branch/core';
+import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, startIndexerWorker, parseRetrievalRequest, assertReadableKind, readKbMeta, validateLinkedFolder, inspectKnowledgeFolder, runKnowledgeMigration, type BridgeConnection, type KnowledgeTaskControl } from '@branch/bridge';
+import { KnowledgePolicyError, t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, secretName, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type KnowledgeIndexSettings, type KnowledgeProgress, type SyncServerMsg, type SyncClientMsg, type UpdateState } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { htmlToPdf } from './pdf';
 import { createAppUpdater, sendToAllWindows, type AppUpdater } from './updater';
 import { createSecretVault } from './secrets';
+import { assertKindChangeAllowed, assertIndexSettingsAllowed, assertReindexAllowed, assertVectorOpAllowed, guardMessage, kbCreateOptsArg, kbExcludesArg, kbIdArg, kbKindArg, kbReindexOptsArg, KbArgError } from './kbGuard';
 
 /**
  * octobooks 데스크톱 main 프로세스.
@@ -51,7 +52,12 @@ const stt = createSttEngine({
  */
 const knowledgeEnv: NodeJS.ProcessEnv = { ...process.env };
 void resolveCliEnv().then(({ env }) => Object.assign(knowledgeEnv, env)).catch(() => undefined);
-const knowledge = createKnowledgeStore({ root: path.join(userData, 'knowledge'), env: knowledgeEnv });
+const knowledge = createKnowledgeStore({
+  root: path.join(userData, 'knowledge'),
+  env: knowledgeEnv,
+  // 코드베이스 전환 시 색인 파일을 옮기기 전에 열린 핸들을 놓는다 (indexer는 아래에서 만들어진다)
+  releaseIndex: (kbId) => (indexer ? indexer.release(kbId) : Promise.resolve()),
+});
 
 /** asar 안의 경로를 asarUnpack된 실제 경로로 바꾼다 (worker 스크립트·pdfjs 자산은 디스크에서 읽어야 한다) */
 const unpackedPath = (p: string) => p.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
@@ -308,7 +314,7 @@ function showWindow(win: BrowserWindow) {
   }
 }
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   // 창 위 기본 메뉴 막대(File·Edit·View…)는 쓰지 않는다. macOS는 화면 위 메뉴가 없으면
   // ⌘C/⌘V/⌘Q 등 기본 단축키가 동작하지 않아 앱·편집 역할 메뉴만 남긴다
   Menu.setApplicationMenu(
@@ -331,6 +337,15 @@ void app.whenReady().then(() => {
       if (!w.isDestroyed()) w.webContents.send(CH.knowledgeIndexState, st);
     }
   });
+  // 시작 시 KB 마이그레이션 (ADR-127). 실패해도 앱은 계속 뜬다. 로그에는 개수만 남긴다 (경로·내용 없음)
+  try {
+    const mig = await runKnowledgeMigration({ root: path.join(userData, 'knowledge'), store: knowledge, indexer, log: bridgeLog });
+    bridgeLog(
+      `kb-migration: scanned=${mig.scanned} classified=${mig.classified} suggested=${mig.suggested} backedUp=${mig.backedUp} unchanged=${mig.unchanged} errors=${mig.errors} marker=${mig.markerWritten}`,
+    );
+  } catch (err) {
+    bridgeLog(`kb-migration: 실패 (${err instanceof Error ? err.name : 'unknown'})`);
+  }
   indexer.resume();
 
   // 앱 언어 (ADR-105): 트레이·알림·bridge 오류 문구가 렌더러와 같은 언어를 쓴다
@@ -406,41 +421,76 @@ void app.whenReady().then(() => {
 
   // 학습별 지식베이스 (ADR-107). 앱 창의 메인 프레임만 받는다. id·경로·URL은 여기와 knowledgeStore에서 다시 확인한다
   const knowledgeSender = (e: Electron.IpcMainInvokeEvent) => e.senderFrame === e.sender.mainFrame && isAppUrl(e.sender.getURL());
+  // 정책 위반은 렌더러가 코드로 구분할 수 있게 `kb-guard:<code>: ...` 메시지로 바꾼다 (Electron은 Error 객체를 그대로 못 보낸다)
+  const guardError = (err: unknown): unknown => (err instanceof KnowledgePolicyError ? new Error(guardMessage(err)) : err);
   const kbHandle = (channel: string, fn: (e: Electron.IpcMainInvokeEvent, ...args: unknown[]) => unknown) =>
     ipcMain.handle(channel, (e, ...args: unknown[]) => {
       if (!knowledgeSender(e)) throw new Error('unauthorized');
-      return fn(e, ...args);
+      try {
+        const r = fn(e, ...args);
+        return r instanceof Promise ? r.catch((err: unknown) => Promise.reject(guardError(err))) : r;
+      } catch (err) {
+        throw guardError(err);
+      }
     });
+  // 지식 폴더 루트 (메타·연결 폴더 검사에 쓴다)
+  const knowledgeRoot = path.join(userData, 'knowledge');
+  // 정책 검사에 쓰는 KB 유형. meta.json이 없으면 undefined (미분류 = 문서 동작)
+  // 정책 판단용 유형: meta가 없거나 깨졌으면 kb_meta_unreadable로 막는다 (undefined를 레거시로 취급하지 않는다)
+  const kindOf = (kid: string) => assertReadableKind(knowledgeRoot, kid);
+  // 인자 오류는 `kb-arg:<field>: <문구>` 형식으로 던진다 (렌더러가 접두로 구분한다)
+  const argError = (field: string, msg: string) => new Error(`kb-arg:${field}: ${msg}`);
   const kbId = (v: unknown): string => {
-    if (!isKnowledgeId(v)) throw new Error(t('bridge.knowledge.badId'));
+    if (!isKnowledgeId(v)) throw argError('id', t('bridge.knowledge.badId'));
     return v;
   };
   const kbPath = (v: unknown): string => {
-    if (!isKnowledgePath(v)) throw new Error(t('bridge.knowledge.badPath'));
+    if (!isKnowledgePath(v)) throw argError('path', t('bridge.knowledge.badPath'));
     return v;
   };
   const kbDest = (v: unknown): string | undefined => (v === undefined || v === '' ? undefined : kbPath(v));
   const kbName = (v: unknown): string => {
     const name = cleanKnowledgeName(v);
-    if (!name) throw new Error(t('bridge.knowledge.badName'));
+    if (!name) throw argError('name', t('bridge.knowledge.badName'));
     return name;
   };
   const kbPaths = (v: unknown): string[] => {
-    if (!Array.isArray(v) || v.length > 500 || !v.every((x) => typeof x === 'string')) throw new Error(t('bridge.knowledge.badPath'));
+    if (!Array.isArray(v) || v.length > 500 || !v.every((x) => typeof x === 'string')) throw argError('paths', t('bridge.knowledge.badPath'));
     return v as string[];
   };
   kbHandle(CH.knowledgeList, () => knowledge.list());
-  kbHandle(CH.knowledgeCreate, (_e, name) => knowledge.create(kbName(name)));
+  // 새 지식베이스. 연결 폴더 코드베이스는 폴더를 검사(루트·홈·지식 폴더 겹침 금지)한 뒤 realpath로 저장한다
+  kbHandle(CH.knowledgeCreate, async (_e, name, opts) => {
+    const cleanName = kbName(name);
+    const o = kbCreateOptsArg(opts);
+    if (o.linkedPath) o.linkedPath = await validateLinkedFolder(o.linkedPath, knowledgeRoot);
+    return knowledge.create(cleanName, o);
+  });
   kbHandle(CH.knowledgeRename, (_e, id, name) => knowledge.rename(kbId(id), kbName(name)));
   // 색인 큐에 넣는다 (가져오기·삭제 뒤). 같은 KB는 worker가 하나로 합친다
+  // 코드베이스(연결 폴더 포함)와 메타를 못 읽는 KB는 자동 색인 큐에 넣지 않는다 (ADR-127). 정책 오류를 unhandled로 남기지 않는다
+  const autoIndexable = (kid: string): boolean => {
+    try {
+      return kindOf(kid) !== 'codebase';
+    } catch {
+      return false;
+    }
+  };
+  // 로그에는 오류 이름만 남긴다 (메시지·경로에 비밀이 있을 수 있다)
+  const logIndexFailure = (what: string) => (err: unknown) => bridgeLog(`kb-index: ${what} 실패 (${err instanceof Error ? err.name : 'unknown'})`);
   const queueIndex = (kid: string, full = false) => {
-    indexer?.enqueue(kid, full ? 'full' : 'incremental');
+    if (!indexer || !autoIndexable(kid)) return;
+    indexer.enqueue(kid, full ? 'full' : 'incremental').catch(logIndexFailure('enqueue'));
   };
   // 파일을 넣은 뒤: 자동 색인이 꺼져 있으면 색인하지 않고 '다시 색인 필요'로만 표시한다
   const queueIndexAuto = (kid: string) => {
     void knowledge
       .getSettings(kid)
-      .then((s) => (s.autoIndex === false ? indexer?.markStale(kid) : queueIndex(kid)))
+      .then((s) => {
+        if (!indexer || !autoIndexable(kid)) return;
+        if (s.autoIndex === false) indexer.markStale(kid).catch(logIndexFailure('markStale'));
+        else queueIndex(kid);
+      })
       .catch(() => queueIndex(kid));
   };
   const kbDesc = (v: unknown): string => {
@@ -585,9 +635,51 @@ void app.whenReady().then(() => {
     return ix.states(ids.map((x) => kbId(x)));
   });
   kbHandle(CH.knowledgeReindex, (_e, id, opts) => {
-    const kid = kbId(id);
-    const full = (opts as { full?: unknown } | undefined)?.full === true;
-    queueIndex(kid, full);
+    const kid = kbIdArg(id);
+    const o = kbReindexOptsArg(opts);
+    // 코드베이스는 재색인 자체를 막는다 (ADR-127). 큐에 넣기 전에 확인한다
+    assertReindexAllowed(kid, kindOf(kid));
+    // paths·retryFailed를 그대로 넘긴다 (indexer가 files/ 밖 경로를 한 번 더 거른다)
+    return needIndexer().reindex(kid, o);
+  });
+  // 유형 지정·변경 (ADR-127·128). 코드베이스로 바꾸면 진행 중 색인을 멈춘다. 색인 파일 옮기기는 store 쪽 작업 (아래 주석 참고)
+  kbHandle(CH.knowledgeSetKind, async (_e, id, kind) => {
+    const kid = kbIdArg(id);
+    const k = kbKindArg(kind);
+    assertReadableKind(knowledgeRoot, kid);
+    const current = readKbMeta(knowledgeRoot, kid);
+    assertKindChangeAllowed(kid, current, k);
+    if (k === 'codebase') await indexer?.cancel(kid).catch(() => undefined);
+    return knowledge.setKind(kid, k);
+  });
+  kbHandle(CH.knowledgeSetExcludes, (_e, id, excludes) => {
+    const kid = kbIdArg(id);
+    const list = kbExcludesArg(excludes);
+    if (kindOf(kid) !== 'codebase') throw new KnowledgePolicyError('codebase_index_forbidden', `excludes apply to codebase knowledge bases only: ${kid}`);
+    return knowledge.setExcludes(kid, list);
+  });
+  // OS 폴더 선택 창 (취소하면 null). 선택한 경로는 inspectFolder·create에서 다시 확인한다
+  kbHandle(CH.knowledgePickFolder, async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const options: Electron.OpenDialogOptions = { properties: ['openDirectory'] };
+    const r = win && !win.isDestroyed() ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return r.canceled || r.filePaths.length === 0 ? null : r.filePaths[0];
+  });
+  // 등록 전 폴더 미리보기 (읽기만 한다)
+  kbHandle(CH.knowledgeInspectFolder, (_e, p) => {
+    if (typeof p !== 'string') throw new KbArgError('linkedPath');
+    return inspectKnowledgeFolder(p, knowledgeRoot);
+  });
+  // 색인 무결성 검사·백업 복구는 임베딩 관련 작업이라 코드베이스에서는 정책으로 막는다 (ADR-127)
+  kbHandle(CH.knowledgeVerifyIndex, (_e, id) => {
+    const kid = kbIdArg(id);
+    assertVectorOpAllowed(kid, kindOf(kid));
+    return needIndexer().verify(kid);
+  });
+  kbHandle(CH.knowledgeRestoreIndexBackup, async (_e, id) => {
+    const kid = kbIdArg(id);
+    assertVectorOpAllowed(kid, kindOf(kid));
+    return knowledge.restoreIndexBackup(kid);
   });
   kbHandle(CH.knowledgeCancelIndex, (_e, id) => needIndexer().cancel(kbId(id)));
   // 문서 목록: 경로·제목 부분 일치 (대소문자 무시)
@@ -601,6 +693,8 @@ void app.whenReady().then(() => {
   // 설정을 저장한 뒤 임베딩 모델이 바뀌었는지 확인해 stale 표시를 한다. 돌려주는 값은 그 KB의 색인 상태
   kbHandle(CH.knowledgeSetIndexSettings, async (_e, id, s) => {
     const kid = kbId(id);
+    // 코드베이스는 색인 설정을 바꿀 수 없다 (ADR-127). store에 닿기 전에 막는다
+    assertIndexSettingsAllowed(kid, kindOf(kid));
     await knowledge.setSettings(kid, kbSettings(s));
     const ix = needIndexer();
     await ix.settingsChanged(kid);

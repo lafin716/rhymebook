@@ -38,6 +38,68 @@ export interface KnowledgeBase {
    * 목록은 파일을 훑지 않고 바로 돌려주며, 세기는 뒤에서 끝난다.
    */
   statsPending?: boolean;
+  /**
+   * 지식베이스 유형 (ADR-127). undefined = 구버전에서 넘어와 유형을 확실히 판별하지 못한 상태(미분류).
+   * 미분류는 사용자가 고를 때까지 기존 동작(문서형 검색)을 유지하고 UI가 유형 선택을 안내한다.
+   */
+  kind?: KnowledgeKind;
+  /**
+   * 코드베이스가 가리키는 로컬 폴더 절대 경로 (ADR-128, 읽기 전용 연결).
+   * 있으면 파일을 복사하지 않고 이 폴더를 그대로 탐색한다. 없으면 files/ 아래(복사·클론본)를 쓴다.
+   */
+  linkedPath?: string;
+  /** 코드베이스 검색 제외 경로 (gitignore 꼴 패턴, 사용자 설정). 기본 제외 목록에 더해진다 */
+  excludes?: string[];
+  /** 미분류 KB의 유형 추정 (UI 안내용, 자동 적용하지 않는다) */
+  kindSuggestion?: KnowledgeKindSuggestion;
+}
+
+/** 지식베이스 유형: 코드베이스(Agentic 탐색 전용, Vector 금지) · 문서(Vector+BM25 하이브리드) */
+export type KnowledgeKind = 'codebase' | 'document';
+export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = ['codebase', 'document'];
+
+export function isKnowledgeKind(v: unknown): v is KnowledgeKind {
+  return v === 'codebase' || v === 'document';
+}
+
+export interface KnowledgeKindSuggestion {
+  kind: KnowledgeKind;
+  /** 판단 근거 코드 (i18n 키 접미사): 'github_source' | 'project_marker' | 'docs_only' | 'code_majority' 등 */
+  reason: string;
+}
+
+/** 새 지식베이스 만들기 옵션 (create의 두 번째 인자, 생략하면 문서형) */
+export interface KnowledgeCreateOptions {
+  kind?: KnowledgeKind;
+  description?: string;
+  /** 코드베이스 전용: 연결할 로컬 폴더 절대 경로 */
+  linkedPath?: string;
+  /** 코드베이스 전용: 제외 경로 패턴 */
+  excludes?: string[];
+}
+
+/** 코드베이스 등록 전 폴더 미리보기 (pickFolder → inspectFolder) */
+export interface KnowledgeFolderInspection {
+  /** 실제 경로 (realpath) */
+  path: string;
+  /** 폴더 이름 (기본 KB 이름 후보) */
+  name: string;
+  /** 최상위 항목 (숨김 제외, 이름순, 최대 200) */
+  top: KnowledgeEntry[];
+  /** 훑은 파일 수 (기본 제외 경로 제외, 상한에서 멈추면 truncated) */
+  fileCount: number;
+  totalBytes: number;
+  truncated: boolean;
+  /** 발견한 프로젝트 표지 파일 (package.json, go.mod …) */
+  markers: string[];
+  /** 루트 안내 문서 (README.md, AGENTS.md, CLAUDE.md, INFO.md …) */
+  guides: string[];
+  /** 언어별 파일 수 상위 (확장자 기준) */
+  languages: { ext: string; count: number }[];
+  /** 유형 추정 */
+  suggestedKind: KnowledgeKind;
+  /** .git 폴더가 있으면 true */
+  isGitRepo: boolean;
 }
 
 /** 지식베이스 안의 항목. path는 files/ 기준 POSIX 상대 경로 */

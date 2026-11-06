@@ -16,6 +16,7 @@ beforeEach(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'rag-cache-'));
   const files = path.join(root, KB, 'files');
   await mkdir(files, { recursive: true });
+  await writeFile(path.join(root, KB, 'meta.json'), JSON.stringify({ name: 'test', createdAt: 1, updatedAt: 1 }), 'utf8');
   await cp(path.join(FIXTURES, 'k8s/pods.md'), path.join(files, 'pods.md'));
   await cp(path.join(FIXTURES, 'k8s/services.md'), path.join(files, 'services.md'));
 });

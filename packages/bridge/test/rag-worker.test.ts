@@ -1,4 +1,4 @@
-import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { MessageChannel } from 'node:worker_threads';
@@ -21,6 +21,7 @@ const closers: Array<() => Promise<void>> = [];
 beforeEach(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'rag-worker-'));
   await mkdir(path.join(root, KB, 'files'), { recursive: true });
+  await writeFile(path.join(root, KB, 'meta.json'), JSON.stringify({ name: 'test', createdAt: 1, updatedAt: 1 }), 'utf8');
   await cp(path.join(FIXTURES, 'linux/processes.md'), path.join(root, KB, 'files', 'processes.md'));
 });
 

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { createNoneEmbedder, DEFAULT_RAG_SETTINGS, KB_TOOL_LIMITS, type Evidence, type KbSearchItem } from '@branch/core';
+import { createNoneEmbedder, DEFAULT_RAG_SETTINGS, KB_TOOL_LIMITS, KbToolError, type Evidence, type KbSearchItem } from '@branch/core';
 import { planFor } from './folderHints';
 import { createKnowledgeIndexer, INDEX_FILE } from '../rag/indexer';
 import { IndexRepository } from '../rag/sqliteRepository';
@@ -11,6 +11,8 @@ export interface IndexedSearchInput {
   query: string;
   limit: number;
   pathPrefix?: string;
+  /** 취소 신호. 시작 전·검색 후에 확인한다 (cancelled) */
+  signal?: AbortSignal;
 }
 
 export interface IndexedSearchOutput {
@@ -56,6 +58,7 @@ function toItem(e: Evidence): KbSearchItem {
  * 색인을 쓰지 않는 KB와 실패한 KB는 fallbackKbIds로 돌려주어 호출 쪽이 키워드 스캔을 하게 한다.
  */
 export async function indexedSearch(root: string, kbIds: string[], input: IndexedSearchInput): Promise<IndexedSearchOutput> {
+  if (input.signal?.aborted) throw new KbToolError('cancelled', 'search cancelled');
   const usable = kbIds.filter((id) => indexUsable(root, id));
   const unusable = kbIds.filter((id) => !usable.includes(id));
   if (usable.length === 0) return { results: [], folders: [], fallbackKbIds: unusable };
@@ -74,6 +77,7 @@ export async function indexedSearch(root: string, kbIds: string[], input: Indexe
       settings: { ...DEFAULT_RAG_SETTINGS, topK: input.limit },
       ...(input.pathPrefix ? { filter: { pathPrefix: input.pathPrefix } } : {}),
     });
+    if (input.signal?.aborted) throw new KbToolError('cancelled', 'search cancelled');
     const failed = new Set(r.skipped.map((s) => s.kbId));
     return {
       results: r.evidence.filter((e) => !failed.has(e.kbId)).map(toItem).slice(0, input.limit),

@@ -30,13 +30,76 @@
     "link": "关联到本次学习",
     "unlink": "取消关联",
     "count": "{count} 个文件",
-    "counting": "正在统计文件…"
+    "counting": "正在统计文件…",
+    "filter": "按类型筛选",
+    "filterAll": "全部",
+    "noMatch": "没有符合条件的知识库。",
+    "search": "搜索知识库",
+    "searchPlaceholder": "按名称、描述或路径搜索",
+    "sort": "排序",
+    "sortName": "按名称",
+    "sortRecent": "最近",
+    "sortSize": "按大小"
   },
   "create": {
     "title": "新建知识库",
     "namePlaceholder": "名称（例如：细胞生物学教材）",
     "submit": "创建",
-    "cancel": "取消"
+    "cancel": "取消",
+    "back": "返回",
+    "kindTitle": "要创建哪种知识库?",
+    "name": "名称",
+    "description": "描述(可选)",
+    "working": "正在创建…",
+    "failed": "无法创建,请重试。",
+    "kind": {
+      "codebase": {
+        "title": "代码库",
+        "desc": "文件夹或 GitHub 仓库。每次提问时直接查找实际文件。"
+      },
+      "document": {
+        "title": "文档",
+        "desc": "为 PDF 和文档建立索引,支持关键词与语义搜索。"
+      }
+    },
+    "codebase": {
+      "notice": "代码库不建立索引,每次提问时直接查找实际文件。",
+      "source": "来源",
+      "pathLabel": "文件夹路径",
+      "pathPlaceholder": "/路径/项目",
+      "pickFolder": "选择文件夹",
+      "gitLabel": "或 GitHub 仓库",
+      "gitPlaceholder": "owner/repo 或 https://github.com/owner/repo",
+      "gitHint": "仅获取默认分支的最新文件",
+      "inspecting": "正在检查文件夹…",
+      "inspectFailed": "无法读取文件夹,请检查路径。",
+      "inspected": "{count} 个文件 · {size}",
+      "truncated": "文件较多,仅统计了一部分。",
+      "isGit": "这是一个 Git 仓库。",
+      "suggestDocument": "如果文件夹主要是 PDF 或文档,建议创建为“文档”。",
+      "descPlaceholder": "例如:支付模块源码",
+      "excludes": "排除的路径(每行一个)",
+      "excludesHint": "node_modules 等构建和依赖目录默认排除。",
+      "submit": "创建代码库",
+      "cloneFailed": "无法克隆仓库,请检查地址和访问权限。知识库已创建。"
+    },
+    "document": {
+      "pick": "选择文件",
+      "pickFolder": "选择文件夹",
+      "empty": "将文件或文件夹拖到这里",
+      "count": "{count} 个 · {size}",
+      "listLabel": "待添加文件列表",
+      "remove": "从列表移除",
+      "duplicates": "同名同大小的 {count} 个文件将被排除。",
+      "submit": "创建文档知识库",
+      "index": {
+        "label": "索引方式",
+        "local": "本地语义搜索(默认)",
+        "none": "仅关键词(BM25,无语义索引)",
+        "openai": "OpenAI 嵌入(高级,需要 API 密钥)",
+        "advanced": "高级设置"
+      }
+    }
   },
   "rename": {
     "action": "重命名",
@@ -80,7 +143,8 @@
     "busyDrop": "仍在导入中。完成后请再拖放。",
     "dropEmpty": "在拖放的项目中没有找到文件。",
     "nothing": "没有添加任何文件。请检查文件大小或类型。",
-    "gitHint": "仅获取默认分支（main、master 等）的最新文件"
+    "gitHint": "仅获取默认分支（main、master 等）的最新文件",
+    "allDuplicates": "已跳过 {count} 个已存在的文件。"
   },
   "error": {
     "generic": "出现问题。请重试。",
@@ -233,6 +297,120 @@
     "embed_failed": "语义搜索失败,已改用关键词搜索。",
     "insufficient": "知识库中未找到相关证据。",
     "timeout": "搜索超时,回答未使用知识库证据。",
-    "kb_skipped": "已跳过没有索引的知识库。"
+    "kb_skipped": "已跳过没有索引的知识库。",
+    "keyword_only": "仅使用了关键词搜索（无嵌入）。",
+    "version_conflict": "不同资料提到的版本不一致，请核对回答中的版本。",
+    "codebase_missing": "找不到代码库文件夹，已跳过。"
+  },
+  "kind": {
+    "codebase": "代码库",
+    "document": "文档",
+    "unclassified": "未分类",
+    "choose": "请选择类型",
+    "suggest": "推荐:{kind}",
+    "blocked": "已链接文件夹的代码库不能改为文档。"
+  },
+  "maint": {
+    "heading": "索引维护",
+    "retryFailed": "重试 {count} 个失败文档",
+    "retried": "正在重新索引 {count} 个失败文档。",
+    "rebuild": "全部重建",
+    "rebuilding": "正在全部重建。",
+    "verify": "检查索引",
+    "verifyOk": "索引没有问题。",
+    "verifyBad": "索引存在问题,请尝试全部重建。",
+    "restore": "从备份恢复",
+    "restored": "已从备份恢复索引。",
+    "noBackup": "没有可恢复的备份。"
+  },
+  "overview": {
+    "heading": "概览",
+    "kind": "类型",
+    "method": "检索方式",
+    "path": "链接路径",
+    "files": "文件",
+    "updated": "更新"
+  },
+  "method": {
+    "agentic": "直接探索(无索引)",
+    "hybrid": "混合检索(向量 + 关键词)"
+  },
+  "codebase": {
+    "excludes": "排除列表",
+    "excludesHint": "保存后从下一次提问起生效,无需重新索引。",
+    "excludesReset": "恢复默认",
+    "excludesSave": "保存"
+  },
+  "readiness": {
+    "ready": "就绪",
+    "empty": "空",
+    "loading": "加载中",
+    "indexing": "索引中",
+    "rebuilding": "重建中",
+    "partial": "部分就绪",
+    "cancelled": "已取消",
+    "needsKind": "需要选择类型",
+    "failed": "失败"
+  },
+  "cause": {
+    "updating": "文件已变化,正在同步最新内容。",
+    "last_failed": "上一次任务失败了。",
+    "stale": "文件已变化,需要重新索引。",
+    "failed_docs": "部分文档无法建立索引。",
+    "index_error": "索引过程中出错。",
+    "not_indexed": "尚未建立索引。",
+    "codebase_missing": "找不到链接的文件夹,可能已被移动或删除。",
+    "cancelled": "任务已取消。",
+    "interrupted": "应用关闭导致任务中断。",
+    "unknown": "发生未知问题。"
+  },
+  "fix": {
+    "addFiles": "请添加文件。",
+    "reindex": "请点击重新索引。",
+    "retryFailed": "请只重试失败的文档。",
+    "rebuild": "请全部重建。",
+    "chooseKind": "请在下方选择类型。",
+    "relink": "请重新连接文件夹,或删除此知识库后重新创建。",
+    "openSettings": "请在设置中检查。"
+  },
+  "test": {
+    "heading": "搜索测试",
+    "hint": "输入一个问题，查看此知识库返回的依据。不会生成答案。",
+    "label": "搜索问题",
+    "placeholder": "Pod Scheduling 是如何工作的？",
+    "run": "搜索",
+    "running": "搜索中…",
+    "cancel": "取消搜索",
+    "cancelled": "已取消搜索。重新搜索可获得新结果。",
+    "error": "搜索失败。",
+    "unsupported": "此版本不支持搜索测试。",
+    "empty": "未找到依据。请更换问题或添加更多文档。",
+    "count": "依据 {count} 条 · {ms}ms",
+    "results": "搜索结果",
+    "relevance": "相关度",
+    "open": "查看原文",
+    "skipped": "已跳过 {count} 个知识库（无索引或失败）"
+  },
+  "guard": {
+    "codebase_index_forbidden": {
+      "cause": "代码库知识库不使用索引和向量搜索。",
+      "fix": "请在文档知识库中使用索引和搜索功能。"
+    },
+    "linked_kind_locked": {
+      "cause": "已链接的文件夹不能改为文档知识库。",
+      "fix": "请创建一个包含该文件夹内容副本的新文档知识库。"
+    },
+    "folder_not_allowed": {
+      "cause": "该位置无法链接，例如主目录或系统文件夹。",
+      "fix": "请选择项目文件夹后重新链接。"
+    },
+    "kb_meta_unreadable": {
+      "cause": "无法读取知识库的信息文件。",
+      "fix": "请删除该知识库后重新创建。"
+    },
+    "arg": {
+      "cause": "输入的值不正确。",
+      "fix": "请检查各项后重试。"
+    }
   }
 }

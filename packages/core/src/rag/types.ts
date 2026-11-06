@@ -3,6 +3,7 @@
  * core는 플랫폼 무관(DOM·Node import 금지). 저장소(SQLite)·Worker·IPC 구현은 bridge/desktop이 맡는다.
  * 사용자 학습 데이터(세션·메시지, Dexie)와 재생성 가능한 색인(<kb>/index.sqlite)은 분리한다.
  */
+import type { KnowledgeKind } from '../knowledge';
 
 // ── 문서·청크 ─────────────────────────────────────────
 
@@ -153,6 +154,15 @@ export const DEFAULT_INDEX_SETTINGS: KnowledgeIndexSettings = { embedding: { pro
 /** 새로 만드는 KB의 기본: 벡터 없음 (평가 결과 local-hash 기여가 작음, ADR-121) */
 export const NEW_KB_INDEX_SETTINGS: KnowledgeIndexSettings = { embedding: { provider: 'none' } };
 
+/**
+ * 새 문서형 KB의 기본 (ADR-129): 키가 필요 없는 로컬 벡터(local-hash) + BM25 하이브리드.
+ * OpenAI 임베딩은 사용자가 고를 때만 쓴다 (API 키를 강제하지 않는다). 코드베이스는 색인 설정 자체가 없다.
+ */
+export const NEW_DOCUMENT_INDEX_SETTINGS: KnowledgeIndexSettings = { embedding: { provider: 'local-hash' } };
+
+/** 색인 파일 형식 버전 (sqliteRepository 스키마). 상태·무결성 검사에 노출한다 */
+export const INDEX_FORMAT_VERSION = 4;
+
 // ── 색인 상태·작업 ────────────────────────────────────
 
 export type IndexStatus =
@@ -170,6 +180,8 @@ export type IndexStatus =
 
 export interface IndexJobProgress {
   kbId: string;
+  /** 작업 종류 (ADR-130): 증분 · 전체 재생성 · 일부 파일 · 실패 재시도 */
+  mode?: IndexJobMode;
   phase: 'scan' | 'parse' | 'embed' | 'write' | 'meta' | 'swap';
   done: number;
   total: number;
@@ -177,9 +189,28 @@ export interface IndexJobProgress {
   current?: string;
 }
 
+/** 색인 작업 종류 (ADR-130) */
+export type IndexJobMode = 'incremental' | 'full' | 'partial' | 'retry';
+
+/** 마지막으로 끝난 색인 작업 결과 (상태 복구·UI 안내) */
+export interface IndexJobOutcome {
+  mode: IndexJobMode;
+  outcome: 'completed' | 'cancelled' | 'failed' | 'interrupted';
+  at: number;
+}
+
 export interface KnowledgeIndexState {
   kbId: string;
   status: IndexStatus;
+  /**
+   * 코드베이스는 색인이 없다 (ADR-127): status는 항상 'ready'(또는 경로를 못 찾으면 'error'),
+   * docCount 등은 0. UI는 kind로 화면을 나눈다. 미분류(undefined)는 기존 문서형 동작.
+   */
+  kind?: KnowledgeKind;
+  /** 마지막으로 끝난 작업 (취소·중단 표시용) */
+  lastJob?: IndexJobOutcome;
+  /** 색인 파일 형식 버전 (INDEX_FORMAT_VERSION과 다르면 재생성 필요) */
+  formatVersion?: number;
   /** 색인된 문서 수·청크 수·색인 파일 크기 */
   docCount: number;
   chunkCount: number;
@@ -352,9 +383,18 @@ export interface Evidence {
   score: number;
   /** 어느 검색 채널이 이 청크를 찾았나 (충분성 판단·디버그, ADR-122) */
   matched?: SearchChannel[];
+  /** 검색 방식 (ADR-127): 코드베이스 실시간 탐색 · 문서 하이브리드 */
+  method?: RetrievalMethod;
 }
 
-export type SearchChannel = 'keyword' | 'vector' | 'symbol' | 'path' | 'folder';
+/**
+ * 검색 채널. grep·definition·file은 코드베이스 실시간 탐색(Agentic, ADR-128) 전용,
+ * vector는 문서형 전용이다.
+ */
+export type SearchChannel = 'keyword' | 'vector' | 'symbol' | 'path' | 'folder' | 'grep' | 'definition' | 'file';
+
+/** 지식베이스 검색 방식: agentic = 코드베이스 실시간 탐색(색인·벡터 없음), hybrid = 문서 Vector+BM25 */
+export type RetrievalMethod = 'agentic' | 'hybrid';
 
 /** 검색 단계별 시간(ms). 측정은 항상 하되 로그는 남기지 않는다 (디버그 화면·평가용) */
 export interface RetrievalTimings {
@@ -387,7 +427,13 @@ export type RetrievalNoticeCode =
   /** 일부 KB를 건너뜀 (skipped 참조) */
   | 'kb_skipped'
   /** 검색 시간 초과 → 근거 없이 답함 */
-  | 'timeout';
+  | 'timeout'
+  /** 문서형 KB의 벡터 색인이 없거나 꺼져 키워드(BM25)만 썼다 */
+  | 'keyword_only'
+  /** 코드베이스·문서 결과 사이에 버전 표기가 서로 다르다 (Context Builder, ADR-131) */
+  | 'version_conflict'
+  /** 코드베이스 폴더를 찾지 못했다 (연결 폴더가 옮겨졌거나 지워짐) */
+  | 'codebase_missing';
 
 export interface RetrievalNotice {
   code: RetrievalNoticeCode;
@@ -427,6 +473,8 @@ export interface RetrievalResult {
   /** 근거 충분성 */
   assessment?: EvidenceAssessment;
   notices?: RetrievalNotice[];
+  /** 유형별 검색 라우팅 (ADR-131 Knowledge Router) */
+  routed?: { agentic: string[]; hybrid: string[]; intent: QueryIntent };
   /** 디버그 모드에서만: 융합 전 후보 수 등 */
   debug?: { candidates: number; perList: Record<string, number> };
 }
@@ -446,6 +494,8 @@ export interface RagTrace {
   topPaths: string[];
   /** CLI가 추가로 부른 지식베이스 도구 횟수 (스트림에서 센다) */
   toolCalls?: number;
+  /** 유형별로 실제 검색한 KB (ADR-131 Knowledge Router). 구버전 메시지에는 없다 */
+  routed?: { agentic: string[]; hybrid: string[]; intent: QueryIntent };
   timings?: RetrievalTimings;
   sufficient?: boolean;
 }
@@ -474,6 +524,33 @@ export interface Citation {
   /** 짧은 미리보기 (최대 280자) */
   snippet: string;
   score: number;
+  /** 검색 방식 (ADR-127). 구버전 메시지에는 없다 */
+  method?: RetrievalMethod;
+}
+
+/** 질문 의도 (Knowledge Router, ADR-131) */
+export type QueryIntent = 'code' | 'document' | 'both';
+
+/** 색인 무결성 검사 결과 (ADR-130) */
+export interface IndexIntegrityReport {
+  kbId: string;
+  checkedAt: number;
+  ok: boolean;
+  /** 색인 파일 형식 버전 / 기대 버전 */
+  formatVersion?: number;
+  expectedFormatVersion: number;
+  model?: EmbeddingModelInfo;
+  /** 설정의 임베딩과 색인의 임베딩이 다르면 true (재색인 필요) */
+  modelMismatch: boolean;
+  /** 원본은 있는데 색인에 없는 파일 · 색인에는 있는데 원본이 없는 파일 · 내용이 바뀐 파일 수 */
+  missing: number;
+  orphaned: number;
+  changed: number;
+  failedDocs: number;
+  /** SQLite integrity_check 결과가 ok가 아니면 false */
+  storageOk: boolean;
+  /** 예시 경로 (최대 20) */
+  samples: { path: string; issue: 'missing' | 'orphaned' | 'changed' | 'failed' }[];
 }
 
 /** 출처 열기 결과: 해당 위치 주변 원문 */

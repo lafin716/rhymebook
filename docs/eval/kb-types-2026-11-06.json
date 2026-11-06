@@ -1,0 +1,2495 @@
+{
+  "generatedAt": "2026-11-06T06:48:29.553Z",
+  "node": "v24.16.0",
+  "head": "3d707fd",
+  "rev": "2aec63d",
+  "index": {
+    "kbdocument": {
+      "status": "ready",
+      "ms": 321,
+      "chunks": 1184,
+      "docs": 50
+    },
+    "kbdocnone": {
+      "status": "ready",
+      "ms": 187,
+      "chunks": 1184,
+      "docs": 50
+    }
+  },
+  "policy": {
+    "codebaseEmbedCalls": 0,
+    "codebaseIndexFiles": 0,
+    "codebaseEnqueue": "rejected(KnowledgePolicyError)",
+    "documentEmbedCalls": 907,
+    "documentNoneEmbedCalls": 0,
+    "sourcedRatio": 1,
+    "codebaseScenarioQueries": 70
+  },
+  "summary": [
+    {
+      "scenario": "mixed",
+      "n": 43,
+      "nGold": 37,
+      "success": 0.6511627906976745,
+      "recall5": 0.7432432432432432,
+      "mrr": 0.49504504504504504,
+      "msMedian": 56.07487500000025,
+      "msP95": 67.36745800000017,
+      "tokensAvg": 2168.3023255813955
+    },
+    {
+      "scenario": "codebase-only",
+      "n": 27,
+      "nGold": 27,
+      "success": 0.8148148148148148,
+      "recall5": 0.8148148148148148,
+      "mrr": 0.5845679012345679,
+      "msMedian": 49.1634580000009,
+      "msP95": 55.0252500000006,
+      "tokensAvg": 1860.3703703703704
+    },
+    {
+      "scenario": "document-only",
+      "n": 8,
+      "nGold": 8,
+      "success": 0.875,
+      "recall5": 0.8125,
+      "mrr": 0.65625,
+      "msMedian": 5.9305830000012065,
+      "msP95": 6.478542000000743,
+      "tokensAvg": 2263.625
+    },
+    {
+      "scenario": "document-keyword-only",
+      "n": 8,
+      "nGold": 8,
+      "success": 0.75,
+      "recall5": 0.6875,
+      "mrr": 0.625,
+      "msMedian": 5.325957999997627,
+      "msP95": 7.263249999999971,
+      "tokensAvg": 2331.125
+    }
+  ],
+  "byKind": [
+    {
+      "goldKind": "code",
+      "n": 27,
+      "success": 0.7407407407407407,
+      "recall5": 0.7407407407407407
+    },
+    {
+      "goldKind": "doc",
+      "n": 8,
+      "success": 0.75,
+      "recall5": 0.6875
+    },
+    {
+      "goldKind": "both",
+      "n": 2,
+      "success": 1,
+      "recall5": 1
+    },
+    {
+      "goldKind": "none",
+      "n": 6,
+      "success": 0,
+      "recall5": null
+    }
+  ],
+  "recs": [
+    {
+      "scenario": "mixed",
+      "id": "c-01",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 3,
+      "evidence": 3,
+      "tokens": 1324,
+      "msMedian": 61.723625000000084,
+      "msP95": 64.41054199999985,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "docs/DECISIONS.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-02",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1607,
+      "msMedian": 62.61412500000006,
+      "msP95": 63.22562499999981,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "docs/plans/knowledge-rag-plan.md",
+        "docs/plans/i18n-plan.md",
+        "packages/core/src/i18n/locales/en/knowledge.json",
+        "packages/core/src/i18n/locales/en/rag.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-03",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1239,
+      "msMedian": 58.49175000000014,
+      "msP95": 60.16445900000008,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/prompt.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/types.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-04",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1575,
+      "msMedian": 52.402958000000126,
+      "msP95": 52.6840000000002,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "docs/knowledge-pack-architecture.md",
+        "docs/plans/knowledge-base-plan.md",
+        "packages/core/src/model.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-05",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2003,
+      "msMedian": 61.30412500000011,
+      "msP95": 61.587125000000015,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "docs/plans/scheduling/ARCHITECTURE.md",
+        "docs/plans/scheduling/VALIDATION.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/tts.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-06",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2455,
+      "msMedian": 63.708000000000084,
+      "msP95": 67.36745800000017,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/chunk.ts",
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-07",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1573,
+      "msMedian": 61.671875,
+      "msP95": 63.13050000000021,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/rewrite.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/store/index.ts",
+        "packages/core/src/context.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-08",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1119,
+      "msMedian": 62.62237499999992,
+      "msP95": 62.77129100000002,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "docs/DEVELOPMENT.ko.md",
+        "docs/plans/scheduling/MASTER_PLAN.md",
+        "packages/core/src/bridge/sync.ts",
+        "packages/core/src/i18n/locales/ko/skills.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-09",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2587,
+      "msMedian": 56.07487500000025,
+      "msP95": 58.672999999999774,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/rewrite.ts",
+        "docs/DECISIONS.md",
+        "docs/plans/imp-12-plan.md",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/settings.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-10",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 4,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 971,
+      "msMedian": 64.89345800000001,
+      "msP95": 66.9356670000002,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "docs/plans/imp07-plan.md",
+        "docs/03-PROVIDERS.md",
+        "packages/core/src/rag/types.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-11",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2522,
+      "msMedian": 57.57637500000055,
+      "msP95": 59.72087499999998,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "c-12",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2562,
+      "msMedian": 56.393583000000035,
+      "msP95": 57.28141699999924,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/parse.ts",
+        "docs/plans/scheduling/MOBILE_NOTIFICATIONS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/bridge/desktop.ts",
+        "packages/core/src/i18n/locales/ko/demo.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-01",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2402,
+      "msMedian": 55.387917000000016,
+      "msP95": 55.62812500000018,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/i18n/locales/ko/prompts.json",
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "docs/DECISIONS.md",
+        "docs/knowledge-pack-architecture.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-02",
+      "type": "technical-term",
+      "gold": [
+        "docs/02-ARCHITECTURE.md"
+      ],
+      "goldKind": "doc",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 691,
+      "msMedian": 59.71741600000041,
+      "msP95": 66.01095900000018,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/backup/snapshot.ts",
+        "packages/core/src/bridge/sync.ts",
+        "docs/knowledge-pack-architecture.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-03",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1570,
+      "msMedian": 53.38020800000049,
+      "msP95": 57.22620900000038,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/bridge/desktop.ts",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/plans/knowledge-base-plan.md",
+        "packages/core/src/attachments.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-04",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1910,
+      "msMedian": 53.25012500000048,
+      "msP95": 54.177999999999884,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/update.ts",
+        "docs/plans/auto-update-plan.md",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "packages/core/src/bridge/desktop.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-05",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1477,
+      "msMedian": 58.89649999999983,
+      "msP95": 60.10579199999938,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "docs/DEVELOPMENT.ko.md",
+        "docs/03-PROVIDERS.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/backup/drive.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-06",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "packages/core/src/backup/drive.ts"
+      ],
+      "goldKind": "both",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2786,
+      "msMedian": 54.208834000000024,
+      "msP95": 58.137957999999344,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/backup/drive.ts",
+        "docs/DECISIONS.md",
+        "docs/01-PRD.md",
+        "docs/BLOCKERS.md",
+        "packages/core/src/backup/target.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-07",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 0.5,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2654,
+      "msMedian": 53.76758400000017,
+      "msP95": 60.247957999999926,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/canvas.ts",
+        "packages/core/src/i18n/locales/ko/core.json",
+        "docs/DECISIONS.md",
+        "docs/plans/page-canvas-ux-plan.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-08",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3074,
+      "msMedian": 64.54770800000006,
+      "msP95": 66.43033399999968,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "docs/DECISIONS.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/plans/scheduling/VALIDATION.md",
+        "packages/core/src/i18n/locales/ko/demo.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "t-09",
+      "type": "technical-term",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1476,
+      "msMedian": 66.72758299999987,
+      "msP95": 70.12908299999981,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/backup/target.ts",
+        "packages/core/src/i18n/locales/ko/backup.json",
+        "packages/core/src/i18n/locales/ko/core.json",
+        "docs/DECISIONS.md",
+        "docs/05-ROADMAP.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "k-01",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 5,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2448,
+      "msMedian": 58.411832999999206,
+      "msP95": 60.04691599999933,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/rag/types.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "k-02",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 5,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1961,
+      "msMedian": 56.54558300000008,
+      "msP95": 61.29491599999983,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "docs/plans/remote-manage-plan.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/types.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "k-03",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1452,
+      "msMedian": 57.07683300000008,
+      "msP95": 57.27470900000026,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/types.ts",
+        "docs/DECISIONS.md",
+        "packages/core/src/context.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "k-04",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2462,
+      "msMedian": 52.535125000000335,
+      "msP95": 53.92774999999983,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "docs/DECISIONS.md",
+        "docs/plans/study-pack-book-plan.md",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/knowledge.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "k-05",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 5,
+      "evidence": 5,
+      "tokens": 3664,
+      "msMedian": 55.07566700000007,
+      "msP95": 57.34575000000041,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/rag/rewrite.ts",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "k-06",
+      "type": "ko-en-mixed",
+      "gold": [
+        "docs/DECISIONS.md",
+        "packages/core/src/bridge/desktop.ts"
+      ],
+      "goldKind": "both",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1838,
+      "msMedian": 50.97429199999988,
+      "msP95": 53.03245800000059,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/bridge/hosts.ts",
+        "docs/DECISIONS.md",
+        "docs/plans/remote-only-plan.md",
+        "packages/core/src/bridge/desktop.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "k-07",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 4,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1457,
+      "msMedian": 55.667999999999665,
+      "msP95": 65.93325000000004,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/errors.json",
+        "docs/DECISIONS.md",
+        "docs/04-UX-SPEC.md",
+        "packages/core/src/backup/crypto.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-01",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 4,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3530,
+      "msMedian": 54.36283300000105,
+      "msP95": 57.06254099999933,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/rag/retrieval.ts",
+        "docs/plans/imp07-plan.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-02",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3156,
+      "msMedian": 57.85554100000081,
+      "msP95": 58.045334000000366,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/rag.json",
+        "packages/core/src/rag/retrieval.ts",
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md",
+        "docs/plans/page-canvas-ux-plan.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-03",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3736,
+      "msMedian": 54.88524999999936,
+      "msP95": 57.033957999999984,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "docs/DECISIONS.md",
+        "docs/plans/remote-manage-plan.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-04",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3147,
+      "msMedian": 54.46429200000057,
+      "msP95": 57.462500000001455,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-05",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1446,
+      "msMedian": 52.50866599999972,
+      "msP95": 53.36687499999971,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/secrets.ts",
+        "docs/DECISIONS.md",
+        "docs/01-PRD.md",
+        "packages/core/src/backup/manager.ts",
+        "packages/core/src/backup/snapshot.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-06",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3627,
+      "msMedian": 56.636915999999474,
+      "msP95": 70.44937500000015,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/backup/snapshot.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-07",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3731,
+      "msMedian": 51.63354199999958,
+      "msP95": 52.78108299999985,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "docs/knowledge-pack-architecture.md",
+        "docs/plans/knowledge-base-plan.md",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/demo.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-08",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3621,
+      "msMedian": 59.505042000000685,
+      "msP95": 63.14104100000077,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "docs/DECISIONS.md",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "docs/00-VISION.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "s-09",
+      "type": "semantic",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1720,
+      "msMedian": 51.50608300000022,
+      "msP95": 54.598542000001544,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/update.ts",
+        "docs/DECISIONS.md",
+        "docs/plans/auto-update-plan.md",
+        "docs/PROGRESS.md",
+        "packages/core/src/i18n/locales/ko/components.json"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "n-01",
+      "type": "no-result",
+      "gold": [],
+      "goldKind": "none",
+      "hit5": false,
+      "recall5": null,
+      "rank": null,
+      "sourced": 4,
+      "evidence": 4,
+      "tokens": 3254,
+      "msMedian": 50.507666999999856,
+      "msP95": 53.3693749999984,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/schedules.ts",
+        "docs/BLOCKERS.md",
+        "docs/PROGRESS.md",
+        "docs/DECISIONS.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "n-02",
+      "type": "no-result",
+      "gold": [],
+      "goldKind": "none",
+      "hit5": false,
+      "recall5": null,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 839,
+      "msMedian": 51.21183299999939,
+      "msP95": 54.06566699999894,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/prompts.ts",
+        "packages/core/src/seed.ts",
+        "docs/DECISIONS.md",
+        "docs/knowledge-pack-architecture.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "n-03",
+      "type": "no-result",
+      "gold": [],
+      "goldKind": "none",
+      "hit5": false,
+      "recall5": null,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 854,
+      "msMedian": 50.700833000000785,
+      "msP95": 57.24749999999949,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "docs/03-PROVIDERS.md",
+        "packages/core/src/attachments.ts",
+        "packages/core/src/bridge/desktop.ts",
+        "packages/core/src/bridge/remote.ts"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "n-04",
+      "type": "no-result",
+      "gold": [],
+      "goldKind": "none",
+      "hit5": false,
+      "recall5": null,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1122,
+      "msMedian": 56.42191699999967,
+      "msP95": 57.15179200000057,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/bridge/remote.ts",
+        "docs/DECISIONS.md",
+        "docs/03-PROVIDERS.md",
+        "docs/knowledge-pack-architecture.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "n-05",
+      "type": "no-result",
+      "gold": [],
+      "goldKind": "none",
+      "hit5": false,
+      "recall5": null,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1595,
+      "msMedian": 50.523166999999376,
+      "msP95": 51.22870800000055,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/attachments.ts",
+        "packages/core/src/branch-suggest.ts",
+        "packages/core/src/bridge/sync.ts",
+        "docs/DECISIONS.md",
+        "docs/plans/page-canvas-ux-plan.md"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "id": "n-06",
+      "type": "no-result",
+      "gold": [],
+      "goldKind": "none",
+      "hit5": false,
+      "recall5": null,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3000,
+      "msMedian": 49.00974999999926,
+      "msP95": 49.14079200000015,
+      "methods": [
+        "agentic",
+        "hybrid"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "docs/03-PROVIDERS.md",
+        "docs/DECISIONS.md"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-01",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 1,
+      "evidence": 1,
+      "tokens": 246,
+      "msMedian": 48.54779199999939,
+      "msP95": 50.54279200000019,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/retrieval.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-02",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1788,
+      "msMedian": 52.79912500000137,
+      "msP95": 52.8073749999985,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/i18n/locales/en/knowledge.json",
+        "packages/core/src/i18n/locales/en/rag.json",
+        "packages/core/src/i18n/locales/en/seed.json",
+        "packages/core/src/rag/prompt.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-03",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 683,
+      "msMedian": 50.722374999999374,
+      "msP95": 51.09450000000106,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/prompt.ts",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/retrieval.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-04",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1131,
+      "msMedian": 45.319375000000946,
+      "msP95": 46.09845899999891,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/model.ts",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/i18n/locales/ko/settings.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-05",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 951,
+      "msMedian": 54.396333000000595,
+      "msP95": 54.92670900000121,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/tts.ts",
+        "packages/core/src/attachments.ts",
+        "packages/core/src/bridge/sync.ts",
+        "packages/core/src/skills.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-06",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2375,
+      "msMedian": 50.97112500000003,
+      "msP95": 51.97279100000014,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/chunk.ts",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/notes.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-07",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1006,
+      "msMedian": 53.0044170000001,
+      "msP95": 54.082666999998764,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/store/index.ts",
+        "packages/core/src/context.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-08",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 820,
+      "msMedian": 51.34641600000032,
+      "msP95": 54.45354099999895,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/bridge/sync.ts",
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "packages/core/src/model.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-09",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2454,
+      "msMedian": 47.222749999998996,
+      "msP95": 47.38720900000044,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "packages/core/src/i18n/locales/ko/skills.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-10",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 783,
+      "msMedian": 54.695708999999624,
+      "msP95": 55.0252500000006,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/update.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-11",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1829,
+      "msMedian": 49.725625000000946,
+      "msP95": 50.449375000000146,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/bridge/desktop.ts",
+        "packages/core/src/bridge/remote.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "c-12",
+      "type": "code-symbol",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2758,
+      "msMedian": 49.80395800000042,
+      "msP95": 52.248208000000886,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/parse.ts",
+        "packages/core/src/bridge/desktop.ts",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/seed.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "t-09",
+      "type": "technical-term",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": 6,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 985,
+      "msMedian": 49.064291999999114,
+      "msP95": 53.47266599999966,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/backup/target.ts",
+        "packages/core/src/i18n/locales/ko/backup.json",
+        "packages/core/src/i18n/locales/ko/core.json",
+        "packages/core/src/i18n/locales/ko/settings.json",
+        "packages/core/src/attachments.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "k-01",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 4,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1716,
+      "msMedian": 47.78845799999908,
+      "msP95": 48.2601250000007,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/emoji.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "k-02",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1434,
+      "msMedian": 49.1634580000009,
+      "msP95": 49.95616599999994,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/en/knowledge.json",
+        "packages/core/src/i18n/locales/ja/knowledge.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "k-03",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 822,
+      "msMedian": 49.89591600000131,
+      "msP95": 50.4682499999999,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/context.ts",
+        "packages/core/src/i18n/locales/en/knowledge.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "k-04",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/types.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2032,
+      "msMedian": 45.778833000000304,
+      "msP95": 46.74412499999926,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/rag/types.ts",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/i18n/locales/ko/notes.json",
+        "packages/core/src/i18n/locales/ko/page.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "k-05",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2710,
+      "msMedian": 53.09404200000063,
+      "msP95": 55.83124999999927,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/rag/rewrite.ts",
+        "packages/core/src/branch-suggest.ts",
+        "packages/core/src/rag/tokenize.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "k-07",
+      "type": "ko-en-mixed",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1023,
+      "msMedian": 49.33670799999891,
+      "msP95": 50.35712500000045,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/errors.json",
+        "packages/core/src/backup/crypto.ts",
+        "packages/core/src/backup/manager.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-01",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 5,
+      "evidence": 5,
+      "tokens": 3704,
+      "msMedian": 50.1107090000005,
+      "msP95": 51.13237500000105,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-02",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/retrieval.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2622,
+      "msMedian": 47.4970830000002,
+      "msP95": 47.837625000000116,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/rag.json",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/bridge/desktop.ts",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/i18n/locales/ko/knowledge.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-03",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/prompt.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2848,
+      "msMedian": 47.9268749999992,
+      "msP95": 52.905916999998226,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/i18n/locales/ko/chat.json",
+        "packages/core/src/i18n/locales/ko/knowledge.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-04",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/parse.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2811,
+      "msMedian": 45.81025000000045,
+      "msP95": 48.34495900000002,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/bridge.json",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/bridge/desktop.ts",
+        "packages/core/src/bridge/syncRpc.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-05",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/backup/crypto.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 5,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1033,
+      "msMedian": 44.22954200000095,
+      "msP95": 44.3582920000008,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/secrets.ts",
+        "packages/core/src/backup/manager.ts",
+        "packages/core/src/backup/snapshot.ts",
+        "packages/core/src/backup/target.ts",
+        "packages/core/src/backup/crypto.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-06",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/rewrite.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2934,
+      "msMedian": 47.88337499999943,
+      "msP95": 51.482208000001265,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/skillsBuiltin.json",
+        "packages/core/src/backup/snapshot.ts",
+        "packages/core/src/i18n/locales/ko/app.json",
+        "packages/core/src/i18n/locales/ko/bridge.json"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-07",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/embedding.ts"
+      ],
+      "goldKind": "code",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 3,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2931,
+      "msMedian": 46.360334000000876,
+      "msP95": 49.03966699999728,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/rag/embedding.ts",
+        "packages/core/src/rag/retrieval.ts",
+        "packages/core/src/backup/snapshot.ts"
+      ]
+    },
+    {
+      "scenario": "codebase-only",
+      "id": "s-08",
+      "type": "semantic",
+      "gold": [
+        "packages/core/src/rag/chunk.ts"
+      ],
+      "goldKind": "code",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3801,
+      "msMedian": 44.7847920000022,
+      "msP95": 44.851708999998664,
+      "methods": [
+        "agentic"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "packages/core/src/i18n/locales/ko/seed.json",
+        "packages/core/src/i18n/locales/ko/demo.json",
+        "packages/core/src/i18n/locales/ko/knowledge.json",
+        "packages/core/src/i18n/locales/ko/llm.json",
+        "packages/core/src/i18n/locales/ko/rag.json"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "t-01",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 4,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3265,
+      "msMedian": 5.958124999997381,
+      "msP95": 6.447415999999066,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/00-VISION.md",
+        "docs/03-PROVIDERS.md"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "t-02",
+      "type": "technical-term",
+      "gold": [
+        "docs/02-ARCHITECTURE.md"
+      ],
+      "goldKind": "doc",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1283,
+      "msMedian": 4.363209000002826,
+      "msP95": 4.438916999999492,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/knowledge-pack-architecture.md",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "t-03",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1517,
+      "msMedian": 5.032792000001791,
+      "msP95": 5.107542000001558,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/plans/knowledge-base-plan.md",
+        "docs/plans/remote-manage-plan.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "t-04",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1948,
+      "msMedian": 5.712208000000828,
+      "msP95": 5.885332999998354,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/plans/auto-update-plan.md",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/02-ARCHITECTURE.md"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "t-05",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2212,
+      "msMedian": 5.9305830000012065,
+      "msP95": 6.049584000000323,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "docs/DEVELOPMENT.ko.md",
+        "docs/03-PROVIDERS.md",
+        "docs/DECISIONS.md"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "t-07",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 0.5,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2496,
+      "msMedian": 6.092499999998836,
+      "msP95": 6.12420800000109,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/page-canvas-ux-plan.md",
+        "docs/plans/page-editor-overhaul-plan.md"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "t-08",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3373,
+      "msMedian": 5.2164169999996375,
+      "msP95": 5.662667000000511,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/plans/scheduling/VALIDATION.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ]
+    },
+    {
+      "scenario": "document-only",
+      "id": "s-09",
+      "type": "semantic",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2015,
+      "msMedian": 6.450458999999682,
+      "msP95": 6.478542000000743,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/auto-update-plan.md",
+        "docs/PROGRESS.md",
+        "docs/DEVELOPMENT.ko.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "t-01",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2374,
+      "msMedian": 5.325957999997627,
+      "msP95": 5.564791000000696,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "code",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/plans/canvas-plan.md",
+        "docs/00-VISION.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "t-02",
+      "type": "technical-term",
+      "gold": [
+        "docs/02-ARCHITECTURE.md"
+      ],
+      "goldKind": "doc",
+      "hit5": false,
+      "recall5": 0,
+      "rank": null,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2664,
+      "msMedian": 3.9807920000021113,
+      "msP95": 4.026374999997643,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/knowledge-pack-architecture.md",
+        "docs/PROGRESS.md",
+        "docs/DECISIONS.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "t-03",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1858,
+      "msMedian": 4.5448749999995925,
+      "msP95": 4.54766699999891,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/plans/remote-manage-plan.md",
+        "docs/plans/knowledge-base-plan.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "t-04",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2112,
+      "msMedian": 4.4600830000017595,
+      "msP95": 4.514916000000085,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/plans/auto-update-plan.md",
+        "docs/DECISIONS.md",
+        "docs/PROGRESS.md",
+        "docs/DEVELOPMENT.ko.md",
+        "docs/02-ARCHITECTURE.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "t-05",
+      "type": "technical-term",
+      "gold": [
+        "docs/03-PROVIDERS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 2,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2094,
+      "msMedian": 6.029707999998209,
+      "msP95": 7.263249999999971,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "docs/DEVELOPMENT.ko.md",
+        "docs/03-PROVIDERS.md",
+        "docs/DECISIONS.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "t-07",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 0.5,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 1697,
+      "msMedian": 5.5839169999999285,
+      "msP95": 5.58574999999837,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/page-canvas-ux-plan.md",
+        "docs/plans/page-editor-overhaul-plan.md",
+        "docs/plans/page-editor-rows-columns-plan.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "t-08",
+      "type": "technical-term",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 3581,
+      "msMedian": 4.610333000000537,
+      "msP95": 4.700041000000056,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "document",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/knowledge-rag-plan.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/plans/scheduling/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "scenario": "document-keyword-only",
+      "id": "s-09",
+      "type": "semantic",
+      "gold": [
+        "docs/DECISIONS.md"
+      ],
+      "goldKind": "doc",
+      "hit5": true,
+      "recall5": 1,
+      "rank": 1,
+      "sourced": 6,
+      "evidence": 6,
+      "tokens": 2269,
+      "msMedian": 6.22783299999719,
+      "msP95": 6.364916999998968,
+      "methods": [
+        "?"
+      ],
+      "routedIntent": "both",
+      "top": [
+        "docs/DECISIONS.md",
+        "docs/plans/auto-update-plan.md",
+        "docs/knowledge-pack-architecture.md",
+        "docs/PROGRESS.md",
+        "docs/DEVELOPMENT.ko.md"
+      ]
+    }
+  ]
+}

@@ -45,6 +45,7 @@ export function buildRagSystem(evidence: Evidence[], plan: QueryPlan): string {
     if (e.headingPath.length) attrs.push(`section="${escapeAttr(e.headingPath.join(' > '))}"`);
     const loc = locationOf(e);
     if (loc) attrs.push(`location="${escapeAttr(loc)}"`);
+    if (e.method) attrs.push(`method="${e.method}"`);
     lines.push(`<doc ${attrs.join(' ')}>`);
     lines.push(escapeText(e.text));
     lines.push('</doc>');
@@ -74,6 +75,7 @@ export function toCitations(evidence: Evidence[]): Citation[] {
       symbol: e.symbol,
       snippet,
       score: e.score,
+      ...(e.method ? { method: e.method } : {}),
     };
   });
 }

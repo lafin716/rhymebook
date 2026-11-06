@@ -1,5 +1,15 @@
-import type { KnowledgeAddResult, KnowledgeBase, KnowledgeEntry, KnowledgePreview, KnowledgeProgress } from '../knowledge';
 import type {
+  KnowledgeAddResult,
+  KnowledgeBase,
+  KnowledgeCreateOptions,
+  KnowledgeEntry,
+  KnowledgeFolderInspection,
+  KnowledgeKind,
+  KnowledgePreview,
+  KnowledgeProgress,
+} from '../knowledge';
+import type {
+  IndexIntegrityReport,
   KnowledgeDoc,
   KnowledgeIndexSettings,
   KnowledgeIndexState,
@@ -77,7 +87,11 @@ export interface DesktopUpdaterApi {
  */
 export interface DesktopKnowledgeApi {
   list(): Promise<KnowledgeBase[]>;
-  create(name: string): Promise<KnowledgeBase>;
+  /**
+   * opts 생략 = 문서형 (ADR-127). 코드베이스는 kind:'codebase'와 linkedPath(로컬 폴더 연결) 또는
+   * 만든 뒤 cloneGit(Git 저장소)로 채운다. 이전 버전 PC(원격)는 opts를 무시할 수 있다.
+   */
+  create(name: string, opts?: KnowledgeCreateOptions): Promise<KnowledgeBase>;
   rename(id: string, name: string): Promise<KnowledgeBase>;
   /** 지식베이스와 그 파일 전체를 지운다 */
   remove(id: string): Promise<void>;
@@ -113,8 +127,11 @@ export interface DesktopKnowledgeApi {
   setDescription?(id: string, description: string): Promise<KnowledgeBase>;
   /** 지식베이스별 색인 상태 (ids 생략 시 전부) */
   indexStates?(ids?: string[]): Promise<KnowledgeIndexState[]>;
-  /** 색인을 큐에 넣고 즉시 돌아온다. full이면 전체 재색인 */
-  reindex?(id: string, opts?: { full?: boolean }): Promise<void>;
+  /**
+   * 색인을 큐에 넣고 즉시 돌아온다 (문서형·미분류만, 코드베이스는 거절 — ADR-127).
+   * full = 전체 재생성, paths = 그 파일만 다시(부분), retryFailed = 실패한 문서만 다시.
+   */
+  reindex?(id: string, opts?: { full?: boolean; paths?: string[]; retryFailed?: boolean }): Promise<void>;
   /** 진행 중·대기 중인 색인을 취소한다 */
   cancelIndex?(id: string): Promise<void>;
   /** 색인된 문서 목록 (query가 있으면 경로·제목 부분 일치) */
@@ -134,6 +151,22 @@ export interface DesktopKnowledgeApi {
   source?(kbId: string, chunkId: string): Promise<SourceView>;
   /** 색인 상태 변화 구독. 해제 함수를 돌려준다 */
   onIndexState?(listener: (s: KnowledgeIndexState) => void): () => void;
+  // ── 유형·코드베이스 (ADR-127~130). 모두 optional ──
+  /**
+   * 유형 지정·변경. → codebase: 진행 중 색인 취소, 기존 색인은 <kb>/backup/로 옮긴 뒤(복구 가능) 벡터 사용 중지.
+   * → document: 백업이 있으면 되살리고 없으면 색인을 큐에 넣는다. 연결 폴더 코드베이스는 문서형으로 바꿀 수 없다.
+   */
+  setKind?(id: string, kind: KnowledgeKind): Promise<KnowledgeBase>;
+  /** 코드베이스 제외 경로 저장 (gitignore 꼴, 최대 100개) */
+  setExcludes?(id: string, excludes: string[]): Promise<KnowledgeBase>;
+  /** OS 폴더 선택 창. 취소하면 null */
+  pickFolder?(): Promise<string | null>;
+  /** 등록 전 폴더 구조 미리보기 (읽기만 한다) */
+  inspectFolder?(path: string): Promise<KnowledgeFolderInspection>;
+  /** 색인 무결성 검사 (문서형) */
+  verifyIndex?(id: string): Promise<IndexIntegrityReport>;
+  /** 유형 변경으로 백업해 둔 색인을 되살린다 (없으면 false) */
+  restoreIndexBackup?(id: string): Promise<boolean>;
 }
 
 /** PC의 로컬 whisper.cpp 설정·모델 관리. 원격 기기는 이 설정을 따르기만 한다 */
