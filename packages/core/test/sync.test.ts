@@ -800,7 +800,8 @@ describe('sync host ↔ client', () => {
     expect(hellos()).toBe(1);
 
     host.reset();
-    await until(() => hellos() === 2 && !!client.state.getState().loaded[SEED_IDS.root]);
+    // reset 직후 connecting 동안에도 이전 loaded가 남아 있으므로 online까지 기다린다
+    await until(() => hellos() === 2 && client.state.getState().status === 'online' && !!client.state.getState().loaded[SEED_IDS.root]);
     expect(client.state.getState().status).toBe('online');
   });
 

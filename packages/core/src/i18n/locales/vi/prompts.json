@@ -41,7 +41,8 @@
   "labelAria": "Prompt {label}",
   "list": "Danh sách prompt",
   "liveNote": "Prompt đã đổi sẽ áp dụng từ câu hỏi tiếp theo bạn gửi. Các câu trả lời đã nhận vẫn giữ nguyên.",
-  "pcNote": "Cuộc trò chuyện chạy trên PC và theo prompt của ứng dụng PC. Bạn có thể đổi prompt trong ứng dụng PC.",
+  "loading": "Đang tải prompt của PC…",
+  "pcNote": "Bạn đang sửa prompt của ứng dụng PC. Lưu sẽ áp dụng ngay trên PC, từ câu hỏi tiếp theo.",
   "placeholder": "Để trống rồi lưu sẽ dùng nội dung mặc định.",
   "reset": {
     "button": "Khôi phục mặc định",
@@ -49,7 +50,9 @@
     "message": "Khôi phục “{label}” về nội dung mặc định của ứng dụng. Phần chỉnh sửa sẽ bị xóa.",
     "title": "Khôi phục về mặc định?"
   },
+  "retry": "Tải lại",
   "save": "Lưu",
+  "saving": "Đang lưu…",
   "system": "Prompt hệ thống",
   "title": "Quản lý prompt",
   "unsaved": {

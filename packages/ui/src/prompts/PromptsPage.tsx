@@ -1,9 +1,11 @@
 import { t } from '../i18n';
-import { defaultPrompts, promptInfo, PROMPT_MAX_CHARS, promptText, sanitizePromptOverrides, type PromptKey } from '@branch/core';
+import { defaultPrompts, promptInfo, PROMPT_MAX_CHARS, promptText, rpcErrorText, sanitizePromptOverrides, type PromptKey, type PromptOverrides } from '@branch/core';
 import { ArrowLeft, MessageSquareText, RotateCcw, Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { remoteMode } from '../app/capabilities';
+import { rpcErrorMessage } from '../app/remoteManage';
 import { actions, appStore, useApp } from '../app/store';
+import { syncClient, useSync } from '../app/sync';
 import { useBreakpoint } from '../app/useBreakpoint';
 import { Badge } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
@@ -16,7 +18,7 @@ const groupsOf = () => [...new Set(promptInfo().map((p) => p.group))];
 /**
  * 프롬프트 관리 페이지 (ADR-098). 앱이 모델에 보내는 시스템 프롬프트(기본 튜터 지시, 가지·요약·제목·페이지 AI·스킬 도우미)를
  * 사용자가 고친다. 고친 문구는 설정(Settings.prompts)에 저장되고, 비우거나 기본값으로 되돌리면 기본 문구를 쓴다.
- * 원격(웹·모바일)에서는 대화가 PC에서 돌아 PC 설정을 따르므로 보기만 한다.
+ * 원격(웹·모바일)에서는 대화가 PC에서 돌아 PC의 프롬프트를 `prompts.get`/`prompts.set`으로 읽고 바꾼다.
  */
 export function PromptsPage() {
   const open = useApp((s) => s.overlay === 'prompts');
@@ -25,20 +27,73 @@ export function PromptsPage() {
 }
 
 function PromptsPageBody() {
-  const overrides = useApp((s) => s.settings.prompts);
+  const remote = remoteMode;
+  const localOverrides = useApp((s) => s.settings.prompts);
   const mobile = useBreakpoint() === 'mobile';
+  // 원격: PC의 프롬프트 (불러오기 전에는 null)
+  const status = useSync((s) => s.status);
+  const manage = useSync((s) => s.manage);
+  const [remoteOverrides, setRemoteOverrides] = useState<PromptOverrides | null>(null);
+  const [loading, setLoading] = useState(remote);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const outdated = remote && status === 'online' && manage === false;
+  const writable = !remote || manage === true;
+  const ready = !remote || remoteOverrides !== null;
+  const readOnly = !writable || !ready;
+  const overrides = remote ? remoteOverrides ?? undefined : localOverrides;
+
   const [selected, setSelected] = useState<PromptKey | null>(mobile ? null : 'base');
   const saved = selected ? promptText(selected, overrides) : '';
   const [draft, setDraft] = useState(saved);
   const dirty = draft !== saved;
   const info = promptInfo().find((p) => p.key === selected);
-  const readOnly = remoteMode;
   const [busy, setBusy] = useState(false);
 
-  // 다른 프롬프트를 고르면 그 저장본으로
+  /** PC의 프롬프트를 받는다. 연결이 없거나 PC가 옛 버전이면 받지 않고 상태 문구로 알린다. */
+  const load = useCallback(async () => {
+    const client = syncClient;
+    if (!remote || !client) return;
+    const st = client.state.getState();
+    if (st.status !== 'online') {
+      setLoading(st.status === 'connecting');
+      setLoadError(st.status === 'connecting' ? null : rpcErrorText('offline'));
+      return;
+    }
+    if (st.manage !== true) { setLoading(false); return; }
+    setLoading(true); setLoadError(null);
+    try { setRemoteOverrides(sanitizePromptOverrides(await client.rpc('prompts.get'))); }
+    catch (cause) { setLoadError(rpcErrorMessage(cause)); }
+    finally { setLoading(false); }
+  }, [remote]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  // PC가 프롬프트를 바꾸면(sync.event) 다시 받고, 연결이 바뀌거나 PC가 바뀌면 다시 받는다
   useEffect(() => {
-    setDraft(selected ? promptText(selected, appStore.getState().settings.prompts) : '');
-  }, [selected]);
+    const client = syncClient;
+    if (!remote || !client) return;
+    let host = client.state.getState().hostName;
+    const offEvent = client.onEvent((topic) => { if (topic === 'prompts') void load(); });
+    const offState = client.state.subscribe((st, prev) => {
+      if (st.hostName !== host) { host = st.hostName; setRemoteOverrides(null); }
+      if ((st.status === 'online' && prev.status !== 'online') || st.manage !== prev.manage) void load();
+    });
+    return () => { offEvent(); offState(); };
+  }, [remote, load]);
+
+  // 다른 프롬프트를 고르면 그 저장본으로
+  // 프롬프트를 바꾸면 그 저장본으로 맞추고, 같은 프롬프트의 저장본이 바뀌었을 때(PC 방송 등)는 편집 중이 아니면 새 저장본을 보인다
+  const lastSelected = useRef(selected);
+  const lastSaved = useRef(saved);
+  useEffect(() => {
+    const switched = lastSelected.current !== selected;
+    const previous = lastSaved.current;
+    lastSelected.current = selected;
+    lastSaved.current = saved;
+    if (switched) { setDraft(saved); setFailure(null); }
+    else if (previous !== saved) setDraft((current) => (current === previous ? saved : current));
+  }, [selected, saved]);
 
   const leave = async (): Promise<boolean> =>
     !dirty || (await confirm({ title: t('prompts.unsaved.title'), message: t('prompts.unsaved.message'), confirmLabel: t('prompts.unsaved.confirm'), tone: 'danger' }));
@@ -63,22 +118,39 @@ function PromptsPageBody() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const write = (key: PromptKey, text: string) => {
-    const cur = appStore.getState().settings.prompts ?? {};
-    actions().updateSettings({ prompts: sanitizePromptOverrides({ ...cur, [key]: text }) });
+  /** 한 프롬프트를 바꿔 저장한다. PC 설정은 바로, 원격은 PC에 보내고 PC가 돌려준 저장본을 쓴다. */
+  const write = async (key: PromptKey, text: string): Promise<boolean> => {
+    if (!remote) {
+      const cur = appStore.getState().settings.prompts ?? {};
+      actions().updateSettings({ prompts: sanitizePromptOverrides({ ...cur, [key]: text }) });
+      return true;
+    }
+    const client = syncClient;
+    if (!client) return false;
+    const next = sanitizePromptOverrides({ ...(remoteOverrides ?? {}), [key]: text });
+    setBusy(true); setFailure(null);
+    try {
+      setRemoteOverrides(sanitizePromptOverrides(await client.rpc('prompts.set', [next])));
+      return true;
+    } catch (cause) {
+      setFailure(rpcErrorMessage(cause));
+      return false;
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const save = () => {
+  const save = async () => {
     if (!selected || readOnly || !dirty || busy) return;
     // 비워 두면 기본 문구로 돌아간다
     const text = draft.trim() ? draft : defaultPrompts()[selected];
-    write(selected, text);
+    if (!await write(selected, text)) return;
     setDraft(text);
     if (mobile) setSelected(null);
   };
 
   const reset = async () => {
-    if (!selected || readOnly) return;
+    if (!selected || readOnly || busy) return;
     const ok = await confirm({
       title: t('prompts.reset.title'),
       message: t('prompts.reset.message', { label: info?.label ?? '' }),
@@ -86,8 +158,8 @@ function PromptsPageBody() {
       tone: 'danger',
     });
     if (!ok) return;
-    write(selected, defaultPrompts()[selected]);
-    setDraft(defaultPrompts()[selected]);
+    const text = defaultPrompts()[selected];
+    if (await write(selected, text)) setDraft(text);
   };
 
   const custom = (key: PromptKey) => !!sanitizePromptOverrides(overrides)[key];
@@ -104,11 +176,13 @@ function PromptsPageBody() {
         <h2 className="flex-1 text-[16px] font-semibold">{t('prompts.title')}</h2>
       </header>
 
-      {readOnly && (
+      {remote && (
         <p role="note" className="shrink-0 border-b border-line bg-warn-soft px-4 py-2 text-[13px] text-warn">
           {t('prompts.pcNote')}
         </p>
       )}
+      {outdated && <p role="alert" className="shrink-0 border-b border-line bg-danger-soft px-4 py-2 text-[13px] text-danger">{rpcErrorText('outdated')}</p>}
+      {failure && <p role="alert" className="shrink-0 border-b border-line bg-danger-soft px-4 py-2 text-[13px] text-danger">{failure}</p>}
 
       <div className="flex min-h-0 flex-1">
         {showList && (
@@ -146,7 +220,7 @@ function PromptsPageBody() {
               className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-5 md:px-6"
               onSubmit={(e) => {
                 e.preventDefault();
-                save();
+                void save();
               }}
             >
               <div>
@@ -157,7 +231,16 @@ function PromptsPageBody() {
                 <p className="mt-1 text-[13px] text-muted">{info.description}</p>
               </div>
 
-              {!readOnly && <PromptAssist key={selected} promptKey={selected} draft={draft} onDraft={setDraft} onBusy={setBusy} />}
+              {remote && !ready && (loading ? (
+                <p role="status" className="text-[13px] text-muted">{t('prompts.loading')}</p>
+              ) : loadError ? (
+                <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger">
+                  <span className="min-w-0 flex-1">{loadError}</span>
+                  <Button size="sm" variant="ghost" disabled={loading || !writable} onClick={() => void load()}>{t('prompts.retry')}</Button>
+                </div>
+              ) : null)}
+
+              {!readOnly && <PromptAssist key={selected} promptKey={selected} draft={draft} onDraft={setDraft} onBusy={setBusy} prompts={overrides} />}
 
               <label className="flex flex-col gap-1.5">
                 <span className="flex items-baseline justify-between text-[13px] font-medium text-fg-2">
@@ -191,7 +274,7 @@ function PromptsPageBody() {
                     </Button>
                   )}
                   <Button type="submit" variant="primary" icon={<Save size={15} />} disabled={!dirty || busy}>
-                    {t('prompts.save')}
+                    {busy ? t('prompts.saving') : t('prompts.save')}
                   </Button>
                 </div>
               )}

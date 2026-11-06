@@ -6,4 +6,6 @@ export {
   type SyncStatus,
   type SyncClientState,
   type SyncActFailure,
+  SyncRpcCallError,
+  rpcErrorText,
 } from './client';

@@ -1,16 +1,20 @@
-import { hasScheduleIntent, isDocSession, matchTaskSkill, parseScheduleBlock, skillRef, type ResponseComplete, type Schedule, type ScheduleInput, type Skill, type SkillRef } from '@branch/core';
+import { hasScheduleIntent, isDocSession, matchTaskSkill, parseScheduleBlock, rpcErrorText, skillRef, type ResponseComplete, type Schedule, type ScheduleInput, type Skill, type SkillRef, type SyncHostInfo, type SyncRpcMethod } from '@branch/core';
 import { create } from 'zustand';
 import { remoteMode } from '../app/capabilities';
 import { isDemo, presentWindowId, sessionWindowId } from '../app/runtime';
+import { rpcErrorMessage } from '../app/remoteManage';
 import { actions, appStore, db, persistence } from '../app/store';
-import { pushNotice } from '../app/sync';
+import { pushNotice, syncClient } from '../app/sync';
 import { showAppNotification } from '../notifications/service';
 import { useSkills } from '../skills/skillsStore';
 import { createScheduleEngine } from './engine';
 import { scheduleRepository } from './repository';
 import { scheduleText as tx } from './scheduleText';
 
+/** PC 엔진·알림을 가진 창 (기기 프로필의 메인 창). 예약 실행과 저장은 여기서만 한다. */
 export const scheduleAvailable = !remoteMode && !sessionWindowId && !presentWindowId;
+/** 원격 창(휴대폰·웹·PC 세션 창): 예약은 PC의 데이터를 sync.rpc로 다룬다. */
+export const scheduleRemote = () => remoteMode && !isDemo();
 const repo = scheduleRepository(db);
 export interface ScheduleFinished { id: string; title: string; sessionId: string; at: number; error?: string }
 interface SchedulesState {
@@ -21,12 +25,16 @@ interface SchedulesState {
   running: Record<string, { title: string; sessionId: string }>;
   /** Finished runs not yet opened from the notification panel, oldest finish first. */
   finished: ScheduleFinished[];
+  /** 원격: 연결된 PC의 시간대 (IANA). 모르면 null. 예약 시각은 이 시간대 기준이다. */
+  timeZone: string | null;
   /** Opens a finished run's conversation and drops it from the notifications. */
   openFinished(id: string): void;
   /** Opens a running schedule's conversation. */
   openRunning(id: string): void;
   /** Drops one finished notification, or all of them without an id. */
   dismissFinished(id?: string): void;
+  /** 원격: PC 시간대를 가져온다 (한 번 받으면 재사용). */
+  ensureTimeZone(): Promise<string>;
   refresh(): Promise<void>;
   /** skill: undefined keeps the current skill, null removes it. */
   save(input: ScheduleInput, sessionId: string, id?: string, skill?: SkillRef | null): Promise<void>;
@@ -35,10 +43,61 @@ interface SchedulesState {
 }
 const errorText = () => tx('예약 저장소를 읽거나 쓰지 못했어요. 다시 시도해 주세요.', 'Could not read or write schedules. Please try again.');
 const requireAvailable = () => {
-  if (!scheduleAvailable || isDemo()) throw new Error(tx('예약은 이 기기 프로필의 실제 대화에서 관리해 주세요.', 'Manage schedules in real conversations using the local device profile.'));
+  if (isDemo() || (!scheduleAvailable && !scheduleRemote())) throw new Error(tx('예약은 이 기기 프로필의 실제 대화에서 관리해 주세요.', 'Manage schedules in real conversations using the local device profile.'));
 };
+
+/** 원격 관리 호출. 실패는 사용자 문구의 Error로 바꿔 던진다. */
+async function remoteCall<T>(method: SyncRpcMethod, args?: unknown[]): Promise<T> {
+  if (!syncClient) throw new Error(errorText());
+  try { return await syncClient.rpc<T>(method, args); }
+  catch (cause) { throw new Error(rpcErrorMessage(cause), { cause }); }
+}
+
+async function remoteTimeZone(): Promise<string> {
+  const known = useSchedules.getState().timeZone;
+  if (known) return known;
+  const info = await remoteCall<SyncHostInfo>('host.info');
+  useSchedules.setState({ timeZone: info.timeZone });
+  return info.timeZone;
+}
+
+/** 늦게 도착한 이전 목록 응답이 새 응답을 덮지 않게 요청 순번을 센다 */
+let remoteRefreshSeq = 0;
+
+async function refreshRemote(): Promise<void> {
+  const seq = ++remoteRefreshSeq;
+  const client = syncClient;
+  if (!client) return;
+  const st = client.state.getState();
+  // 연결 중에는 기다린다. 연결이 끊기면 목록 대신 안내를 보인다.
+  if (st.status === 'connecting') return;
+  if (st.status !== 'online') { useSchedules.setState({ loaded: true, error: rpcErrorText('offline') }); return; }
+  // 스냅샷 전: manage를 알 때까지 기다린다 (상태 구독이 다시 부른다)
+  if (st.manage === undefined) return;
+  // 옛 PC: 관리 호출을 보내지 않고 화면이 업데이트 안내를 보인다
+  if (st.manage === false) { useSchedules.setState({ items: [], running: {}, loaded: true, error: null }); return; }
+  try {
+    const [, items] = await Promise.all([remoteTimeZone(), remoteCall<Schedule[]>('schedules.list')]);
+    if (seq !== remoteRefreshSeq) return;
+    const running = Object.fromEntries(items.filter((item) => item.pendingRunAt !== undefined).map((item) => [item.id, { title: item.title, sessionId: item.sessionId }]));
+    useSchedules.setState({ items, running, loaded: true, error: null });
+  } catch (cause) {
+    if (seq !== remoteRefreshSeq) return;
+    useSchedules.setState({ loaded: true, error: cause instanceof Error ? cause.message : errorText() });
+  }
+}
+
+/** 연결된 PC가 바뀌면 이전 PC의 예약·시간대를 버린다. */
+export function resetRemoteSchedules(): void {
+  useSchedules.setState({ items: [], running: {}, timeZone: null, loaded: false, error: null });
+}
+
 export const useSchedules = create<SchedulesState>((set, get) => ({
-  items: [], loaded: false, error: null, running: {}, finished: [],
+  items: [], loaded: false, error: null, running: {}, finished: [], timeZone: null,
+  async ensureTimeZone() {
+    if (!scheduleRemote()) return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return remoteTimeZone();
+  },
   openFinished(id) {
     const item = get().finished.find((f) => f.id === id);
     set((st) => ({ finished: st.finished.filter((f) => f.id !== id) }));
@@ -52,20 +111,40 @@ export const useSchedules = create<SchedulesState>((set, get) => ({
     set((st) => ({ finished: id ? st.finished.filter((f) => f.id !== id) : [] }));
   },
   async refresh() {
+    if (scheduleRemote()) { await refreshRemote(); return; }
     if (!scheduleAvailable || isDemo()) { set({ items: [], loaded: true }); return; }
     try { set({ items: await repo.list(), loaded: true, error: null }); }
     catch { set({ loaded: true, error: errorText() }); }
   },
   async save(input, sessionId, id, skill) {
     requireAvailable();
+    if (scheduleRemote()) {
+      // PC가 대화·스킬을 검사하고 저장한다. skill을 생략하면 현재 스킬을 유지하고, null이면 제거한다.
+      // 새 예약은 id 자리에 null을 보낸다 (PC 핸들러는 null을 id 없음으로 본다).
+      const args: unknown[] = [input, sessionId, id ?? null];
+      if (skill !== undefined) args.push(skill);
+      await remoteCall('schedules.save', args);
+      await get().refresh();
+      return;
+    }
     const session = appStore.getState().sessions[sessionId];
     if (!session || isDocSession(session)) throw new Error(tx('실행할 대화 세션을 선택해 주세요.', 'Choose a conversation to run the task.'));
     await persistence.flush();
     await repo.save(input, sessionId, id, undefined, skill);
     await get().refresh();
   },
-  async remove(id) { requireAvailable(); await repo.remove(id); await get().refresh(); },
-  async toggle(id) { requireAvailable(); await repo.toggle(id); await get().refresh(); },
+  async remove(id) {
+    requireAvailable();
+    if (scheduleRemote()) await remoteCall('schedules.remove', [id]);
+    else await repo.remove(id);
+    await get().refresh();
+  },
+  async toggle(id) {
+    requireAvailable();
+    if (scheduleRemote()) await remoteCall('schedules.toggle', [id]);
+    else await repo.toggle(id);
+    await get().refresh();
+  },
 }));
 
 function openScheduleSession(sessionId: string) {

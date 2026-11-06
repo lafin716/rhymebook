@@ -56,13 +56,13 @@ test('프롬프트 관리: 고치기 · 유지 · 기본값으로 되돌리기',
   await expect(dlg.locator('[data-prompt-row="base"]')).not.toContainText('수정됨');
 });
 
-/** 원격(웹·모바일)은 대화가 PC에서 돌아 프롬프트를 보기만 한다 */
-test('프롬프트 관리: 원격에서는 읽기 전용', async ({ page }, info) => {
+/** 원격(웹·모바일)은 PC에 연결되기 전까지 프롬프트를 보기만 한다 (연결되면 PC의 프롬프트를 읽고 바꾼다) */
+test('프롬프트 관리: 원격은 PC 연결 전 읽기 전용', async ({ page }, info) => {
   await page.goto('/#scenario=home');
   if (info.project.name === 'mobile') await page.getByRole('button', { name: '세션 목록', exact: true }).click();
   await page.getByRole('button', { name: '프롬프트 관리' }).click();
   const dlg = page.getByRole('dialog', { name: '프롬프트 관리' });
-  await expect(dlg.getByRole('note')).toContainText('PC 앱에서 바꿀 수 있어요');
+  await expect(dlg.getByRole('note')).toContainText('PC 앱의 프롬프트를 바꿔요');
   await dlg.locator('[data-prompt-row="title"]').click();
   await expect(dlg.getByLabel('세션 제목 프롬프트')).not.toBeEditable();
   await expect(dlg.getByRole('button', { name: '저장' })).toHaveCount(0);

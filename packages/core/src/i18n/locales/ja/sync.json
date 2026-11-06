@@ -7,5 +7,7 @@
   "hostRestarted": "PCが再起動しました。もう一度お試しください。",
   "stopped": "同期を停止しました。",
   "reconnecting": "PCに再接続しています。",
-  "notOnline": "PCに接続されていません。"
+  "notOnline": "PCに接続されていません。",
+  "rpcNotFound": "PCで該当する項目が見つかりませんでした。",
+  "rpcUnsupported": "このPCではサポートされていない機能です。"
 }

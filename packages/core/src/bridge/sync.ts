@@ -4,6 +4,7 @@ import { isVaultNode, VAULT_LIMITS } from '../vault';
 import type { Anchor, Annotation, Attachment, BranchKind, ID, Message, Session, Skill, SkillRef, SummaryDraft, VaultNode } from '../model';
 import { isMarkColor, MARK_FONTS, MAX_NOTE_LENGTH } from '../model';
 import { isSkill, isSkillRef, SKILL_LIMITS } from '../skills';
+import { SYNC_EVENT_TOPICS, SYNC_RPC_ERRORS, SYNC_RPC_LIMITS, validateRpcArgs, type SyncEventTopic, type SyncRpcError, type SyncRpcMethod } from './syncRpc';
 import { STUDY_LIMITS, validateStudyBundle, type StudyBundle } from '../study';
 
 /**
@@ -74,6 +75,8 @@ export type SyncOpKind = SyncOp['kind'];
  * 클라이언트는 그 op를 보내지 않고 'outdated'로 실패시킨다 (옛 호스트는 모르는 op를 'invalid'로 거절해 원인을 알 수 없다)
  */
 export const SYNC_FEATURES = ['subsession', 'vault', 'split', 'turns', 'websearch', 'page', 'subpage', 'canvas'] as const;
+/** 호스트가 원격 관리 처리기(sync.rpc)를 가질 때만 광고하는 기능 (ADR-116) */
+export const SYNC_MANAGE_FEATURE = 'manage';
 export type SyncFeature = (typeof SYNC_FEATURES)[number];
 export const OP_FEATURE: Partial<Record<SyncOpKind, SyncFeature>> = {
   subsession: 'subsession',
@@ -101,7 +104,9 @@ export type SyncClientMsg =
   | { type: 'sync.messages'; sessionId: ID }
   /** PC 스킬 목록 요청 (웹·모바일 스킬 관리의 동기화 버튼) */
   | { type: 'sync.skills'; reqId: string }
-  | { type: 'act'; reqId: string; op: SyncOp };
+  | { type: 'act'; reqId: string; op: SyncOp }
+  /** 원격 관리 요청 (ADR-116). method는 SYNC_RPC_METHODS 중 하나 */
+  | { type: 'sync.rpc'; reqId: string; method: SyncRpcMethod; args: unknown[] };
 
 export type SyncServerMsg =
   | {
@@ -139,6 +144,11 @@ export type SyncServerMsg =
    * 바이트 예산·개수(SKILL_LIMITS.count)로 나눠 보내고 done=true면 끝
    */
   | { type: 'sync.skills'; reqId: string; skills: Skill[]; first: boolean; done: boolean }
+  /** sync.rpc 응답 (요청의 reqId) */
+  | { type: 'sync.rpc'; reqId: string; ok: true; data?: unknown }
+  | { type: 'sync.rpc'; reqId: string; ok: false; error: SyncRpcError; message?: string }
+  /** PC 쪽 관리 데이터 변경 방송 (예약·프롬프트·지식베이스, 가져오기 진행률·색인 상태) */
+  | { type: 'sync.event'; topic: SyncEventTopic; data?: unknown }
   /** 호스트가 동기화를 처리할 수 없음 (PC 앱 창 닫힘, 헤드리스 bridge 등) */
   | { type: 'sync.error'; error: string }
   /** 호스트 엔진이 다시 준비됨 → 클라이언트는 sync.hello부터 다시 */
@@ -463,6 +473,12 @@ export function validateSyncClientMsg(raw: unknown): SyncClientMsg | null {
     if (typeof msg.reqId === 'string' && msg.reqId.length <= SYNC_LIMITS.id) return { type: 'sync.skills', reqId: msg.reqId };
     return null;
   }
+  if (type === 'sync.rpc') {
+    if (typeof msg.reqId !== 'string' || msg.reqId.length === 0 || msg.reqId.length > SYNC_LIMITS.id) return null;
+    const args = validateRpcArgs(msg.method, msg.args);
+    if (!args) return null;
+    return { type: 'sync.rpc', reqId: msg.reqId, method: msg.method as SyncRpcMethod, args };
+  }
   if (type === 'act') {
     if (
       typeof msg.reqId === 'string' &&
@@ -509,6 +525,20 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
     );
   }
 
+  if (type === 'sync.rpc') {
+    if (typeof msg.reqId !== 'string' || msg.reqId.length > SYNC_LIMITS.id || typeof msg.ok !== 'boolean') return false;
+    if (msg.ok) return true;
+    return (
+      typeof msg.error === 'string' &&
+      (SYNC_RPC_ERRORS as readonly string[]).includes(msg.error) &&
+      (msg.message === undefined || (typeof msg.message === 'string' && msg.message.length <= SYNC_RPC_LIMITS.message))
+    );
+  }
+
+  if (type === 'sync.event') {
+    return typeof msg.topic === 'string' && (SYNC_EVENT_TOPICS as readonly string[]).includes(msg.topic);
+  }
+
   if (type === 'sync.annot') {
     const annotation = msg.annotation as unknown;
     const deleted = msg.deleted as unknown;
@@ -545,5 +575,5 @@ export function isSyncServerMsg(raw: unknown): raw is SyncServerMsg {
 
 /** 메시지 타입 검증 */
 export function isSyncClientType(type: unknown): boolean {
-  return type === 'sync.hello' || type === 'sync.messages' || type === 'sync.skills' || type === 'act';
+  return type === 'sync.hello' || type === 'sync.messages' || type === 'sync.skills' || type === 'sync.rpc' || type === 'act';
 }

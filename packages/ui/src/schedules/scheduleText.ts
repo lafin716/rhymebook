@@ -5,9 +5,10 @@ export function scheduleText(ko: string, en: string): string {
   return getLocale() === 'ko' ? ko : en;
 }
 
-export function scheduleDate(at: number): string {
+/** timeZone을 주면 그 시간대(원격에서 PC의 시간대)로 표시하고, 없으면 기기 시간대로 표시한다. */
+export function scheduleDate(at: number, timeZone?: string): string {
   return new Intl.DateTimeFormat(intlLocale(), {
-    dateStyle: 'medium', timeStyle: 'short',
+    dateStyle: 'medium', timeStyle: 'short', ...(timeZone ? { timeZone } : {}),
   }).format(at);
 }
 

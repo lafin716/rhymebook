@@ -1,12 +1,29 @@
 # Project Progress
 
-Last Updated: 2026-11-05
+Last Updated: 2026-11-06
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
 > 재개 방법: 루트 `CLAUDE.md` → 이 파일 → `docs/02-ARCHITECTURE.md` → `git log`/`git status` 순으로 읽고,
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
+
+## 원격 예약·프롬프트·지식베이스 관리 + 휴대폰 업로드 (2026-11-06, ADR-116·117)
+
+계획: docs/plans/remote-manage-plan.md
+
+| ID | 내용 | 상태 |
+|---|---|---|
+| T1 | core 계약(sync.rpc/sync.event, manage 플래그, 업로드 조립기)·host/client·bridge 서버 | DONE (core 789 pass) |
+| T2 | PC 처리기 ui/app/syncRpc.ts + 이벤트 방송 | DONE (ui syncRpcHandler 테스트) |
+| T3 | 원격 예약·프롬프트 UI | DONE (PC 시간대 변환 테스트 5, e2e 통과) |
+| T4 | 원격 지식베이스 API·대화상자·파일 업로드 | DONE (remoteKnowledge 14 pass, knowledge e2e 통과) |
+| T5 | 통합·리뷰·검증·재빌드·문서 | DONE |
+
+- PASS: typecheck, lint, unit(core 790, ui 134, bridge 168+3 skip, relay 9, server 10)
+- `pnpm e2e` 236 passed(24 skip, 순차 실행), 패키지 지식베이스 smoke 1 passed, 패키지 앱 재빌드·실행
+- 독립 리뷰: 심각 문제 없음. 반영: 원격 예약 새로고침 순번(늦은 응답 무시), `knowledge.source` 인자에 `\`·`.`·`..` 거부. 기존 `sync.reset` 테스트의 대기 경합 수정
+- 남은 개선(낮음): 업로드 조각 시간 초과는 재시도하지 않음(조립기가 순서 엄격이라 중복 조각이 invalid) — 파일 단위 실패로 보이고 PC가 120초 뒤 조각을 버린다. 재연결 직후 이전 reqId 응답이 같은 peerId로 갈 수 있음(클라이언트가 모르는 reqId는 무시). 예약 삭제·일시정지는 PC 삭제 허용 설정과 무관(계획대로)
 
 ## 코드 AST 청킹 + 심볼 표 (2026-11-05, ADR-115)
 

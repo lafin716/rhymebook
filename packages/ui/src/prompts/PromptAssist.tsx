@@ -7,6 +7,7 @@ import {
   PROVIDER_LABELS,
   resolveModelOptions,
   type PromptKey,
+  type PromptOverrides,
   type ProviderError,
 } from '@branch/core';
 import { Square, Undo2, WandSparkles } from 'lucide-react';
@@ -32,6 +33,8 @@ interface Props {
   /** AI가 채운 문구 (스트리밍 중에도 여러 번 불린다) */
   onDraft(next: string): void;
   onBusy(busy: boolean): void;
+  /** 요청에 쓸 프롬프트 저장본 (원격이면 PC의 설정) */
+  prompts?: PromptOverrides;
 }
 
 type Status = { kind: 'idle' } | { kind: 'running' } | { kind: 'done'; note: string; before: string } | { kind: 'error'; message: string };
@@ -40,7 +43,7 @@ type Status = { kind: 'idle' } | { kind: 'running' } | { kind: 'done'; note: str
  * 프롬프트 편집 칸 위의 AI 도우미 (ADR-112). 스킬 도우미(ADR-037)와 같은 방식으로,
  * 요청대로 고친 문구를 편집 칸에 바로 채운다. 저장은 사용자가 하고, 그 전까지 되돌릴 수 있다.
  */
-export function PromptAssist({ promptKey, draft, onDraft, onBusy }: Props) {
+export function PromptAssist({ promptKey, draft, onDraft, onBusy, prompts }: Props) {
   const [request, setRequest] = useState('');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const ctrl = useRef<AbortController | null>(null);
@@ -69,7 +72,7 @@ export function PromptAssist({ promptKey, draft, onDraft, onBusy }: Props) {
     ctrl.current = c;
     setStatus({ kind: 'running' });
     onBusy(true);
-    const req = buildPromptAssistRequest({ key: promptKey, current: before, request, prompts: appStore.getState().settings.prompts });
+    const req = buildPromptAssistRequest({ key: promptKey, current: before, request, prompts: prompts ?? appStore.getState().settings.prompts });
     if (caps.modelChoice) Object.assign(req, resolveModelOptions(providerId, undefined, appStore.getState().connections[providerId]));
     req.signal = c.signal;
     try {

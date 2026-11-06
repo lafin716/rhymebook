@@ -21,6 +21,7 @@ import { isUsable } from '../lib/connection';
 import { remoteMode, switchProfile } from './capabilities';
 import { desktop, isDemo, mobile, loadRemoteHosts, loadRemotePairing, remoteLink, saveRemoteHosts, saveRemotePairing, secrets, sessionWindowId } from './runtime';
 import { appStore, loadPersisted } from './store';
+import { createSyncRpcHandler } from './syncRpc';
 import { dropHostSkills, pullSkillsFromPc, switchSkillHost, syncSkillFolders, useSkills } from '../skills/skillsStore';
 
 /**
@@ -329,6 +330,15 @@ const isWindowPeer = (peerId: string) => peerId.startsWith('win-');
 let hostName = 'PC';
 let deviceNames = new Map<string, string>();
 
+/** 원격 예약·프롬프트·지식베이스 관리 (ADR-116). emit은 호스트가 만들어진 뒤에만 불린다 */
+const rpcHandler = sync
+  ? createSyncRpcHandler({
+      allowDelete: (peerId) => isWindowPeer(peerId) || remoteDeleteAllowed(),
+      emit: (topic, data) => syncHost?.emit(topic, data),
+    })
+  : null;
+let detachRpcEvents: (() => void) | null = null;
+
 export const syncHost: SyncHost | null = sync
   ? createSyncHost({
       store: appStore,
@@ -348,6 +358,8 @@ export const syncHost: SyncHost | null = sync
         await syncSkillFolders();
         return useSkills.getState().skills;
       },
+      rpc: (peerId, method, args) => rpcHandler!.handle(peerId, method, args),
+      onPeerGone: (peerId) => rpcHandler?.peerGone(peerId),
       onRemoteAction: (peerId, op) => {
         if (isWindowPeer(peerId)) return;
         // 스트리밍 중 잦은 조작(중지 등)은 묶지 않고 그대로 알린다
@@ -389,6 +401,7 @@ export async function startData(): Promise<void> {
   // 이 기기 프로필에서도 저장한 PC를 메인 화면의 프로필 목록에 보여 준다 (ADR-103)
   void loadHosts();
   syncHost?.reset();
+  if (rpcHandler && !detachRpcEvents) detachRpcEvents = rpcHandler.attachEvents();
   sync?.ready(true);
 }
 

@@ -1,14 +1,16 @@
-import { skillRef, type Schedule, type ScheduleRepeat } from '@branch/core';
+import { rpcErrorText, skillRef, type Schedule, type ScheduleRepeat } from '@branch/core';
 import { ArrowLeft, CalendarClock, ExternalLink, Loader2, Pause, Play, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { instantToZonedWall, zonedWallToMs } from '../app/remoteManage';
 import { actions, appStore, useApp } from '../app/store';
+import { syncClient, useSync } from '../app/sync';
 import { Badge } from '../components/Badge';
 import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { cn } from '../lib/cn';
 import { useSkills } from '../skills/skillsStore';
 import { localScheduleDate, scheduleDate, scheduleText as tx } from './scheduleText';
-import { scheduleAvailable, useSchedules } from './store';
+import { resetRemoteSchedules, scheduleAvailable, scheduleRemote, useSchedules } from './store';
 
 const repeats: ScheduleRepeat[] = ['once', 'daily', 'weekdays', 'weekly', 'monthly'];
 const repeatLabel = (repeat: ScheduleRepeat) => ({
@@ -19,13 +21,39 @@ const fieldClass = 'min-w-0 w-full rounded-xl border border-line bg-surface px-3
 interface Draft { title: string; prompt: string; sessionId: string; runAt: string; repeat: ScheduleRepeat; skillId: string }
 
 export function SchedulesPage() {
+  useRemoteScheduleSync();
   const open = useApp((state) => state.overlay === 'schedules');
   return open ? <SchedulesPageBody /> : null;
 }
 
+/**
+ * 원격 창: PC의 예약이 바뀌면(sync.event) 다시 받고, 연결이 바뀌거나 PC가 바뀌면 다시 받는다.
+ * 페이지가 닫혀 있어도 채팅의 예약 카드가 맞게 보이도록 앱이 열려 있는 동안 항상 붙어 있다.
+ */
+function useRemoteScheduleSync() {
+  useEffect(() => {
+    const client = syncClient;
+    if (!client || !scheduleRemote()) return;
+    const refresh = () => { void useSchedules.getState().refresh().catch(() => undefined); };
+    let host = client.state.getState().hostName;
+    const offState = client.state.subscribe((st, prev) => {
+      if (st.hostName !== host) { host = st.hostName; resetRemoteSchedules(); }
+      if ((st.status === 'online' && prev.status !== 'online') || st.manage !== prev.manage) refresh();
+    });
+    const offEvent = client.onEvent((topic) => { if (topic === 'schedules') refresh(); });
+    return () => { offState(); offEvent(); };
+  }, []);
+}
+
 function SchedulesPageBody() {
   const sessions = useApp((state) => state.sessions);
-  const { items, loaded, error, running, refresh, save, remove, toggle } = useSchedules();
+  const { items, loaded, error, running, refresh, save, remove, toggle, timeZone } = useSchedules();
+  const remote = scheduleRemote();
+  // 원격: 연결된 PC가 관리 호출을 받지 않으면(옛 버전) 읽기 전용 안내를 보인다
+  const status = useSync((state) => state.status);
+  const manage = useSync((state) => state.manage);
+  const outdated = remote && status === 'online' && manage === false;
+  const writable = !remote || manage === true;
   const skills = useSkills((state) => state.skills).filter((skill) => skill.name !== 'schedule');
   const chats = Object.values(sessions).filter((session) => !session.kind);
   const [selected, setSelected] = useState<string | null>(null);
@@ -37,8 +65,8 @@ function SchedulesPageBody() {
   const dirty = draft !== null && JSON.stringify(draft) !== baseline;
 
   useEffect(() => {
-    if (scheduleAvailable) void refresh().catch(() => undefined);
-  }, [refresh]);
+    if (scheduleAvailable || remote) void refresh().catch(() => undefined);
+  }, [refresh, remote]);
 
   const leave = async () => !dirty || confirm({
     title: tx('저장하지 않은 변경사항', 'Unsaved changes'),
@@ -59,18 +87,28 @@ function SchedulesPageBody() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  // 원격 편집은 PC 시간대의 벽시계 값으로 한다. PC 시간대를 모르면 편집을 열지 않는다.
+  const resolveZone = async (): Promise<string | null | undefined> => {
+    if (!remote) return null;
+    try { return await useSchedules.getState().ensureTimeZone(); }
+    catch (cause) { setFailure(cause instanceof Error ? cause.message : tx('PC 시간대를 가져오지 못했어요.', 'Could not get the PC time zone.')); return undefined; }
+  };
+  const wallOf = (at: number, zone: string | null) => zone ? instantToZonedWall(at, zone) : localScheduleDate(at);
+
   const cancelEditor = async () => {
     if (operation.current || !await leave()) return;
     setSelected(null); setDraft(null); setFailure(null);
   };
   const pick = async (item?: Schedule) => {
     if (operation.current || !await leave()) return;
+    const zone = await resolveZone();
+    if (zone === undefined) return;
     const next: Draft = item ? {
       title: item.title, prompt: item.prompt, sessionId: item.sessionId,
-      runAt: localScheduleDate(item.nextRunAt), repeat: item.repeat, skillId: item.skill?.id ?? '',
+      runAt: wallOf(item.nextRunAt, zone), repeat: item.repeat, skillId: item.skill?.id ?? '',
     } : {
       title: '', prompt: '', sessionId: chats[0]?.id ?? '',
-      runAt: localScheduleDate(Date.now() + 60 * 60 * 1000), repeat: 'once', skillId: '',
+      runAt: wallOf(Date.now() + 60 * 60 * 1000, zone), repeat: 'once', skillId: '',
     };
     setSelected(item?.id ?? 'new'); setDraft(next); setBaseline(JSON.stringify(next)); setFailure(null);
   };
@@ -83,8 +121,11 @@ function SchedulesPageBody() {
   };
   const submit = async () => {
     if (!draft || !selected) return;
+    const zone = await resolveZone();
+    if (zone === undefined) return;
     const previous = items.find((item) => item.id === selected);
-    const at = previous && draft.runAt === localScheduleDate(previous.nextRunAt) ? previous.nextRunAt : new Date(draft.runAt).getTime();
+    const at = previous && draft.runAt === wallOf(previous.nextRunAt, zone) ? previous.nextRunAt
+      : zone ? zonedWallToMs(draft.runAt, zone) : new Date(draft.runAt).getTime();
     if (!Number.isFinite(at)) { setFailure(tx('실행 시간을 확인해 주세요.', 'Check the run time.')); return; }
     const picked = skills.find((skill) => skill.id === draft.skillId);
     // Unchanged choice keeps the saved snapshot even if that skill was deleted since.
@@ -104,6 +145,8 @@ function SchedulesPageBody() {
     actions().openSession(id); actions().setOverlay('none');
   };
   const patch = (value: Partial<Draft>) => setDraft((current) => current && ({ ...current, ...value }));
+  const zoneLabel = remote ? timeZone : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zoneOf = remote ? timeZone ?? undefined : undefined;
 
   return (
     <div role="dialog" aria-modal="true" aria-label={tx('예약', 'Schedules')} className="animate-fade-in fixed inset-0 z-[60] flex flex-col bg-bg pt-[env(safe-area-inset-top)]">
@@ -111,9 +154,9 @@ function SchedulesPageBody() {
         <IconButton label={tx('뒤로', 'Back')} disabled={busy} onClick={() => selected ? void cancelEditor() : void close()}><ArrowLeft size={19} /></IconButton>
         <CalendarClock size={18} className="text-accent" />
         <h2 className="flex-1 text-[16px] font-semibold">{tx('예약', 'Schedules')}</h2>
-        {scheduleAvailable && <Button size="sm" variant="primary" icon={<Plus size={15} />} disabled={busy || !loaded} onClick={() => void pick()}>{tx('새 예약', 'New schedule')}</Button>}
+        {(scheduleAvailable || remote) && <Button size="sm" variant="primary" icon={<Plus size={15} />} disabled={busy || !loaded || !writable} onClick={() => void pick()}>{tx('새 예약', 'New schedule')}</Button>}
       </header>
-      {!scheduleAvailable ? (
+      {!scheduleAvailable && !remote ? (
         <div className="mx-auto w-full max-w-xl px-5 py-12">
           <CalendarClock size={32} className="mb-4 text-accent" />
           <h3 className="text-lg font-semibold">{tx('PC의 메인 창에서 예약을 관리하세요', 'Manage schedules in the main PC window')}</h3>
@@ -121,9 +164,19 @@ function SchedulesPageBody() {
         </div>
       ) : <>
         <div role="note" className="shrink-0 border-b border-line bg-surface px-4 py-3 text-[12px] leading-relaxed text-muted md:px-6">
-          <p>{tx('앱이 실행 중일 때만 예약을 실행합니다. 앱 종료·절전 중 놓친 예약은 다음 시작 시 한 번 실행합니다.', 'Schedules run while the app is running. Missed runs during shutdown or sleep run once when the app resumes.')}</p>
-          <p>{tx('이 기기에만 저장되며 원격으로 제어할 수 없습니다. 실행 시간은 기기의 현재 시간대를 따릅니다.', 'Stored on this device only, without remote control. Run times follow the device’s current time zone.')} <span className="font-medium">{Intl.DateTimeFormat().resolvedOptions().timeZone}</span></p>
+          {remote ? (
+            <>
+              <p>{tx('예약은 연결된 PC에 저장되고 PC 앱이 실행 중일 때 실행돼요. 목록과 실행 상태는 PC와 맞춰 보여요.', 'Schedules are stored on the connected PC and run while the PC app is running. The list and run status match the PC.')}</p>
+              <p>{tx('실행 시간은 PC의 시간대를 따릅니다.', 'Run times follow the PC’s time zone.')} <span className="font-medium">{zoneLabel ?? tx('PC 시간대 확인 중…', 'Checking PC time zone…')}</span></p>
+            </>
+          ) : (
+            <>
+              <p>{tx('앱이 실행 중일 때만 예약을 실행합니다. 앱 종료·절전 중 놓친 예약은 다음 시작 시 한 번 실행합니다.', 'Schedules run while the app is running. Missed runs during shutdown or sleep run once when the app resumes.')}</p>
+              <p>{tx('이 기기에만 저장되며 원격으로 제어할 수 없습니다. 실행 시간은 기기의 현재 시간대를 따릅니다.', 'Stored on this device only, without remote control. Run times follow the device’s current time zone.')} <span className="font-medium">{zoneLabel}</span></p>
+            </>
+          )}
         </div>
+        {outdated && <div role="alert" className="shrink-0 border-b border-line bg-danger-soft px-4 py-3 text-[13px] text-danger">{rpcErrorText('outdated')}</div>}
         {(failure || error) && <div role="alert" className="shrink-0 border-b border-line bg-danger-soft px-4 py-3 text-[13px] text-danger">{failure || error}</div>}
         <div className="flex min-h-0 flex-1">
           <section aria-label={tx('예약 목록', 'Schedule list')} className={cn('scroll-thin min-h-0 min-w-0 overflow-y-auto px-4 py-5 md:px-6', selected ? 'hidden md:block md:w-[42%] md:max-w-xl md:shrink-0 md:border-r md:border-line' : 'mx-auto w-full max-w-3xl')}>
@@ -132,7 +185,7 @@ function SchedulesPageBody() {
                 <CalendarClock size={32} className="mx-auto mb-3 text-muted" />
                 <h3 className="font-semibold">{tx('아직 예약이 없습니다', 'No schedules yet')}</h3>
                 <p className="mt-2 text-[13px] leading-relaxed text-muted">{tx('정해진 시간에 대화에 보낼 질문을 예약하세요.', 'Schedule a question to send to a conversation at a chosen time.')}</p>
-                <Button className="mt-5" variant="soft" onClick={() => void pick()}>{tx('첫 예약 만들기', 'Create your first schedule')}</Button>
+                {writable && <Button className="mt-5" variant="soft" onClick={() => void pick()}>{tx('첫 예약 만들기', 'Create your first schedule')}</Button>}
               </div>
             ) : <div className="space-y-3">{items.map((item) => {
               const finished = item.repeat === 'once' && !item.enabled && !!item.lastRunAt;
@@ -140,17 +193,17 @@ function SchedulesPageBody() {
               const isRunning = !!running[item.id];
               return <article key={item.id} data-schedule-id={item.id} className={cn('rounded-2xl border bg-surface p-4', selected === item.id ? 'border-accent' : 'border-line')}>
                 <div className="flex items-start justify-between gap-2"><h3 className="min-w-0 break-words text-[15px] font-semibold">{item.title}</h3>{isRunning ? <Badge tone="accent"><span data-schedule-running-badge className="inline-flex items-center gap-1"><Loader2 size={11} className="animate-spin" />{tx('실행 중', 'Running')}</span></Badge> : <Badge tone={item.lastError ? 'danger' : item.enabled ? 'accent' : 'neutral'}>{item.lastError ? tx('실행 오류', 'Run error') : item.enabled ? tx('예약됨', 'Scheduled') : completed ? tx('완료', 'Completed') : tx('일시정지', 'Paused')}</Badge>}</div>
-                <p className="mt-2 text-[13px] font-medium text-fg-2">{repeatLabel(item.repeat)} · {scheduleDate(item.nextRunAt)}</p>
+                <p className="mt-2 text-[13px] font-medium text-fg-2">{repeatLabel(item.repeat)} · {scheduleDate(item.nextRunAt, zoneOf)}</p>
                 <p className="mt-1 truncate text-xs text-muted">{sessions[item.sessionId]?.title ?? tx('삭제된 대화', 'Deleted conversation')}</p>
                 {item.skill && <p data-schedule-skill className="mt-1 flex items-center gap-1 text-xs text-accent"><Sparkles size={12} />{item.skill.title}</p>}
                 <p className="mt-3 line-clamp-3 break-words whitespace-pre-wrap text-[13px] leading-relaxed text-fg-2">{item.prompt}</p>
-                {item.lastRunAt && <p className="mt-2 text-xs text-muted">{tx('최근 실행', 'Last run')}: {scheduleDate(item.lastRunAt)}</p>}
+                {item.lastRunAt && <p className="mt-2 text-xs text-muted">{tx('최근 실행', 'Last run')}: {scheduleDate(item.lastRunAt, zoneOf)}</p>}
                 {item.lastError && <p className="mt-2 break-words text-xs text-danger">{item.lastError}</p>}
                 <div className="mt-3 flex flex-wrap items-center gap-1">
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => void pick(item)}>{tx('수정', 'Edit')}</Button>
-                  {!finished && <IconButton size="sm" label={item.enabled ? tx('일시정지', 'Pause') : tx('다시 시작', 'Resume')} disabled={busy || selected === item.id} onClick={() => void perform(() => toggle(item.id))}>{item.enabled ? <Pause size={15} /> : <Play size={15} />}</IconButton>}
+                  <Button size="sm" variant="ghost" disabled={busy || !writable} onClick={() => void pick(item)}>{tx('수정', 'Edit')}</Button>
+                  {!finished && <IconButton size="sm" label={item.enabled ? tx('일시정지', 'Pause') : tx('다시 시작', 'Resume')} disabled={busy || !writable || selected === item.id} onClick={() => void perform(() => toggle(item.id))}>{item.enabled ? <Pause size={15} /> : <Play size={15} />}</IconButton>}
                   <IconButton size="sm" label={tx('대화 열기', 'Open conversation')} disabled={busy || !sessions[item.sessionId]} onClick={() => void openSession(item.sessionId)}><ExternalLink size={15} /></IconButton>
-                  <span className="flex-1" /><IconButton size="sm" label={tx('예약 삭제', 'Delete schedule')} disabled={busy} onClick={() => void deleteItem(item)}><Trash2 size={15} /></IconButton>
+                  <span className="flex-1" /><IconButton size="sm" label={tx('예약 삭제', 'Delete schedule')} disabled={busy || !writable} onClick={() => void deleteItem(item)}><Trash2 size={15} /></IconButton>
                 </div>
               </article>;
             })}</div>}
@@ -158,17 +211,17 @@ function SchedulesPageBody() {
           {draft && <section aria-label={tx('예약 편집', 'Schedule editor')} className="scroll-thin min-h-0 min-w-0 flex-1 overflow-y-auto">
             <form className="safe-bottom mx-auto flex max-w-2xl flex-col gap-4 px-4 py-5 md:px-6" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
               <h3 className="text-[16px] font-semibold">{selected === 'new' ? tx('새 예약', 'New schedule') : tx('예약 수정', 'Edit schedule')}</h3>
-              <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4 disabled:opacity-60">
+              <fieldset disabled={busy || !writable} className="flex min-w-0 flex-col gap-4 disabled:opacity-60">
                 <label className="flex flex-col gap-1.5 text-[13px] font-medium">{tx('이름', 'Title')}<input autoFocus required maxLength={120} value={draft.title} onChange={(event) => patch({ title: event.target.value })} className={fieldClass} /></label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-medium">{tx('실행할 질문', 'Question to send')}<textarea required maxLength={20000} rows={5} value={draft.prompt} onChange={(event) => patch({ prompt: event.target.value })} className={cn(fieldClass, 'min-h-32 resize-y leading-relaxed')} /></label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-medium">{tx('대화', 'Conversation')}<select aria-label={tx('대화', 'Conversation')} required value={draft.sessionId} onChange={(event) => patch({ sessionId: event.target.value })} className={fieldClass}><option value="">{tx('대화 선택', 'Choose a conversation')}</option>{chats.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}</select></label>
                 {!chats.length && <p className="text-xs text-warn">{tx('먼저 대화를 만든 뒤 예약을 추가하세요.', 'Create a conversation before adding a schedule.')}</p>}
-                <label className="flex min-w-0 flex-col gap-1.5 text-[13px] font-medium">{tx('다음 실행 시간', 'Next run time')}<input type="datetime-local" required value={draft.runAt} onChange={(event) => patch({ runAt: event.target.value })} className={fieldClass} /></label>
+                <label className="flex min-w-0 flex-col gap-1.5 text-[13px] font-medium">{tx('다음 실행 시간', 'Next run time')}{remote && <span className="text-xs font-normal text-muted">{tx('PC 시간대', 'PC time zone')}: {zoneLabel}</span>}<input type="datetime-local" required value={draft.runAt} onChange={(event) => patch({ runAt: event.target.value })} className={fieldClass} /></label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-medium">{tx('반복', 'Repeat')}<select aria-label={tx('반복', 'Repeat')} value={draft.repeat} onChange={(event) => patch({ repeat: event.target.value as ScheduleRepeat })} className={fieldClass}>{repeats.map((repeat) => <option key={repeat} value={repeat}>{repeatLabel(repeat)}</option>)}</select></label>
                 <label className="flex flex-col gap-1.5 text-[13px] font-medium">{tx('사용할 스킬', 'Skill')}<select aria-label={tx('사용할 스킬', 'Skill')} value={draft.skillId} onChange={(event) => patch({ skillId: event.target.value })} className={fieldClass}><option value="">{tx('스킬 없음', 'No skill')}</option>{skills.map((skill) => <option key={skill.id} value={skill.id}>{skill.title} (/{skill.name})</option>)}{draft.skillId && !skills.some((skill) => skill.id === draft.skillId) && <option value={draft.skillId}>{items.find((item) => item.id === selected)?.skill?.title ?? tx('삭제된 스킬', 'Deleted skill')}</option>}</select><span className="text-xs font-normal text-muted">{tx('실행할 때 이 스킬의 지시를 함께 보내요. 예: 퀴즈 스킬로 매일 퀴즈 받기', 'Runs the question with this skill. e.g. a daily quiz with the quiz skill')}</span></label>
                 {draft.repeat === 'monthly' && <p className="text-xs leading-relaxed text-muted">{tx('해당 날짜가 없는 달에는 마지막 날에 실행합니다.', 'In months without that day, runs on the last day.')}</p>}
               </fieldset>
-              <div className="flex justify-end gap-2 pb-4"><Button variant="ghost" disabled={busy} onClick={() => void cancelEditor()}>{tx('취소', 'Cancel')}</Button><Button type="submit" variant="primary" icon={<Save size={15} />} disabled={busy || !chats.length || (selected !== 'new' && !dirty)}>{busy ? tx('저장 중…', 'Saving…') : tx('저장', 'Save')}</Button></div>
+              <div className="flex justify-end gap-2 pb-4"><Button variant="ghost" disabled={busy} onClick={() => void cancelEditor()}>{tx('취소', 'Cancel')}</Button><Button type="submit" variant="primary" icon={<Save size={15} />} disabled={busy || !writable || !chats.length || (selected !== 'new' && !dirty)}>{busy ? tx('저장 중…', 'Saving…') : tx('저장', 'Save')}</Button></div>
             </form>
           </section>}
         </div>

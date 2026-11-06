@@ -19,9 +19,11 @@ import { Button, IconButton } from '../components/Button';
 import { confirm } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { cn } from '../lib/cn';
-import { ipcErrorMessage, knowledgeApi } from './api';
+import { ipcErrorMessage } from './api';
 import { IndexStatus } from './IndexStatus';
 import { AutoIndexSwitch, KnowledgeInsights, KnowledgeSettingsDialog, RagSettingsDialog } from './KnowledgeInsights';
+import { fetchAllowDelete, onRemoteKnowledgeChanged, useKnowledgeApi, useRemoteState } from './remoteApi';
+import { isRemoteForbidden } from './remoteKnowledge';
 import { resetSessionKnowledge, toggleSessionKnowledge, useSessionKnowledge } from './sessionKnowledge';
 
 export interface KnowledgeDialogProps {
@@ -66,7 +68,12 @@ function ancestors(p: string): string[] {
 }
 
 export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogProps) {
-  const api = knowledgeApi();
+  const api = useKnowledgeApi();
+  const remote = remoteMode;
+  const remoteState = useRemoteState();
+  /** 원격 삭제 허용. PC가 허용하지 않거나 확인 전이면 삭제 버튼을 숨긴다 (PC 로컬은 항상 허용) */
+  const [allowDelete, setAllowDelete] = useState(!remote);
+  const canDelete = !remote || allowDelete;
   const { ids: linkedIds, inherited, overridden } = useSessionKnowledge(sessionId);
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -111,24 +118,36 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
   }, [task]);
 
   const current = bases.find((b) => b.id === selected);
-  const remote = remoteMode;
 
   const reload = useCallback(async () => {
     if (!api) return;
     setBases(await api.list());
   }, [api]);
 
+  // 대화상자를 열 때, 그리고 원격 연결로 API가 준비될 때 목록을 읽는다
   useEffect(() => {
-    if (!open || remote || !api) return;
+    if (!open || !api) return;
     setNotice(null);
     api
       .list()
       .then((list) => setBases(list))
       .catch((e: unknown) => setError(withDetail(t('knowledge.error.generic'), e)))
       .finally(() => setLoaded(true));
-    // 대화상자를 열 때만 목록을 새로 읽는다
+    // setState 함수는 안정적이다. api 변화(원격 연결 준비)에만 다시 읽는다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, api]);
+
+  // 원격: 원격 삭제 허용 여부를 PC에 확인한다
+  useEffect(() => {
+    if (!open || !remote || remoteState.manage !== true) return;
+    let alive = true;
+    void fetchAllowDelete().then((v) => {
+      if (alive) setAllowDelete(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [open, remote, remoteState.manage]);
 
   const loadTree = useCallback(
     async (id: string) => {
@@ -139,6 +158,15 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     [api],
   );
 
+  // 원격: PC에서 지식베이스가 바뀌면 목록·상세를 다시 읽는다
+  useEffect(() => {
+    if (!open || !remote || !api) return;
+    return onRemoteKnowledgeChanged(() => {
+      void reload().catch(() => undefined);
+      if (selectedRef.current) void loadTree(selectedRef.current).catch(() => undefined);
+    });
+  }, [open, remote, api, reload, loadTree]);
+
   /** 작업을 실행한다. 바쁜 동안 버튼을 막고, 실패하면 안내 문구를 보인다 */
   const run = async <T,>(fn: () => Promise<T>, failure = t('knowledge.error.generic')): Promise<T | undefined> => {
     setBusy(true);
@@ -146,7 +174,13 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     try {
       return await fn();
     } catch (e) {
-      setError(withDetail(failure, e));
+      // 원격에서 PC가 삭제를 거절하면 삭제 버튼을 숨기고 이유를 알린다
+      if (remote && isRemoteForbidden(e)) {
+        setAllowDelete(false);
+        setError(t('knowledge.remote.deleteOff'));
+      } else {
+        setError(withDetail(failure, e));
+      }
       return undefined;
     } finally {
       setBusy(false);
@@ -367,7 +401,12 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
     });
 
   const body = (() => {
-    if (remote) return <Notice text={t('knowledge.remote.notice')} />;
+    if (remote && !api) {
+      // PC가 구버전이면 관리 기능이 없으니 업데이트를 안내한다
+      if (remoteState.status === 'online' && remoteState.manage === false) return <Notice text={t('knowledge.remote.outdated')} hint={t('knowledge.remote.outdatedHint')} />;
+      if (remoteState.status === 'offline' || remoteState.status === 'unpaired') return <Notice text={t('knowledge.remote.offline')} />;
+      return <Notice text={t('knowledge.remote.connecting')} />;
+    }
     if (!api) return <Notice text={t('knowledge.unavailable.notice')} />;
     return (
       <div className="flex min-h-0 flex-1">
@@ -488,15 +527,19 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                     <IconButton size="sm" label={t('knowledge.rename.action')} disabled={busy} onClick={startRename}>
                       <Pencil size={15} />
                     </IconButton>
-                    <IconButton size="sm" label={t('knowledge.tree.open')} disabled={busy} onClick={() => openFolder()}>
-                      <FolderOpen size={15} />
-                    </IconButton>
+                    {!remote && (
+                      <IconButton size="sm" label={t('knowledge.tree.open')} disabled={busy} onClick={() => openFolder()}>
+                        <FolderOpen size={15} />
+                      </IconButton>
+                    )}
                     <IconButton size="sm" label={t('knowledge.settings.open')} onClick={() => setKbSettingsOpen(true)}>
                       <Settings2 size={15} />
                     </IconButton>
-                    <IconButton size="sm" label={t('knowledge.delete.action')} disabled={busy} onClick={removeBase} className="hover:text-danger">
-                      <Trash2 size={15} />
-                    </IconButton>
+                    {canDelete && (
+                      <IconButton size="sm" label={t('knowledge.delete.action')} disabled={busy} onClick={removeBase} className="hover:text-danger">
+                        <Trash2 size={15} />
+                      </IconButton>
+                    )}
                   </div>
                 )}
                 {!renaming && (
@@ -618,14 +661,16 @@ export function KnowledgeDialog({ open, onClose, sessionId }: KnowledgeDialogPro
                               <span className="min-w-0 flex-1 truncate">{name}</span>
                             </button>
                           )}
-                          {entry.dir && (
+                          {entry.dir && !remote && (
                             <IconButton size="sm" label={t('knowledge.tree.open')} disabled={busy} onClick={() => openFolder(entry.path)} className="size-6 opacity-70 hover:opacity-100">
                               <FolderOpen size={13} />
                             </IconButton>
                           )}
-                          <IconButton size="sm" label={`${t('knowledge.tree.remove')}: ${name}`} disabled={busy} onClick={() => void removeEntry(entry)} className="size-6 opacity-70 hover:text-danger hover:opacity-100">
-                            <X size={13} />
-                          </IconButton>
+                          {canDelete && (
+                            <IconButton size="sm" label={`${t('knowledge.tree.remove')}: ${name}`} disabled={busy} onClick={() => void removeEntry(entry)} className="size-6 opacity-70 hover:text-danger hover:opacity-100">
+                              <X size={13} />
+                            </IconButton>
+                          )}
                         </li>
                       );
                     })}
@@ -735,8 +780,14 @@ function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function Notice({ text }: { text: string }) {
-  return <p className="px-5 py-8 text-center text-[14px] text-fg-2">{text}</p>;
+function Notice({ text, hint }: { text: string; hint?: string }) {
+  if (!hint) return <p className="px-5 py-8 text-center text-[14px] text-fg-2">{text}</p>;
+  return (
+    <div className="flex flex-col items-center gap-1 px-5 py-8 text-center">
+      <p className="text-[14px] font-medium text-fg">{text}</p>
+      <p className="text-[13px] text-fg-2">{hint}</p>
+    </div>
+  );
 }
 
 /** 여러 번 나눠 넣은 결과를 하나로 합친다 */

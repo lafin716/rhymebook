@@ -1,8 +1,7 @@
 {
   "button": {
     "label": "Cơ sở tri thức",
-    "title": "Cơ sở tri thức của việc học này",
-    "remoteTitle": "Cơ sở tri thức (quản lý trong ứng dụng PC)"
+    "title": "Cơ sở tri thức của việc học này"
   },
   "dialog": {
     "title": "Cơ sở tri thức",
@@ -12,7 +11,12 @@
     "exitFull": "Thoát toàn màn hình"
   },
   "remote": {
-    "notice": "Cơ sở tri thức được quản lý trong ứng dụng PC. Câu trả lời trên thiết bị này cũng dùng cơ sở tri thức trên PC."
+    "outdated": "Cần cập nhật ứng dụng PC",
+    "outdatedHint": "Cập nhật ứng dụng PC lên phiên bản mới nhất để quản lý cơ sở tri thức ngay tại đây.",
+    "connecting": "Đang kết nối tới PC…",
+    "offline": "Chưa kết nối với PC. Khi đã kết nối, bạn có thể quản lý cơ sở tri thức tại đây.",
+    "deleteOff": "Xóa từ xa đang tắt trong cài đặt PC.",
+    "noOpen": "Chỉ có thể mở thư mục trong ứng dụng PC."
   },
   "unavailable": {
     "notice": "Không thể dùng cơ sở tri thức trên thiết bị này. Hãy mở ứng dụng máy tính."

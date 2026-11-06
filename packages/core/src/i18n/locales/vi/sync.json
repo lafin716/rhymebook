@@ -7,5 +7,7 @@
   "hostRestarted": "PC đã khởi động lại. Hãy thử lại.",
   "stopped": "Đã dừng đồng bộ.",
   "reconnecting": "Đang kết nối lại với PC.",
-  "notOnline": "Chưa kết nối với PC."
+  "notOnline": "Chưa kết nối với PC.",
+  "rpcNotFound": "Không tìm thấy mục này trên PC.",
+  "rpcUnsupported": "PC này không hỗ trợ tính năng đó."
 }

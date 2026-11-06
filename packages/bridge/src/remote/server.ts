@@ -299,7 +299,10 @@ export function createRemoteServer(opts: RemoteServerOptions): RemoteServer {
           // act는 클라이언트가 결과를 기다리므로 reqId가 읽히면 실패로 응답한다
           const reqId = (msg as Record<string, unknown>).reqId;
           if (typeof reqId === 'string' && reqId.length <= SYNC_LIMITS.id && ws.isOpen()) {
-            const res: SyncServerMsg = { type: 'act.result', reqId, ok: false, error: 'invalid' };
+            const res: SyncServerMsg =
+              (msg as Record<string, unknown>).type === 'sync.rpc'
+                ? { type: 'sync.rpc', reqId, ok: false, error: 'invalid' }
+                : { type: 'act.result', reqId, ok: false, error: 'invalid' };
             ws.send(channel.seal(res));
           }
           return;

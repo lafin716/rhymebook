@@ -5,7 +5,9 @@ import { newPageTitle, newSessionTitle } from '../store';
 import { newCanvasTitle } from '../canvas';
 import { isDocSession, isPage, pageDoc, renamePageLinks } from '../page';
 import type { Anchor, Annotation, BranchKind, ID, Message, Session, Skill, VaultNode, ViewState } from '../model';
-import { OP_FEATURE, opFeature, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
+import { OP_FEATURE, SYNC_MANAGE_FEATURE, opFeature, type SyncOp, type SyncOpKind, type SyncServerMsg } from '../bridge/sync';
+import { validateRpcArgs, type SyncEventTopic, type SyncRpcError, type SyncRpcMethod } from '../bridge/syncRpc';
+import type { MessageKey } from '../i18n';
 import type { SyncLink } from '../bridge/remote';
 import type { StudyBundle } from '../study';
 import { branchQuestion } from '../context';
@@ -38,6 +40,34 @@ export interface SyncClientState {
   lastFailure?: SyncActFailure;
   /** 앱 복귀 후 자동 재연결(1회)이 실패한 시각. UI가 알림을 띄운다 */
   resumeFailedAt?: number;
+  /** 연결된 PC가 예약·프롬프트·지식베이스 관리 호출을 받는지 (ADR-116). 스냅샷 전·옛 PC는 false */
+  manage?: boolean;
+}
+
+/** 관리 호출 실패. code는 SyncRpcError 또는 'offline' | 'timeout' */
+export class SyncRpcCallError extends Error {
+  constructor(readonly code: SyncRpcError | 'offline' | 'timeout', message: string) {
+    super(message);
+    this.name = 'SyncRpcCallError';
+  }
+}
+
+const RPC_ERROR_TEXT: Record<SyncRpcError | 'offline' | 'timeout', MessageKey> = {
+  invalid: 'components.toast.invalid',
+  'not-found': 'sync.rpcNotFound',
+  'rate-limit': 'components.toast.rateLimit',
+  forbidden: 'components.toast.forbidden',
+  'not-ready': 'components.toast.notReady',
+  unsupported: 'sync.rpcUnsupported',
+  outdated: 'components.toast.outdated',
+  failed: 'components.toast.failed',
+  offline: 'sync.notOnline',
+  timeout: 'sync.noResponse',
+};
+
+/** 관리 호출 실패를 알릴 문구 (PC가 보낸 설명이 있으면 그것) */
+export function rpcErrorText(code: SyncRpcError | 'offline' | 'timeout', message?: string): string {
+  return message || t(RPC_ERROR_TEXT[code]);
 }
 
 export interface SyncClient {
@@ -57,6 +87,10 @@ export interface SyncClient {
   pullSkills(): Promise<Skill[]>;
   /** 학습 꾸러미를 PC로 보낸다 (ADR-043). 실패하면 SyncActError 또는 'offline' | 'timeout'을 메시지로 reject */
   importStudy(bundle: StudyBundle): Promise<void>;
+  /** PC 관리 호출 (ADR-116). 실패하면 SyncRpcCallError로 reject */
+  rpc<T = unknown>(method: SyncRpcMethod, args?: unknown[], opts?: { timeoutMs?: number }): Promise<T>;
+  /** PC 관리 이벤트(sync.event)를 받는다. 해제 함수를 돌려준다 */
+  onEvent(listener: (topic: SyncEventTopic, data: unknown) => void): () => void;
 }
 
 export interface SyncClientOptions {
@@ -151,6 +185,17 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
     else p.resolve(result);
   };
 
+  /** 응답을 기다리는 관리 호출 */
+  const rpcPending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+  const eventListeners = new Set<(topic: SyncEventTopic, data: unknown) => void>();
+  const rpcFail = (reqId: string, code: SyncRpcError | 'offline' | 'timeout', message?: string) => {
+    const p = rpcPending.get(reqId);
+    if (!p) return;
+    rpcPending.delete(reqId);
+    clearTimeout(p.timer);
+    p.reject(new SyncRpcCallError(code, rpcErrorText(code, message)));
+  };
+
   /** 응답 대기 중인 조작을 버린다. 스냅샷이 진실 원천이므로 되돌리지 않는다 */
   const dropPending = () => {
     for (const p of pending.values()) {
@@ -158,6 +203,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       p.done?.('offline');
     }
     pending.clear();
+    for (const reqId of [...rpcPending.keys()]) rpcFail(reqId, 'offline');
   };
 
   const closeListeners = () => {
@@ -266,6 +312,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
     switch (msg.type) {
       case 'sync.snapshot': {
         hostFeatures = msg.features ? new Set(msg.features) : null;
+        if (!!state.getState().manage !== !!hostFeatures?.has(SYNC_MANAGE_FEATURE)) setState({ manage: !!hostFeatures?.has(SYNC_MANAGE_FEATURE) });
         dropPending();
         requested.clear();
         const gone = new Set(Object.keys(s.sessions).filter((id) => !msg.sessions[id]));
@@ -393,6 +440,25 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         else armSkillTimer();
         return;
       }
+      case 'sync.rpc': {
+        const p = rpcPending.get(msg.reqId);
+        if (!p) return;
+        if (msg.ok) {
+          rpcPending.delete(msg.reqId);
+          clearTimeout(p.timer);
+          p.resolve(msg.data);
+        } else rpcFail(msg.reqId, msg.error, msg.message);
+        return;
+      }
+      case 'sync.event':
+        for (const l of eventListeners) {
+          try {
+            l(msg.topic, msg.data);
+          } catch {
+            // 한 구독자의 오류가 다른 구독자를 막지 않게
+          }
+        }
+        return;
       case 'act.result': {
         const p = pending.get(msg.reqId);
         if (!p) return;
@@ -876,7 +942,7 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
       requested.clear();
       if (originals) store.setState(originals);
       originals = null;
-      setState({ status: 'unpaired', loaded: {} });
+      setState({ status: 'unpaired', loaded: {}, manage: false });
     },
 
     reconnect() {
@@ -928,6 +994,24 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
         armSkillTimer();
         if (!link.send({ type: 'sync.skills', reqId })) endSkillPull(new Error(t('sync.disconnected')));
       });
+    },
+
+    rpc<T = unknown>(method: SyncRpcMethod, args: unknown[] = [], o: { timeoutMs?: number } = {}) {
+      return new Promise<T>((resolve, reject) => {
+        if (state.getState().status !== 'online') return reject(new SyncRpcCallError('offline', rpcErrorText('offline')));
+        if (!hostFeatures?.has(SYNC_MANAGE_FEATURE)) return reject(new SyncRpcCallError('outdated', rpcErrorText('outdated')));
+        // 형태가 틀린 호출은 PC가 버리므로 보내기 전에 거른다
+        if (!validateRpcArgs(method, args)) return reject(new SyncRpcCallError('invalid', rpcErrorText('invalid')));
+        const reqId = newId('r');
+        const timer = setTimeout(() => rpcFail(reqId, 'timeout'), o.timeoutMs ?? timeoutMs);
+        rpcPending.set(reqId, { resolve: resolve as (v: unknown) => void, reject, timer });
+        if (!link.send({ type: 'sync.rpc', reqId, method, args })) rpcFail(reqId, 'offline');
+      });
+    },
+
+    onEvent(listener) {
+      eventListeners.add(listener);
+      return () => void eventListeners.delete(listener);
     },
   };
 }

@@ -1,8 +1,7 @@
 {
   "button": {
     "label": "Knowledge base",
-    "title": "This study's knowledge base",
-    "remoteTitle": "Knowledge base (managed in the PC app)"
+    "title": "This study's knowledge base"
   },
   "dialog": {
     "title": "Knowledge base",
@@ -12,7 +11,12 @@
     "exitFull": "Exit full screen"
   },
   "remote": {
-    "notice": "Knowledge bases are managed in the PC app. Answers on this device also use the knowledge base on the PC."
+    "outdated": "PC app update required",
+    "outdatedHint": "Update the PC app to the latest version to manage knowledge bases here too.",
+    "connecting": "Connecting to the PC…",
+    "offline": "Not connected to the PC. Once connected, you can manage knowledge bases here.",
+    "deleteOff": "Remote deletion is turned off in the PC settings.",
+    "noOpen": "Opening folders is only possible in the PC app."
   },
   "unavailable": {
     "notice": "Knowledge bases are not available on this device. Open the desktop app."

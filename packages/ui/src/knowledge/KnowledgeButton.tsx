@@ -10,14 +10,14 @@ import { useSessionKnowledge } from './sessionKnowledge';
 
 /**
  * 세션 상단의 지식베이스 버튼 (ADR-107, ADR-113). 세션마다 여러 지식베이스를 고르고, 가지는 부모 설정을 물려받는다.
- * 원격 모드(웹·모바일이 PC 미러)는 버튼만 보이고 대화상자가 "PC 앱에서 관리"를 안내한다.
+ * 원격 모드(웹·모바일)는 버튼이 보이고, 대화상자는 PC의 지식베이스를 sync RPC로 관리한다. PC가 구버전이면 업데이트를 안내한다.
  */
 export function KnowledgeButton({ sessionId, compact }: { sessionId: ID; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const { ids, inherited } = useSessionKnowledge(sessionId);
   const linked = ids.length > 0;
   if (!remoteMode && !knowledgeApi()) return null;
-  const label = remoteMode ? t('knowledge.button.remoteTitle') : t('knowledge.button.title');
+  const label = t('knowledge.button.title');
   return (
     <>
       <button

@@ -7,5 +7,7 @@
   "hostRestarted": "The PC restarted. Try again.",
   "stopped": "Sync stopped.",
   "reconnecting": "Reconnecting to the PC.",
-  "notOnline": "Not connected to the PC."
+  "notOnline": "Not connected to the PC.",
+  "rpcNotFound": "The item was not found on the PC.",
+  "rpcUnsupported": "This PC does not support that feature."
 }

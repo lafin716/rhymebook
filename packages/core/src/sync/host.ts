@@ -15,7 +15,9 @@ import {
   type SyncClientMsg,
   type SyncServerMsg,
   type SyncActError,
+  SYNC_MANAGE_FEATURE,
 } from '../bridge/sync';
+import { SYNC_RPC_LIMITS, SyncRpcFailure, type SyncEventTopic, type SyncRpcMethod } from '../bridge/syncRpc';
 
 export interface SyncHostOptions {
   store: AppStore;
@@ -37,6 +39,13 @@ export interface SyncHostOptions {
   onRemoteAction?: (peerId: string, op: SyncOp) => void;
   /** 원격 기기가 받아 갈 PC 스킬 목록 (sync.skills). 없으면 빈 목록 */
   skills?: () => readonly Skill[] | Promise<readonly Skill[]>;
+  /**
+   * 원격 관리 요청 처리기 (ADR-116). 있으면 snapshot에 'manage' 기능을 광고한다.
+   * 인자는 validateRpcArgs를 통과한 값. SyncRpcFailure를 던지면 그 코드, 다른 오류는 'failed' + 문구
+   */
+  rpc?: (peerId: string, method: SyncRpcMethod, args: unknown[]) => Promise<unknown>;
+  /** 피어가 끊겼을 때 (조립 중인 업로드 정리용) */
+  onPeerGone?: (peerId: string) => void;
 }
 
 export interface SyncHost {
@@ -46,6 +55,8 @@ export interface SyncHost {
   dispose(): void;
   /** 모든 피어에 sync.reset을 보내고 피어 상태를 비운다 (클라이언트는 hello부터 다시) */
   reset(): void;
+  /** 동기화 중인 모든 피어에 sync.event를 보낸다 */
+  emit(topic: SyncEventTopic, data?: unknown): void;
 }
 
 interface PeerState {
@@ -58,6 +69,8 @@ interface PeerState {
   streams: Set<ID>;
   actCount: number;
   actWindowStart: number;
+  rpcCount: number;
+  rpcWindowStart: number;
 }
 
 type Synced = Pick<AppState, 'sessions' | 'messages' | 'streaming' | 'summaryDrafts' | 'annotations' | 'vault'>;
@@ -80,7 +93,7 @@ function idTaken(state: Synced, id: ID): boolean {
 
 /** 데스크톱(호스트) 스토어 변경을 원격 피어에 내보내고, 피어의 조작(act)을 스토어 액션으로 실행한다 */
 export function createSyncHost(opts: SyncHostOptions): SyncHost {
-  const { store, hostName, send, rootProvider, throttleMs = 120, allowDelete = () => false, anySkillProvider = () => false, onRemoteAction, skills } = opts;
+  const { store, hostName, send, rootProvider, throttleMs = 120, allowDelete = () => false, anySkillProvider = () => false, onRemoteAction, skills, rpc, onPeerGone } = opts;
 
   const peers = new Map<string, PeerState>();
   const pick = (s: AppState): Synced => ({
@@ -103,6 +116,8 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     streams: new Set(),
     actCount: 0,
     actWindowStart: 0,
+    rpcCount: 0,
+    rpcWindowStart: 0,
   });
 
   const syncedPeers = () => [...peers.entries()].filter(([, p]) => p.synced);
@@ -116,6 +131,35 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
     if (peer.actCount >= SYNC_LIMITS.actCount) return false;
     peer.actCount++;
     return true;
+  };
+
+  const checkRpcLimit = (peer: PeerState): boolean => {
+    const now = Date.now();
+    if (now - peer.rpcWindowStart > SYNC_RPC_LIMITS.windowMs) {
+      peer.rpcCount = 0;
+      peer.rpcWindowStart = now;
+    }
+    if (peer.rpcCount >= SYNC_RPC_LIMITS.count) return false;
+    peer.rpcCount++;
+    return true;
+  };
+
+  const runRpc = async (peerId: string, reqId: string, method: SyncRpcMethod, args: unknown[]) => {
+    let reply: SyncServerMsg;
+    try {
+      const data = await rpc!(peerId, method, args);
+      reply = data === undefined ? { type: 'sync.rpc', reqId, ok: true } : { type: 'sync.rpc', reqId, ok: true, data };
+    } catch (e) {
+      if (e instanceof SyncRpcFailure) {
+        reply = { type: 'sync.rpc', reqId, ok: false, error: e.code, ...(e.message ? { message: e.message.slice(0, SYNC_RPC_LIMITS.message) } : {}) };
+      } else {
+        const message = e instanceof Error ? e.message : String(e);
+        reply = { type: 'sync.rpc', reqId, ok: false, error: 'failed', ...(message ? { message: message.slice(0, SYNC_RPC_LIMITS.message) } : {}) };
+      }
+    }
+    // 처리하는 동안 끊겼거나 다시 연결(hello)했으면 보내지 않는다
+    if (!peers.get(peerId)?.synced) return;
+    send(peerId, reply);
   };
 
   const findMessage = (sessionId: ID, messageId: ID) => store.getState().messages[sessionId]?.find((m) => m.id === messageId);
@@ -290,7 +334,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       streaming: state.streaming,
       summaryDrafts: state.summaryDrafts,
       ...(annotations.length ? { annotations } : {}),
-      features: [...SYNC_FEATURES],
+      features: rpc ? [...SYNC_FEATURES, SYNC_MANAGE_FEATURE] : [...SYNC_FEATURES],
       ...(drafts.length ? { drafts } : {}),
     });
     sendVault(peerId);
@@ -696,6 +740,22 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
         void sendSkills(peerId, msg.reqId);
         return;
       }
+      if (msg.type === 'sync.rpc') {
+        if (!rpc) {
+          send(peerId, { type: 'sync.rpc', reqId: msg.reqId, ok: false, error: 'unsupported' });
+          return;
+        }
+        if (!peer.synced) {
+          send(peerId, { type: 'sync.rpc', reqId: msg.reqId, ok: false, error: 'not-ready' });
+          return;
+        }
+        if (!checkRpcLimit(peer)) {
+          send(peerId, { type: 'sync.rpc', reqId: msg.reqId, ok: false, error: 'rate-limit' });
+          return;
+        }
+        void runRpc(peerId, msg.reqId, msg.method, msg.args);
+        return;
+      }
       // act
       if (!peer.synced) {
         send(peerId, { type: 'act.result', reqId: msg.reqId, ok: false, error: 'not-ready' });
@@ -718,6 +778,7 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
 
     peerGone(peerId) {
       peers.delete(peerId);
+      onPeerGone?.(peerId);
     },
 
     dispose() {
@@ -726,6 +787,11 @@ export function createSyncHost(opts: SyncHostOptions): SyncHost {
       flushTimer = null;
       dirty.clear();
       peers.clear();
+    },
+
+    emit(topic, data) {
+      const msg: SyncServerMsg = data === undefined ? { type: 'sync.event', topic } : { type: 'sync.event', topic, data };
+      for (const [peerId] of syncedPeers()) send(peerId, msg);
     },
 
     reset() {

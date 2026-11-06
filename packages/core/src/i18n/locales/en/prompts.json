@@ -41,7 +41,8 @@
   "labelAria": "{label} prompt",
   "list": "Prompt list",
   "liveNote": "Changed prompts apply from your next question. Answers you already received stay the same.",
-  "pcNote": "Chats run on the PC and follow the prompts in the PC app. You can change prompts in the PC app.",
+  "loading": "Loading PC prompts…",
+  "pcNote": "You are editing the prompts of the PC app. Saving applies them on the PC right away, from the next question on.",
   "placeholder": "Leave empty and save to use the default text.",
   "reset": {
     "button": "Reset to default",
@@ -49,7 +50,9 @@
     "message": "Reset “{label}” to the app’s default text. Your edits will be removed.",
     "title": "Reset to default?"
   },
+  "retry": "Retry",
   "save": "Save",
+  "saving": "Saving…",
   "system": "System prompt",
   "title": "Manage prompts",
   "unsaved": {
