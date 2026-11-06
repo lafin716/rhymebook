@@ -1,0 +1,62 @@
+{
+  "notice": {
+    "aria": "Thông báo cập nhật ứng dụng",
+    "availableTitle": "Đã có phiên bản mới",
+    "downloadingTitle": "Đang tải bản cập nhật",
+    "downloadedTitle": "Bản cập nhật đã sẵn sàng",
+    "installingTitle": "Đang cài đặt bản cập nhật",
+    "errorTitle": "Không thể cập nhật",
+    "versions": "Hiện tại {current} → Mới {latest}",
+    "notes": "Thay đổi",
+    "notesShow": "Xem thay đổi",
+    "notesHide": "Ẩn thay đổi",
+    "download": "Tải bản cập nhật",
+    "later": "Để sau",
+    "close": "Đóng",
+    "openRelease": "Mở trang tải xuống",
+    "manualHint": "Bản cài đặt này không thể cập nhật trong ứng dụng. Vui lòng tải trình cài đặt mới từ trang tải xuống. Cài đặt và dữ liệu được giữ nguyên.",
+    "progress": "Đã tải {percent}%",
+    "progressBytes": "{transferred} / {total}",
+    "downloadedHint": "Khởi động lại ứng dụng để cài đặt. Cài đặt và dữ liệu học tập được giữ nguyên.",
+    "restart": "Khởi động lại để cài đặt",
+    "installingHint": "Ứng dụng sẽ đóng và mở lại với phiên bản mới.",
+    "retry": "Thử lại",
+    "busyTitle": "Đang có câu trả lời được tạo",
+    "busyMessage": "Còn {count} câu trả lời đang được tạo. Khởi động lại bây giờ sẽ dừng việc tạo. Tiếp tục?",
+    "busyConfirm": "Khởi động lại để cài đặt",
+    "saveFailed": "Chưa lưu xong dữ liệu cục bộ nên việc cài đặt đã bị hoãn. Vui lòng thử lại sau."
+  },
+  "errors": {
+    "network": "Không thể kết nối mạng. Vui lòng kiểm tra kết nối internet.",
+    "rateLimit": "Đã vượt giới hạn yêu cầu GitHub. Vui lòng thử lại sau.",
+    "integrity": "Tệp đã tải không vượt qua kiểm tra toàn vẹn và không được cài đặt.",
+    "signature": "Không thể xác minh chữ ký của bản cập nhật. Chưa cài đặt.",
+    "notFound": "Không tìm thấy tệp cập nhật. Bản phát hành có thể vẫn đang chuẩn bị.",
+    "disk": "Không đủ dung lượng ổ đĩa hoặc không thể ghi tệp.",
+    "unknown": "Đã xảy ra lỗi không xác định."
+  },
+  "settings": {
+    "title": "Cập nhật ứng dụng",
+    "hint": "Kiểm tra phiên bản mới 10 giây sau khi mở và mỗi 6 giờ. Chỉ tải và cài đặt khi bạn chọn.",
+    "current": "Phiên bản hiện tại {version}",
+    "check": "Kiểm tra cập nhật",
+    "checking": "Đang kiểm tra…",
+    "upToDate": "Bạn đang dùng phiên bản mới nhất.",
+    "available": "Có thể tải phiên bản {version}.",
+    "downloading": "Đang tải phiên bản mới ({percent}%)",
+    "downloaded": "Phiên bản {version} đã sẵn sàng. Khởi động lại để cài đặt.",
+    "installing": "Đang cài đặt…",
+    "lastChecked": "Kiểm tra lần cuối {time}",
+    "showNotice": "Hiện lại thông báo",
+    "modeAuto": "Tải và cài đặt ngay trong ứng dụng.",
+    "modeManual": "Thông báo phiên bản mới; cài đặt từ trang tải xuống.",
+    "reason": {
+      "dev": "Không kiểm tra cập nhật ở chế độ phát triển.",
+      "envDisabled": "Đã tắt bằng biến môi trường RHYMEBOOK_DISABLE_UPDATE=1.",
+      "macUnsigned": "Bản macOS này chưa được ký nên không thể cài đặt trong ứng dụng.",
+      "linuxPackage": "Bản cài deb vui lòng cập nhật qua gói.",
+      "portable": "Bản portable vui lòng thay bằng tệp thực thi mới.",
+      "unsupportedPlatform": "Môi trường này không hỗ trợ cài đặt trong ứng dụng."
+    }
+  }
+}

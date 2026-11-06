@@ -1,0 +1,62 @@
+{
+  "notice": {
+    "aria": "应用更新通知",
+    "availableTitle": "有新版本可用",
+    "downloadingTitle": "正在下载更新",
+    "downloadedTitle": "更新已就绪",
+    "installingTitle": "正在安装更新",
+    "errorTitle": "更新失败",
+    "versions": "当前 {current} → 新版本 {latest}",
+    "notes": "更新内容",
+    "notesShow": "查看更新内容",
+    "notesHide": "收起更新内容",
+    "download": "下载更新",
+    "later": "稍后",
+    "close": "关闭",
+    "openRelease": "打开下载页面",
+    "manualHint": "此安装版本无法在应用内更新。请从下载页面获取新的安装包。设置和数据会保留。",
+    "progress": "已下载 {percent}%",
+    "progressBytes": "{transferred} / {total}",
+    "downloadedHint": "重启应用即可安装。设置和学习数据会保留。",
+    "restart": "重启并安装",
+    "installingHint": "应用即将关闭，并以新版本重新打开。",
+    "retry": "重试",
+    "busyTitle": "有正在生成的回答",
+    "busyMessage": "还有 {count} 个回答正在生成。现在重启将中断生成。要继续吗？",
+    "busyConfirm": "重启并安装",
+    "saveFailed": "本地保存未完成，已推迟安装。请稍后重试。"
+  },
+  "errors": {
+    "network": "无法连接网络。请检查网络连接。",
+    "rateLimit": "已达到 GitHub 请求上限。请稍后重试。",
+    "integrity": "下载文件的完整性校验失败，未进行安装。",
+    "signature": "无法验证更新文件的签名，未进行安装。",
+    "notFound": "未找到更新文件。发布可能仍在准备中。",
+    "disk": "磁盘空间不足或无法写入文件。",
+    "unknown": "发生未知错误。"
+  },
+  "settings": {
+    "title": "应用更新",
+    "hint": "启动 10 秒后及每 6 小时检查一次新版本。仅在你选择时下载和安装。",
+    "current": "当前版本 {version}",
+    "check": "检查更新",
+    "checking": "正在检查…",
+    "upToDate": "已是最新版本。",
+    "available": "可以获取新版本 {version}。",
+    "downloading": "正在下载新版本 ({percent}%)",
+    "downloaded": "新版本 {version} 已就绪。重启后即可安装。",
+    "installing": "正在安装…",
+    "lastChecked": "上次检查 {time}",
+    "showNotice": "重新显示通知",
+    "modeAuto": "在应用内直接下载并安装。",
+    "modeManual": "提示新版本，请在下载页面安装。",
+    "reason": {
+      "dev": "开发模式下不检查更新。",
+      "envDisabled": "已通过环境变量 RHYMEBOOK_DISABLE_UPDATE=1 关闭。",
+      "macUnsigned": "此 macOS 版本未签名，无法在应用内安装。",
+      "linuxPackage": "deb 安装版请通过软件包更新。",
+      "portable": "便携版请替换为新的可执行文件。",
+      "unsupportedPlatform": "此环境不支持应用内安装。"
+    }
+  }
+}

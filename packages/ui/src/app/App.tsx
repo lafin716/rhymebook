@@ -3,6 +3,7 @@ import { SelectionMenu } from '../chat/SelectionMenu';
 import { MoveTurnHost } from '../chat/turnActions';
 import { ConfirmHost } from '../components/ConfirmDialog';
 import { Toasts } from '../components/Toasts';
+import { UpdateNotice } from '../update/UpdateNotice';
 import { TopBar } from '../components/TopBar';
 import { NotesModal } from '../notes/NotesModal';
 import { VaultOverlay } from '../vault/VaultOverlay';
@@ -81,6 +82,7 @@ export function App() {
       <ConfirmHost />
       <MoveTurnHost />
       <Toasts />
+      <UpdateNotice />
       {/* 설치 후 첫 실행: 언어부터 고르고 시작 안내를 띄운다 (ADR-105) */}
       {needsLanguage ? <LanguagePrompt /> : <Onboarding />}
     </div>

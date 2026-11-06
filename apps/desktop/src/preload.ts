@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
-import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeDoc, KnowledgeEntry, KnowledgeIndexSettings, KnowledgeIndexState, KnowledgePreview, KnowledgeProgress, KnowledgeSource, RetrievalRequest, RetrievalResult, SourceView, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg } from '@branch/core';
+import type { BridgeServerMsg, DesktopApi, HostState, KnowledgeAddResult, KnowledgeBase, KnowledgeDoc, KnowledgeEntry, KnowledgeIndexSettings, KnowledgeIndexState, KnowledgePreview, KnowledgeProgress, KnowledgeSource, RetrievalRequest, RetrievalResult, SourceView, SkillFolder, SttModelId, SttState, SyncClientMsg, SyncServerMsg, UpdateState } from '@branch/core';
 import { CH } from './ipc';
 
 /** DesktopApi.sync with onPeerGone extension (ADR-026) */
@@ -199,6 +199,19 @@ const api: DesktopApiExt = {
       const h = (_e: IpcRendererEvent, state: SttState) => listener(state);
       ipcRenderer.on(CH.sttChanged, h);
       return () => ipcRenderer.removeListener(CH.sttChanged, h);
+    },
+  },
+  // 앱 업데이트 (ADR-118). 인자 없는 호출만 노출한다 (주소·경로는 main이 정한다)
+  updater: {
+    getState: () => ipcRenderer.invoke(CH.updateState) as Promise<UpdateState>,
+    check: () => ipcRenderer.invoke(CH.updateCheck) as Promise<UpdateState>,
+    download: () => ipcRenderer.invoke(CH.updateDownload) as Promise<UpdateState>,
+    install: () => ipcRenderer.invoke(CH.updateInstall) as Promise<boolean>,
+    openRelease: () => ipcRenderer.invoke(CH.updateOpenRelease) as Promise<boolean>,
+    onChange(listener: (state: UpdateState) => void) {
+      const h = (_e: IpcRendererEvent, state: UpdateState) => listener(state);
+      ipcRenderer.on(CH.updateChanged, h);
+      return () => ipcRenderer.removeListener(CH.updateChanged, h);
     },
   },
 };

@@ -8,6 +8,21 @@ Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
 
+## 데스크톱 앱 자동 업데이트 (2026-11-06, ADR-118)
+
+계획: docs/plans/auto-update-plan.md
+
+| ID | 내용 | 상태 |
+|---|---|---|
+| U1 | core `update.ts`(상태 기계·버전 비교·오류 분류·모드) + 단위 테스트 | DONE (update 30 pass) |
+| U2 | desktop `updater.ts`(electron-updater·GitHub API 대체 경로)·IPC·preload·main | DONE |
+| U3 | 알림 카드·설정 › 일반 › 앱 업데이트·i18n 5개 언어 | DONE |
+| U4 | release.yml(태그=버전 검증, latest*.yml·blockmap 업로드), publish 설정 | DONE (mac zip 빌드로 메타데이터 확인) |
+| U5 | 패키지 앱 e2e `e2e/update-packaged.spec.ts`(모의 GitHub 응답 8단계) | DONE |
+| U6 | 독립 리뷰·반영 | DONE — 주기 확인 끊김·수동 재확인 시 알림 소실·설치 멈춤(20초 되돌림)·autoInstallOnAppQuit=false·IPC 발신자 확인·disabled 시 codesign 생략 반영, 단위 테스트 4개 추가 |
+| U7 | 문서·재빌드·로컬 커밋 | DONE — typecheck·lint·test(core 824·ui 134·bridge 168·relay 9·server 10) 통과, e2e 235 통과(prompts 1건 간헐 실패 → 단독 재실행 4/4 통과), 패키지 앱 업데이트 e2e 8/8 통과 |
+| U8 | 실제 릴리스로 설치·재실행 종단 확인 | BLOCKED (B-17~B-20, 서명·발행 필요) |
+
 ## 원격 예약·프롬프트·지식베이스 관리 + 휴대폰 업로드 (2026-11-06, ADR-116·117)
 
 계획: docs/plans/remote-manage-plan.md

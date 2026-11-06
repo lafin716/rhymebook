@@ -4,6 +4,7 @@ import type { ProviderId } from '@branch/core';
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { caps, remoteMode } from '../app/capabilities';
+import { desktop } from '../app/runtime';
 import { actions, useApp } from '../app/store';
 import { useUi } from '../app/uiState';
 import { StatusDot } from '../components/Badge';
@@ -21,6 +22,7 @@ import { HostCard } from './HostCard';
 import { RemoteSettings } from './RemoteSettings';
 import { SelectionTriggerField } from './SelectionTriggerField';
 import { VoiceSettings } from './VoiceSettings';
+import { UpdateSettings } from './UpdateSettings';
 import { providerKind, providerLabel, STATUS_LABEL, statusTone } from '../lib/connection';
 
 type Tab = 'connections' | 'backup' | 'voice' | 'appearance' | 'general';
@@ -169,6 +171,7 @@ function GeneralTab() {
   return (
     <div className="space-y-6">
       <LanguageField />
+      {desktop?.updater && <UpdateSettings />}
       <NotificationSettings />
       <Field label={t('settings.general.defaultProvider')} hint={t('settings.general.defaultProviderHint')}>
         <select

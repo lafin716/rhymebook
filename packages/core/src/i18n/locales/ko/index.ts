@@ -29,6 +29,7 @@ import core from './core.json';
 import bridge from './bridge.json';
 import knowledge from './knowledge.json';
 import rag from './rag.json';
+import update from './update.json';
 
 export default {
   common,
@@ -61,4 +62,5 @@ export default {
   bridge,
   knowledge,
   rag,
+  update,
 };

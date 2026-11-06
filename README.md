@@ -36,6 +36,15 @@ Download the latest build from [GitHub Releases](https://github.com/lafin716/oct
 > [!NOTE]
 > Builds are not code-signed yet, so macOS Gatekeeper and Windows SmartScreen will show a warning on first launch. On macOS, right-click the app and choose **Open**.
 
+#### Updates
+
+The desktop app checks GitHub Releases 10 seconds after launch and every 6 hours (or **Settings › General › App updates**). When a new stable version is out, a card shows the current and new version with release notes:
+
+- **Windows (installer)** and **Linux AppImage**: **Download update** → progress → **Restart to install**. Your studies and settings are kept.
+- **macOS** (until builds are signed) and **.deb / portable**: the card opens the release page so you can install the new build manually.
+
+Only published, non-prerelease releases are offered. Versions up to v0.54.0 have no updater, so install the first auto-updating version manually once. To turn checks off, set `RHYMEBOOK_DISABLE_UPDATE=1`.
+
 #### From source
 
 ```bash

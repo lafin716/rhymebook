@@ -160,6 +160,9 @@ App icon: the source is `assets/icon/glyph.svg`; run `node scripts/gen-icons.mjs
 
 - `.github/workflows/ci.yml` — push to main / PRs: typecheck, lint, unit tests, Playwright E2E.
 - `.github/workflows/release.yml` — tag `v*` or manual: desktop installers on macOS / Windows / Linux runners and an Android debug APK, attached to a draft GitHub Release for tags.
+- Tag builds also upload electron-updater metadata (`latest.yml`, `latest-mac.yml`, `latest-linux.yml`, `*.blockmap`). The job fails if the tag differs from `apps/desktop/package.json` `version`.
+- Auto-update (ADR-118): the app reads only the **published, non-prerelease** latest release. Releases are created as drafts, so users get nothing until you publish one as Latest. Release flow: bump the version in `apps/desktop/package.json` → commit → tag `vX.Y.Z` → push the tag → wait for Actions → check the assets → **Publish release**. To roll back, publish a fixed higher version (downgrades are not offered).
+- macOS in-app install needs Developer ID signing + notarization; unsigned macOS builds fall back to "open the release page" (B-17). Local smoke: `pnpm --filter @branch/desktop package:dir` then `RHYMEBOOK_PACKAGED=1 pnpm exec playwright test e2e/update-packaged.spec.ts --project=desktop` (mocked GitHub API).
 - Signing is applied only when repository secrets (`MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`) exist. Never commit certificates (B-10).
 
 ## Naming & compatibility

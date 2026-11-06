@@ -160,6 +160,9 @@ E2E는 모의 Anthropic SSE 서버(`e2e/mock-anthropic.mjs`, :8799)와 Vite(:519
 
 - `.github/workflows/ci.yml` — push(main)·PR: 타입체크·린트·단위 테스트, Playwright E2E.
 - `.github/workflows/release.yml` — 태그 `v*` 또는 수동 실행: macOS·Windows·Linux 러너가 데스크톱 설치본, ubuntu가 Android debug APK를 만들고, 태그면 초안 GitHub Release에 첨부합니다.
+- 태그 빌드는 electron-updater 메타데이터(`latest.yml`, `latest-mac.yml`, `latest-linux.yml`, `*.blockmap`)도 올립니다. 태그와 `apps/desktop/package.json`의 `version`이 다르면 실패합니다.
+- 자동 업데이트(ADR-118): 앱은 **발행된 정식(prerelease 아님)** 최신 릴리스만 봅니다. 릴리스는 초안으로 만들어지므로 Latest로 발행하기 전에는 사용자에게 가지 않습니다. 배포 순서: `apps/desktop/package.json` 버전 올림 → 커밋 → 태그 `vX.Y.Z` → 태그 푸시 → Actions 완료 → 첨부 파일 확인 → **Publish release**. 되돌릴 때는 고친 더 높은 버전을 발행합니다(다운그레이드는 제공하지 않음).
+- macOS 앱 안 설치는 Developer ID 서명·공증이 필요합니다. 미서명 macOS 빌드는 "다운로드 페이지 열기"로 동작합니다(B-17). 로컬 확인: `pnpm --filter @branch/desktop package:dir` 후 `RHYMEBOOK_PACKAGED=1 pnpm exec playwright test e2e/update-packaged.spec.ts --project=desktop`(모의 GitHub API).
 - 서명: 저장소 secrets(`MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`)가 있을 때만 적용됩니다. 인증서를 저장소에 커밋하지 마세요(B-10).
 
 ## 이름과 호환성

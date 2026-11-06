@@ -1208,3 +1208,14 @@
 - **배경**: 원격 지식베이스에 파일을 넣으려면 휴대폰 파일을 PC로 보내야 한다. 동기화 프레임은 4MB 제한이다.
 - **결정**: `knowledge.upload` rpc로 파일을 512KB(원본) base64 조각으로 순서대로 보낸다. PC는 core `createUploadAssembler`(순수 함수, Vitest)로 피어별로 조립하고 마지막 조각에서 `addFiles`를 부른다. 파일당 20MB(`KNOWLEDGE_LIMITS.fileBytes`), 피어당 동시 업로드 3개, 2분 동안 조각이 없으면 버린다. 순서가 어긋나거나 크기가 다르면 거절한다.
 - **대안**: relay를 거치는 별도 HTTP 업로드(새 인증 경로 필요), 한 프레임 통째 전송(4MB 제한·메모리 급증).
+
+### ADR-118 · 2026-11-06 · 데스크톱 앱 자동 업데이트 (electron-updater + GitHub Releases)
+- **배경**: 새 버전이 나오면 사용자가 GitHub에서 설치 파일을 받아 다시 설치해야 했다. 서버·DB 없이 무료로 유지해야 하고, 빌드는 이미 electron-builder다. macOS·Windows 빌드는 아직 서명되지 않았다(B-03).
+- **결정**:
+  1. electron-updater(GitHub provider, 공개 저장소 `lafin716/octobooks`, 토큰 없음)를 main 프로세스에 둔다. 상태 기계(idle/checking/available/downloading/downloaded/installing/error)와 버전 비교·오류 분류·모드 결정은 core `update.ts` 순수 함수(Vitest).
+  2. 모드: Windows NSIS·Developer ID 서명 macOS·Linux AppImage는 `auto`(앱 안에서 다운로드·설치). 미서명 macOS·deb·portable은 `manual`(GitHub API `releases/latest`로 확인 → 알림 → 릴리스 페이지 열기). 개발 실행·`RHYMEBOOK_DISABLE_UPDATE=1`은 `disabled`.
+  3. 실행 10초 뒤·6시간마다 확인, 설정 › 일반에서 수동 확인(5초 간격 제한). 동시 확인은 하나로, 받는 중에는 확인·다운로드를 다시 하지 않는다.
+  4. 다운로드는 사용자 동의 후(autoDownload=false), 무결성은 electron-updater의 sha512(latest*.yml) 검증. 설치는 [재시작하여 설치] → 생성 중 응답 확인 → IndexedDB 쓰기 대기열 flush(실패 시 설치 안 함) → `quitAndInstall`. 앱을 그냥 종료할 때는 설치하지 않는다(`autoInstallOnAppQuit=false`), 20초 안에 종료되지 않으면 downloaded로 되돌린다.
+  5. 정식 릴리스만: allowPrerelease=false, allowDowngrade=false. 초안·prerelease는 대상이 아니다. CI는 태그와 package.json 버전이 다르면 실패하고 `latest*.yml`·blockmap을 함께 올린다. 릴리스는 계속 초안으로 만들고 사람이 Latest로 발행할 때 사용자에게 퍼진다.
+  6. IPC는 인자 없는 5개 채널, 릴리스 페이지는 `https://github.com/lafin716/octobooks/releases/` 아래만 연다.
+- **대안**: 자체 업데이트 서버(비용·운영), update.electronjs.org(공개·서명된 앱만, Linux 미지원), 미서명 macOS에서 직접 dmg 교체(Gatekeeper·무결성 보장 불가 — 서명 전까지 manual 모드).

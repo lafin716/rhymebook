@@ -3,10 +3,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync } from 'node:fs';
 import { createBridgeServer, createKnowledgeStore, createSkillsDir, createSttEngine, resolveCliEnv, startIndexerWorker, parseRetrievalRequest, type BridgeConnection, type KnowledgeTaskControl } from '@branch/bridge';
-import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, secretName, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type KnowledgeIndexSettings, type KnowledgeProgress, type SyncServerMsg, type SyncClientMsg } from '@branch/core';
+import { t, cleanKnowledgeName, isHostPolicy, isKnowledgeId, isKnowledgeLinkUrl, isKnowledgePath, isLocale, secretName, setLocale, isSttAudio, isSttModelId, isSyncClientType, isSyncServerMsg, type BridgeClientMsg, type HostState, type KnowledgeIndexSettings, type KnowledgeProgress, type SyncServerMsg, type SyncClientMsg, type UpdateState } from '@branch/core';
 import { createHostService, type HostService } from './host';
 import { CH } from './ipc';
 import { htmlToPdf } from './pdf';
+import { createAppUpdater, sendToAllWindows, type AppUpdater } from './updater';
 import { createSecretVault } from './secrets';
 
 /**
@@ -76,6 +77,9 @@ let syncReady = false;
 
 /** macOS: Cmd+Q 등 정상 종료 플래그. true면 close 이벤트에서 숨기지 않는다 */
 let quitting = false;
+
+/** 앱 자동 업데이트 (ADR-118). whenReady에서 만든다 */
+let updater: AppUpdater | null = null;
 
 /** 표시 중인 응답 완료 알림 (GC 방지) */
 const liveNotifications = new Set<Notification>();
@@ -628,6 +632,38 @@ void app.whenReady().then(() => {
     for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(CH.sttChanged, state);
   });
 
+  // 앱 업데이트 (ADR-118). 렌더러 인자는 받지 않는다. 초기화 전·실패 시에도 앱은 그대로 동작한다
+  const updaterReady = createAppUpdater({
+    onChange: (state) => sendToAllWindows(CH.updateChanged, state),
+    beforeInstall: () => {
+      quitting = true; // 창 닫기를 숨김으로 가로채지 않게
+    },
+    installFailed: () => {
+      quitting = false;
+    },
+  })
+    .then((u) => {
+      updater = u;
+      u.start(); // 10초 뒤 첫 확인, 이후 6시간마다
+      return u;
+    })
+    .catch((e: unknown) => {
+      console.error('[updater] init failed', e);
+      return null;
+    });
+  const updaterFallback = (): UpdateState => ({ status: 'idle', mode: 'disabled', currentVersion: app.getVersion() });
+  // 앱 창의 메인 프레임만 (설치는 앱을 끝내므로 다른 프레임에서 부르지 못하게)
+  const updHandle = (channel: string, fn: () => unknown) =>
+    ipcMain.handle(channel, (e) => {
+      if (!knowledgeSender(e)) throw new Error('unauthorized');
+      return fn();
+    });
+  updHandle(CH.updateState, async () => (await updaterReady)?.controller.getState() ?? updaterFallback());
+  updHandle(CH.updateCheck, async () => (await updaterReady)?.controller.check({ manual: true }) ?? updaterFallback());
+  updHandle(CH.updateDownload, async () => (await updaterReady)?.controller.download() ?? updaterFallback());
+  updHandle(CH.updateInstall, async () => (await updaterReady)?.controller.install() ?? false);
+  updHandle(CH.updateOpenRelease, async () => (await updaterReady)?.openRelease() ?? false);
+
   // 동기화 IPC 핸들러
   ipcMain.on(CH.hostSyncReady, (_e, ready: unknown) => {
     syncReady = ready === true;
@@ -882,6 +918,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   quitting = true;
+  updater?.stop();
   void indexer?.close();
   bridge.shutdown();
   void host?.shutdown();

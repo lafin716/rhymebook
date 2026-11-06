@@ -1,0 +1,62 @@
+{
+  "notice": {
+    "aria": "앱 업데이트 알림",
+    "availableTitle": "새 버전이 나왔어요",
+    "downloadingTitle": "업데이트를 받는 중",
+    "downloadedTitle": "업데이트 준비 완료",
+    "installingTitle": "업데이트를 설치하는 중",
+    "errorTitle": "업데이트하지 못했어요",
+    "versions": "현재 {current} → 새 버전 {latest}",
+    "notes": "변경 사항",
+    "notesShow": "변경 사항 보기",
+    "notesHide": "변경 사항 접기",
+    "download": "업데이트 다운로드",
+    "later": "나중에",
+    "close": "닫기",
+    "openRelease": "다운로드 페이지 열기",
+    "manualHint": "이 설치본은 앱 안에서 바로 설치할 수 없어요. 다운로드 페이지에서 새 설치 파일을 받아 주세요. 설정과 데이터는 그대로 유지돼요.",
+    "progress": "{percent}% 받음",
+    "progressBytes": "{transferred} / {total}",
+    "downloadedHint": "앱을 다시 시작하면 설치돼요. 설정과 학습 데이터는 그대로 유지돼요.",
+    "restart": "재시작하여 설치",
+    "installingHint": "곧 앱이 종료되고 새 버전으로 다시 열려요.",
+    "retry": "다시 시도",
+    "busyTitle": "생성 중인 응답이 있어요",
+    "busyMessage": "응답 {count}개가 아직 생성 중이에요. 지금 재시작하면 생성이 중단됩니다. 계속할까요?",
+    "busyConfirm": "재시작하여 설치",
+    "saveFailed": "로컬 저장을 끝내지 못해 설치를 미뤘어요. 잠시 후 다시 시도해 주세요."
+  },
+  "errors": {
+    "network": "네트워크에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.",
+    "rateLimit": "GitHub 요청 한도에 걸렸어요. 잠시 후 다시 시도해 주세요.",
+    "integrity": "받은 파일의 무결성 검증에 실패했어요. 파일을 설치하지 않았어요.",
+    "signature": "업데이트 파일의 서명을 확인하지 못했어요. 설치하지 않았어요.",
+    "notFound": "업데이트 파일을 찾지 못했어요. 릴리스가 아직 준비 중일 수 있어요.",
+    "disk": "디스크 공간이 부족하거나 파일을 쓸 수 없어요.",
+    "unknown": "알 수 없는 오류가 났어요."
+  },
+  "settings": {
+    "title": "앱 업데이트",
+    "hint": "새 버전을 앱 실행 10초 뒤와 6시간마다 확인해요. 받기와 설치는 직접 고를 때만 해요.",
+    "current": "현재 버전 {version}",
+    "check": "업데이트 확인",
+    "checking": "확인 중…",
+    "upToDate": "최신 버전을 쓰고 있어요.",
+    "available": "새 버전 {version}을 받을 수 있어요.",
+    "downloading": "새 버전을 받는 중 ({percent}%)",
+    "downloaded": "새 버전 {version}이 준비됐어요. 재시작하면 설치돼요.",
+    "installing": "설치하는 중…",
+    "lastChecked": "마지막 확인 {time}",
+    "showNotice": "알림 다시 보기",
+    "modeAuto": "앱 안에서 바로 받아 설치해요.",
+    "modeManual": "새 버전을 알려 주고, 설치는 다운로드 페이지에서 해요.",
+    "reason": {
+      "dev": "개발 모드에서는 업데이트를 확인하지 않아요.",
+      "envDisabled": "환경 변수 RHYMEBOOK_DISABLE_UPDATE=1로 꺼져 있어요.",
+      "macUnsigned": "이 macOS 빌드는 서명되지 않아 앱 안에서 설치할 수 없어요.",
+      "linuxPackage": "deb 패키지 설치본은 패키지로 업데이트해 주세요.",
+      "portable": "포터블 실행 파일은 새 파일로 바꿔 주세요.",
+      "unsupportedPlatform": "이 환경에서는 앱 안 설치를 지원하지 않아요."
+    }
+  }
+}

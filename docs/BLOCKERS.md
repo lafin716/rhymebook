@@ -20,5 +20,9 @@
 | B-14 | 실기기 확인: 페이지 편집기 선택 시 시스템 메뉴 숨김·키보드 단축키 바 | 개선 | Playwright 모바일(390, 터치)로 단일 선택 메뉴 확인. 네이티브 메뉴 숨김은 실기기만 확인 가능 — 안드로이드는 첫 길게 누르기에서 시스템 메뉴가 한 번 깜빡일 수 있음 | 실기기에서 페이지 글 길게 눌러 고르기 → 앱 선택 메뉴 하나만 뜨는지, 편집 중 키보드 위 단축키 바 확인 |
 | B-15 | 작업 에이전트 세션 한도 | 개선 | IMP-30 하위 에이전트 일부가 세션 한도로 끊긴 채 완료라고 보고 → 리더가 직접 이어서 마무리·검증 | 다음 병렬 작업은 에이전트 결과를 diff·테스트로 확인한 뒤에만 반영 |
 | B-16 | iOS 앱 종료·장시간 백그라운드 중 응답 완료 알림 (APNs 푸시) | 개선 | 백그라운드 진입 직후 약 30초는 beginBackgroundTask로 이어가고, 그 안에 끝나면 로컬 알림. Android는 포그라운드 서비스로 해결(ADR-106) | Apple Developer 계정에서 APNs 키 발급 → 원격(PC) 모드에서 PC/relay가 완료 시 푸시를 보내는 서버 구성, 실기기에서 확인 |
+| B-17 | macOS 앱 안 자동 설치(ADR-118)는 Developer ID 서명·공증된 앱만 가능 | 개선 | 미서명 mac 빌드는 manual 모드: 새 버전 알림 → [다운로드 페이지 열기]. Windows NSIS·Linux AppImage는 서명 없이도 앱 안에서 설치 | B-03과 함께 GitHub Secrets `MAC_CSC_LINK`(p12 base64)·`MAC_CSC_KEY_PASSWORD`·`APPLE_ID`·`APPLE_APP_SPECIFIC_PASSWORD`·`APPLE_TEAM_ID` 등록. 선택: `WIN_CSC_LINK`·`WIN_CSC_KEY_PASSWORD`(SmartScreen 경고 완화) |
+| B-18 | 자동 업데이트 대상 발행 | 개선 | CI는 태그마다 초안 Release를 만들고 설치본과 `latest*.yml`·blockmap을 올린다. 초안·prerelease는 앱이 무시 | 버전 올림 → 태그 `vX.Y.Z` 푸시 → Actions 완료 후 Release에 `latest.yml`·`latest-mac.yml`·`latest-linux.yml` 있는지 확인 → **Publish(Latest)** |
+| B-19 | 기존 사용자(v0.54.0 이하)는 updater가 없어 한 번 수동 설치 필요 | 개선 | 같은 appId·데이터 폴더(`<appData>/rhymebook`)라 덮어 설치해도 학습 기록·설정 유지 | 첫 자동 업데이트 버전 릴리스 노트에 "이번 한 번은 직접 설치" 안내 |
+| B-20 | 실제 설치·재실행 종단 확인 | 개선 | 패키지 앱 e2e(모의 GitHub 응답)로 확인·알림·오류·중복 방지 검증. 실제 다운로드·설치·재실행은 실제 릴리스가 있어야 확인 가능 | 첫 자동 업데이트 버전(N) 설치 → N+1 정식 발행 → Windows·서명 mac에서 알림 → 다운로드 % → 재시작하여 설치 → 새 버전 실행·데이터 유지 확인 |
 
 예상 항목(발생 시 위 표로 이동): (없음)

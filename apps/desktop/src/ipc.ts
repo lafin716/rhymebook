@@ -69,4 +69,10 @@ export const CH = {
   sttRemove: 'stt:remove',
   sttChanged: 'stt:changed',
   setLocale: 'app:set-locale',
+  updateState: 'update:state',
+  updateCheck: 'update:check',
+  updateDownload: 'update:download',
+  updateInstall: 'update:install',
+  updateOpenRelease: 'update:open-release',
+  updateChanged: 'update:changed',
 } as const;

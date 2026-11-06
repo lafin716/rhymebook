@@ -12,6 +12,7 @@ import type { HostPolicy } from '../platform';
 import type { SkillFolder } from '../skillFolder';
 import type { SttModelId, SttState } from '../stt';
 import type { DeviceVoiceLike } from '../tts';
+import type { UpdateState } from '../update';
 import type { BridgeClientMsg, BridgeServerMsg } from './protocol';
 import type { SyncClientMsg, SyncServerMsg } from './sync';
 
@@ -49,6 +50,25 @@ export interface DesktopApi {
   stt?: DesktopSttApi;
   /** 학습별 지식베이스 (ADR-107). 없으면 지식베이스 버튼을 숨긴다 */
   knowledge?: DesktopKnowledgeApi;
+  /** 앱 자동 업데이트 (ADR-118). 없으면 업데이트 알림·설정 항목을 숨긴다 */
+  updater?: DesktopUpdaterApi;
+}
+
+/**
+ * 앱 업데이트. 확인·다운로드·설치는 main 프로세스(electron-updater)가 하고 렌더러는 상태만 받는다.
+ * 인자가 없는 호출뿐이다 (주소·파일 경로를 렌더러가 넘기지 않는다).
+ */
+export interface DesktopUpdaterApi {
+  getState(): Promise<UpdateState>;
+  /** 사용자가 누른 확인 */
+  check(): Promise<UpdateState>;
+  /** 사용자 동의 후 다운로드 (auto 모드). 이미 받는 중이면 무시 */
+  download(): Promise<UpdateState>;
+  /** 받은 업데이트를 설치하고 다시 실행한다. 렌더러는 미리 저장을 끝내 둔다 */
+  install(): Promise<boolean>;
+  /** 브라우저로 릴리스 페이지 열기 (manual 모드) */
+  openRelease(): Promise<boolean>;
+  onChange(listener: (state: UpdateState) => void): () => void;
 }
 
 /**

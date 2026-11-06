@@ -1,4 +1,4 @@
-# 데스크톱 설치 파일 빌드 + Android 디버그 APK → GitHub Release (ADR-022)
+# 데스크톱 설치 파일 + 자동 업데이트 메타데이터 빌드 + Android APK → GitHub Release (ADR-022, ADR-118)
 # 서명은 저장소 secrets가 있을 때만 적용된다. 없으면 서명 없이 빌드한다 (BLOCKERS B-10).
 name: Release
 
@@ -26,6 +26,18 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: 태그와 package.json 버전 확인
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        # 자동 업데이트(ADR-118)는 latest*.yml의 버전으로 새 버전을 판단하므로 태그와 앱 버전이 같아야 한다
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./apps/desktop/package.json').version")"
+          if [[ "$TAG" != "$PKG" ]]; then
+            echo "::error::태그 v$TAG 와 apps/desktop/package.json 버전 $PKG 이 다릅니다"
+            exit 1
+          fi
+          echo "버전 일치: $PKG"
       - run: pnpm install --frozen-lockfile
       - name: 서명 설정 (secrets가 있을 때만)
         shell: bash
@@ -56,6 +68,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # latest*.yml: 자동 업데이트 메타데이터(sha512 포함), *.blockmap: 차등 다운로드 (ADR-118)
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ runner.os }}
@@ -66,6 +79,8 @@ jobs:
             apps/desktop/release/*.exe
             apps/desktop/release/*.AppImage
             apps/desktop/release/*.deb
+            apps/desktop/release/latest*.yml
+            apps/desktop/release/*.blockmap
 
   android:
     name: android
@@ -122,6 +137,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           # 정식 태그는 초안(노트 작성 후 공개), -beta. 태그는 바로 프리릴리즈(Latest 제외)
+          # 자동 업데이트는 공개된 정식 릴리스(Latest)만 본다: 초안·프리릴리즈는 사용자에게 가지 않는다 (ADR-118)
           draft: ${{ !contains(github.ref, '-beta.') }}
           prerelease: ${{ contains(github.ref, '-beta.') }}
           make_latest: ${{ contains(github.ref, '-beta.') && 'false' || 'legacy' }}

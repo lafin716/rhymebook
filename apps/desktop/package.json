@@ -22,6 +22,7 @@
     "@types/qrcode": "^1.5.6",
     "electron": "^44.7.0",
     "electron-builder": "^26.15.3",
+    "electron-updater": "^6.8.11",
     "esbuild": "^0.28.2",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
@@ -86,7 +87,15 @@
         ]
       }
     ],
-    "artifactName": "octobooks-${version}-${os}-${arch}.${ext}"
+    "artifactName": "octobooks-${version}-${os}-${arch}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "lafin716",
+        "repo": "octobooks",
+        "releaseType": "release"
+      }
+    ]
   },
   "author": "octobooks",
   "homepage": "https://github.com/lafin716/octobooks"

@@ -1,0 +1,62 @@
+{
+  "notice": {
+    "aria": "App update notice",
+    "availableTitle": "A new version is available",
+    "downloadingTitle": "Downloading update",
+    "downloadedTitle": "Update ready",
+    "installingTitle": "Installing update",
+    "errorTitle": "Update failed",
+    "versions": "Current {current} → New {latest}",
+    "notes": "What's new",
+    "notesShow": "Show changes",
+    "notesHide": "Hide changes",
+    "download": "Download update",
+    "later": "Later",
+    "close": "Close",
+    "openRelease": "Open download page",
+    "manualHint": "This installation can't be updated in-app. Please download the new installer from the download page. Your settings and data are kept.",
+    "progress": "{percent}% downloaded",
+    "progressBytes": "{transferred} / {total}",
+    "downloadedHint": "Restart the app to install. Your settings and study data are kept.",
+    "restart": "Restart to install",
+    "installingHint": "The app will close and reopen with the new version.",
+    "retry": "Retry",
+    "busyTitle": "Responses are still generating",
+    "busyMessage": "{count} response(s) are still generating. Restarting now will stop them. Continue?",
+    "busyConfirm": "Restart to install",
+    "saveFailed": "Couldn't finish saving local data, so the install was postponed. Please try again shortly."
+  },
+  "errors": {
+    "network": "Couldn't connect to the network. Check your internet connection.",
+    "rateLimit": "GitHub rate limit reached. Please try again later.",
+    "integrity": "The downloaded file failed the integrity check and was not installed.",
+    "signature": "Couldn't verify the update's signature. It was not installed.",
+    "notFound": "Update files weren't found. The release may still be in preparation.",
+    "disk": "Not enough disk space or the file couldn't be written.",
+    "unknown": "An unknown error occurred."
+  },
+  "settings": {
+    "title": "App updates",
+    "hint": "Checks for new versions 10 seconds after launch and every 6 hours. Downloads and installs happen only when you choose.",
+    "current": "Current version {version}",
+    "check": "Check for updates",
+    "checking": "Checking…",
+    "upToDate": "You're on the latest version.",
+    "available": "Version {version} is available.",
+    "downloading": "Downloading new version ({percent}%)",
+    "downloaded": "Version {version} is ready. Restart to install.",
+    "installing": "Installing…",
+    "lastChecked": "Last checked {time}",
+    "showNotice": "Show notice again",
+    "modeAuto": "Downloads and installs inside the app.",
+    "modeManual": "Notifies you of new versions; install from the download page.",
+    "reason": {
+      "dev": "Updates aren't checked in development mode.",
+      "envDisabled": "Disabled by RHYMEBOOK_DISABLE_UPDATE=1.",
+      "macUnsigned": "This macOS build isn't signed, so it can't install updates in-app.",
+      "linuxPackage": "For deb installs, update through the package.",
+      "portable": "For the portable build, replace the executable with the new one.",
+      "unsupportedPlatform": "In-app installs aren't supported in this environment."
+    }
+  }
+}
