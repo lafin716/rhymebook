@@ -132,9 +132,22 @@ describe('knowledge store: 파일 넣기·목록·미리보기', () => {
     const src = await tmp('kb-src-');
     await writeFile(path.join(src, 'note.md'), 'one');
     await store.addPaths(kbId, [path.join(src, 'note.md')]);
+    await writeFile(path.join(src, 'note.md'), 'two');
     const res = await store.addPaths(kbId, [path.join(src, 'note.md')]);
     expect(res.added).toEqual(['note (2).md']);
     expect(await readFile(filesOf('note.md'), 'utf8')).toBe('one');
+  });
+
+  it('같은 이름·같은 내용(해시)의 파일은 복사하지 않고 건너뛴다', async () => {
+    const src = await tmp('kb-src-');
+    await writeFile(path.join(src, 'note.md'), 'same');
+    await store.addPaths(kbId, [path.join(src, 'note.md')]);
+    const res = await store.addPaths(kbId, [path.join(src, 'note.md')]);
+    expect(res).toEqual({ added: [], skipped: 1 });
+    expect(await readFile(filesOf('note.md'), 'utf8')).toBe('same');
+    // 같은 크기라도 내용이 다르면 새 이름으로 넣는다
+    await writeFile(path.join(src, 'note.md'), 'diff');
+    expect((await store.addPaths(kbId, [path.join(src, 'note.md')])).added).toEqual(['note (2).md']);
   });
 
   it('dest는 files/ 안의 폴더로만 가고, 탈출 경로와 링크 폴더는 거절한다', async () => {

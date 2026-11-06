@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { lookup as dnsLookup } from 'node:dns/promises';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { constants as fsc } from 'node:fs';
 import { copyFile, lstat, mkdir, open, readFile, readdir, rename, rm, statfs, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -757,6 +757,18 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
 
   const relOf = (id: string, abs: string) => path.relative(filesDir(id), abs).split(path.sep).join('/');
 
+  /** 두 경로가 모두 일반 파일이고 크기와 SHA-256이 같은가 (링크는 비교하지 않는다) */
+  async function sameFileContent(a: string, b: string): Promise<boolean> {
+    const [sa, sb] = await Promise.all([lstatOrNull(a), lstatOrNull(b)]);
+    if (!sa?.isFile() || !sb?.isFile() || sa.size !== sb.size || sa.size > KNOWLEDGE_LIMITS.fileBytes) return false;
+    const digest = async (f: string) => createHash('sha256').update(await readFile(f)).digest('hex');
+    try {
+      return (await digest(a)) === (await digest(b));
+    } catch {
+      return false;
+    }
+  }
+
   /** 디스크 항목 하나를 dstDir로 복사한다. 제한을 넘으면 건너뛰고 skipped를 센다 */
   async function importEntry(
     src: string,
@@ -1265,6 +1277,11 @@ export function createKnowledgeStore(opts: KnowledgeStoreOptions): KnowledgeStor
               continue;
             }
             const kind: KnowledgeSource['type'] = (await lstatOrNull(p))?.isDirectory() ? 'folder' : 'files';
+            // 같은 이름에 내용(SHA-256)까지 같은 파일이 이미 있으면 복사하지 않는다 (파일 선택기 중복 감지)
+            if (kind === 'files' && (await sameFileContent(p, path.join(dstDir, path.basename(p))))) {
+              budget.skipped++;
+              continue;
+            }
             let top = true;
             const target = await importEntry(p, path.basename(p), dstDir, budget, (abs) => {
               if (top) created.push(abs);
