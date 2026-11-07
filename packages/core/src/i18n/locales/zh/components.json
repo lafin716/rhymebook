@@ -61,7 +61,7 @@
     "notFound": "电脑上没有该会话。已重新获取列表。",
     "notReady": "电脑应用尚未准备就绪。请稍后再试。",
     "offline": "未连接到电脑，无法发送。",
-    "outdated": "电脑应用尚不支持此功能。请将电脑应用（或 octobooks serve）更新到最新版本。",
+    "outdated": "所连接的电脑不支持此功能。请连接最新版 OctoBooks 桌面应用（octobooks serve 不支持）。",
     "rateLimit": "请求过于频繁。请稍后再试。",
     "resumeFailed": "无法重新连接到 {host}。请确认电脑应用正在运行，然后点击 [重新连接]。",
     "timeout": "电脑没有响应，已取消。请检查连接。"

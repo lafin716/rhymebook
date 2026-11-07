@@ -1,12 +1,16 @@
 # Project Progress
 
-Last Updated: 2026-11-06
+Last Updated: 2026-11-07
 Current Stage: **3단계 — 전체 개발 완료**
 Overall Progress: 1·2단계 완료(2026-10-09 컨펌), 3단계 Phase 1~7 전체 완료 + 개선 IMP-01~09 완료 (남은 항목은 사람 조치 — docs/BLOCKERS.md)
 
 > 재개 방법: 루트 `CLAUDE.md` → 이 파일 → `docs/02-ARCHITECTURE.md` → `git log`/`git status` 순으로 읽고,
 > 아래 체크리스트에서 첫 번째 미완료 항목부터 이어서 진행한다.
 > 게이트 통과: 2026-10-09 사용자 "컨펌". 3단계는 질문 없이 진행(결정 → DECISIONS, 사람 조치 → BLOCKERS).
+
+## 원격 관리 미지원 호스트 무한 로딩 수정 (2026-11-07, ADR-135)
+
+- DONE: sync 클라이언트가 스냅샷에서 `manage`를 불리언으로 확정 → 휴대폰을 `octobooks serve`에 연결해도 예약·지식베이스·프롬프트 화면이 "지원하지 않음" 안내를 보여 줌(무한 로딩 제거). 안내 문구 5개 언어 교체. 회귀 테스트 syncRpc.test.ts. 검증: typecheck·lint·test PASS (core 918·ui 169·bridge 382(3 skip)·relay 9·server 10).
 
 ## 지식베이스 유형 개편 — Codebase(Agentic)·Document(Hybrid) (2026-11-06, ADR-127~134)
 계획: docs/plans/kb-types-overhaul-plan.md · 아키텍처: docs/knowledge-architecture.md · 평가: docs/eval/kb-types-2026-11-06.md

@@ -11,8 +11,8 @@
     "exitFull": "退出全屏"
   },
   "remote": {
-    "outdated": "需要更新电脑应用",
-    "outdatedHint": "将电脑应用更新到最新版本后，即可在此管理知识库。",
+    "outdated": "此电脑无法管理",
+    "outdatedHint": "连接最新版 OctoBooks 桌面应用后，即可在此管理知识库。octobooks serve 不支持。",
     "connecting": "正在连接电脑…",
     "offline": "未连接到电脑。连接后即可在此管理知识库。",
     "deleteOff": "电脑设置中已关闭远程删除。",

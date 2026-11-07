@@ -312,7 +312,9 @@ export function createSyncClient(opts: SyncClientOptions): SyncClient {
     switch (msg.type) {
       case 'sync.snapshot': {
         hostFeatures = msg.features ? new Set(msg.features) : null;
-        if (!!state.getState().manage !== !!hostFeatures?.has(SYNC_MANAGE_FEATURE)) setState({ manage: !!hostFeatures?.has(SYNC_MANAGE_FEATURE) });
+        // undefined(스냅샷 전)와 false(관리 미지원)를 구분해야 화면이 무한 대기하지 않는다
+        const manage = !!hostFeatures?.has(SYNC_MANAGE_FEATURE);
+        if (state.getState().manage !== manage) setState({ manage });
         dropPending();
         requested.clear();
         const gone = new Set(Object.keys(s.sessions).filter((id) => !msg.sessions[id]));

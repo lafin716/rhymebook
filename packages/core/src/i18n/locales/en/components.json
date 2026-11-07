@@ -61,7 +61,7 @@
     "notFound": "That session is not on the PC. The list has been refreshed.",
     "notReady": "The PC app is not ready yet. Try again in a moment.",
     "offline": "Could not send because you are not connected to the PC.",
-    "outdated": "The PC app does not support this feature yet. Update the PC app (or octobooks serve) to the latest version.",
+    "outdated": "The connected PC does not support this feature. Connect to the latest OctoBooks desktop app (octobooks serve does not support it).",
     "rateLimit": "Too many requests. Try again in a moment.",
     "resumeFailed": "Could not reconnect to {host}. Check that the PC app is running, then press [Reconnect].",
     "timeout": "The PC did not respond, so the request was cancelled. Check the connection."

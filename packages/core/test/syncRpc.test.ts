@@ -234,7 +234,7 @@ describe('sync rpc host ↔ client', () => {
 
   it('old hosts without an rpc handler → outdated, without sending', async () => {
     const { client, sent } = await start();
-    expect(client.state.getState().manage).toBeFalsy();
+    expect(client.state.getState().manage).toBe(false);
     await expect(client.rpc('knowledge.list')).rejects.toMatchObject({ code: 'outdated' });
     expect(sent.some((m) => m.type === 'sync.rpc')).toBe(false);
   });

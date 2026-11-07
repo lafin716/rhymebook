@@ -11,8 +11,8 @@
     "exitFull": "全画面表示を終了"
   },
   "remote": {
-    "outdated": "PCアプリのアップデートが必要です",
-    "outdatedHint": "PCアプリを最新版に更新すると、ここでもナレッジベースを管理できます。",
+    "outdated": "このPCでは管理できません",
+    "outdatedHint": "最新のOctoBooksデスクトップアプリに接続すると、ここでもナレッジベースを管理できます。octobooks serve は非対応です。",
     "connecting": "PCに接続しています…",
     "offline": "PCに接続されていません。接続するとここでナレッジベースを管理できます。",
     "deleteOff": "PCの設定で遠隔削除がオフになっています。",

@@ -11,8 +11,8 @@
     "exitFull": "Exit full screen"
   },
   "remote": {
-    "outdated": "PC app update required",
-    "outdatedHint": "Update the PC app to the latest version to manage knowledge bases here too.",
+    "outdated": "Not available on this PC",
+    "outdatedHint": "Connect to the latest OctoBooks desktop app to manage knowledge bases here. octobooks serve does not support it.",
     "connecting": "Connecting to the PC…",
     "offline": "Not connected to the PC. Once connected, you can manage knowledge bases here.",
     "deleteOff": "Remote deletion is turned off in the PC settings.",

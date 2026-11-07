@@ -11,8 +11,8 @@
     "exitFull": "전체 화면 끝내기"
   },
   "remote": {
-    "outdated": "PC 앱 업데이트 필요",
-    "outdatedHint": "PC 앱을 최신 버전으로 업데이트하면 여기서도 지식베이스를 관리할 수 있어요.",
+    "outdated": "이 PC에서는 관리할 수 없어요",
+    "outdatedHint": "최신 데스크톱 OctoBooks 앱에 연결하면 여기서도 지식베이스를 관리할 수 있어요. octobooks serve는 지원하지 않아요.",
     "connecting": "PC에 연결하는 중이에요…",
     "offline": "PC와 연결되어 있지 않아요. 연결되면 여기서 지식베이스를 관리할 수 있어요.",
     "deleteOff": "PC 설정에서 원격 삭제가 꺼져 있어요.",

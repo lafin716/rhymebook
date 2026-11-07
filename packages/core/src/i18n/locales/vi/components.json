@@ -61,7 +61,7 @@
     "notFound": "Không có phiên này trên PC. Đã tải lại danh sách.",
     "notReady": "Ứng dụng PC chưa sẵn sàng. Hãy thử lại sau ít phút.",
     "offline": "Không thể gửi vì chưa kết nối với PC.",
-    "outdated": "Ứng dụng PC chưa hỗ trợ tính năng này. Hãy cập nhật ứng dụng PC (hoặc octobooks serve) lên phiên bản mới nhất.",
+    "outdated": "PC đang kết nối không hỗ trợ tính năng này. Hãy kết nối với ứng dụng OctoBooks trên máy tính bản mới nhất (octobooks serve không hỗ trợ).",
     "rateLimit": "Yêu cầu quá dày. Hãy thử lại sau ít phút.",
     "resumeFailed": "Không thể kết nối lại với {host}. Hãy kiểm tra ứng dụng PC có đang chạy không, rồi nhấn [Kết nối lại].",
     "timeout": "PC không phản hồi nên đã hủy yêu cầu. Hãy kiểm tra kết nối."
